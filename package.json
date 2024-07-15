@@ -1,0 +1,50 @@
+{
+  "name": "typegres",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsgo",
+    "preview": "vite preview",
+    "test": "vitest run --root src/",
+    "typecheck": "tsgo --noEmit",
+    "lint": "eslint",
+    "prepare": "true",
+    "format": "prettier --write \"**/*.{ts,js,json}\"",
+    "codegen": "./src/gen/gen.sh && ./src/gen/table-gen.sh",
+    "clean": "(rm ./src/gen/functions.ts; rm -r ./src/gen/types; rm ./src/gen/tables.json; rm ./src/gen/tables.ts) || true",
+    "prepublishOnly": "npm run clean && npm run codegen && npm run typecheck && npm run lint && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.6",
+    "kysely-ctl": "^0.9.0",
+    "prettier": "3.6.2",
+    "typescript": "^5.8.2",
+    "vite": "^5.3.1"
+  },
+  "dependencies": {
+    "@rollup/plugin-typescript": "^12.1.1",
+    "@typescript/native-preview": "^7.0.0-dev.20250626.1",
+    "camelcase": "^8.0.0",
+    "csv": "^6.3.10",
+    "eslint": "^8.42.0",
+    "globals": "^15.8.0",
+    "kysely": "^0.27.4",
+    "npm": "^10.9.0",
+    "pg": "^8.12.0",
+    "postgres-bytea": "^3.0.0",
+    "postgres-date": "^2.1.0",
+    "tsafe": "^1.8.5",
+    "tslib": "^2.8.1",
+    "vitest": "^2.0.2",
+    "zx": "^8.5.3"
+  },
+  "description": "PostgreSQL, expressed in Typescript",
+  "main": "index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "author": "Ryan Rasti",
+  "license": "MIT"
+}
