@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 17, 24, 39;
+  --background-rgb: 255, 255, 255;
+  --typegres-blue: 59, 130, 246;
+  --typegres-dark: 17, 24, 39;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-rgb: 17, 24, 39;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .bg-dot-pattern {
+    background-image: radial-gradient(circle, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-typegres-dark to-typegres-blue bg-clip-text text-transparent;
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    .gradient-text {
+      @apply bg-gradient-to-r from-gray-100 via-gray-200 to-typegres-blue;
+    }
+  }
+}

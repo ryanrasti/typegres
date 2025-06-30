@@ -1,0 +1,12 @@
+<svg width="80" height="100" viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
+  <title>typegres icon</title>
+  <!-- Elephant icon -->
+  <g id="elephant">
+    <!-- Body -->
+    <rect x="10" y="10" width="60" height="60" rx="12" ry="12" fill="#3B82F6"/>
+    <!-- Trunk -->
+    <rect x="40" y="68" width="16" height="24" rx="5" ry="5" fill="#3B82F6"/>
+    <!-- Eye -->
+    <circle cx="52" cy="32" r="4" fill="#ffffff"/>
+  </g>
+</svg>
