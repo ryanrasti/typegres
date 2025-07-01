@@ -20,7 +20,7 @@
     "monaco-editor": "^0.52.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "typegres": "file:..",
+    "typegres": "0.0.1",
     "vike": "^0.4.235",
     "vike-react": "^0.6.4"
   },
