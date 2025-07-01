@@ -1,0 +1,21 @@
+
+<svg width="420" height="120" viewBox="0 0 420 120" xmlns="http://www.w3.org/2000/svg">
+  <title>typegres logo</title>
+  <g transform="translate(0,10)">
+    <!-- Elephant icon -->
+    <g id="elephant" transform="translate(0,0)">
+      <!-- Body -->
+      <rect x="10" y="0" width="60" height="60" rx="12" ry="12" fill="#3B82F6"/>
+      <!-- Trunk -->
+      <rect x="40" y="58" width="16" height="24" rx="5" ry="5" fill="#3B82F6"/>
+      <!-- Eye -->
+      <circle cx="52" cy="22" r="4" fill="#ffffff"/>
+    </g>
+
+    <!-- Word‑mark -->
+    <text x="100" y="45" font-family="Inter, Helvetica, Arial, sans-serif" font-size="48" font-weight="600" fill="#111827">
+      type
+      <tspan fill="#3B82F6">gres</tspan>
+    </text>
+  </g>
+</svg>

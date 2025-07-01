@@ -24,7 +24,6 @@ dist-ssr
 *.sw?
 
 .direnv/
-.envrc
 pg_data/
 result
 

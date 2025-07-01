@@ -39,7 +39,7 @@
     "vitest": "^2.0.2",
     "zx": "^8.5.3"
   },
-  "description": "PostgreSQL, expressed in Typescript",
+  "description": "PostgreSQL, expressed in TypeScript",
   "main": "index.js",
   "types": "dist/index.d.ts",
   "files": [

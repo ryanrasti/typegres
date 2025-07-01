@@ -9,12 +9,13 @@
         let
           pkgs = import nixpkgs {
             inherit system;
+            config.allowUnfree = true;
           };
           node = pkgs.nodejs_20;
         in
         {
           devShells.default = pkgs.mkShell {
-            buildInputs = [ node pkgs.postgresql pkgs.jq ];
+            buildInputs = [ node pkgs.postgresql pkgs.jq pkgs.claude-code pkgs.nixfmt];
           };
           formatter = pkgs.nixpkgs-fmt;
           packages.default =
