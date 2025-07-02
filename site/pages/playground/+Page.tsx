@@ -4,6 +4,7 @@ import { Play, Database, FileCode, Terminal } from 'lucide-react'
 import { PGlite } from '@electric-sql/pglite'
 import type * as Monaco from 'monaco-editor'
 import { setupMonacoTypescript } from '../../lib/monaco-typegres-setup'
+import { UnderConstructionBanner } from '../../src/components/UnderConstructionBanner'
 
 const defaultCode = `import { db, sql } from 'typegres'
 import type { Database } from 'typegres'
@@ -326,6 +327,7 @@ COMMIT;`)
 
   return (
     <div className="min-h-screen bg-white dark:bg-typegres-dark text-typegres-dark dark:text-white">
+      <UnderConstructionBanner />
       <nav className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">

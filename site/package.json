@@ -18,8 +18,10 @@
     "kysely": "^0.27.4",
     "lucide-react": "^0.481.0",
     "monaco-editor": "^0.52.2",
+    "prism-react-renderer": "^2.4.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "terser": "^5.43.1",
     "typegres": "0.0.1",
     "vike": "^0.4.235",
     "vike-react": "^0.6.4"

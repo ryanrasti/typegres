@@ -30,4 +30,8 @@ FROM (
 
 SQL
 
+echo "Generated tables.json:" >&2
+cat tables.json >&2
+echo "Generating TypeScript types..." >&2
+
 tsx table-gen.ts

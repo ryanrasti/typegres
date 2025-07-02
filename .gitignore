@@ -34,3 +34,5 @@ src/gen/tables.json
 
 .aider*
 .envrc.secrets
+
+site/public/api
