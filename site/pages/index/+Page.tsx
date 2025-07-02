@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { ArrowRight, Code, Database, Bot, Shield, CheckCircle } from 'lucide-react'
-import { CodeBlock } from '../../src/components/CodeBlock'
-import { UnderConstructionBanner } from '../../src/components/UnderConstructionBanner'
+import { CodeBlock } from '@/components/CodeBlock'
+import { UnderConstructionBanner } from '@/components/UnderConstructionBanner'
 
 export default function Page() {
   return (

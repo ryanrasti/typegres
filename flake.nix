@@ -104,12 +104,10 @@
                   export PATH=$PWD/node_modules/.bin:$PATH
 
                   npm run build
-                  exit 1
                 '';
                 installPhase = ''
                   mkdir -p $out
-                  exit 2
-                  mv ./site/dist $out
+                  cp -r ./dist/* $out/
                 '';
               };
 

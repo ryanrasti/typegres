@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "npm run build:docs && vite build",
-    "build:docs": "typedoc",
-    "preview": "vite preview",
+    "dev": "vike dev",
+    "build": "npm run build:docs && vike build",
+    "build:docs": "typedoc && rm -r public/api/media",
+    "preview": "vike preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },

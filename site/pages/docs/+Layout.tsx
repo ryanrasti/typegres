@@ -1,5 +1,5 @@
 import { FileText, Book, Code2, Home } from 'lucide-react'
-import { UnderConstructionBanner } from '../../src/components/UnderConstructionBanner'
+import { UnderConstructionBanner } from '@/components/UnderConstructionBanner'
 
 export default function DocsLayout({
   children,

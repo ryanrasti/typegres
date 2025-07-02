@@ -1,5 +1,5 @@
-import { PocWarning } from '../../../src/components/poc-warning'
-import { CodeBlock } from '../../../src/components/CodeBlock'
+import { PocWarning } from '@/components/poc-warning'
+import { CodeBlock } from '@/components/CodeBlock'
 
 export default function QuickstartPage() {
   return (

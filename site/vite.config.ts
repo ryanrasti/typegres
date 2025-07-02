@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [
     react(),
     vike({
-      prerender: true
+      prerender: true,
+      includeAssetsImportedByServer: true
     })
   ],
   resolve: {

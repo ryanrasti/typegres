@@ -1,4 +1,4 @@
-import { PocWarning } from '../../../src/components/poc-warning'
+import { PocWarning } from '@/components/poc-warning'
 
 export default function DocsPage() {
   return (
