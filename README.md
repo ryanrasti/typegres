@@ -1,5 +1,7 @@
 # Typegres
 
+[![CI](https://github.com/ryanrasti/typegres/actions/workflows/main.yml/badge.svg)](https://github.com/ryanrasti/typegres/actions/workflows/main.yml)
+
 > PostgreSQL, expressed in TypeScript
 
 Typegres is a TypeScript library that brings the full power of PostgreSQL to TypeScript with complete type safety. Import the full power of Postgres as a TypeScript library.
