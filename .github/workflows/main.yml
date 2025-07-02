@@ -1,4 +1,4 @@
-name: "Test"
+name: "Test & Deploy to GitHub Pages"
 on:
   pull_request:
   push:
@@ -13,8 +13,7 @@ jobs:
   site:
     runs-on: ubuntu-latest
     needs: tests
-    # uncomment when ready to deploy:
-    # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       pages: write
