@@ -1,7 +1,7 @@
 import { Expression, LiteralExpression } from "../expression";
-import { db } from "../test/db";
 import { default as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
+import { Typegres } from "../db";
 
 export type ClassType<T> = {
   typeString(): string | undefined;
@@ -53,7 +53,7 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
     const typeString = this.getClass()?.typeString();
     if (!typeString) {
       throw new Error(
-        `Type string is not defined for ${this.constructor.name}`,
+        `Type string is not defined for ${this.constructor.name}`
       );
     }
     return new LiteralExpression(this.v, typeString);
@@ -67,26 +67,35 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
     return v;
   }
 
-  then(
-    resolve: (result: N extends 0 ? null : N extends 1 ? R : R | null) => void,
-    reject: (err: unknown) => void,
-  ): void {
-    const expr = this.toExpression();
-    const kexpr = db.selectNoFrom(expr.compile(Context.new()).as("val"));
+  execute(db: Typegres) {
+    const self = this;
+    return {
+      then(
+        resolve: (
+          result: N extends 0 ? null : N extends 1 ? R : R | null
+        ) => void,
+        reject: (err: unknown) => void
+      ): void {
+        const expr = self.toExpression();
+        const kexpr = db.selectNoFrom(
+          expr.compile(Context.new()).as("val")
+        );
 
-    kexpr
-      .executeTakeFirst()
-      ?.then((result) =>
-        resolve(
-          (result?.val != null
-            ? this.getClass().parse(result.val as string)
-            : result?.val) as unknown as any,
-        ),
-      )
-      .catch((err) => {
-        console.error("Error executing query:", kexpr.compile(), err);
-        reject(err);
-      });
+        kexpr
+          .executeTakeFirst()
+          ?.then((result) =>
+            resolve(
+              (result?.val != null
+                ? self.getClass().parse(result.val as string)
+                : result?.val) as unknown as any
+            )
+          )
+          .catch((err) => {
+            console.error("Error executing query:", kexpr.compile(), err);
+            reject(err);
+          });
+      },
+    };
   }
 
   getClass(this: this): typeof Any {

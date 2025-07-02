@@ -48,18 +48,18 @@ type Database<DB extends DbSchema> = {
   [t in keyof DB]: Table<{ from: TableSchemaToRowLike<DB[t]> }>;
 };
 
-const table = (name: string, columns: TableSchema, db: Kysely<any>) => {
+const table = (name: string, columns: TableSchema) => {
   const rowLike = Object.fromEntries(
     Object.entries(columns).map(([name, col]) => [name, col.new("")]),
   ) as RowLike;
-  return Table.of(rowLike, db).new(new RawTableReferenceExpression(name, rowLike));
+  return Table.of(rowLike).new(new RawTableReferenceExpression(name, rowLike));
 };
 
-export const database = <DB extends DbSchema>(schema: DB, db: Kysely<any>) => {
+export const database = <DB extends DbSchema>(schema: DB) => {
   return Object.fromEntries(
     Object.entries(schema).map(([name, columns]) => [
       name,
-      table(name, columns, db),
+      table(name, columns),
     ]),
   ) as Database<DB>;
 };
@@ -74,13 +74,12 @@ class Table<Q extends Query> extends Setof<Q> {
     public fromAlias: QueryAlias,
     public joinAliases: Record<string, QueryAlias>,
     public query: Q,
-    public db: Kysely<any>,
     public fromRow: RowLike,
   ) {
-    super(rawFromExpr, fromAlias, joinAliases, query, db, fromRow);
+    super(rawFromExpr, fromAlias, joinAliases, query, fromRow);
   }
 
-  static of<R extends RowLike>(fromRow: R, db: Kysely<any>) {
+  static of<R extends RowLike>(fromRow: R) {
     return class extends Table<{
       from: R;
       select: R;
@@ -98,7 +97,6 @@ class Table<Q extends Query> extends Setof<Q> {
           {
             from: aliasRowLike(alias, fromRow),
           },
-          db,
           fromRow,
         );
       }
@@ -200,7 +198,6 @@ class UpdateBuilder<
             from.fromAlias,
             from.joinAliases,
             rest,
-            from.db,
             from.fromRow,
           );
 

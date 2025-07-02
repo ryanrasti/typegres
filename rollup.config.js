@@ -13,17 +13,13 @@ export default [
     },
     // External Node.js built-ins and packages that depend on them
     external: [
-      // Node.js built-ins
-      'events', 'crypto', 'dns', 'fs', 'net', 'tls', 'path', 'stream', 'string_decoder', 'util', 'buffer', 'os', 'process', 'child_process', 'http', 'https', 'url', 'querystring', 'zlib',
-      // pg and related packages that require Node.js
-      'pg', 'pg-pool', 'pg-types', 'pg-protocol', 'pg-connection-string', 'pg-cloudflare', 'postgres-bytea',
-      // CSV package also uses Node.js streams
-      'csv', 'csv-generate', 'csv-parse', 'csv-stringify', 'stream-transform'
+      'pg', 'pglite'
     ],
     plugins: [
       resolve({
         preferBuiltins: false,
-        browser: true
+        browser: true,
+        
       }),
       commonjs(),
       typescript({
@@ -39,8 +35,6 @@ export default [
       file: 'dist/typegres.bundle.d.ts',
       format: 'es'
     },
-    // Keep external for type definitions to avoid bloating
-    external: ['pg', 'kysely', 'camelcase', 'postgres-array', 'postgres-date', 'postgres-interval', 'postgres-bytea', 'postgres-range'],
     plugins: [
       dts({
         respectExternal: true
