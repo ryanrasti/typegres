@@ -36,3 +36,5 @@ src/gen/tables.json
 .envrc.secrets
 
 site/public/api
+.next
+site/out

@@ -15,8 +15,6 @@ export default function DocsPage() {
         <PocWarning />
       </section>
 
-
-
       <section className="mb-12">
         <h2 className="text-2xl font-semibold mb-4">Key Features</h2>
         <p className="text-gray-600 dark:text-gray-300 mb-4">

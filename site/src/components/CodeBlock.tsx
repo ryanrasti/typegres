@@ -1,5 +1,8 @@
+'use client'
+
 import { useState } from 'react'
 import { Copy, Check } from 'lucide-react'
+import { Highlight, themes } from 'prism-react-renderer'
 
 interface CodeBlockProps {
   code: string
@@ -11,11 +14,9 @@ export function CodeBlock({ code, language = 'typescript', showLineNumbers = fal
   const [copied, setCopied] = useState(false)
 
   const copyToClipboard = () => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(code)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
+    navigator.clipboard.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
@@ -33,9 +34,28 @@ export function CodeBlock({ code, language = 'typescript', showLineNumbers = fal
           )}
         </button>
       </div>
-      <pre className="p-4 overflow-x-auto">
-        <code className="text-sm text-gray-200">{code.trim()}</code>
-      </pre>
+      <Highlight
+        theme={themes.nightOwl}
+        code={code.trim()}
+        language={language}
+      >
+        {({ className, style, tokens, getLineProps, getTokenProps }) => (
+          <pre className={`${className} p-4 overflow-x-auto`} style={style}>
+            {tokens.map((line, i) => (
+              <div key={i} {...getLineProps({ line })}>
+                {showLineNumbers && (
+                  <span className="inline-block w-8 text-gray-500 select-none">
+                    {i + 1}
+                  </span>
+                )}
+                {line.map((token, key) => (
+                  <span key={key} {...getTokenProps({ token })} />
+                ))}
+              </div>
+            ))}
+          </pre>
+        )}
+      </Highlight>
     </div>
   )
 }

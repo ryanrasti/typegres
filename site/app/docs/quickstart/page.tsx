@@ -182,7 +182,7 @@ const searchResults = await db
   .selectFrom('posts')
   .select(['id', 'title', 'content'])
   .where(
-    db.fn.to_tsvector('english', 'title || \' \' || content'),
+    db.fn.to_tsvector('english', 'title || \\' \\' || content'),
     '@@',
     db.fn.plainto_tsquery('english', 'typescript postgresql')
   )

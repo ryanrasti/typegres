@@ -12,6 +12,20 @@
             config.allowUnfree = true;
           };
           node = pkgs.nodejs_20;
+          buildModulesSite = pkgs.runCommand "node_modules" { } ''
+            mkdir $out; cd $out
+            cp ${./site/package.json} package.json
+            ${pkgs.node2nix}/bin/node2nix -d -l ${./site/package-lock.json}
+          '';
+          generatedSite = (import buildModulesSite { pkgs = pkgs; nodejs = node; }).nodeDependencies.overrideAttrs (oldAttrs: {
+            # There's an issue with napi-postinstall that isn't marked executable when the first patchShebangs is run.
+            preRebuild = ''
+              echo "Patching shebangs in node_modules/napi-postinstall/lib" >&2
+              chmod +x node_modules/napi-postinstall/lib/cli.js
+              patchShebangs node_modules/napi-postinstall/lib/cli.js
+              echo "Patching shebangs done" >&2
+            '';
+          });
           bootstrapped =
             let
               buildModules = pkgs.runCommand "node_modules" { } ''
@@ -21,12 +35,7 @@
               '';
               generated = import buildModules { pkgs = pkgs; nodejs = node; };
 
-              buildModulesSite = pkgs.runCommand "node_modules" { } ''
-                mkdir $out; cd $out
-                cp ${./site/package.json} package.json
-                ${pkgs.node2nix}/bin/node2nix -d -l ${./site/package-lock.json}
-              '';
-              generatedSite = import buildModulesSite { pkgs = pkgs; nodejs = node; };
+
             in
             pkgs.stdenv.mkDerivation {
               name = "bootstrapped.tar";
@@ -38,7 +47,7 @@
                 cp -rT --no-preserve=ownership ${generated.nodeDependencies}/lib/node_modules ./node_modules
                 chmod -R u+rw ./node_modules
 
-                cp -rT --no-preserve=ownership ${generatedSite.nodeDependencies}/lib/node_modules ./site/node_modules
+                cp -rT --no-preserve=ownership ${generatedSite}/lib/node_modules ./site/node_modules
                 chmod -R u+rw ./site/node_modules
 
                 psql -U postgres -h localhost -p 1234 < <(echo "create database test")
@@ -74,6 +83,14 @@
                 buildPhase = ''
                   export PATH=$PWD/node_modules/.bin:$PATH
                   npm run build
+
+                  npm run typecheck
+                  npm run lint
+                  
+                  bash ./start_postgres.sh
+                  kysely --no-outdated-check migrate:up -e test
+
+                  npm run test
                 '';
 
                 installPhase = ''
@@ -82,15 +99,6 @@
                   cp package.json $out/lib/package.json
                   cp README.md $out/lib/README.md
                   cp LICENSE $out/lib/LICENSE
-                '';
-
-                checkPhase = ''
-                  #mkdir $out
-                  #ln -s $out ./node_modules/.vitest
-
-                  npm run typecheck
-                  npm run lint
-                  npm run test
                 '';
               };
 
@@ -107,7 +115,7 @@
                 '';
                 installPhase = ''
                   mkdir -p $out
-                  cp -r ./dist/* $out/
+                  cp -r ./site/out/* $out/
                 '';
               };
 
