@@ -11,7 +11,7 @@
     "lint": "eslint",
     "prepare": "true",
     "format": "prettier --write \"**/*.{ts,js,json}\"",
-    "codegen": "./src/gen/gen.sh && ./src/gen/table-gen.sh",
+    "codegen": "bash ./src/gen/gen.sh && kysely --no-outdated-check migrate:up -e test && bash ./src/gen/table-gen.sh",
     "clean": "(rm ./src/gen/functions.ts; rm -r ./src/gen/types; rm ./src/gen/tables.json; rm ./src/gen/tables.ts) || true",
     "prepublishOnly": "npm run clean && npm run codegen && npm run typecheck && npm run lint && npm test && npm run build"
   },
