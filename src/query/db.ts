@@ -1,5 +1,4 @@
 import { Kysely, sql } from "kysely";
-import { db } from "../test/db";
 import { Any, Bool } from "../types";
 import {
   aliasRowLike,
@@ -49,18 +48,18 @@ type Database<DB extends DbSchema> = {
   [t in keyof DB]: Table<{ from: TableSchemaToRowLike<DB[t]> }>;
 };
 
-const table = (name: string, columns: TableSchema) => {
+const table = (name: string, columns: TableSchema, db: Kysely<any>) => {
   const rowLike = Object.fromEntries(
     Object.entries(columns).map(([name, col]) => [name, col.new("")]),
   ) as RowLike;
-  return Table.of(rowLike).new(new RawTableReferenceExpression(name, rowLike));
+  return Table.of(rowLike, db).new(new RawTableReferenceExpression(name, rowLike));
 };
 
-export const database = <DB extends DbSchema>(schema: DB) => {
+export const database = <DB extends DbSchema>(schema: DB, db: Kysely<any>) => {
   return Object.fromEntries(
     Object.entries(schema).map(([name, columns]) => [
       name,
-      table(name, columns),
+      table(name, columns, db),
     ]),
   ) as Database<DB>;
 };
@@ -81,7 +80,7 @@ class Table<Q extends Query> extends Setof<Q> {
     super(rawFromExpr, fromAlias, joinAliases, query, db, fromRow);
   }
 
-  static of<R extends RowLike>(fromRow: R) {
+  static of<R extends RowLike>(fromRow: R, db: Kysely<any>) {
     return class extends Table<{
       from: R;
       select: R;
