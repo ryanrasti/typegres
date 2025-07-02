@@ -114,8 +114,7 @@
                   npm run build
                 '';
                 installPhase = ''
-                  mkdir -p $out
-                  cp -r ./site/out/* $out/
+                  mv ./out $out
                 '';
               };
 
