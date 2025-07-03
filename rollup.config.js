@@ -35,6 +35,9 @@ export default [
       file: 'dist/typegres.d.ts',
       format: 'es'
     },
+    external: [
+      'kysely', 'pg', 'pglite'
+    ],
     plugins: [
       dts({
         respectExternal: true

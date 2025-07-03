@@ -67,7 +67,7 @@ export async function transformCodeWithEsbuild(code: string): Promise<string> {
     const result = await transform(code, {
       loader: "ts",
       format: "esm",
-      target: "es2020",
+      target: "es2022", // ES2022 supports top-level await
       sourcemap: false,
     });
 

@@ -7,6 +7,13 @@ import {
   transformCodeWithEsbuild,
 } from "@/lib/monaco-typegres-integration";
 
+declare global {
+  interface Window {
+    typegres: any;
+    pglite: any;
+  }
+}
+
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
 });
@@ -17,17 +24,18 @@ interface TypegresPlaygroundProps {
 }
 
 export function TypegresPlayground({
-  initialCode = `import { db } from 'typegres'
+  initialCode = `import { db, Int4 } from 'typegres'
+import { PGlite } from '@electric-sql/pglite'
 
-// Example query
-const result = db
-  .selectFrom('users')
-  .select(['id', 'name', 'email'])
-  .where('active', '=', true)
-  .orderBy('created_at', 'desc')
-  .limit(10)
+const dbR = await db({
+  type: 'pglite',
+  PGliteClass: PGlite,
+});
 
-console.log(result)`,
+const result = await Int4.new(2).int4Pl(2).execute(dbR)
+
+console.log(result)
+`,
   height = "400px",
 }: TypegresPlaygroundProps) {
   const [code, setCode] = useState(initialCode);
@@ -55,15 +63,76 @@ console.log(result)`,
 
   const runCode = async () => {
     try {
-      // Transform the TypeScript code
+      // Load the typegres bundle if not already loaded
+      if (!window.typegres) {
+        try {
+          const typegresModule = await import('../../public/typegres');
+          window.typegres = typegresModule;
+          
+          console.log('Typegres bundle loaded:', window.typegres);
+        } catch (error) {
+          console.error('Failed to load typegres bundle:', error);
+          throw new Error('Failed to load typegres bundle');
+        }
+      }
+      if (!window.pglite) {
+        try {
+          const pgliteModule = await import('@electric-sql/pglite');
+          window.pglite = pgliteModule;
+          
+          console.log('PGlite loaded:', window.pglite);
+        } catch (error) {
+          console.error('Failed to load PGlite:', error);
+          throw new Error('Failed to load PGlite');
+        }
+      }
+
+      // Transform the TypeScript code and replace imports
       const jsCode = await transformCodeWithEsbuild(code);
+      
+      // Replace import statements with destructuring from the typegres parameter
+      const transformedCode = jsCode.replace(
+        /import\s*\{([^}]+)\}\s*from\s*['"]typegres['"]/g,
+        'const {$1} = typegres'
+      ).replace(
+        /import\s*\{([^}]+)\}\s*from\s*['"]@electric-sql\/pglite['"]/g,
+        'const {$1} = pglite'
+      );
 
-      // For now, just show the transformed code
-      setOutput({
-        sql: `// Transformed JavaScript:\n${jsCode}`,
-      });
+      console.log("Transformed code:", transformedCode);
 
-      // TODO: Actually execute the code with the pre-built typegres.js
+      // Create an async function that executes the transformed code
+      const executeCode = new Function('typegres', `
+        return (async () => {
+          ${transformedCode}
+          
+          // Capture any result variable if it exists
+          if (typeof result !== 'undefined' && result) {
+            if (typeof result.compile === 'function') {
+              return result.compile();
+            }
+            return { result };
+          }
+          return null;
+        })();
+      `);
+
+      // Execute the code with typegres
+      const compiledResult = await executeCode(window.typegres);
+      
+      if (compiledResult && compiledResult.sql) {
+        setOutput({
+          sql: `-- Generated SQL:\n${compiledResult.sql}\n\n-- Parameters:\n${JSON.stringify(compiledResult.parameters, null, 2)}`,
+        });
+      } else if (compiledResult && compiledResult.result) {
+        setOutput({
+          sql: `// Result:\n${JSON.stringify(compiledResult.result, null, 2)}`,
+        });
+      } else {
+        setOutput({
+          sql: "// No result was generated. Make sure to assign your query/expression to a variable named 'result'.",
+        });
+      }
     } catch (error) {
       setOutput({
         error: error instanceof Error ? error.message : String(error),

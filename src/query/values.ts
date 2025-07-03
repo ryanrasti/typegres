@@ -1,5 +1,5 @@
 import { Kysely, RawBuilder, sql } from "kysely";
-import { Expression, QueryAlias } from "../expression";
+import { Expression, QueryAlias, SelectableExpression } from "../expression";
 import { Any, Bool, Record } from "../types";
 import { dummyDb } from "../test/db";
 import { AggregateOfRow } from "../types/aggregate";
@@ -49,19 +49,6 @@ type RowLikeResult<R extends RowLike | Scalar> = R extends Scalar
   : {
       [K in keyof R]: R extends RowLike ? ScalarResult<R[K]> : never;
     };
-
-export abstract class SelectableExpression extends Expression {
-  constructor(public schema: RowLike) {
-    super();
-  }
-
-  tableColumnAlias() {
-    const keys = Object.keys(this.schema)
-      .toSorted((k1, k2) => k1.localeCompare(k2))
-      .map((key) => sql.ref(key));
-    return sql.join(keys);
-  }
-}
 
 export class TableReferenceExpression extends SelectableExpression {
   constructor(

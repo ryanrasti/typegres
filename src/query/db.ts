@@ -9,9 +9,8 @@ import {
   RowLike,
   SelectArgs,
   Setof,
-  SelectableExpression,
 } from "./values";
-import { Context, QueryAlias } from "../expression";
+import { Context, QueryAlias, SelectableExpression } from "../expression";
 
 export const Generated = Symbol("Generated");
 

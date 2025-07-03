@@ -13555,6 +13555,19 @@ class BinaryOperatorExpression extends Expression {
         return sql `${this.args[0].compile(ctx)} ${sql.raw(this.operator)} ${this.args[1].compile(ctx)}`;
     }
 }
+class SelectableExpression extends Expression {
+    schema;
+    constructor(schema) {
+        super();
+        this.schema = schema;
+    }
+    tableColumnAlias() {
+        const keys = Object.keys(this.schema)
+            .toSorted((k1, k2) => k1.localeCompare(k2))
+            .map((key) => sql.ref(key));
+        return sql.join(keys);
+    }
+}
 
 const Sentinel = class Sentinel {
     static typeString() {
@@ -22534,19 +22547,6 @@ const isScalarRelaxed = (value) => {
         typeof value === "boolean" ||
         typeof value === "bigint");
 };
-class SelectableExpression extends Expression {
-    schema;
-    constructor(schema) {
-        super();
-        this.schema = schema;
-    }
-    tableColumnAlias() {
-        const keys = Object.keys(this.schema)
-            .toSorted((k1, k2) => k1.localeCompare(k2))
-            .map((key) => sql.ref(key));
-        return sql.join(keys);
-    }
-}
 class TableReferenceExpression extends SelectableExpression {
     table;
     constructor(table, schema) {

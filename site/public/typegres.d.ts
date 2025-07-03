@@ -1,46 +1,6 @@
 import * as kysely from 'kysely';
-import { RawBuilder, Kysely } from 'kysely';
+import { Kysely, RawBuilder } from 'kysely';
 import { Pool, PoolConfig } from 'pg';
-
-declare class QueryAlias {
-    name: string;
-    constructor(name: string);
-}
-declare class Context {
-    namespace: Map<QueryAlias, string>;
-    usedAliases: Set<string>;
-    private constructor();
-    static new(): Context;
-    withReference(ref: string): Context;
-    withAliases(aliases: QueryAlias[]): Context;
-    getAlias(alias: QueryAlias): string;
-}
-declare abstract class Expression {
-    abstract compile(ctx: Context): RawBuilder<unknown>;
-}
-declare class LiteralExpression extends Expression {
-    value: unknown | null;
-    type: string;
-    constructor(value: unknown | null, type: string);
-    compile(): RawBuilder<unknown>;
-}
-declare class LiteralUnknownExpression extends Expression {
-    value: unknown | null;
-    constructor(value: unknown | null);
-    compile(): RawBuilder<unknown>;
-}
-declare class FunctionExpression extends Expression {
-    name: string;
-    args: Expression[];
-    constructor(name: string, args: Expression[]);
-    compile(ctx: Context): RawBuilder<unknown>;
-}
-declare class BinaryOperatorExpression extends Expression {
-    operator: string;
-    args: [Expression, Expression];
-    constructor(operator: string, args: [Expression, Expression]);
-    compile(ctx: Context): RawBuilder<unknown>;
-}
 
 declare class export_default$1n{
     static parse(v: string): unknown;
@@ -11665,10 +11625,40 @@ declare class Array$1<N extends number, T extends Any> extends export_default<N,
     static of<C extends ClassType<Any>>(subtype: C): ArrayClass<C["prototype"]>;
 }
 
+type SchemaPrototype<S extends Schema> = {
+    [key in keyof S]: S[key]["prototype"];
+};
+type RecordClass<T extends {
+    [key in string]: Any<unknown, 0 | 1>;
+}> = {
+    new (v: string): Record$1<number, T> & T;
+    ["new"](v: string): Record$1<1, T> & T;
+    ["new"](v: null): Record$1<0, T> & T;
+    ["new"](v: Expression): Record$1<0 | 1, T> & T;
+    prototype: Record$1<0 | 1, T> & T;
+    typeString(): string | undefined;
+    subtype(): UseSubtype | undefined;
+    parse(v: string): {
+        [key in keyof T]: T[key]["resultType"];
+    };
+};
+declare abstract class Record$1<N extends number, T extends RowLike> extends export_default$y<N, T> {
+    abstract schema: {
+        [K in keyof T]: ReturnType<T[K]["getClass"]>;
+    };
+    static of<S extends Schema>(schema: S): RecordClass<SchemaPrototype<S>>;
+}
+
 type Aggregate<T> = T extends Any ? NonNullable<ReturnType<T["asAggregate"]>> : never;
 type AggregateOfRow<T extends RowLike | Scalar> = T extends Scalar ? Aggregate<T> : {
     [K in keyof T]: Aggregate<T[K]>;
 };
+
+type Primitive = string | number | boolean | bigint;
+type PrimitiveToSqlType<T extends Primitive> = T extends string ? export_default$l<1> : T extends number ? export_default$14<1> : T extends boolean ? export_default$1g<1> : T extends bigint ? export_default$L<1> : never;
+type MaybePrimitiveToSqlType<T extends Primitive | Any | RowLikeRelaxed> = T extends Primitive ? PrimitiveToSqlType<T> : T extends Any ? T : T extends RowLikeRelaxed ? Record$1<1, {
+    [K in keyof T]: MaybePrimitiveToSqlType<T[K]>;
+}> : never;
 
 type RowLike = {
     [key: string]: Any<unknown, 0 | 1>;
@@ -11684,11 +11674,6 @@ type ScalarResult<R extends Scalar> = R extends Any<infer R, infer Nullable> ? N
 type RowLikeResult<R extends RowLike | Scalar> = R extends Scalar ? RowLike : {
     [K in keyof R]: R extends RowLike ? ScalarResult<R[K]> : never;
 };
-declare abstract class SelectableExpression extends Expression {
-    schema: RowLike;
-    constructor(schema: RowLike);
-    tableColumnAlias(): RawBuilder<unknown>;
-}
 declare class TableReferenceExpression extends SelectableExpression {
     table: QueryAlias;
     constructor(table: QueryAlias, schema: RowLike);
@@ -12179,35 +12164,50 @@ declare const values: <R extends RowLike>(...input: [R, ...R[]]) => Setof<{
     from: R;
 }>;
 
-type SchemaPrototype<S extends Schema> = {
-    [key in keyof S]: S[key]["prototype"];
-};
-type RecordClass<T extends {
-    [key in string]: Any<unknown, 0 | 1>;
-}> = {
-    new (v: string): Record$1<number, T> & T;
-    ["new"](v: string): Record$1<1, T> & T;
-    ["new"](v: null): Record$1<0, T> & T;
-    ["new"](v: Expression): Record$1<0 | 1, T> & T;
-    prototype: Record$1<0 | 1, T> & T;
-    typeString(): string | undefined;
-    subtype(): UseSubtype | undefined;
-    parse(v: string): {
-        [key in keyof T]: T[key]["resultType"];
-    };
-};
-declare abstract class Record$1<N extends number, T extends RowLike> extends export_default$y<N, T> {
-    abstract schema: {
-        [K in keyof T]: ReturnType<T[K]["getClass"]>;
-    };
-    static of<S extends Schema>(schema: S): RecordClass<SchemaPrototype<S>>;
+declare class QueryAlias {
+    name: string;
+    constructor(name: string);
 }
-
-type Primitive = string | number | boolean | bigint;
-type PrimitiveToSqlType<T extends Primitive> = T extends string ? export_default$l<1> : T extends number ? export_default$14<1> : T extends boolean ? export_default$1g<1> : T extends bigint ? export_default$L<1> : never;
-type MaybePrimitiveToSqlType<T extends Primitive | Any | RowLikeRelaxed> = T extends Primitive ? PrimitiveToSqlType<T> : T extends Any ? T : T extends RowLikeRelaxed ? Record$1<1, {
-    [K in keyof T]: MaybePrimitiveToSqlType<T[K]>;
-}> : never;
+declare class Context {
+    namespace: Map<QueryAlias, string>;
+    usedAliases: Set<string>;
+    private constructor();
+    static new(): Context;
+    withReference(ref: string): Context;
+    withAliases(aliases: QueryAlias[]): Context;
+    getAlias(alias: QueryAlias): string;
+}
+declare abstract class Expression {
+    abstract compile(ctx: Context): RawBuilder<unknown>;
+}
+declare class LiteralExpression extends Expression {
+    value: unknown | null;
+    type: string;
+    constructor(value: unknown | null, type: string);
+    compile(): RawBuilder<unknown>;
+}
+declare class LiteralUnknownExpression extends Expression {
+    value: unknown | null;
+    constructor(value: unknown | null);
+    compile(): RawBuilder<unknown>;
+}
+declare class FunctionExpression extends Expression {
+    name: string;
+    args: Expression[];
+    constructor(name: string, args: Expression[]);
+    compile(ctx: Context): RawBuilder<unknown>;
+}
+declare class BinaryOperatorExpression extends Expression {
+    operator: string;
+    args: [Expression, Expression];
+    constructor(operator: string, args: [Expression, Expression]);
+    compile(ctx: Context): RawBuilder<unknown>;
+}
+declare abstract class SelectableExpression extends Expression {
+    schema: RowLike;
+    constructor(schema: RowLike);
+    tableColumnAlias(): RawBuilder<unknown>;
+}
 
 declare const Generated: unique symbol;
 declare class RawTableReferenceExpression extends SelectableExpression {
