@@ -38,7 +38,7 @@ console.log(result)
 }: TypegresPlaygroundProps) {
   const [code, setCode] = useState("");
   useEffect(() => {
-    fetch("/demo.ts")
+    fetch("/demo.ts.static")
       .then((response) => {
         if (!response.ok) {
           throw new Error(
