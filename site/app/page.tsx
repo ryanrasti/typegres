@@ -3,11 +3,14 @@
 import { motion } from 'framer-motion'
 import { ArrowRight, Code, Database, Bot, Shield, CheckCircle } from 'lucide-react'
 import { CodeBlock } from '@/components/CodeBlock'
+import { UnderConstructionBanner } from '@/components/UnderConstructionBanner'
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-white dark:bg-typegres-dark">
-      <div className="absolute inset-0 bg-dot-pattern opacity-50" />
+    <>
+      <UnderConstructionBanner />
+      <main className="min-h-screen bg-white dark:bg-typegres-dark">
+        <div className="absolute inset-0 bg-dot-pattern opacity-50" />
       
       <nav className="relative z-10 flex items-center justify-between p-6 lg:px-8">
         <div className="flex lg:flex-1">
@@ -182,6 +185,7 @@ const activeUsers = await db
           </motion.div>
         </div>
       </div>
-    </main>
+      </main>
+    </>
   )
 }

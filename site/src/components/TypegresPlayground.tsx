@@ -22,7 +22,6 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
 });
 
 interface TypegresPlaygroundProps {
-  height?: string;
   activeTab?: string;
   onOutputChange?: (output: string) => void;
   onSqlChange?: (sql: string) => void;
@@ -30,7 +29,6 @@ interface TypegresPlaygroundProps {
 }
 
 export function TypegresPlayground({
-  height = "800px",
   onOutputChange,
   onSqlChange,
   onRunCode,
@@ -227,7 +225,6 @@ export function TypegresPlayground({
 
   return (
     <MonacoEditor
-      height={height}
       defaultLanguage="typescript"
       theme="vs-dark"
       value={code}
