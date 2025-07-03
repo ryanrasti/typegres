@@ -202,9 +202,6 @@ console.log(result)
           if (query.parameters && query.parameters.length > 0) {
             params = inspect(query.parameters, {
               depth: 3,
-              colors: false,
-              compact: false,
-              sorted: true
             });
           }
           

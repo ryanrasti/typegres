@@ -5,7 +5,6 @@ import { Database, FileCode, Terminal } from "lucide-react";
 import { PGlite } from "@electric-sql/pglite";
 import { TypegresPlayground } from "@/components/TypegresPlayground";
 import { SyntaxHighlight } from "@/components/SyntaxHighlight";
-import "@/styles/prism-theme.css";
 
 const defaultCode = `import { db, sql } from 'typegres'
 import type { Database } from 'typegres'

@@ -19,6 +19,7 @@ const example1 = await pets
     // uncomment to see a type error:
     // error: p.age,
   }))
+  .debug()
   .execute(db);
 
 console.log("Example 1", example1);
@@ -30,6 +31,7 @@ const example2 = await Jsonb.new('{"a":1,"b":2, "c": [1, 2, 3]}')
     key: key.textcat("!"),
     isNum: value.jsonbTypeof()["="]("number"),
   }))
+  .debug()
   .execute(db);
 
 console.log("Example 2", example2);
@@ -48,6 +50,7 @@ const example3 = await people
     petSpecies: pet.species,
     petAge: pet.age,
   }))
+  .debug()
   .execute(db);
 
 console.log("Example 3", example3);
