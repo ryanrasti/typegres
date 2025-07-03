@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import inspect from "object-inspect";
 import { format } from "sql-formatter";
@@ -22,28 +22,18 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
 });
 
 interface TypegresPlaygroundProps {
-  initialCode?: string;
   height?: string;
-  db?: any;
   activeTab?: string;
   onOutputChange?: (output: string) => void;
   onSqlChange?: (sql: string) => void;
+  onRunCode?: (runFunction: () => Promise<void>) => void;
 }
 
 export function TypegresPlayground({
-  initialCode = `import { db, Int4 } from 'typegres'
-
-const dbR = await db({ type: 'pglite' });
-
-const result = await Int4.new(2).int4Pl(2).execute(dbR)
-
-console.log(result)
-`,
   height = "800px",
-  db,
-  activeTab,
   onOutputChange,
   onSqlChange,
+  onRunCode,
 }: TypegresPlaygroundProps) {
   const [code, setCode] = useState("");
   useEffect(() => {
@@ -60,8 +50,7 @@ console.log(result)
       .catch((error) => {
         console.error("Error fetching initial code:", error);
       });
-    setCode(initialCode);
-  }, [initialCode]);
+  });
 
   const [output, setOutput] = useState<string>("");
   const [sqlOutput, setSqlOutput] = useState<string>("");
@@ -99,8 +88,8 @@ console.log(result)
       onSqlChange(sqlOutput);
     }
   }, [sqlOutput, onSqlChange]);
-
-  const runCode = async () => {
+  
+  const runCode = useCallback(async () => {
     // Clear previous outputs
     setOutput("");
     setSqlOutput("");
@@ -226,47 +215,35 @@ console.log(result)
       // Restore original console.log
       console.log = originalConsoleLog;
     }
-    
-  };
+  }, [code, onOutputChange, onSqlChange]);
+  
+  // Expose runCode function to parent
+  useEffect(() => {
+    if (onRunCode) {
+      console.log("setting onRunCode callback", runCode);
+      onRunCode(runCode);
+    }
+  }, [onRunCode, runCode]);
 
   return (
-    <div className="space-y-4">
-      <div className="border rounded-lg overflow-hidden">
-        <MonacoEditor
-          height={height}
-          defaultLanguage="typescript"
-          theme="vs-dark"
-          value={code}
-          onChange={(value) => {
-            setCode(value || "");
-          }}
-          onMount={handleEditorMount}
-          options={{
-            minimap: { enabled: false },
-            fontSize: 14,
-            lineHeight: 1.6,
-            tabSize: 2,
-            automaticLayout: true,
-            scrollBeyondLastLine: false,
-            fixedOverflowWidgets: true,
-          }}
-        />
-      </div>
-
-      <div className="flex justify-between items-center">
-        <button
-          onClick={runCode}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z"/>
-          </svg>
-          Run Code
-        </button>
-        {typesLoaded && (
-          <span className="text-sm text-green-500">✓ Types loaded</span>
-        )}
-      </div>
-    </div>
+    <MonacoEditor
+      height={height}
+      defaultLanguage="typescript"
+      theme="vs-dark"
+      value={code}
+      onChange={(value) => {
+        setCode(value || "");
+      }}
+      onMount={handleEditorMount}
+      options={{
+        minimap: { enabled: false },
+        fontSize: 14,
+        lineHeight: 1.6,
+        tabSize: 2,
+        automaticLayout: true,
+        scrollBeyondLastLine: false,
+        fixedOverflowWidgets: true,
+      }}
+    />
   );
 }

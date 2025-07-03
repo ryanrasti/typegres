@@ -2,96 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { Database, FileCode, Terminal } from "lucide-react";
-import { PGlite } from "@electric-sql/pglite";
 import { TypegresPlayground } from "@/components/TypegresPlayground";
 import { SyntaxHighlight } from "@/components/SyntaxHighlight";
 
-const defaultCode = `import { db, sql } from 'typegres'
-import type { Database } from 'typegres'
-
-// Welcome to the Typegres Playground!
-// This editor has full TypeScript support with type checking and autocompletion
-
-// Example 1: Simple select query
-const activeUsers = await db
-  .selectFrom('users')
-  .select(['id', 'name', 'email'])
-  .where('active', '=', true)
-  .execute()
-
-console.log('Active users:', activeUsers)
-
-// Example 2: Join with aggregation
-const userStats = await db
-  .selectFrom('users')
-  .leftJoin('posts', 'posts.user_id', 'users.id')
-  .select([
-    'users.id',
-    'users.name',
-    sql\`COUNT(posts.id)\`.as('post_count'),
-    sql\`COUNT(CASE WHEN posts.published THEN 1 END)\`.as('published_count')
-  ])
-  .groupBy(['users.id', 'users.name'])
-  .having(sql\`COUNT(posts.id)\`, '>', 0)
-  .orderBy('post_count', 'desc')
-  .execute()
-
-console.log('User statistics:', userStats)`;
-
 export default function PlaygroundPage() {
   const [activeTab, setActiveTab] = useState<"output" | "sql">("output");
-  const [db, setDb] = useState<PGlite | null>(null);
   const [output, setOutput] = useState("");
   const [sqlOutput, setSqlOutput] = useState("");
-
-  // Initialize PGLite
-  useEffect(() => {
-    const initDb = async () => {
-      try {
-        const pglite = new PGlite();
-        await pglite.exec(`
-          CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            active BOOLEAN DEFAULT true,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          );
-          
-          CREATE TABLE IF NOT EXISTS posts (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id),
-            title TEXT NOT NULL,
-            content TEXT,
-            published BOOLEAN DEFAULT false,
-            view_count INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          );
-
-          -- Insert sample data
-          INSERT INTO users (name, email, active) VALUES
-            ('Alice Johnson', 'alice@example.com', true),
-            ('Bob Smith', 'bob@example.com', true),
-            ('Charlie Brown', 'charlie@example.com', false),
-            ('Diana Prince', 'diana@example.com', true)
-          ON CONFLICT (email) DO NOTHING;
-
-          INSERT INTO posts (user_id, title, content, published, view_count) VALUES
-            (1, 'Getting Started with TypeScript', 'TypeScript is amazing...', true, 150),
-            (1, 'Advanced SQL Patterns', 'Let''s explore some SQL...', true, 230),
-            (2, 'Database Design Principles', 'Good database design...', true, 89),
-            (2, 'Query Optimization Tips', 'Here are some tips...', false, 45),
-            (4, 'Modern Web Development', 'The web has evolved...', true, 312)
-          ON CONFLICT DO NOTHING;
-        `);
-        setDb(pglite);
-      } catch (error) {
-        console.error("Failed to initialize database:", error);
-      }
-    };
-
-    initDb();
-  }, []);
+  const [runCode, setRunCode] = useState<(() => Promise<void>) | null>(null);
 
   return (
     <div className="min-h-screen bg-white dark:bg-typegres-dark text-typegres-dark dark:text-white">
@@ -123,16 +41,28 @@ export default function PlaygroundPage() {
       <div className="flex h-[calc(100vh-64px)]">
         {/* Code Editor */}
         <div className="w-1/2 border-r border-gray-200 dark:border-gray-800">
-          <div className="h-12 border-b border-gray-200 dark:border-gray-800 flex items-center px-4 bg-gray-50 dark:bg-gray-900">
-            <FileCode className="w-4 h-4 mr-2" />
-            <span className="text-sm font-medium">TypeScript Code</span>
+          <div className="h-12 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 bg-gray-50 dark:bg-gray-900">
+            <div className="flex items-center">
+              <FileCode className="w-4 h-4 mr-2" />
+              <span className="text-sm font-medium">TypeScript Code</span>
+            </div>
+            <button
+              onClick={() => runCode && runCode()}
+              disabled={!runCode}
+              className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+              Run Code
+            </button>
           </div>
           <div className="h-[calc(100%-48px)]">
             <TypegresPlayground 
-              db={db} 
               activeTab={activeTab}
               onOutputChange={setOutput}
               onSqlChange={setSqlOutput}
+              onRunCode={(val) => setRunCode(() => val)}
             />
           </div>
         </div>
@@ -164,9 +94,7 @@ export default function PlaygroundPage() {
             </button>
           </div>
           <div className="flex-1 p-4 bg-gray-900 overflow-auto">
-            {!db ? (
-              <div className="text-yellow-400">Initializing database...</div>
-            ) : activeTab === "output" ? (
+            {activeTab === "output" ? (
               <div className="text-gray-200">
                 {output ? (
                   output.startsWith('Error:') ? (
