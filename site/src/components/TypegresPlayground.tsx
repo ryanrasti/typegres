@@ -6,6 +6,8 @@ import {
   setupMonacoWithTypegres,
   transformCodeWithEsbuild,
 } from "@/lib/monaco-typegres-integration";
+import { t } from "node_modules/@electric-sql/pglite/dist/pglite-BYx2LC_F";
+import { mock } from "node:test";
 
 declare global {
   interface Window {
@@ -34,7 +36,24 @@ console.log(result)
 `,
   height = "800px",
 }: TypegresPlaygroundProps) {
-  const [code, setCode] = useState(initialCode);
+  const [code, setCode] = useState("");
+  useEffect(() => {
+    fetch("/demo.ts.static")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch initial code: ${response.statusText}`
+          );
+        }
+        return response.text();
+      })
+      .then((text) => setCode(text))
+      .catch((error) => {
+        console.error("Error fetching initial code:", error);
+      });
+    setCode(initialCode);
+  }, [initialCode]);
+
   const [output, setOutput] = useState<{ sql?: string; error?: string }>({});
   const [typesLoaded, setTypesLoaded] = useState(false);
   const monacoRef = useRef<any>(null);
@@ -61,61 +80,59 @@ console.log(result)
     try {
       // Load the typegres bundle if not already loaded
       if (!window.typegres) {
-        await import('@electric-sql/pglite');
+        await import("@electric-sql/pglite");
         try {
-          const typegresModule = await import('../../public/typegres');
+          // @ts-ignore
+          const typegresModule = await import("../../public/typegres");
           window.typegres = typegresModule;
-          
-          console.log('Typegres bundle loaded:', window.typegres);
+
+          console.log("Typegres bundle loaded:", window.typegres);
         } catch (error) {
-          console.error('Failed to load typegres bundle:', error);
-          throw new Error('Failed to load typegres bundle');
+          console.error("Failed to load typegres bundle:", error);
+          throw new Error("Failed to load typegres bundle");
         }
       }
 
       // Transform the TypeScript code and replace imports
       const jsCode = await transformCodeWithEsbuild(code);
-      
+
       // Replace import statements with destructuring from the typegres parameter
       const transformedCode = jsCode.replace(
         /import\s*\{([^}]+)\}\s*from\s*['"]typegres['"]/g,
-        'const {$1} = typegres'
+        "const {$1} = window.typegres"
       );
 
       console.log("Transformed code:", transformedCode);
 
       // Create an async function that executes the transformed code
-      const executeCode = new Function('typegres', `
+      const executeCode = new Function(
+        "console",
+        `
         return (async () => {
-          ${transformedCode}
-          
-          // Capture any result variable if it exists
-          if (typeof result !== 'undefined' && result) {
-            if (typeof result.compile === 'function') {
-              return result.compile();
-            }
-            return { result };
-          }
-          return null;
+          ${transformedCode}          
         })();
-      `);
+      `
+      );
+
+      const mockConsole = {
+        ...console,
+        log: (...args: any[]) => {
+          console.log(...args);
+          setOutput((prev) => ({
+            sql: `${prev.sql ?? ''}\n${JSON.stringify(
+              args,
+              (key, value) =>
+                typeof value === "bigint" ? Number(value) : value,
+              2
+            )}`,
+            
+          }));
+        },
+      };
 
       // Execute the code with typegres
-      const compiledResult = await executeCode(window.typegres);
-      
-      if (compiledResult && compiledResult.sql) {
-        setOutput({
-          sql: `-- Generated SQL:\n${compiledResult.sql}\n\n-- Parameters:\n${JSON.stringify(compiledResult.parameters, null, 2)}`,
-        });
-      } else if (compiledResult && compiledResult.result) {
-        setOutput({
-          sql: `// Result:\n${JSON.stringify(compiledResult.result, null, 2)}`,
-        });
-      } else {
-        setOutput({
-          sql: "// No result was generated. Make sure to assign your query/expression to a variable named 'result'.",
-        });
-      }
+      setOutput({ sql: "Running code..." });
+      executeCode(mockConsole);
     } catch (error) {
       setOutput({
         error: error instanceof Error ? error.message : String(error),

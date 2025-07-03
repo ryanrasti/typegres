@@ -53,7 +53,7 @@ type RowLikeResult<R extends RowLike | Scalar> = R extends Scalar
 export class TableReferenceExpression extends SelectableExpression {
   constructor(
     public table: QueryAlias,
-    schema: RowLike,
+    schema: RowLike
   ) {
     super(schema);
   }
@@ -75,9 +75,9 @@ export class ValuesExpression extends SelectableExpression {
           sql`(${sql.join(
             Object.entries(value)
               .toSorted(([k1], [k2]) => k1.localeCompare(k2))
-              .map(([, value]) => sql`${value.toExpression().compile(ctx)}`),
-          )})`,
-      ),
+              .map(([, value]) => sql`${value.toExpression().compile(ctx)}`)
+          )})`
+      )
     )})`;
   }
 }
@@ -93,19 +93,19 @@ export class SubqueryExpression extends SelectableExpression {
 
 export const aliasRowLike = <R extends RowLike>(
   queryAlias: QueryAlias,
-  row: R,
+  row: R
 ) => {
   return Object.fromEntries(
     Object.entries(row).map(([key, value]) => [
       key,
       value.getClass().new(new ColumnAliasExpression(queryAlias, key)),
-    ]),
+    ])
   ) as R;
 };
 
 export const aliasScalar = <S extends Scalar>(
   queryAlias: QueryAlias,
-  scalar: S,
+  scalar: S
 ) => {
   return scalar.getClass().new(new ColumnAliasExpression(queryAlias, "value"));
 };
@@ -113,7 +113,7 @@ export const aliasScalar = <S extends Scalar>(
 export class ColumnAliasExpression extends Expression {
   constructor(
     public alias: QueryAlias,
-    public column: string,
+    public column: string
   ) {
     super();
   }
@@ -125,13 +125,13 @@ export class ColumnAliasExpression extends Expression {
 
 const parseRowLike = <R extends RowLike>(
   rowLike: RowLike,
-  result: RowLikeRawResult<RowLike>,
+  result: RowLikeRawResult<RowLike>
 ) => {
   return Object.fromEntries(
     Object.entries(rowLike).map(([key, value]) => {
       const res = result[key];
       return [key, res === null ? res : value.getClass().parse(res)];
-    }),
+    })
   ) as RowLikeResult<R>;
 };
 
@@ -189,7 +189,7 @@ export class Setof<Q extends Query> extends Expression {
     public fromAlias: QueryAlias,
     public joinAliases: { [key: string]: QueryAlias },
     public query: Q,
-    public fromRow: RowLike | Scalar,
+    public fromRow: RowLike | Scalar
   ) {
     super();
   }
@@ -212,7 +212,7 @@ export class Setof<Q extends Query> extends Expression {
           {
             from: aliasRowLike(alias, fromRow),
           },
-          fromRow,
+          fromRow
         );
       }
     };
@@ -221,8 +221,8 @@ export class Setof<Q extends Query> extends Expression {
   static ofSchema(fromRow: { [key: string]: typeof Any<unknown> }) {
     return this.of(
       Object.fromEntries(
-        Object.entries(fromRow).map(([k, Cls]) => [k, Cls.new("")]),
-      ) as RowLike,
+        Object.entries(fromRow).map(([k, Cls]) => [k, Cls.new("")])
+      ) as RowLike
     );
   }
 
@@ -234,14 +234,14 @@ export class Setof<Q extends Query> extends Expression {
             ? this.query.from
             : row(
                 this.query.from,
-                new TableReferenceExpression(this.fromAlias, this.query.from),
+                new TableReferenceExpression(this.fromAlias, this.query.from)
               ),
           this.joinTables(),
         ] as any);
   }
 
   select<S extends RowLikeRelaxed | ScalarRelaxed>(
-    fn: (...from: SelectArgs<Q>) => S,
+    fn: (...from: SelectArgs<Q>) => S
   ) {
     return new Setof(
       this.rawFromExpr,
@@ -251,7 +251,7 @@ export class Setof<Q extends Query> extends Expression {
         ...this.query,
         select: maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
       },
-      this.fromRow,
+      this.fromRow
     );
   }
 
@@ -267,7 +267,7 @@ export class Setof<Q extends Query> extends Expression {
           maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
         ],
       },
-      this.fromRow,
+      this.fromRow
     );
   }
 
@@ -283,7 +283,7 @@ export class Setof<Q extends Query> extends Expression {
           ...G,
         ],
       },
-      this.fromRow,
+      this.fromRow
     );
   }
 
@@ -292,7 +292,7 @@ export class Setof<Q extends Query> extends Expression {
       Object.entries({ ...this.query.joins }).map(([key, value]) => [
         key,
         value.row,
-      ]),
+      ])
     ) as JoinTables<Q>;
   }
 
@@ -301,8 +301,8 @@ export class Setof<Q extends Query> extends Expression {
     as: A,
     on: (
       from: Q["from"],
-      js: JoinTables<Q> & { [a in A]: ResultType<J> },
-    ) => Bool<0 | 1> | boolean,
+      js: JoinTables<Q> & { [a in A]: ResultType<J> }
+    ) => Bool<0 | 1> | boolean
   ) {
     const alias = new QueryAlias(as);
     const row = aliasRowLike(alias, resultType(j.query) as RowLike) as RowLike;
@@ -324,13 +324,19 @@ export class Setof<Q extends Query> extends Expression {
               on(this.query.from, {
                 ...this.joinTables(),
                 ...({ [as]: row } as { [a in A]: ResultType<J> }),
-              }),
+              })
             ),
             row,
           },
+        } as Q["joins"] & {
+          [a in A]: {
+            table: Setof<J>;
+            on: Bool<0 | 1>;
+            row: RowLike;
+          };
         },
       },
-      this.fromRow,
+      this.fromRow
     );
   }
 
@@ -346,7 +352,7 @@ export class Setof<Q extends Query> extends Expression {
           ? aliasScalar(alias, res)
           : aliasRowLike(alias, res),
       },
-      res,
+      res
     );
   }
 
@@ -364,7 +370,7 @@ export class Setof<Q extends Query> extends Expression {
     ]);
 
     const from = sql`FROM ${this.rawFromExpr.compile(ctxIn)} as ${sql.ref(
-      ctx.getAlias(this.fromAlias),
+      ctx.getAlias(this.fromAlias)
     )}${
       this.rawFromExpr instanceof ValuesExpression
         ? sql`(${this.tableColumnAlias()})`
@@ -375,10 +381,10 @@ export class Setof<Q extends Query> extends Expression {
       ? sql.join(
           Object.entries(this.query.joins ?? {}).map(([alias, join]) => {
             return sql`JOIN ${join.table.compile(ctx)} as ${sql.ref(
-              ctx.getAlias(this.joinAliases[alias]),
+              ctx.getAlias(this.joinAliases[alias])
             )} ON ${join.on.toExpression().compile(ctx)}`;
           }),
-          sql` `,
+          sql` `
         )
       : sql``;
 
@@ -391,22 +397,22 @@ export class Setof<Q extends Query> extends Expression {
       ? sql`SELECT ${sql.join(
           Object.entries(selectEntries).map(
             ([key, value]) =>
-              sql`${value.toExpression().compile(ctx)} AS ${sql.ref(key)}`,
-          ),
+              sql`${value.toExpression().compile(ctx)} AS ${sql.ref(key)}`
+          )
         )}`
       : sql`SELECT *`;
 
     const where = this.query.wheres
       ? sql`WHERE ${sql.join(
           this.query.wheres.map((w) => sql`(${w.toExpression().compile(ctx)})`),
-          sql` AND `,
+          sql` AND `
         )}`
       : sql``;
 
     const groupBy = this.query.groupBy
       ? sql`GROUP BY ${sql.join(
           this.query.groupBy.map((g) => sql`${g.toExpression().compile(ctx)}`),
-          sql`, `,
+          sql`, `
         )}`
       : sql``;
 
@@ -431,13 +437,13 @@ export class Setof<Q extends Query> extends Expression {
           ? (resultRowLike
               .getClass()
               .parse(Object.values(row)[0] as string) as any)
-          : parseRowLike(resultRowLike, row),
+          : parseRowLike(resultRowLike, row)
       ) as AwaitedResultType<Q>;
     } catch (err) {
       console.error(
         "Error executing query:",
         this.compile(Context.new()).compile(db),
-        err,
+        err
       );
       throw err;
     }

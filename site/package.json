@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build:deps": "cd .. && npm run build:bundle && cp ./dist/typegres.d.ts ./site/public/typegres.d.ts && cp ./dist/typegres.js ./site/public/typegres.js",
+    "build:deps": "cd .. && npm run build:bundle && cp ./dist/typegres.d.ts ./site/public/typegres.d.ts && cp ./dist/typegres.js ./site/public/typegres.js && cp ./src/demo/demo.ts ./site/public/demo.ts.static",
     "build": "npm run build:deps && npm run build:docs && next build",
     "build:docs": "typedoc && rm -rf public/api/media || true",
     "start": "next start",

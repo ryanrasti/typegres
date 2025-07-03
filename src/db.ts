@@ -10,7 +10,7 @@ export type DatabaseConfig =
   | { type: "pg"; PoolClass: typeof Pool; config?: PoolConfig }
   | { type: "pglite"; PGliteClass?: typeof PGlite; options?: PGliteOptions };
 
-export const db = async (dbConfig: DatabaseConfig): Promise<Typegres> => {
+export const typegres = async (dbConfig: DatabaseConfig): Promise<Typegres> => {
   if (dbConfig.type === "pg") {
     const { PoolClass, config } = dbConfig;
     return new Kysely<{}>({
@@ -36,7 +36,7 @@ export const db = async (dbConfig: DatabaseConfig): Promise<Typegres> => {
         await (PGliteClass ?? PGlite).create({
           ...options,
           parsers: Object.fromEntries(
-            Array(2000).keys().map((value) => {
+            [...Array(2000).keys()].map((value) => {
               return [value, (x: string) => x];
             })
           ),

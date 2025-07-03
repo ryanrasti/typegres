@@ -38,5 +38,6 @@ src/gen/tables.json
 site/public/api
 site/public/typegres.js
 site/public/typegres.d.ts
+site/public/demo.ts
 .next
 site/out

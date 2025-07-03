@@ -8,7 +8,6 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "moduleDetection": "force",
@@ -22,7 +21,11 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+
+    "paths": {
+      "typegres": ["./src/index.ts"],
+    }
   },
   "include": ["src"]
 }
