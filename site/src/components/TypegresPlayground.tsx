@@ -6,6 +6,8 @@ import {
   setupMonacoWithTypegres,
   transformCodeWithEsbuild,
 } from "@/lib/monaco-typegres-integration";
+import { t } from "node_modules/@electric-sql/pglite/dist/pglite-BYx2LC_F";
+import { mock } from "node:test";
 
 declare global {
   interface Window {
@@ -80,6 +82,7 @@ console.log(result)
       if (!window.typegres) {
         await import("@electric-sql/pglite");
         try {
+          // @ts-ignore
           const typegresModule = await import("../../public/typegres");
           window.typegres = typegresModule;
 
@@ -96,46 +99,40 @@ console.log(result)
       // Replace import statements with destructuring from the typegres parameter
       const transformedCode = jsCode.replace(
         /import\s*\{([^}]+)\}\s*from\s*['"]typegres['"]/g,
-        "const {$1} = typegres"
+        "const {$1} = window.typegres"
       );
 
       console.log("Transformed code:", transformedCode);
 
       // Create an async function that executes the transformed code
       const executeCode = new Function(
-        "typegres",
+        "console",
         `
         return (async () => {
-          ${transformedCode}
-          
-          // Capture any result variable if it exists
-          if (typeof result !== 'undefined' && result) {
-            if (typeof result.compile === 'function') {
-              return result.compile();
-            }
-            return { result };
-          }
-          return null;
+          ${transformedCode}          
         })();
       `
       );
 
-      // Execute the code with typegres
-      const compiledResult = await executeCode(window.typegres);
+      const mockConsole = {
+        ...console,
+        log: (...args: any[]) => {
+          console.log(...args);
+          setOutput((prev) => ({
+            sql: `${prev.sql ?? ''}\n${JSON.stringify(
+              args,
+              (key, value) =>
+                typeof value === "bigint" ? Number(value) : value,
+              2
+            )}`,
+            
+          }));
+        },
+      };
 
-      if (compiledResult && compiledResult.sql) {
-        setOutput({
-          sql: `-- Generated SQL:\n${compiledResult.sql}\n\n-- Parameters:\n${JSON.stringify(compiledResult.parameters, null, 2)}`,
-        });
-      } else if (compiledResult && compiledResult.result) {
-        setOutput({
-          sql: `// Result:\n${JSON.stringify(compiledResult.result, null, 2)}`,
-        });
-      } else {
-        setOutput({
-          sql: "// No result was generated. Make sure to assign your query/expression to a variable named 'result'.",
-        });
-      }
+      // Execute the code with typegres
+      setOutput({ sql: "Running code..." });
+      executeCode(mockConsole);
     } catch (error) {
       setOutput({
         error: error instanceof Error ? error.message : String(error),
