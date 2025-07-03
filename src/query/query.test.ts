@@ -4,6 +4,8 @@ import { values } from "./values";
 import { assert, Equals } from "tsafe";
 import { withDb } from "../test/db";
 import { db } from "../gen/tables";
+import { testDb } from "../db.test";
+
 
 const strings = values(
   { a: Text.new("foo"), b: Numeric.new(1.1), c: Int4.new(1) },
@@ -18,7 +20,7 @@ describe("Queries", () => {
         y: s.b.numericAdd(Numeric.new("1")),
         z: s.c.int4Gt(Int4.new(2)),
       }))
-      .execute();
+      .execute(testDb);
 
     assert<Equals<typeof res, { x: string; y: string; z: boolean }[]>>();
 
@@ -36,7 +38,7 @@ describe("Queries", () => {
         z: s.c[">"](Int4.new(2)),
         t: Numeric.new("1")["+"](Numeric.new("2"))["="](Numeric.new("3")),
       }))
-      .execute();
+      .execute(testDb);
 
     assert<
       Equals<typeof res, { x: boolean; y: boolean; z: boolean; t: boolean }[]>
@@ -49,7 +51,7 @@ describe("Queries", () => {
   });
 
   it("can select from db", async () => {
-    await withDb(async (kdb) => {
+    await withDb(testDb, async (kdb) => {
       const res = await db.pet
         .select((p) => ({
           name: p.name.textcat(Text.new("!!")),
@@ -70,7 +72,7 @@ describe("Queries", () => {
   });
 
   it("can where and select from db", async () => {
-    await withDb(async (kdb) => {
+    await withDb(testDb, async (kdb) => {
       const res = await db.pet
         .select((p) => ({
           name: p.name.textcat(Text.new("!!")),
@@ -89,7 +91,7 @@ describe("Queries", () => {
   });
 
   it("can chain where's", async () => {
-    await withDb(async (kdb) => {
+    await withDb(testDb, async (kdb) => {
       const res = await db.pet
         .select((p) => ({
           name: p.name.textcat(Text.new("!!")),
@@ -110,7 +112,7 @@ describe("Queries", () => {
   it("can select a scalar", async () => {
     const res = await values({ a: Numeric.new("1") })
       .select(({ a }) => a)
-      .execute();
+      .execute(testDb);
     assert<Equals<typeof res, string[]>>;
 
     expect(res).toEqual(["1"]);
@@ -123,7 +125,7 @@ describe("Queries", () => {
         key: key.textcat(Text.new("!!")),
         value: value.jsonbTypeof().textcat(Text.new("!!")),
       }))
-      .execute();
+      .execute(testDb);
 
     assert<Equals<typeof res, { key: string; value: string }[]>>();
 
@@ -140,7 +142,7 @@ describe("Queries", () => {
         value: value.jsonbTypeof().textcat(Text.new("!!")),
       }))
 
-      .execute();
+      .execute(testDb);
 
     assert<Equals<typeof res, { value: string }[]>>();
 
@@ -179,7 +181,7 @@ describe("Queries", () => {
           t: s.c.int4Pl(1).sum(),
         };
       })
-      .execute();
+      .execute(testDb);
 
     assert<
       Equals<
@@ -239,7 +241,7 @@ describe("Queries", () => {
         a2: s2.a,
         sum: s.c.int4Pl(s2.b.int4()),
       }))
-      .execute();
+      .execute(testDb);
 
     assert<Equals<typeof res, { a1: string; a2: string; sum: number }[]>>();
 
@@ -254,7 +256,7 @@ describe("Queries", () => {
       .select(({ a }) => a["+"](Numeric.new("1")))
       .subquery()
       .select((x) => x["+"](Numeric.new("1")))
-      .execute();
+      .execute(testDb);
 
     assert<Equals<typeof res, string[]>>();
 
@@ -266,7 +268,7 @@ describe("Queries", () => {
       a: Record.of({ a: Text }).new('("1")'),
     })
       .select(({ a }) => a)
-      .execute();
+      .execute(testDb);
 
     assert<Equals<typeof res, { a: string | null }[]>>();
 
@@ -280,7 +282,7 @@ describe("Queries", () => {
       ),
     })
       .select(({ a }) => a)
-      .execute();
+      .execute(testDb);
 
     assert<
       Equals<
@@ -304,7 +306,7 @@ describe("Queries", () => {
       ),
     })
       .select(({ x }) => x.b.c)
-      .execute();
+      .execute(testDb);
 
     assert<Equals<typeof res, (string | null)[]>>();
 
@@ -321,7 +323,7 @@ describe("Queries", () => {
         v5: 5n,
       }))
       .where(() => true)
-      .execute();
+      .execute(testDb);
 
     assert<
       Equals<
@@ -341,7 +343,7 @@ describe("Queries", () => {
       .select((r) => ({
         o: r.rowToJson(),
       }))
-      .execute();
+      .execute(testDb);
 
     assert<Equals<typeof res, { o: string }[]>>();
 
@@ -351,7 +353,7 @@ describe("Queries", () => {
 
 describe("Mutations", async () => {
   it("insert values", async () => {
-    await withDb(async (kdb) => {
+    await withDb(testDb, async (kdb) => {
       const [john] = await db.person
         .where((p) => p.firstName.texteq(Text.new("John")))
         .execute(kdb);
@@ -398,7 +400,7 @@ describe("Mutations", async () => {
   });
 
   it("update basic", async () => {
-    await withDb(async (kdb) => {
+    await withDb(testDb, async (kdb) => {
       const [john] = await db.person
         .where((p) => p.firstName.texteq(Text.new("John")))
         .execute(kdb);
@@ -435,7 +437,7 @@ describe("Mutations", async () => {
   });
 
   it("update with from", async () => {
-    await withDb(async (kdb) => {
+    await withDb(testDb, async (kdb) => {
       const [john] = await db.person
         .where((p) => p.firstName.texteq(Text.new("John")))
         .execute(kdb);
@@ -490,7 +492,7 @@ describe("Namespace sanitzation", () => {
           .select((s2) => s2.a)
           .scalar(),
       }))
-      .execute();
+      .execute(testDb);
 
     assert<Equals<typeof res, { x: string; y: string }[]>>();
 

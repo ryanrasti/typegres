@@ -1,4 +1,16 @@
 import * as monaco from 'monaco-editor'
+import { initialize, transform } from 'esbuild-wasm'
+
+let esbuildInitialized = false
+
+async function initializeEsbuild() {
+  if (!esbuildInitialized) {
+    await initialize({
+      wasmURL: 'https://unpkg.com/esbuild-wasm@0.25.5/esbuild.wasm'
+    })
+    esbuildInitialized = true
+  }
+}
 
 // Create a virtual file system with key typegres types
 export function setupMonacoTypescript(monaco: typeof import('monaco-editor')) {

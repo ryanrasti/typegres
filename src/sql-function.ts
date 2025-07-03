@@ -4,10 +4,10 @@ import {
   FunctionExpression,
   LiteralUnknownExpression,
 } from "./expression";
-import { BindedSetof, RowLike, SelectableExpression } from "./query/values";
+import type { BindedSetof, RowLike } from "./query/values";
 import { Any, Setof } from "./types";
 import { Schema } from "./types/any";
-import { Context } from "./expression";
+import { Context, SelectableExpression } from "./expression";
 
 const Sentinel = class Sentinel {
   static typeString() {

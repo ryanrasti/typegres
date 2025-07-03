@@ -1,27 +1,21 @@
-import { Kysely, PostgresDialect, Transaction } from "kysely";
-import { Pool } from "pg";
+import { Transaction } from "kysely";
+import {
+  DummyDriver,
+  Kysely,
+  PostgresAdapter,
+  PostgresIntrospector,
+  PostgresQueryCompiler,
+} from 'kysely'
 import { SeedDatabase, testSeeds } from "./seeds";
 
-const dialect = new PostgresDialect({
-  pool: new Pool({
-    host: "localhost",
-    user: "postgres",
-    port: 1234,
-    max: 10,
-    database: "test",
-    types: {
-      getTypeParser: (_oid, format?: "text" | "binary") => {
-        if (format === "binary") {
-          throw new Error("Binary format not supported");
-        }
-        return (v: string | Buffer) => v;
-      },
-    },
-  }),
-});
 
-export const db = new Kysely<SeedDatabase>({
-  dialect,
+export const dummyDb = new Kysely<SeedDatabase>({
+ dialect: {
+    createAdapter: () => new PostgresAdapter(),
+    createDriver: () => new DummyDriver(),
+    createIntrospector: (db) => new PostgresIntrospector(db),
+    createQueryCompiler: () => new PostgresQueryCompiler(),
+  },
 });
 
 class ExpectedRollbackException extends Error {
@@ -31,6 +25,7 @@ class ExpectedRollbackException extends Error {
 }
 
 export const withDb = async (
+  db: Kysely<SeedDatabase>,
   fn: (db: Transaction<any>) => Promise<void>,
 ): Promise<void> => {
   try {

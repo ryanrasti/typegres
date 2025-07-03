@@ -1,5 +1,4 @@
 import { Kysely, sql } from "kysely";
-import { db } from "../test/db";
 import { Any, Bool } from "../types";
 import {
   aliasRowLike,
@@ -10,9 +9,8 @@ import {
   RowLike,
   SelectArgs,
   Setof,
-  SelectableExpression,
 } from "./values";
-import { Context, QueryAlias } from "../expression";
+import { Context, QueryAlias, SelectableExpression } from "../expression";
 
 export const Generated = Symbol("Generated");
 
@@ -75,10 +73,9 @@ class Table<Q extends Query> extends Setof<Q> {
     public fromAlias: QueryAlias,
     public joinAliases: Record<string, QueryAlias>,
     public query: Q,
-    public db: Kysely<any>,
     public fromRow: RowLike,
   ) {
-    super(rawFromExpr, fromAlias, joinAliases, query, db, fromRow);
+    super(rawFromExpr, fromAlias, joinAliases, query, fromRow);
   }
 
   static of<R extends RowLike>(fromRow: R) {
@@ -99,7 +96,6 @@ class Table<Q extends Query> extends Setof<Q> {
           {
             from: aliasRowLike(alias, fromRow),
           },
-          db,
           fromRow,
         );
       }
@@ -201,7 +197,6 @@ class UpdateBuilder<
             from.fromAlias,
             from.joinAliases,
             rest,
-            from.db,
             from.fromRow,
           );
 

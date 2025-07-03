@@ -108,9 +108,9 @@
                 buildInputs = [ pkgs.nodejs ];
                 src = bootstrapped;
                 buildPhase = ''
+                  # Build site
                   cd ./site
                   export PATH=$PWD/node_modules/.bin:$PATH
-
                   npm run build
                 '';
                 installPhase = ''

@@ -1,4 +1,3 @@
-import { parseBool } from "../gen/textParsers";
 import type Any from "./any";
 
 export type Input<T extends Any> = unknown extends T["resultType"]
@@ -7,7 +6,18 @@ export type Input<T extends Any> = unknown extends T["resultType"]
 
 export const typeMap = {
   bool: {
-    parse: parseBool,
+    parse: (value: string): boolean => {
+      // from node-pg-types
+      return (
+        value === "TRUE" ||
+        value === "t" ||
+        value === "true" ||
+        value === "y" ||
+        value === "yes" ||
+        value === "on" ||
+        value === "1"
+      );
+    },
     serialize: (value: boolean): string => (value ? "true" : "false"),
     serializeFromTypes: ["boolean"],
   },

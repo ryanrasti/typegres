@@ -36,5 +36,7 @@ src/gen/tables.json
 .envrc.secrets
 
 site/public/api
+site/public/typegres.js
+site/public/typegres.d.ts
 .next
 site/out

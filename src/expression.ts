@@ -1,4 +1,5 @@
 import { RawBuilder, sql } from "kysely";
+import type { RowLike } from "./query/values";
 
 export class QueryAlias {
   constructor(public name: string) {}
@@ -116,5 +117,18 @@ export class BinaryOperatorExpression extends Expression {
     return sql`${this.args[0].compile(ctx)} ${sql.raw(
       this.operator,
     )} ${this.args[1].compile(ctx)}`;
+  }
+}
+
+export abstract class SelectableExpression extends Expression {
+  constructor(public schema: RowLike) {
+    super();
+  }
+
+  tableColumnAlias() {
+    const keys = Object.keys(this.schema)
+      .toSorted((k1, k2) => k1.localeCompare(k2))
+      .map((key) => sql.ref(key));
+    return sql.join(keys);
   }
 }

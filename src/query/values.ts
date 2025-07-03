@@ -1,7 +1,7 @@
 import { Kysely, RawBuilder, sql } from "kysely";
-import { Expression, QueryAlias } from "../expression";
+import { Expression, QueryAlias, SelectableExpression } from "../expression";
 import { Any, Bool, Record } from "../types";
-import { db } from "../test/db";
+import { dummyDb } from "../test/db";
 import { AggregateOfRow } from "../types/aggregate";
 import { Primitive, maybePrimitiveToSqlType } from "../types/primitive";
 import { row } from "../types/record";
@@ -49,19 +49,6 @@ type RowLikeResult<R extends RowLike | Scalar> = R extends Scalar
   : {
       [K in keyof R]: R extends RowLike ? ScalarResult<R[K]> : never;
     };
-
-export abstract class SelectableExpression extends Expression {
-  constructor(public schema: RowLike) {
-    super();
-  }
-
-  tableColumnAlias() {
-    const keys = Object.keys(this.schema)
-      .toSorted((k1, k2) => k1.localeCompare(k2))
-      .map((key) => sql.ref(key));
-    return sql.join(keys);
-  }
-}
 
 export class TableReferenceExpression extends SelectableExpression {
   constructor(
@@ -202,7 +189,6 @@ export class Setof<Q extends Query> extends Expression {
     public fromAlias: QueryAlias,
     public joinAliases: { [key: string]: QueryAlias },
     public query: Q,
-    public db: Kysely<any>,
     public fromRow: RowLike | Scalar,
   ) {
     super();
@@ -226,7 +212,6 @@ export class Setof<Q extends Query> extends Expression {
           {
             from: aliasRowLike(alias, fromRow),
           },
-          db,
           fromRow,
         );
       }
@@ -266,7 +251,6 @@ export class Setof<Q extends Query> extends Expression {
         ...this.query,
         select: maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
       },
-      this.db,
       this.fromRow,
     );
   }
@@ -283,7 +267,6 @@ export class Setof<Q extends Query> extends Expression {
           maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
         ],
       },
-      this.db,
       this.fromRow,
     );
   }
@@ -300,7 +283,6 @@ export class Setof<Q extends Query> extends Expression {
           ...G,
         ],
       },
-      this.db,
       this.fromRow,
     );
   }
@@ -348,7 +330,6 @@ export class Setof<Q extends Query> extends Expression {
           },
         },
       },
-      this.db,
       this.fromRow,
     );
   }
@@ -365,7 +346,6 @@ export class Setof<Q extends Query> extends Expression {
           ? aliasScalar(alias, res)
           : aliasRowLike(alias, res),
       },
-      this.db,
       res,
     );
   }
@@ -434,11 +414,11 @@ export class Setof<Q extends Query> extends Expression {
   }
 
   debug() {
-    console.log("debug", this.compile(Context.new()).compile(this.db));
+    console.log("debug", this.compile(Context.new()).compile(dummyDb));
     return this;
   }
 
-  async execute(db: Kysely<any> = this.db): Promise<AwaitedResultType<Q>> {
+  async execute(db: Kysely<any>): Promise<AwaitedResultType<Q>> {
     const kexpr = db.executeQuery(this.compile(Context.new()).compile(db));
     const resultRowLike = this.query.select
       ? this.query.select
