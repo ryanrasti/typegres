@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import dynamic from "next/dynamic";
-import { Play, Database, FileCode, Terminal } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Database, FileCode, Terminal } from "lucide-react";
 import { PGlite } from "@electric-sql/pglite";
-import type * as Monaco from "monaco-editor";
 import { TypegresPlayground } from "@/components/TypegresPlayground";
-
-// Dynamically import Monaco Editor to avoid SSR issues
-const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
+import { SyntaxHighlight } from "@/components/SyntaxHighlight";
+import "@/styles/prism-theme.css";
 
 const defaultCode = `import { db, sql } from 'typegres'
 import type { Database } from 'typegres'
@@ -43,13 +40,10 @@ const userStats = await db
 console.log('User statistics:', userStats)`;
 
 export default function PlaygroundPage() {
-  const [code, setCode] = useState(defaultCode);
+  const [activeTab, setActiveTab] = useState<"output" | "sql">("output");
+  const [db, setDb] = useState<PGlite | null>(null);
   const [output, setOutput] = useState("");
   const [sqlOutput, setSqlOutput] = useState("");
-  const [activeTab, setActiveTab] = useState<"output" | "sql">("output");
-  const [isLoading, setIsLoading] = useState(false);
-  const [db, setDb] = useState<PGlite | null>(null);
-  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor>();
 
   // Initialize PGLite
   useEffect(() => {
@@ -100,81 +94,6 @@ export default function PlaygroundPage() {
     initDb();
   }, []);
 
-  const executeCode = async () => {
-    if (!db) return;
-
-    setIsLoading(true);
-    setActiveTab("output");
-
-    try {
-      // Parse the TypeScript code to extract SQL-like operations
-      // This is a simulation - in reality, Typegres would compile to SQL
-      const sqlQueries: string[] = [];
-      const outputs: string[] = [];
-
-      // Extract query patterns from the code
-      if (
-        code.includes("selectFrom('users')") &&
-        code.includes("where('active'")
-      ) {
-        const result = await db.exec(
-          "SELECT id, name, email FROM users WHERE active = true"
-        );
-        sqlQueries.push(
-          "SELECT id, name, email FROM users WHERE active = true"
-        );
-        outputs.push(
-          `Active users: ${JSON.stringify(result[0]?.rows || [], null, 2)}`
-        );
-      }
-
-      if (
-        code.includes("leftJoin('posts'") &&
-        code.includes("COUNT(posts.id)")
-      ) {
-        const result = await db.exec(`
-          SELECT 
-            users.id,
-            users.name,
-            COUNT(posts.id) as post_count,
-            COUNT(CASE WHEN posts.published THEN 1 END) as published_count
-          FROM users
-          LEFT JOIN posts ON posts.user_id = users.id
-          GROUP BY users.id, users.name
-          HAVING COUNT(posts.id) > 0
-          ORDER BY post_count DESC
-        `);
-        sqlQueries.push(`SELECT 
-  users.id,
-  users.name,
-  COUNT(posts.id) as post_count,
-  COUNT(CASE WHEN posts.published THEN 1 END) as published_count
-FROM users
-LEFT JOIN posts ON posts.user_id = users.id
-GROUP BY users.id, users.name
-HAVING COUNT(posts.id) > 0
-ORDER BY post_count DESC`);
-        outputs.push(
-          `User statistics: ${JSON.stringify(result[0]?.rows || [], null, 2)}`
-        );
-      }
-
-      // Show the TypeScript code output
-      setOutput(outputs.join("\\n\\n") || "No queries detected in the code");
-
-      // Show the generated SQL
-      setSqlOutput(
-        sqlQueries.length > 0
-          ? `-- Generated SQL from Typegres code:\\n\\n${sqlQueries.join(";\\n\\n")};`
-          : "-- No SQL queries generated"
-      );
-    } catch (error: any) {
-      setOutput(`Error: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-white dark:bg-typegres-dark text-typegres-dark dark:text-white">
       <nav className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50 backdrop-blur">
@@ -198,14 +117,6 @@ ORDER BY post_count DESC`);
               </a>
               <h1 className="text-lg font-medium">TypeScript Playground</h1>
             </div>
-            <button
-              onClick={executeCode}
-              disabled={isLoading || !db}
-              className="flex items-center gap-2 px-4 py-2 bg-typegres-blue text-white rounded-lg font-medium hover:shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Play className="w-4 h-4" />
-              {isLoading ? "Running..." : "Run Code"}
-            </button>
           </div>
         </div>
       </nav>
@@ -218,7 +129,12 @@ ORDER BY post_count DESC`);
             <span className="text-sm font-medium">TypeScript Code</span>
           </div>
           <div className="h-[calc(100%-48px)]">
-            <TypegresPlayground />
+            <TypegresPlayground 
+              db={db} 
+              activeTab={activeTab}
+              onOutputChange={setOutput}
+              onSqlChange={setSqlOutput}
+            />
           </div>
         </div>
 
@@ -248,13 +164,29 @@ ORDER BY post_count DESC`);
               Generated SQL
             </button>
           </div>
-          <div className="flex-1 p-4 bg-gray-900 text-gray-200 overflow-auto">
+          <div className="flex-1 p-4 bg-gray-900 overflow-auto">
             {!db ? (
               <div className="text-yellow-400">Initializing database...</div>
+            ) : activeTab === "output" ? (
+              <div className="text-gray-200">
+                {output ? (
+                  output.startsWith('Error:') ? (
+                    <pre className="text-red-400 whitespace-pre-wrap text-sm font-mono">{output}</pre>
+                  ) : (
+                    <SyntaxHighlight code={output} language="typescript" className="text-sm" />
+                  )
+                ) : (
+                  <span className="text-gray-500">Run code to see output</span>
+                )}
+              </div>
             ) : (
-              <pre className="whitespace-pre-wrap text-sm">
-                {activeTab === "output" ? output : sqlOutput}
-              </pre>
+              <div className="text-gray-200">
+                {sqlOutput ? (
+                  <SyntaxHighlight code={sqlOutput} language="sql" className="text-sm" />
+                ) : (
+                  <span className="text-gray-500">No SQL queries captured</span>
+                )}
+              </div>
             )}
           </div>
         </div>

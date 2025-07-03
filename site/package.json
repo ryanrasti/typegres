@@ -15,18 +15,23 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.3.4",
     "@monaco-editor/react": "^4.6.0",
+    "@types/prismjs": "^1.26.5",
     "framer-motion": "^11.17.12",
     "kysely": "^0.27.4",
     "lucide-react": "^0.481.0",
     "monaco-editor": "^0.52.2",
     "next": "^14.2.16",
+    "object-inspect": "^1.13.4",
     "prism-react-renderer": "^2.4.1",
+    "prismjs": "^1.30.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "sql-formatter": "^15.6.6",
     "terser": "^5.43.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "@types/object-inspect": "^1.13.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.4.20",

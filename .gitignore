@@ -39,5 +39,7 @@ site/public/api
 site/public/typegres.js
 site/public/typegres.d.ts
 site/public/demo.ts
+site/public/demo.ts.static
 .next
 site/out
+site/tsconfig.tsbuildinfo
