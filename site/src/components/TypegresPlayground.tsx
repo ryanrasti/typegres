@@ -50,7 +50,7 @@ export function TypegresPlayground({
       .catch((error) => {
         console.error("Error fetching initial code:", error);
       });
-  });
+  }, []);
 
   const [output, setOutput] = useState<string>("");
   const [sqlOutput, setSqlOutput] = useState<string>("");
