@@ -7,7 +7,7 @@ export default [
   {
     input: 'src/index.ts',
     output: {
-      file: 'dist/typegres.bundle.js',
+      file: 'dist/typegres.js',
       format: 'es',
       sourcemap: true
     },
@@ -32,7 +32,7 @@ export default [
   {
     input: 'src/index.ts',
     output: {
-      file: 'dist/typegres.bundle.d.ts',
+      file: 'dist/typegres.d.ts',
       format: 'es'
     },
     plugins: [

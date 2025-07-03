@@ -1,5 +1,6 @@
 import * as kysely from 'kysely';
 import { RawBuilder, Kysely } from 'kysely';
+import { Pool, PoolConfig } from 'pg';
 
 declare class QueryAlias {
     name: string;
@@ -48,15 +49,15 @@ declare class export_default$1n{
     anyValueTransfn<T extends Any>(this: T, a1: T | Input<T>): T;
     anyValueTransfn<T extends Any>(this: T, a1: T | Input<T>): T;
     anyValueTransfn<T extends Any>(this: T, a1: T | Input<T>): T;
-    arrayFill<T extends Any>(this: T, a1: Array<1, export_default$10<0 | 1>>): Array<1, T>;
-    arrayFill<T extends Any>(this: T, a1: Array<0 | 1, export_default$10<0 | 1>>): Array<0 | 1, T>;
-    arrayFill<T extends Any>(this: T, a1: Array<number, export_default$10<0 | 1>>): Array<0 | 1, T>;
-    arrayFill<T extends Any>(this: T, a1: Array<1, export_default$10<0 | 1>>, a2: Array<1, export_default$10<0 | 1>>): Array<1, T>;
-    arrayFill<T extends Any>(this: T, a1: Array<0 | 1, export_default$10<0 | 1>>, a2: Array<0 | 1, export_default$10<0 | 1>>): Array<0 | 1, T>;
-    arrayFill<T extends Any>(this: T, a1: Array<number, export_default$10<0 | 1>>, a2: Array<number, export_default$10<0 | 1>>): Array<0 | 1, T>;
-    arrayPrepend<T extends Any>(this: T, a1: Array<1, T>): Array<1, T>;
-    arrayPrepend<T extends Any>(this: T, a1: Array<0 | 1, T>): Array<0 | 1, T>;
-    arrayPrepend<T extends Any>(this: T, a1: Array<number, T>): Array<0 | 1, T>;
+    arrayFill<T extends Any>(this: T, a1: Array$1<1, export_default$10<0 | 1>>): Array$1<1, T>;
+    arrayFill<T extends Any>(this: T, a1: Array$1<0 | 1, export_default$10<0 | 1>>): Array$1<0 | 1, T>;
+    arrayFill<T extends Any>(this: T, a1: Array$1<number, export_default$10<0 | 1>>): Array$1<0 | 1, T>;
+    arrayFill<T extends Any>(this: T, a1: Array$1<1, export_default$10<0 | 1>>, a2: Array$1<1, export_default$10<0 | 1>>): Array$1<1, T>;
+    arrayFill<T extends Any>(this: T, a1: Array$1<0 | 1, export_default$10<0 | 1>>, a2: Array$1<0 | 1, export_default$10<0 | 1>>): Array$1<0 | 1, T>;
+    arrayFill<T extends Any>(this: T, a1: Array$1<number, export_default$10<0 | 1>>, a2: Array$1<number, export_default$10<0 | 1>>): Array$1<0 | 1, T>;
+    arrayPrepend<T extends Any>(this: T, a1: Array$1<1, T>): Array$1<1, T>;
+    arrayPrepend<T extends Any>(this: T, a1: Array$1<0 | 1, T>): Array$1<0 | 1, T>;
+    arrayPrepend<T extends Any>(this: T, a1: Array$1<number, T>): Array$1<0 | 1, T>;
     concat<T extends Any>(this: T): export_default$l<1>;
     concat<T extends Any>(this: T): export_default$l<0 | 1>;
     concat<T extends Any>(this: T): export_default$l<0 | 1>;
@@ -183,12 +184,12 @@ declare class export_default$1n{
     toJsonb<T extends Any>(this: T): export_default$U<1>;
     toJsonb<T extends Any>(this: T): export_default$U<0 | 1>;
     toJsonb<T extends Any>(this: T): export_default$U<0 | 1>;
-    widthBucket<T extends Any>(this: T, a1: Array<1, T>): export_default$10<1>;
-    widthBucket<T extends Any>(this: T, a1: Array<0 | 1, T>): export_default$10<0 | 1>;
-    widthBucket<T extends Any>(this: T, a1: Array<number, T>): export_default$10<0 | 1>;
-    ["||"]<T extends Any>(this: T, a1: Array<1, T>): Array<1, T>;
-    ["||"]<T extends Any>(this: T, a1: Array<0 | 1, T>): Array<0 | 1, T>;
-    ["||"]<T extends Any>(this: T, a1: Array<number, T>): Array<0 | 1, T>;
+    widthBucket<T extends Any>(this: T, a1: Array$1<1, T>): export_default$10<1>;
+    widthBucket<T extends Any>(this: T, a1: Array$1<0 | 1, T>): export_default$10<0 | 1>;
+    widthBucket<T extends Any>(this: T, a1: Array$1<number, T>): export_default$10<0 | 1>;
+    ["||"]<T extends Any>(this: T, a1: Array$1<1, T>): Array$1<1, T>;
+    ["||"]<T extends Any>(this: T, a1: Array$1<0 | 1, T>): Array$1<0 | 1, T>;
+    ["||"]<T extends Any>(this: T, a1: Array$1<number, T>): Array$1<0 | 1, T>;
     ["<@"]<T extends Any>(this: T, a1: export_default$1k<1, T>): export_default$1g<1>;
     ["<@"]<T extends Any>(this: T, a1: export_default$1k<0 | 1, T>): export_default$1g<0 | 1>;
     ["<@"]<T extends Any>(this: T, a1: export_default$1k<number, T>): export_default$1g<0 | 1>;
@@ -196,6 +197,536 @@ declare class export_default$1n{
     ["<@"]<T extends Any>(this: T, a1: export_default$1i<0 | 1, T>): export_default$1g<0 | 1>;
     ["<@"]<T extends Any>(this: T, a1: export_default$1i<number, T>): export_default$1g<0 | 1>;
 }
+
+type MessageName = 'parseComplete' | 'bindComplete' | 'closeComplete' | 'noData' | 'portalSuspended' | 'replicationStart' | 'emptyQuery' | 'copyDone' | 'copyData' | 'rowDescription' | 'parameterDescription' | 'parameterStatus' | 'backendKeyData' | 'notification' | 'readyForQuery' | 'commandComplete' | 'dataRow' | 'copyInResponse' | 'copyOutResponse' | 'authenticationOk' | 'authenticationMD5Password' | 'authenticationCleartextPassword' | 'authenticationSASL' | 'authenticationSASLContinue' | 'authenticationSASLFinal' | 'error' | 'notice';
+type BackendMessage = {
+    name: MessageName;
+    length: number;
+};
+interface NoticeOrError {
+    message: string | undefined;
+    severity: string | undefined;
+    code: string | undefined;
+    detail: string | undefined;
+    hint: string | undefined;
+    position: string | undefined;
+    internalPosition: string | undefined;
+    internalQuery: string | undefined;
+    where: string | undefined;
+    schema: string | undefined;
+    table: string | undefined;
+    column: string | undefined;
+    dataType: string | undefined;
+    constraint: string | undefined;
+    file: string | undefined;
+    line: string | undefined;
+    routine: string | undefined;
+}
+declare class NoticeMessage implements BackendMessage, NoticeOrError {
+    readonly length: number;
+    readonly message: string | undefined;
+    constructor(length: number, message: string | undefined);
+    readonly name = "notice";
+    severity: string | undefined;
+    code: string | undefined;
+    detail: string | undefined;
+    hint: string | undefined;
+    position: string | undefined;
+    internalPosition: string | undefined;
+    internalQuery: string | undefined;
+    where: string | undefined;
+    schema: string | undefined;
+    table: string | undefined;
+    column: string | undefined;
+    dataType: string | undefined;
+    constraint: string | undefined;
+    file: string | undefined;
+    line: string | undefined;
+    routine: string | undefined;
+}
+
+type IDBFS = Emscripten.FileSystemType & {
+    quit: () => void;
+    dbs: Record<string, IDBDatabase>;
+};
+type FS = typeof FS & {
+    filesystems: {
+        MEMFS: Emscripten.FileSystemType;
+        NODEFS: Emscripten.FileSystemType;
+        IDBFS: IDBFS;
+    };
+    quit: () => void;
+};
+interface PostgresMod extends Omit<EmscriptenModule, 'preInit' | 'preRun' | 'postRun'> {
+    preInit: Array<{
+        (mod: PostgresMod): void;
+    }>;
+    preRun: Array<{
+        (mod: PostgresMod): void;
+    }>;
+    postRun: Array<{
+        (mod: PostgresMod): void;
+    }>;
+    FS: FS;
+    FD_BUFFER_MAX: number;
+    WASM_PREFIX: string;
+    INITIAL_MEMORY: number;
+    pg_extensions: Record<string, Promise<Blob | null>>;
+    _use_wire: (state: number) => void;
+    _pgl_initdb: () => number;
+    _pgl_backend: () => void;
+    _pgl_shutdown: () => void;
+    _get_buffer_size: (fd: number) => number;
+    _get_buffer_addr: (fd: number) => number;
+    _get_channel: () => number;
+    _interactive_write: (msgLength: number) => void;
+    _interactive_one: () => void;
+    _interactive_read: () => number;
+}
+
+type DumpTarCompressionOptions = 'none' | 'gzip' | 'auto';
+/**
+ * Filesystem interface.
+ * All virtual filesystems that are compatible with PGlite must implement
+ * this interface.
+ */
+interface Filesystem {
+    /**
+     * Initiate the filesystem and return the options to pass to the emscripten module.
+     */
+    init(pg: PGlite, emscriptenOptions: Partial<PostgresMod>): Promise<{
+        emscriptenOpts: Partial<PostgresMod>;
+    }>;
+    /**
+     * Sync the filesystem to any underlying storage.
+     */
+    syncToFs(relaxedDurability?: boolean): Promise<void>;
+    /**
+     * Sync the filesystem from any underlying storage.
+     */
+    initialSyncFs(): Promise<void>;
+    /**
+     * Dump the PGDATA dir from the filesystem to a gziped tarball.
+     */
+    dumpTar(dbname: string, compression?: DumpTarCompressionOptions): Promise<File | Blob>;
+    /**
+     * Close the filesystem.
+     */
+    closeFs(): Promise<void>;
+}
+type DebugLevel = 0 | 1 | 2 | 3 | 4 | 5;
+type RowMode = 'array' | 'object';
+interface ParserOptions {
+    [pgType: number]: (value: string) => any;
+}
+interface SerializerOptions {
+    [pgType: number]: (value: any) => string;
+}
+interface QueryOptions {
+    rowMode?: RowMode;
+    parsers?: ParserOptions;
+    serializers?: SerializerOptions;
+    blob?: Blob | File;
+    onNotice?: (notice: NoticeMessage) => void;
+    paramTypes?: number[];
+}
+interface ExecProtocolOptions {
+    syncToFs?: boolean;
+    throwOnError?: boolean;
+    onNotice?: (notice: NoticeMessage) => void;
+    dataTransferContainer?: DataTransferContainer;
+}
+interface ExtensionSetupResult<TNamespace = any> {
+    emscriptenOpts?: any;
+    namespaceObj?: TNamespace;
+    bundlePath?: URL;
+    init?: () => Promise<void>;
+    close?: () => Promise<void>;
+}
+type ExtensionSetup<TNamespace = any> = (pg: PGliteInterface, emscriptenOpts: any, clientOnly?: boolean) => Promise<ExtensionSetupResult<TNamespace>>;
+interface Extension<TNamespace = any> {
+    name: string;
+    setup: ExtensionSetup<TNamespace>;
+}
+type ExtensionNamespace<T> = T extends Extension<infer TNamespace> ? TNamespace : any;
+type Extensions = {
+    [namespace: string]: Extension | URL;
+};
+type InitializedExtensions<TExtensions extends Extensions = Extensions> = {
+    [K in keyof TExtensions]: ExtensionNamespace<TExtensions[K]>;
+};
+interface ExecProtocolResult {
+    messages: BackendMessage[];
+    data: Uint8Array;
+}
+type DataTransferContainer = 'cma' | 'file';
+interface PGliteOptions<TExtensions extends Extensions = Extensions> {
+    dataDir?: string;
+    username?: string;
+    database?: string;
+    fs?: Filesystem;
+    debug?: DebugLevel;
+    relaxedDurability?: boolean;
+    extensions?: TExtensions;
+    loadDataDir?: Blob | File;
+    initialMemory?: number;
+    wasmModule?: WebAssembly.Module;
+    fsBundle?: Blob | File;
+    parsers?: ParserOptions;
+    serializers?: SerializerOptions;
+    defaultDataTransferContainer?: DataTransferContainer;
+}
+type PGliteInterface<T extends Extensions = Extensions> = InitializedExtensions<T> & {
+    readonly waitReady: Promise<void>;
+    readonly debug: DebugLevel;
+    readonly ready: boolean;
+    readonly closed: boolean;
+    close(): Promise<void>;
+    query<T>(query: string, params?: any[], options?: QueryOptions): Promise<Results<T>>;
+    sql<T>(sqlStrings: TemplateStringsArray, ...params: any[]): Promise<Results<T>>;
+    exec(query: string, options?: QueryOptions): Promise<Array<Results>>;
+    describeQuery(query: string): Promise<DescribeQueryResult>;
+    transaction<T>(callback: (tx: Transaction) => Promise<T>): Promise<T>;
+    execProtocolRaw(message: Uint8Array, options?: ExecProtocolOptions): Promise<Uint8Array>;
+    execProtocol(message: Uint8Array, options?: ExecProtocolOptions): Promise<ExecProtocolResult>;
+    runExclusive<T>(fn: () => Promise<T>): Promise<T>;
+    listen(channel: string, callback: (payload: string) => void, tx?: Transaction): Promise<(tx?: Transaction) => Promise<void>>;
+    unlisten(channel: string, callback?: (payload: string) => void, tx?: Transaction): Promise<void>;
+    onNotification(callback: (channel: string, payload: string) => void): () => void;
+    offNotification(callback: (channel: string, payload: string) => void): void;
+    dumpDataDir(compression?: DumpTarCompressionOptions): Promise<File | Blob>;
+    refreshArrayTypes(): Promise<void>;
+};
+type PGliteInterfaceExtensions<E> = E extends Extensions ? {
+    [K in keyof E]: E[K] extends Extension ? Awaited<ReturnType<E[K]['setup']>>['namespaceObj'] extends infer N ? N extends undefined | null | void ? never : N : never : never;
+} : Record<string, never>;
+type Row<T = {
+    [key: string]: any;
+}> = T;
+type Results<T = {
+    [key: string]: any;
+}> = {
+    rows: Row<T>[];
+    affectedRows?: number;
+    fields: {
+        name: string;
+        dataTypeID: number;
+    }[];
+    blob?: Blob;
+};
+interface Transaction {
+    query<T>(query: string, params?: any[], options?: QueryOptions): Promise<Results<T>>;
+    sql<T>(sqlStrings: TemplateStringsArray, ...params: any[]): Promise<Results<T>>;
+    exec(query: string, options?: QueryOptions): Promise<Array<Results>>;
+    rollback(): Promise<void>;
+    listen(channel: string, callback: (payload: string) => void): Promise<(tx?: Transaction) => Promise<void>>;
+    get closed(): boolean;
+}
+type DescribeQueryResult = {
+    queryParams: {
+        dataTypeID: number;
+        serializer: Serializer;
+    }[];
+    resultFields: {
+        name: string;
+        dataTypeID: number;
+        parser: Parser;
+    }[];
+};
+type Parser = (x: string, typeId?: number) => any;
+type Serializer = (x: any) => string;
+
+declare abstract class BasePGlite implements Pick<PGliteInterface, 'query' | 'sql' | 'exec' | 'transaction'> {
+    #private;
+    serializers: Record<number | string, Serializer>;
+    parsers: Record<number | string, Parser>;
+    abstract debug: DebugLevel;
+    /**
+     * Execute a postgres wire protocol message
+     * @param message The postgres wire protocol message to execute
+     * @returns The result of the query
+     */
+    abstract execProtocol(message: Uint8Array, { syncToFs, onNotice }: ExecProtocolOptions): Promise<ExecProtocolResult>;
+    /**
+     * Execute a postgres wire protocol message directly without wrapping the response.
+     * Only use if `execProtocol()` doesn't suite your needs.
+     *
+     * **Warning:** This bypasses PGlite's protocol wrappers that manage error/notice messages,
+     * transactions, and notification listeners. Only use if you need to bypass these wrappers and
+     * don't intend to use the above features.
+     *
+     * @param message The postgres wire protocol message to execute
+     * @returns The direct message data response produced by Postgres
+     */
+    abstract execProtocolRaw(message: Uint8Array, { syncToFs, dataTransferContainer }: ExecProtocolOptions): Promise<Uint8Array>;
+    /**
+     * Sync the database to the filesystem
+     * @returns Promise that resolves when the database is synced to the filesystem
+     */
+    abstract syncToFs(): Promise<void>;
+    /**
+     * Handle a file attached to the current query
+     * @param file The file to handle
+     */
+    abstract _handleBlob(blob?: File | Blob): Promise<void>;
+    /**
+     * Get the written file
+     */
+    abstract _getWrittenBlob(): Promise<File | Blob | undefined>;
+    /**
+     * Cleanup the current file
+     */
+    abstract _cleanupBlob(): Promise<void>;
+    abstract _checkReady(): Promise<void>;
+    abstract _runExclusiveQuery<T>(fn: () => Promise<T>): Promise<T>;
+    abstract _runExclusiveTransaction<T>(fn: () => Promise<T>): Promise<T>;
+    /**
+     * Listen for notifications on a channel
+     */
+    abstract listen(channel: string, callback: (payload: string) => void, tx?: Transaction): Promise<(tx?: Transaction) => Promise<void>>;
+    /**
+     * Initialize the array types
+     * The oid if the type of an element and the typarray is the oid of the type of the
+     * array.
+     * We extract these from the databaes then create the serializers/parsers for
+     * each type.
+     * This should be called at the end of #init() in the implementing class.
+     */
+    _initArrayTypes({ force }?: {
+        force?: boolean | undefined;
+    }): Promise<void>;
+    /**
+     * Re-syncs the array types from the database
+     * This is useful if you add a new type to the database and want to use it, otherwise pglite won't recognize it.
+     */
+    refreshArrayTypes(): Promise<void>;
+    /**
+     * Execute a single SQL statement
+     * This uses the "Extended Query" postgres wire protocol message.
+     * @param query The query to execute
+     * @param params Optional parameters for the query
+     * @returns The result of the query
+     */
+    query<T>(query: string, params?: any[], options?: QueryOptions): Promise<Results<T>>;
+    /**
+     * Execute a single SQL statement like with {@link PGlite.query}, but with a
+     * templated statement where template values will be treated as parameters.
+     *
+     * You can use helpers from `/template` to further format the query with
+     * identifiers, raw SQL, and nested statements.
+     *
+     * This uses the "Extended Query" postgres wire protocol message.
+     *
+     * @param query The query to execute with parameters as template values
+     * @returns The result of the query
+     *
+     * @example
+     * ```ts
+     * const results = await db.sql`SELECT * FROM ${identifier`foo`} WHERE id = ${id}`
+     * ```
+     */
+    sql<T>(sqlStrings: TemplateStringsArray, ...params: any[]): Promise<Results<T>>;
+    /**
+     * Execute a SQL query, this can have multiple statements.
+     * This uses the "Simple Query" postgres wire protocol message.
+     * @param query The query to execute
+     * @returns The result of the query
+     */
+    exec(query: string, options?: QueryOptions): Promise<Array<Results>>;
+    /**
+     * Describe a query
+     * @param query The query to describe
+     * @returns A description of the result types for the query
+     */
+    describeQuery(query: string, options?: QueryOptions): Promise<DescribeQueryResult>;
+    /**
+     * Execute a transaction
+     * @param callback A callback function that takes a transaction object
+     * @returns The result of the transaction
+     */
+    transaction<T>(callback: (tx: Transaction) => Promise<T>): Promise<T>;
+    /**
+     * Run a function exclusively, no other transactions or queries will be allowed
+     * while the function is running.
+     * This is useful when working with the execProtocol methods as they are not blocked,
+     * and do not block the locks used by transactions and queries.
+     * @param fn The function to run
+     * @returns The result of the function
+     */
+    runExclusive<T>(fn: () => Promise<T>): Promise<T>;
+}
+
+declare class PGlite extends BasePGlite implements PGliteInterface, AsyncDisposable {
+    #private;
+    fs?: Filesystem;
+    protected mod?: PostgresMod;
+    readonly dataDir?: string;
+    readonly waitReady: Promise<void>;
+    readonly debug: DebugLevel;
+    /**
+     * Create a new PGlite instance
+     * @param dataDir The directory to store the database files
+     *                Prefix with idb:// to use indexeddb filesystem in the browser
+     *                Use memory:// to use in-memory filesystem
+     * @param options PGlite options
+     */
+    constructor(dataDir?: string, options?: PGliteOptions);
+    /**
+     * Create a new PGlite instance
+     * @param options PGlite options including the data directory
+     */
+    constructor(options?: PGliteOptions);
+    /**
+     * Create a new PGlite instance with extensions on the Typescript interface
+     * (The main constructor does enable extensions, however due to the limitations
+     * of Typescript, the extensions are not available on the instance interface)
+     * @param options PGlite options including the data directory
+     * @returns A promise that resolves to the PGlite instance when it's ready.
+     */
+    static create<O extends PGliteOptions>(options?: O): Promise<PGlite & PGliteInterfaceExtensions<O['extensions']>>;
+    /**
+     * Create a new PGlite instance with extensions on the Typescript interface
+     * (The main constructor does enable extensions, however due to the limitations
+     * of Typescript, the extensions are not available on the instance interface)
+     * @param dataDir The directory to store the database files
+     *                Prefix with idb:// to use indexeddb filesystem in the browser
+     *                Use memory:// to use in-memory filesystem
+     * @param options PGlite options
+     * @returns A promise that resolves to the PGlite instance when it's ready.
+     */
+    static create<O extends PGliteOptions>(dataDir?: string, options?: O): Promise<PGlite & PGliteInterfaceExtensions<O['extensions']>>;
+    /**
+     * The Postgres Emscripten Module
+     */
+    get Module(): PostgresMod;
+    /**
+     * The ready state of the database
+     */
+    get ready(): boolean;
+    /**
+     * The closed state of the database
+     */
+    get closed(): boolean;
+    /**
+     * Close the database
+     * @returns A promise that resolves when the database is closed
+     */
+    close(): Promise<void>;
+    /**
+     * Close the database when the object exits scope
+     * Stage 3 ECMAScript Explicit Resource Management
+     * https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management
+     */
+    [Symbol.asyncDispose](): Promise<void>;
+    /**
+     * Handle a file attached to the current query
+     * @param file The file to handle
+     */
+    _handleBlob(blob?: File | Blob): Promise<void>;
+    /**
+     * Cleanup the current file
+     */
+    _cleanupBlob(): Promise<void>;
+    /**
+     * Get the written blob from the current query
+     * @returns The written blob
+     */
+    _getWrittenBlob(): Promise<Blob | undefined>;
+    /**
+     * Wait for the database to be ready
+     */
+    _checkReady(): Promise<void>;
+    /**
+     * Execute a postgres wire protocol synchronously
+     * @param message The postgres wire protocol message to execute
+     * @returns The direct message data response produced by Postgres
+     */
+    execProtocolRawSync(message: Uint8Array, options?: {
+        dataTransferContainer?: DataTransferContainer;
+    }): Uint8Array;
+    /**
+     * Execute a postgres wire protocol message directly without wrapping the response.
+     * Only use if `execProtocol()` doesn't suite your needs.
+     *
+     * **Warning:** This bypasses PGlite's protocol wrappers that manage error/notice messages,
+     * transactions, and notification listeners. Only use if you need to bypass these wrappers and
+     * don't intend to use the above features.
+     *
+     * @param message The postgres wire protocol message to execute
+     * @returns The direct message data response produced by Postgres
+     */
+    execProtocolRaw(message: Uint8Array, { syncToFs, dataTransferContainer }?: ExecProtocolOptions): Promise<Uint8Array>;
+    /**
+     * Execute a postgres wire protocol message
+     * @param message The postgres wire protocol message to execute
+     * @returns The result of the query
+     */
+    execProtocol(message: Uint8Array, { syncToFs, throwOnError, onNotice, }?: ExecProtocolOptions): Promise<ExecProtocolResult>;
+    /**
+     * Check if the database is in a transaction
+     * @returns True if the database is in a transaction, false otherwise
+     */
+    isInTransaction(): boolean;
+    /**
+     * Perform any sync operations implemented by the filesystem, this is
+     * run after every query to ensure that the filesystem is synced.
+     */
+    syncToFs(): Promise<void>;
+    /**
+     * Listen for a notification
+     * @param channel The channel to listen on
+     * @param callback The callback to call when a notification is received
+     */
+    listen(channel: string, callback: (payload: string) => void, tx?: Transaction): Promise<(tx?: Transaction) => Promise<void>>;
+    /**
+     * Stop listening for a notification
+     * @param channel The channel to stop listening on
+     * @param callback The callback to remove
+     */
+    unlisten(channel: string, callback?: (payload: string) => void, tx?: Transaction): Promise<void>;
+    /**
+     * Listen to notifications
+     * @param callback The callback to call when a notification is received
+     */
+    onNotification(callback: (channel: string, payload: string) => void): () => void;
+    /**
+     * Stop listening to notifications
+     * @param callback The callback to remove
+     */
+    offNotification(callback: (channel: string, payload: string) => void): void;
+    /**
+     * Dump the PGDATA dir from the filesystem to a gziped tarball.
+     * @param compression The compression options to use - 'gzip', 'auto', 'none'
+     * @returns The tarball as a File object where available, and fallback to a Blob
+     */
+    dumpDataDir(compression?: DumpTarCompressionOptions): Promise<File | Blob>;
+    /**
+     * Run a function in a mutex that's exclusive to queries
+     * @param fn The query to run
+     * @returns The result of the query
+     */
+    _runExclusiveQuery<T>(fn: () => Promise<T>): Promise<T>;
+    /**
+     * Run a function in a mutex that's exclusive to transactions
+     * @param fn The function to run
+     * @returns The result of the function
+     */
+    _runExclusiveTransaction<T>(fn: () => Promise<T>): Promise<T>;
+    clone(): Promise<PGliteInterface>;
+    _runExclusiveListen<T>(fn: () => Promise<T>): Promise<T>;
+}
+
+type Typegres = Kysely<{}>;
+type DatabaseConfig = {
+    type: "pg";
+    PoolClass: typeof Pool;
+    config?: PoolConfig;
+} | {
+    type: "pglite";
+    PGliteClass: typeof PGlite;
+    options?: PGliteOptions;
+};
+declare const db: (dbConfig: DatabaseConfig) => Promise<Typegres>;
 
 type ClassType$1<T> = {
     typeString(): string | undefined;
@@ -226,7 +757,9 @@ declare class Any<R = unknown, N extends number = number> extends export_default
     resultType: R | undefined;
     nullability: N | undefined;
     static parse(v: string): unknown;
-    then(resolve: (result: N extends 0 ? null : N extends 1 ? R : R | null) => void, reject: (err: unknown) => void): void;
+    execute(db: Typegres): {
+        then(resolve: (result: N extends 0 ? null : N extends 1 ? R : R | null) => void, reject: (err: unknown) => void): void;
+    };
     getClass(this: this): typeof Any;
 }
 
@@ -288,12 +821,12 @@ declare class export_default$1l<N extends number> extends Any<Parsed$1h, N> {
     enumNe<T extends this>(this: T, a1: T | Input<T>): export_default$1g<1>;
     enumNe<T extends this>(this: T, a1: T | Input<T>): export_default$1g<0 | 1>;
     enumNe<T extends this>(this: T, a1: T | Input<T>): export_default$1g<0 | 1>;
-    enumRange<T extends this>(this: T): Array<1, T>;
-    enumRange<T extends this>(this: T): Array<0 | 1, T>;
-    enumRange<T extends this>(this: T): Array<0 | 1, T>;
-    enumRange<T extends this>(this: T, a1: T | Input<T>): Array<1, T>;
-    enumRange<T extends this>(this: T, a1: T | Input<T>): Array<0 | 1, T>;
-    enumRange<T extends this>(this: T, a1: T | Input<T>): Array<0 | 1, T>;
+    enumRange<T extends this>(this: T): Array$1<1, T>;
+    enumRange<T extends this>(this: T): Array$1<0 | 1, T>;
+    enumRange<T extends this>(this: T): Array$1<0 | 1, T>;
+    enumRange<T extends this>(this: T, a1: T | Input<T>): Array$1<1, T>;
+    enumRange<T extends this>(this: T, a1: T | Input<T>): Array$1<0 | 1, T>;
+    enumRange<T extends this>(this: T, a1: T | Input<T>): Array$1<0 | 1, T>;
     enumSmaller<T extends this>(this: T, a1: T | Input<T>): T;
     enumSmaller<T extends this>(this: T, a1: T | Input<T>): T;
     enumSmaller<T extends this>(this: T, a1: T | Input<T>): T;
@@ -535,7 +1068,7 @@ declare class export_default$1j<N extends number> extends Any<Parsed$1g, N> {
     anytextcat<T extends this>(this: T, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$l<1>;
     anytextcat<T extends this>(this: T, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
     anytextcat<T extends this>(this: T, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
-    arrayAgg<T extends this>(this: T): Array<0 | 1, T>;
+    arrayAgg<T extends this>(this: T): Array$1<0 | 1, T>;
 }
 
 declare class export_default$1i<N extends number, T extends Any> extends Any<unknown, N> {
@@ -863,12 +1396,10 @@ declare class export_default$1h<N extends number> extends Any<Parsed$1f, N> {
     ["#"](this: export_default$1h<number>, a1: export_default$1h<number>): export_default$1h<0 | 1>;
 }
 
-declare function parseBool(value: string): value is "TRUE" | "t" | "true" | "y" | "yes" | "on" | "1";
-
 type Input<T extends Any> = unknown extends T["resultType"] ? never : T["resultType"];
 declare const typeMap: {
     readonly bool: {
-        readonly parse: typeof parseBool;
+        readonly parse: (value: string) => boolean;
         readonly serialize: (value: boolean) => string;
         readonly serializeFromTypes: readonly ["boolean"];
     };
@@ -916,7 +1447,7 @@ declare class export_default$1g<N extends number> extends Any<Parsed$1e, N> {
     static new(v: null): export_default$1g<0>;
     static new(v: Expression): export_default$1g<0 | 1>;
     static serializeParamTypes: readonly SerializeParam$1e[] | undefined;
-    static parse(v: string): v is "TRUE" | "t" | "true" | "y" | "yes" | "on" | "1";
+    static parse(v: string): boolean;
     static typeString(): string | undefined;
     asAggregate(): export_default$1g<number> | undefined;
     binaryUpgradeSetRecordInitPrivs(this: export_default$1g<1>): export_default$4<1>;
@@ -951,9 +1482,9 @@ declare class export_default$1g<N extends number> extends Any<Parsed$1e, N> {
     btboolcmp(this: export_default$1g<1>, a1: export_default$1g<1> | Input<export_default$1g<0 | 1>>): export_default$10<1>;
     btboolcmp(this: export_default$1g<0 | 1>, a1: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>): export_default$10<0 | 1>;
     btboolcmp(this: export_default$1g<number>, a1: export_default$1g<number> | Input<export_default$1g<0 | 1>>): export_default$10<0 | 1>;
-    currentSchemas(this: export_default$1g<1>): Array<1, export_default$M<0 | 1>>;
-    currentSchemas(this: export_default$1g<0 | 1>): Array<0 | 1, export_default$M<0 | 1>>;
-    currentSchemas(this: export_default$1g<number>): Array<0 | 1, export_default$M<0 | 1>>;
+    currentSchemas(this: export_default$1g<1>): Array$1<1, export_default$M<0 | 1>>;
+    currentSchemas(this: export_default$1g<0 | 1>): Array$1<0 | 1, export_default$M<0 | 1>>;
+    currentSchemas(this: export_default$1g<number>): Array$1<0 | 1, export_default$M<0 | 1>>;
     databaseToXml(this: export_default$1g<1>, a1: export_default$1g<1> | Input<export_default$1g<0 | 1>>, a2: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$1<1>;
     databaseToXml(this: export_default$1g<0 | 1>, a1: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>, a2: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$1<0 | 1>;
     databaseToXml(this: export_default$1g<number>, a1: export_default$1g<number> | Input<export_default$1g<0 | 1>>, a2: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$1<0 | 1>;
@@ -1550,9 +2081,9 @@ declare class export_default$1c<N extends number> extends Any<Parsed$1a, N> {
     static parse(v: string): string;
     static typeString(): string | undefined;
     asAggregate(): export_default$1c<number> | undefined;
-    acldefault(this: export_default$1c<1>, a1: export_default$I<1>): Array<1, export_default$1m<0 | 1>>;
-    acldefault(this: export_default$1c<0 | 1>, a1: export_default$I<0 | 1>): Array<0 | 1, export_default$1m<0 | 1>>;
-    acldefault(this: export_default$1c<number>, a1: export_default$I<number>): Array<0 | 1, export_default$1m<0 | 1>>;
+    acldefault(this: export_default$1c<1>, a1: export_default$I<1>): Array$1<1, export_default$1m<0 | 1>>;
+    acldefault(this: export_default$1c<0 | 1>, a1: export_default$I<0 | 1>): Array$1<0 | 1, export_default$1m<0 | 1>>;
+    acldefault(this: export_default$1c<number>, a1: export_default$I<number>): Array$1<0 | 1, export_default$1m<0 | 1>>;
     bpchar(this: export_default$1c<1>): export_default$1e<1>;
     bpchar(this: export_default$1c<0 | 1>): export_default$1e<0 | 1>;
     bpchar(this: export_default$1c<number>): export_default$1e<0 | 1>;
@@ -3430,9 +3961,9 @@ declare class export_default$10<N extends number> extends Any<Parsed$_, N> {
     pgAdvisoryXactLockShared(this: export_default$10<1>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): export_default$4<1>;
     pgAdvisoryXactLockShared(this: export_default$10<0 | 1>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): export_default$4<0 | 1>;
     pgAdvisoryXactLockShared(this: export_default$10<number>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): export_default$4<0 | 1>;
-    pgBlockingPids(this: export_default$10<1>): Array<1, export_default$10<0 | 1>>;
-    pgBlockingPids(this: export_default$10<0 | 1>): Array<0 | 1, export_default$10<0 | 1>>;
-    pgBlockingPids(this: export_default$10<number>): Array<0 | 1, export_default$10<0 | 1>>;
+    pgBlockingPids(this: export_default$10<1>): Array$1<1, export_default$10<0 | 1>>;
+    pgBlockingPids(this: export_default$10<0 | 1>): Array$1<0 | 1, export_default$10<0 | 1>>;
+    pgBlockingPids(this: export_default$10<number>): Array$1<0 | 1, export_default$10<0 | 1>>;
     pgCancelBackend(this: export_default$10<1>): export_default$1g<1>;
     pgCancelBackend(this: export_default$10<0 | 1>): export_default$1g<0 | 1>;
     pgCancelBackend(this: export_default$10<number>): export_default$1g<0 | 1>;
@@ -3442,15 +3973,15 @@ declare class export_default$10<N extends number> extends Any<Parsed$_, N> {
     pgEncodingToChar(this: export_default$10<1>): export_default$M<1>;
     pgEncodingToChar(this: export_default$10<0 | 1>): export_default$M<0 | 1>;
     pgEncodingToChar(this: export_default$10<number>): export_default$M<0 | 1>;
-    pgIsolationTestSessionIsBlocked(this: export_default$10<1>, a1: Array<1, export_default$10<0 | 1>>): export_default$1g<1>;
-    pgIsolationTestSessionIsBlocked(this: export_default$10<0 | 1>, a1: Array<0 | 1, export_default$10<0 | 1>>): export_default$1g<0 | 1>;
-    pgIsolationTestSessionIsBlocked(this: export_default$10<number>, a1: Array<number, export_default$10<0 | 1>>): export_default$1g<0 | 1>;
+    pgIsolationTestSessionIsBlocked(this: export_default$10<1>, a1: Array$1<1, export_default$10<0 | 1>>): export_default$1g<1>;
+    pgIsolationTestSessionIsBlocked(this: export_default$10<0 | 1>, a1: Array$1<0 | 1, export_default$10<0 | 1>>): export_default$1g<0 | 1>;
+    pgIsolationTestSessionIsBlocked(this: export_default$10<number>, a1: Array$1<number, export_default$10<0 | 1>>): export_default$1g<0 | 1>;
     pgLogBackendMemoryContexts(this: export_default$10<1>): export_default$1g<1>;
     pgLogBackendMemoryContexts(this: export_default$10<0 | 1>): export_default$1g<0 | 1>;
     pgLogBackendMemoryContexts(this: export_default$10<number>): export_default$1g<0 | 1>;
-    pgSafeSnapshotBlockingPids(this: export_default$10<1>): Array<1, export_default$10<0 | 1>>;
-    pgSafeSnapshotBlockingPids(this: export_default$10<0 | 1>): Array<0 | 1, export_default$10<0 | 1>>;
-    pgSafeSnapshotBlockingPids(this: export_default$10<number>): Array<0 | 1, export_default$10<0 | 1>>;
+    pgSafeSnapshotBlockingPids(this: export_default$10<1>): Array$1<1, export_default$10<0 | 1>>;
+    pgSafeSnapshotBlockingPids(this: export_default$10<0 | 1>): Array$1<0 | 1, export_default$10<0 | 1>>;
+    pgSafeSnapshotBlockingPids(this: export_default$10<number>): Array$1<0 | 1, export_default$10<0 | 1>>;
     pgStatGetActivity(this: export_default$10<1>): Setof<{
         from: {
             datid: export_default$I<1>;
@@ -4508,12 +5039,12 @@ declare class export_default$V<N extends number> extends Any<Parsed$T, N> {
             value: export_default$l<0 | 1>;
         };
     }>;
-    jsonExtractPath(this: export_default$V<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$V<1>;
-    jsonExtractPath(this: export_default$V<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$V<0 | 1>;
-    jsonExtractPath(this: export_default$V<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$V<0 | 1>;
-    jsonExtractPathText(this: export_default$V<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$l<1>;
-    jsonExtractPathText(this: export_default$V<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$l<0 | 1>;
-    jsonExtractPathText(this: export_default$V<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$l<0 | 1>;
+    jsonExtractPath(this: export_default$V<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$V<1>;
+    jsonExtractPath(this: export_default$V<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$V<0 | 1>;
+    jsonExtractPath(this: export_default$V<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$V<0 | 1>;
+    jsonExtractPathText(this: export_default$V<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$l<1>;
+    jsonExtractPathText(this: export_default$V<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$l<0 | 1>;
+    jsonExtractPathText(this: export_default$V<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$l<0 | 1>;
     jsonObjectField(this: export_default$V<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$V<1>;
     jsonObjectField(this: export_default$V<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$V<0 | 1>;
     jsonObjectField(this: export_default$V<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$V<0 | 1>;
@@ -4571,12 +5102,12 @@ declare class export_default$V<N extends number> extends Any<Parsed$T, N> {
     ["->>"](this: export_default$V<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$l<1>;
     ["->>"](this: export_default$V<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
     ["->>"](this: export_default$V<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
-    ["#>"](this: export_default$V<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$V<1>;
-    ["#>"](this: export_default$V<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$V<0 | 1>;
-    ["#>"](this: export_default$V<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$V<0 | 1>;
-    ["#>>"](this: export_default$V<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$l<1>;
-    ["#>>"](this: export_default$V<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$l<0 | 1>;
-    ["#>>"](this: export_default$V<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$l<0 | 1>;
+    ["#>"](this: export_default$V<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$V<1>;
+    ["#>"](this: export_default$V<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$V<0 | 1>;
+    ["#>"](this: export_default$V<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$V<0 | 1>;
+    ["#>>"](this: export_default$V<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$l<1>;
+    ["#>>"](this: export_default$V<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$l<0 | 1>;
+    ["#>>"](this: export_default$V<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$l<0 | 1>;
 }
 
 type Parsed$S = string;
@@ -4657,18 +5188,18 @@ declare class export_default$U<N extends number> extends Any<Parsed$S, N> {
     jsonbContains(this: export_default$U<1>, a1: export_default$U<1>): export_default$1g<1>;
     jsonbContains(this: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
     jsonbContains(this: export_default$U<number>, a1: export_default$U<number>): export_default$1g<0 | 1>;
-    jsonbDelete(this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$U<1>;
-    jsonbDelete(this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
-    jsonbDelete(this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    jsonbDelete(this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$U<1>;
+    jsonbDelete(this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    jsonbDelete(this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$U<0 | 1>;
     jsonbDelete(this: export_default$U<1>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): export_default$U<1>;
     jsonbDelete(this: export_default$U<0 | 1>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): export_default$U<0 | 1>;
     jsonbDelete(this: export_default$U<number>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): export_default$U<0 | 1>;
     jsonbDelete(this: export_default$U<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$U<1>;
     jsonbDelete(this: export_default$U<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$U<0 | 1>;
     jsonbDelete(this: export_default$U<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$U<0 | 1>;
-    jsonbDeletePath(this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$U<1>;
-    jsonbDeletePath(this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
-    jsonbDeletePath(this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    jsonbDeletePath(this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$U<1>;
+    jsonbDeletePath(this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    jsonbDeletePath(this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$U<0 | 1>;
     jsonbEach(this: export_default$U<1>): Setof<{
         from: {
             key: export_default$l<1>;
@@ -4711,18 +5242,18 @@ declare class export_default$U<N extends number> extends Any<Parsed$S, N> {
     jsonbExists(this: export_default$U<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$1g<1>;
     jsonbExists(this: export_default$U<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$1g<0 | 1>;
     jsonbExists(this: export_default$U<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-    jsonbExistsAll(this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$1g<1>;
-    jsonbExistsAll(this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-    jsonbExistsAll(this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-    jsonbExistsAny(this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$1g<1>;
-    jsonbExistsAny(this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-    jsonbExistsAny(this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-    jsonbExtractPath(this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$U<1>;
-    jsonbExtractPath(this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
-    jsonbExtractPath(this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$U<0 | 1>;
-    jsonbExtractPathText(this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$l<1>;
-    jsonbExtractPathText(this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$l<0 | 1>;
-    jsonbExtractPathText(this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$l<0 | 1>;
+    jsonbExistsAll(this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$1g<1>;
+    jsonbExistsAll(this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
+    jsonbExistsAll(this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
+    jsonbExistsAny(this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$1g<1>;
+    jsonbExistsAny(this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
+    jsonbExistsAny(this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
+    jsonbExtractPath(this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$U<1>;
+    jsonbExtractPath(this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    jsonbExtractPath(this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    jsonbExtractPathText(this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$l<1>;
+    jsonbExtractPathText(this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$l<0 | 1>;
+    jsonbExtractPathText(this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$l<0 | 1>;
     jsonbGe(this: export_default$U<1>, a1: export_default$U<1>): export_default$1g<1>;
     jsonbGe(this: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
     jsonbGe(this: export_default$U<number>, a1: export_default$U<number>): export_default$1g<0 | 1>;
@@ -4735,9 +5266,9 @@ declare class export_default$U<N extends number> extends Any<Parsed$S, N> {
     jsonbHashExtended(this: export_default$U<1>, a1: export_default$Z<1> | Input<export_default$Z<0 | 1>>): export_default$Z<1>;
     jsonbHashExtended(this: export_default$U<0 | 1>, a1: export_default$Z<0 | 1> | Input<export_default$Z<0 | 1>>): export_default$Z<0 | 1>;
     jsonbHashExtended(this: export_default$U<number>, a1: export_default$Z<number> | Input<export_default$Z<0 | 1>>): export_default$Z<0 | 1>;
-    jsonbInsert(this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>, a2: export_default$U<1>, a3: export_default$1g<1> | Input<export_default$1g<0 | 1>>): export_default$U<1>;
-    jsonbInsert(this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>, a2: export_default$U<0 | 1>, a3: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>): export_default$U<0 | 1>;
-    jsonbInsert(this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>, a2: export_default$U<number>, a3: export_default$1g<number> | Input<export_default$1g<0 | 1>>): export_default$U<0 | 1>;
+    jsonbInsert(this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>, a2: export_default$U<1>, a3: export_default$1g<1> | Input<export_default$1g<0 | 1>>): export_default$U<1>;
+    jsonbInsert(this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>, a2: export_default$U<0 | 1>, a3: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>): export_default$U<0 | 1>;
+    jsonbInsert(this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>, a2: export_default$U<number>, a3: export_default$1g<number> | Input<export_default$1g<0 | 1>>): export_default$U<0 | 1>;
     jsonbLe(this: export_default$U<1>, a1: export_default$U<1>): export_default$1g<1>;
     jsonbLe(this: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
     jsonbLe(this: export_default$U<number>, a1: export_default$U<number>): export_default$1g<0 | 1>;
@@ -4813,12 +5344,12 @@ declare class export_default$U<N extends number> extends Any<Parsed$S, N> {
     jsonbPretty(this: export_default$U<1>): export_default$l<1>;
     jsonbPretty(this: export_default$U<0 | 1>): export_default$l<0 | 1>;
     jsonbPretty(this: export_default$U<number>): export_default$l<0 | 1>;
-    jsonbSet(this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>, a2: export_default$U<1>, a3: export_default$1g<1> | Input<export_default$1g<0 | 1>>): export_default$U<1>;
-    jsonbSet(this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>, a2: export_default$U<0 | 1>, a3: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>): export_default$U<0 | 1>;
-    jsonbSet(this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>, a2: export_default$U<number>, a3: export_default$1g<number> | Input<export_default$1g<0 | 1>>): export_default$U<0 | 1>;
-    jsonbSetLax(this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>, a2: export_default$U<1>, a3: export_default$1g<1> | Input<export_default$1g<0 | 1>>, a4: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$U<1>;
-    jsonbSetLax(this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>, a2: export_default$U<0 | 1>, a3: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>, a4: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$U<0 | 1>;
-    jsonbSetLax(this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>, a2: export_default$U<number>, a3: export_default$1g<number> | Input<export_default$1g<0 | 1>>, a4: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    jsonbSet(this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>, a2: export_default$U<1>, a3: export_default$1g<1> | Input<export_default$1g<0 | 1>>): export_default$U<1>;
+    jsonbSet(this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>, a2: export_default$U<0 | 1>, a3: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>): export_default$U<0 | 1>;
+    jsonbSet(this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>, a2: export_default$U<number>, a3: export_default$1g<number> | Input<export_default$1g<0 | 1>>): export_default$U<0 | 1>;
+    jsonbSetLax(this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>, a2: export_default$U<1>, a3: export_default$1g<1> | Input<export_default$1g<0 | 1>>, a4: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$U<1>;
+    jsonbSetLax(this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>, a2: export_default$U<0 | 1>, a3: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>, a4: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    jsonbSetLax(this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>, a2: export_default$U<number>, a3: export_default$1g<number> | Input<export_default$1g<0 | 1>>, a4: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$U<0 | 1>;
     jsonbStripNulls(this: export_default$U<1>): export_default$U<1>;
     jsonbStripNulls(this: export_default$U<0 | 1>): export_default$U<0 | 1>;
     jsonbStripNulls(this: export_default$U<number>): export_default$U<0 | 1>;
@@ -4867,36 +5398,36 @@ declare class export_default$U<N extends number> extends Any<Parsed$S, N> {
     ["@>"](this: export_default$U<1>, a1: export_default$U<1>): export_default$1g<1>;
     ["@>"](this: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
     ["@>"](this: export_default$U<number>, a1: export_default$U<number>): export_default$1g<0 | 1>;
-    ["-"](this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$U<1>;
-    ["-"](this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
-    ["-"](this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    ["-"](this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$U<1>;
+    ["-"](this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    ["-"](this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$U<0 | 1>;
     ["-"](this: export_default$U<1>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): export_default$U<1>;
     ["-"](this: export_default$U<0 | 1>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): export_default$U<0 | 1>;
     ["-"](this: export_default$U<number>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): export_default$U<0 | 1>;
     ["-"](this: export_default$U<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$U<1>;
     ["-"](this: export_default$U<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$U<0 | 1>;
     ["-"](this: export_default$U<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$U<0 | 1>;
-    ["#-"](this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$U<1>;
-    ["#-"](this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
-    ["#-"](this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    ["#-"](this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$U<1>;
+    ["#-"](this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    ["#-"](this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$U<0 | 1>;
     ["="](this: export_default$U<1>, a1: export_default$U<1>): export_default$1g<1>;
     ["="](this: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
     ["="](this: export_default$U<number>, a1: export_default$U<number>): export_default$1g<0 | 1>;
     ["?"](this: export_default$U<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$1g<1>;
     ["?"](this: export_default$U<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$1g<0 | 1>;
     ["?"](this: export_default$U<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-    ["?&"](this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$1g<1>;
-    ["?&"](this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-    ["?&"](this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-    ["?|"](this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$1g<1>;
-    ["?|"](this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-    ["?|"](this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-    ["#>"](this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$U<1>;
-    ["#>"](this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
-    ["#>"](this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$U<0 | 1>;
-    ["#>>"](this: export_default$U<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$l<1>;
-    ["#>>"](this: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$l<0 | 1>;
-    ["#>>"](this: export_default$U<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$l<0 | 1>;
+    ["?&"](this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$1g<1>;
+    ["?&"](this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
+    ["?&"](this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
+    ["?|"](this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$1g<1>;
+    ["?|"](this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
+    ["?|"](this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
+    ["#>"](this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$U<1>;
+    ["#>"](this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    ["#>"](this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+    ["#>>"](this: export_default$U<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$l<1>;
+    ["#>>"](this: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$l<0 | 1>;
+    ["#>>"](this: export_default$U<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$l<0 | 1>;
     [">="](this: export_default$U<1>, a1: export_default$U<1>): export_default$1g<1>;
     [">="](this: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
     [">="](this: export_default$U<number>, a1: export_default$U<number>): export_default$1g<0 | 1>;
@@ -5785,84 +6316,84 @@ declare class export_default$M<N extends number> extends Any<Parsed$K, N> {
     pgHasRole(this: export_default$M<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$1g<1>;
     pgHasRole(this: export_default$M<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$1g<0 | 1>;
     pgHasRole(this: export_default$M<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-    pgLogicalSlotGetBinaryChanges(this: export_default$M<1>, a1: export_default$E<1>, a2: export_default$10<1> | Input<export_default$10<0 | 1>>, a3: Array<1, export_default$l<0 | 1>>): Setof<{
+    pgLogicalSlotGetBinaryChanges(this: export_default$M<1>, a1: export_default$E<1>, a2: export_default$10<1> | Input<export_default$10<0 | 1>>, a3: Array$1<1, export_default$l<0 | 1>>): Setof<{
         from: {
             lsn: export_default$E<1>;
             xid: export_default$3<1>;
             data: export_default$1d<1>;
         };
     }>;
-    pgLogicalSlotGetBinaryChanges(this: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>, a3: Array<0 | 1, export_default$l<0 | 1>>): Setof<{
+    pgLogicalSlotGetBinaryChanges(this: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>, a3: Array$1<0 | 1, export_default$l<0 | 1>>): Setof<{
         from: {
             lsn: export_default$E<0 | 1>;
             xid: export_default$3<0 | 1>;
             data: export_default$1d<0 | 1>;
         };
     }>;
-    pgLogicalSlotGetBinaryChanges(this: export_default$M<number>, a1: export_default$E<number>, a2: export_default$10<number> | Input<export_default$10<0 | 1>>, a3: Array<number, export_default$l<0 | 1>>): Setof<{
+    pgLogicalSlotGetBinaryChanges(this: export_default$M<number>, a1: export_default$E<number>, a2: export_default$10<number> | Input<export_default$10<0 | 1>>, a3: Array$1<number, export_default$l<0 | 1>>): Setof<{
         from: {
             lsn: export_default$E<0 | 1>;
             xid: export_default$3<0 | 1>;
             data: export_default$1d<0 | 1>;
         };
     }>;
-    pgLogicalSlotGetChanges(this: export_default$M<1>, a1: export_default$E<1>, a2: export_default$10<1> | Input<export_default$10<0 | 1>>, a3: Array<1, export_default$l<0 | 1>>): Setof<{
+    pgLogicalSlotGetChanges(this: export_default$M<1>, a1: export_default$E<1>, a2: export_default$10<1> | Input<export_default$10<0 | 1>>, a3: Array$1<1, export_default$l<0 | 1>>): Setof<{
         from: {
             lsn: export_default$E<1>;
             xid: export_default$3<1>;
             data: export_default$l<1>;
         };
     }>;
-    pgLogicalSlotGetChanges(this: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>, a3: Array<0 | 1, export_default$l<0 | 1>>): Setof<{
+    pgLogicalSlotGetChanges(this: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>, a3: Array$1<0 | 1, export_default$l<0 | 1>>): Setof<{
         from: {
             lsn: export_default$E<0 | 1>;
             xid: export_default$3<0 | 1>;
             data: export_default$l<0 | 1>;
         };
     }>;
-    pgLogicalSlotGetChanges(this: export_default$M<number>, a1: export_default$E<number>, a2: export_default$10<number> | Input<export_default$10<0 | 1>>, a3: Array<number, export_default$l<0 | 1>>): Setof<{
+    pgLogicalSlotGetChanges(this: export_default$M<number>, a1: export_default$E<number>, a2: export_default$10<number> | Input<export_default$10<0 | 1>>, a3: Array$1<number, export_default$l<0 | 1>>): Setof<{
         from: {
             lsn: export_default$E<0 | 1>;
             xid: export_default$3<0 | 1>;
             data: export_default$l<0 | 1>;
         };
     }>;
-    pgLogicalSlotPeekBinaryChanges(this: export_default$M<1>, a1: export_default$E<1>, a2: export_default$10<1> | Input<export_default$10<0 | 1>>, a3: Array<1, export_default$l<0 | 1>>): Setof<{
+    pgLogicalSlotPeekBinaryChanges(this: export_default$M<1>, a1: export_default$E<1>, a2: export_default$10<1> | Input<export_default$10<0 | 1>>, a3: Array$1<1, export_default$l<0 | 1>>): Setof<{
         from: {
             lsn: export_default$E<1>;
             xid: export_default$3<1>;
             data: export_default$1d<1>;
         };
     }>;
-    pgLogicalSlotPeekBinaryChanges(this: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>, a3: Array<0 | 1, export_default$l<0 | 1>>): Setof<{
+    pgLogicalSlotPeekBinaryChanges(this: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>, a3: Array$1<0 | 1, export_default$l<0 | 1>>): Setof<{
         from: {
             lsn: export_default$E<0 | 1>;
             xid: export_default$3<0 | 1>;
             data: export_default$1d<0 | 1>;
         };
     }>;
-    pgLogicalSlotPeekBinaryChanges(this: export_default$M<number>, a1: export_default$E<number>, a2: export_default$10<number> | Input<export_default$10<0 | 1>>, a3: Array<number, export_default$l<0 | 1>>): Setof<{
+    pgLogicalSlotPeekBinaryChanges(this: export_default$M<number>, a1: export_default$E<number>, a2: export_default$10<number> | Input<export_default$10<0 | 1>>, a3: Array$1<number, export_default$l<0 | 1>>): Setof<{
         from: {
             lsn: export_default$E<0 | 1>;
             xid: export_default$3<0 | 1>;
             data: export_default$1d<0 | 1>;
         };
     }>;
-    pgLogicalSlotPeekChanges(this: export_default$M<1>, a1: export_default$E<1>, a2: export_default$10<1> | Input<export_default$10<0 | 1>>, a3: Array<1, export_default$l<0 | 1>>): Setof<{
+    pgLogicalSlotPeekChanges(this: export_default$M<1>, a1: export_default$E<1>, a2: export_default$10<1> | Input<export_default$10<0 | 1>>, a3: Array$1<1, export_default$l<0 | 1>>): Setof<{
         from: {
             lsn: export_default$E<1>;
             xid: export_default$3<1>;
             data: export_default$l<1>;
         };
     }>;
-    pgLogicalSlotPeekChanges(this: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>, a3: Array<0 | 1, export_default$l<0 | 1>>): Setof<{
+    pgLogicalSlotPeekChanges(this: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>, a3: Array$1<0 | 1, export_default$l<0 | 1>>): Setof<{
         from: {
             lsn: export_default$E<0 | 1>;
             xid: export_default$3<0 | 1>;
             data: export_default$l<0 | 1>;
         };
     }>;
-    pgLogicalSlotPeekChanges(this: export_default$M<number>, a1: export_default$E<number>, a2: export_default$10<number> | Input<export_default$10<0 | 1>>, a3: Array<number, export_default$l<0 | 1>>): Setof<{
+    pgLogicalSlotPeekChanges(this: export_default$M<number>, a1: export_default$E<number>, a2: export_default$10<number> | Input<export_default$10<0 | 1>>, a3: Array$1<number, export_default$l<0 | 1>>): Setof<{
         from: {
             lsn: export_default$E<0 | 1>;
             xid: export_default$3<0 | 1>;
@@ -6602,9 +7133,9 @@ declare class export_default$I<N extends number> extends Any<Parsed$G, N> {
     pgGetStatisticsobjdefColumns(this: export_default$I<1>): export_default$l<1>;
     pgGetStatisticsobjdefColumns(this: export_default$I<0 | 1>): export_default$l<0 | 1>;
     pgGetStatisticsobjdefColumns(this: export_default$I<number>): export_default$l<0 | 1>;
-    pgGetStatisticsobjdefExpressions(this: export_default$I<1>): Array<1, export_default$l<0 | 1>>;
-    pgGetStatisticsobjdefExpressions(this: export_default$I<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
-    pgGetStatisticsobjdefExpressions(this: export_default$I<number>): Array<0 | 1, export_default$l<0 | 1>>;
+    pgGetStatisticsobjdefExpressions(this: export_default$I<1>): Array$1<1, export_default$l<0 | 1>>;
+    pgGetStatisticsobjdefExpressions(this: export_default$I<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    pgGetStatisticsobjdefExpressions(this: export_default$I<number>): Array$1<0 | 1, export_default$l<0 | 1>>;
     pgGetTriggerdef(this: export_default$I<1>): export_default$l<1>;
     pgGetTriggerdef(this: export_default$I<0 | 1>): export_default$l<0 | 1>;
     pgGetTriggerdef(this: export_default$I<number>): export_default$l<0 | 1>;
@@ -6652,18 +7183,18 @@ declare class export_default$I<N extends number> extends Any<Parsed$G, N> {
     }>;
     pgIdentifyObjectAsAddress(this: export_default$I<1>, a1: export_default$I<1>, a2: export_default$10<1> | Input<export_default$10<0 | 1>>): Record$1<1, {
         type: export_default$l<1>;
-        object_names: Array<1, export_default$l<0 | 1>>;
-        object_args: Array<1, export_default$l<0 | 1>>;
+        object_names: Array$1<1, export_default$l<0 | 1>>;
+        object_args: Array$1<1, export_default$l<0 | 1>>;
     }>;
     pgIdentifyObjectAsAddress(this: export_default$I<0 | 1>, a1: export_default$I<0 | 1>, a2: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): Record$1<0 | 1, {
         type: export_default$l<0 | 1>;
-        object_names: Array<0 | 1, export_default$l<0 | 1>>;
-        object_args: Array<0 | 1, export_default$l<0 | 1>>;
+        object_names: Array$1<0 | 1, export_default$l<0 | 1>>;
+        object_args: Array$1<0 | 1, export_default$l<0 | 1>>;
     }>;
     pgIdentifyObjectAsAddress(this: export_default$I<number>, a1: export_default$I<number>, a2: export_default$10<number> | Input<export_default$10<0 | 1>>): Record$1<0 | 1, {
         type: export_default$l<0 | 1>;
-        object_names: Array<0 | 1, export_default$l<0 | 1>>;
-        object_args: Array<0 | 1, export_default$l<0 | 1>>;
+        object_names: Array$1<0 | 1, export_default$l<0 | 1>>;
+        object_args: Array$1<0 | 1, export_default$l<0 | 1>>;
     }>;
     pgIndexamHasProperty(this: export_default$I<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$1g<1>;
     pgIndexamHasProperty(this: export_default$I<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$1g<0 | 1>;
@@ -7426,8 +7957,8 @@ declare class export_default$D<N extends number> extends Any<Parsed$B, N> {
     pgMcvListItems(this: export_default$D<1>): Setof<{
         from: {
             index: export_default$10<1>;
-            values: Array<1, export_default$l<0 | 1>>;
-            nulls: Array<1, export_default$1g<0 | 1>>;
+            values: Array$1<1, export_default$l<0 | 1>>;
+            nulls: Array$1<1, export_default$1g<0 | 1>>;
             frequency: export_default$14<1>;
             base_frequency: export_default$14<1>;
         };
@@ -7435,8 +7966,8 @@ declare class export_default$D<N extends number> extends Any<Parsed$B, N> {
     pgMcvListItems(this: export_default$D<0 | 1>): Setof<{
         from: {
             index: export_default$10<0 | 1>;
-            values: Array<0 | 1, export_default$l<0 | 1>>;
-            nulls: Array<0 | 1, export_default$1g<0 | 1>>;
+            values: Array$1<0 | 1, export_default$l<0 | 1>>;
+            nulls: Array$1<0 | 1, export_default$1g<0 | 1>>;
             frequency: export_default$14<0 | 1>;
             base_frequency: export_default$14<0 | 1>;
         };
@@ -7444,8 +7975,8 @@ declare class export_default$D<N extends number> extends Any<Parsed$B, N> {
     pgMcvListItems(this: export_default$D<number>): Setof<{
         from: {
             index: export_default$10<0 | 1>;
-            values: Array<0 | 1, export_default$l<0 | 1>>;
-            nulls: Array<0 | 1, export_default$1g<0 | 1>>;
+            values: Array$1<0 | 1, export_default$l<0 | 1>>;
+            nulls: Array$1<0 | 1, export_default$1g<0 | 1>>;
             frequency: export_default$14<0 | 1>;
             base_frequency: export_default$14<0 | 1>;
         };
@@ -8267,9 +8798,9 @@ declare class export_default$u<N extends number> extends Any<Parsed$t, N> {
             alias: export_default$l<1>;
             description: export_default$l<1>;
             token: export_default$l<1>;
-            dictionaries: Array<1, export_default$t<0 | 1>>;
+            dictionaries: Array$1<1, export_default$t<0 | 1>>;
             dictionary: export_default$t<1>;
-            lexemes: Array<1, export_default$l<0 | 1>>;
+            lexemes: Array$1<1, export_default$l<0 | 1>>;
         };
     }>;
     tsDebug(this: export_default$u<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Setof<{
@@ -8277,9 +8808,9 @@ declare class export_default$u<N extends number> extends Any<Parsed$t, N> {
             alias: export_default$l<0 | 1>;
             description: export_default$l<0 | 1>;
             token: export_default$l<0 | 1>;
-            dictionaries: Array<0 | 1, export_default$t<0 | 1>>;
+            dictionaries: Array$1<0 | 1, export_default$t<0 | 1>>;
             dictionary: export_default$t<0 | 1>;
-            lexemes: Array<0 | 1, export_default$l<0 | 1>>;
+            lexemes: Array$1<0 | 1, export_default$l<0 | 1>>;
         };
     }>;
     tsDebug(this: export_default$u<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): Setof<{
@@ -8287,9 +8818,9 @@ declare class export_default$u<N extends number> extends Any<Parsed$t, N> {
             alias: export_default$l<0 | 1>;
             description: export_default$l<0 | 1>;
             token: export_default$l<0 | 1>;
-            dictionaries: Array<0 | 1, export_default$t<0 | 1>>;
+            dictionaries: Array$1<0 | 1, export_default$t<0 | 1>>;
             dictionary: export_default$t<0 | 1>;
-            lexemes: Array<0 | 1, export_default$l<0 | 1>>;
+            lexemes: Array$1<0 | 1, export_default$l<0 | 1>>;
         };
     }>;
     tsHeadline(this: export_default$u<1>, a1: export_default$V<1>, a2: export_default$d<1>): export_default$V<1>;
@@ -8324,9 +8855,9 @@ declare class export_default$t<N extends number> extends Any<Parsed$s, N> {
     static parse(v: string): string;
     static typeString(): string | undefined;
     asAggregate(): export_default$t<number> | undefined;
-    tsLexize(this: export_default$t<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): Array<1, export_default$l<0 | 1>>;
-    tsLexize(this: export_default$t<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
-    tsLexize(this: export_default$t<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
+    tsLexize(this: export_default$t<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): Array$1<1, export_default$l<0 | 1>>;
+    tsLexize(this: export_default$t<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    tsLexize(this: export_default$t<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
 }
 
 type Parsed$r = string;
@@ -8428,9 +8959,9 @@ declare class export_default$l<N extends number> extends Any<Parsed$k, N> {
     binaryUpgradeAddSubRelState(this: export_default$l<1>, a1: export_default$I<1>, a2: export_default$1c<1>, a3: export_default$E<1>): export_default$4<1>;
     binaryUpgradeAddSubRelState(this: export_default$l<0 | 1>, a1: export_default$I<0 | 1>, a2: export_default$1c<0 | 1>, a3: export_default$E<0 | 1>): export_default$4<0 | 1>;
     binaryUpgradeAddSubRelState(this: export_default$l<number>, a1: export_default$I<number>, a2: export_default$1c<number>, a3: export_default$E<number>): export_default$4<0 | 1>;
-    binaryUpgradeCreateEmptyExtension(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>, a2: export_default$1g<1> | Input<export_default$1g<0 | 1>>, a3: export_default$l<1> | Input<export_default$l<0 | 1>>, a4: Array<1, export_default$I<0 | 1>>, a5: Array<1, export_default$l<0 | 1>>, a6: Array<1, export_default$l<0 | 1>>): export_default$4<1>;
-    binaryUpgradeCreateEmptyExtension(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a2: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>, a3: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a4: Array<0 | 1, export_default$I<0 | 1>>, a5: Array<0 | 1, export_default$l<0 | 1>>, a6: Array<0 | 1, export_default$l<0 | 1>>): export_default$4<0 | 1>;
-    binaryUpgradeCreateEmptyExtension(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>, a2: export_default$1g<number> | Input<export_default$1g<0 | 1>>, a3: export_default$l<number> | Input<export_default$l<0 | 1>>, a4: Array<number, export_default$I<0 | 1>>, a5: Array<number, export_default$l<0 | 1>>, a6: Array<number, export_default$l<0 | 1>>): export_default$4<0 | 1>;
+    binaryUpgradeCreateEmptyExtension(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>, a2: export_default$1g<1> | Input<export_default$1g<0 | 1>>, a3: export_default$l<1> | Input<export_default$l<0 | 1>>, a4: Array$1<1, export_default$I<0 | 1>>, a5: Array$1<1, export_default$l<0 | 1>>, a6: Array$1<1, export_default$l<0 | 1>>): export_default$4<1>;
+    binaryUpgradeCreateEmptyExtension(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a2: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>, a3: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a4: Array$1<0 | 1, export_default$I<0 | 1>>, a5: Array$1<0 | 1, export_default$l<0 | 1>>, a6: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$4<0 | 1>;
+    binaryUpgradeCreateEmptyExtension(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>, a2: export_default$1g<number> | Input<export_default$1g<0 | 1>>, a3: export_default$l<number> | Input<export_default$l<0 | 1>>, a4: Array$1<number, export_default$I<0 | 1>>, a5: Array$1<number, export_default$l<0 | 1>>, a6: Array$1<number, export_default$l<0 | 1>>): export_default$4<0 | 1>;
     binaryUpgradeReploriginAdvance(this: export_default$l<1>, a1: export_default$E<1>): export_default$4<1>;
     binaryUpgradeReploriginAdvance(this: export_default$l<0 | 1>, a1: export_default$E<0 | 1>): export_default$4<0 | 1>;
     binaryUpgradeReploriginAdvance(this: export_default$l<number>, a1: export_default$E<number>): export_default$4<0 | 1>;
@@ -8648,9 +9179,9 @@ declare class export_default$l<N extends number> extends Any<Parsed$k, N> {
     overlay(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>, a2: export_default$10<1> | Input<export_default$10<0 | 1>>, a3: export_default$10<1> | Input<export_default$10<0 | 1>>): export_default$l<1>;
     overlay(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a2: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>, a3: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): export_default$l<0 | 1>;
     overlay(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>, a2: export_default$10<number> | Input<export_default$10<0 | 1>>, a3: export_default$10<number> | Input<export_default$10<0 | 1>>): export_default$l<0 | 1>;
-    parseIdent(this: export_default$l<1>, a1: export_default$1g<1> | Input<export_default$1g<0 | 1>>): Array<1, export_default$l<0 | 1>>;
-    parseIdent(this: export_default$l<0 | 1>, a1: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
-    parseIdent(this: export_default$l<number>, a1: export_default$1g<number> | Input<export_default$1g<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
+    parseIdent(this: export_default$l<1>, a1: export_default$1g<1> | Input<export_default$1g<0 | 1>>): Array$1<1, export_default$l<0 | 1>>;
+    parseIdent(this: export_default$l<0 | 1>, a1: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    parseIdent(this: export_default$l<number>, a1: export_default$1g<number> | Input<export_default$1g<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
     pgBackupStart(this: export_default$l<1>, a1: export_default$1g<1> | Input<export_default$1g<0 | 1>>): export_default$E<1>;
     pgBackupStart(this: export_default$l<0 | 1>, a1: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>): export_default$E<0 | 1>;
     pgBackupStart(this: export_default$l<number>, a1: export_default$1g<number> | Input<export_default$1g<0 | 1>>): export_default$E<0 | 1>;
@@ -8660,17 +9191,17 @@ declare class export_default$l<N extends number> extends Any<Parsed$k, N> {
     pgCurrentLogfile(this: export_default$l<1>): export_default$l<1>;
     pgCurrentLogfile(this: export_default$l<0 | 1>): export_default$l<0 | 1>;
     pgCurrentLogfile(this: export_default$l<number>): export_default$l<0 | 1>;
-    pgGetObjectAddress(this: export_default$l<1>, a1: Array<1, export_default$l<0 | 1>>, a2: Array<1, export_default$l<0 | 1>>): Record$1<1, {
+    pgGetObjectAddress(this: export_default$l<1>, a1: Array$1<1, export_default$l<0 | 1>>, a2: Array$1<1, export_default$l<0 | 1>>): Record$1<1, {
         classid: export_default$I<1>;
         objid: export_default$I<1>;
         objsubid: export_default$10<1>;
     }>;
-    pgGetObjectAddress(this: export_default$l<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>, a2: Array<0 | 1, export_default$l<0 | 1>>): Record$1<0 | 1, {
+    pgGetObjectAddress(this: export_default$l<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>, a2: Array$1<0 | 1, export_default$l<0 | 1>>): Record$1<0 | 1, {
         classid: export_default$I<0 | 1>;
         objid: export_default$I<0 | 1>;
         objsubid: export_default$10<0 | 1>;
     }>;
-    pgGetObjectAddress(this: export_default$l<number>, a1: Array<number, export_default$l<0 | 1>>, a2: Array<number, export_default$l<0 | 1>>): Record$1<0 | 1, {
+    pgGetObjectAddress(this: export_default$l<number>, a1: Array$1<number, export_default$l<0 | 1>>, a2: Array$1<number, export_default$l<0 | 1>>): Record$1<0 | 1, {
         classid: export_default$I<0 | 1>;
         objid: export_default$I<0 | 1>;
         objsubid: export_default$10<0 | 1>;
@@ -8789,9 +9320,9 @@ declare class export_default$l<N extends number> extends Any<Parsed$k, N> {
     pgReplicationOriginSessionSetup(this: export_default$l<1>): export_default$4<1>;
     pgReplicationOriginSessionSetup(this: export_default$l<0 | 1>): export_default$4<0 | 1>;
     pgReplicationOriginSessionSetup(this: export_default$l<number>): export_default$4<0 | 1>;
-    pgSettingsGetFlags(this: export_default$l<1>): Array<1, export_default$l<0 | 1>>;
-    pgSettingsGetFlags(this: export_default$l<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
-    pgSettingsGetFlags(this: export_default$l<number>): Array<0 | 1, export_default$l<0 | 1>>;
+    pgSettingsGetFlags(this: export_default$l<1>): Array$1<1, export_default$l<0 | 1>>;
+    pgSettingsGetFlags(this: export_default$l<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    pgSettingsGetFlags(this: export_default$l<number>): Array$1<0 | 1, export_default$l<0 | 1>>;
     pgSizeBytes(this: export_default$l<1>): export_default$Z<1>;
     pgSizeBytes(this: export_default$l<0 | 1>): export_default$Z<0 | 1>;
     pgSizeBytes(this: export_default$l<number>): export_default$Z<0 | 1>;
@@ -9047,12 +9578,12 @@ declare class export_default$l<N extends number> extends Any<Parsed$k, N> {
     regexpLike(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>, a2: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$1g<1>;
     regexpLike(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a2: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$1g<0 | 1>;
     regexpLike(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>, a2: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-    regexpMatch(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): Array<1, export_default$l<0 | 1>>;
-    regexpMatch(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
-    regexpMatch(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
-    regexpMatch(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>, a2: export_default$l<1> | Input<export_default$l<0 | 1>>): Array<1, export_default$l<0 | 1>>;
-    regexpMatch(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a2: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
-    regexpMatch(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>, a2: export_default$l<number> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
+    regexpMatch(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): Array$1<1, export_default$l<0 | 1>>;
+    regexpMatch(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    regexpMatch(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    regexpMatch(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>, a2: export_default$l<1> | Input<export_default$l<0 | 1>>): Array$1<1, export_default$l<0 | 1>>;
+    regexpMatch(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a2: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    regexpMatch(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>, a2: export_default$l<number> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
     regexpMatches(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): Setof<{
         from: {};
     }>;
@@ -9086,12 +9617,12 @@ declare class export_default$l<N extends number> extends Any<Parsed$k, N> {
     regexpReplace(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>, a2: export_default$l<1> | Input<export_default$l<0 | 1>>, a3: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$l<1>;
     regexpReplace(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a2: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a3: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
     regexpReplace(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>, a2: export_default$l<number> | Input<export_default$l<0 | 1>>, a3: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
-    regexpSplitToArray(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): Array<1, export_default$l<0 | 1>>;
-    regexpSplitToArray(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
-    regexpSplitToArray(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
-    regexpSplitToArray(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>, a2: export_default$l<1> | Input<export_default$l<0 | 1>>): Array<1, export_default$l<0 | 1>>;
-    regexpSplitToArray(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a2: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
-    regexpSplitToArray(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>, a2: export_default$l<number> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
+    regexpSplitToArray(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): Array$1<1, export_default$l<0 | 1>>;
+    regexpSplitToArray(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    regexpSplitToArray(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    regexpSplitToArray(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>, a2: export_default$l<1> | Input<export_default$l<0 | 1>>): Array$1<1, export_default$l<0 | 1>>;
+    regexpSplitToArray(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a2: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    regexpSplitToArray(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>, a2: export_default$l<number> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
     regexpSplitToTable(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): Setof<{
         from: {};
     }>;
@@ -9171,12 +9702,12 @@ declare class export_default$l<N extends number> extends Any<Parsed$k, N> {
     startsWith(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$1g<0 | 1>;
     startsWith(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$1g<0 | 1>;
     stringAgg(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
-    stringToArray(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): Array<1, export_default$l<0 | 1>>;
-    stringToArray(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
-    stringToArray(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
-    stringToArray(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>, a2: export_default$l<1> | Input<export_default$l<0 | 1>>): Array<1, export_default$l<0 | 1>>;
-    stringToArray(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a2: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
-    stringToArray(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>, a2: export_default$l<number> | Input<export_default$l<0 | 1>>): Array<0 | 1, export_default$l<0 | 1>>;
+    stringToArray(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): Array$1<1, export_default$l<0 | 1>>;
+    stringToArray(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    stringToArray(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    stringToArray(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>, a2: export_default$l<1> | Input<export_default$l<0 | 1>>): Array$1<1, export_default$l<0 | 1>>;
+    stringToArray(this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a2: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    stringToArray(this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>, a2: export_default$l<number> | Input<export_default$l<0 | 1>>): Array$1<0 | 1, export_default$l<0 | 1>>;
     stringToTable(this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): Setof<{
         from: {};
     }>;
@@ -9374,9 +9905,9 @@ declare class export_default$l<N extends number> extends Any<Parsed$k, N> {
             alias: export_default$l<1>;
             description: export_default$l<1>;
             token: export_default$l<1>;
-            dictionaries: Array<1, export_default$t<0 | 1>>;
+            dictionaries: Array$1<1, export_default$t<0 | 1>>;
             dictionary: export_default$t<1>;
-            lexemes: Array<1, export_default$l<0 | 1>>;
+            lexemes: Array$1<1, export_default$l<0 | 1>>;
         };
     }>;
     tsDebug(this: export_default$l<0 | 1>): Setof<{
@@ -9384,9 +9915,9 @@ declare class export_default$l<N extends number> extends Any<Parsed$k, N> {
             alias: export_default$l<0 | 1>;
             description: export_default$l<0 | 1>;
             token: export_default$l<0 | 1>;
-            dictionaries: Array<0 | 1, export_default$t<0 | 1>>;
+            dictionaries: Array$1<0 | 1, export_default$t<0 | 1>>;
             dictionary: export_default$t<0 | 1>;
-            lexemes: Array<0 | 1, export_default$l<0 | 1>>;
+            lexemes: Array$1<0 | 1, export_default$l<0 | 1>>;
         };
     }>;
     tsDebug(this: export_default$l<number>): Setof<{
@@ -9394,9 +9925,9 @@ declare class export_default$l<N extends number> extends Any<Parsed$k, N> {
             alias: export_default$l<0 | 1>;
             description: export_default$l<0 | 1>;
             token: export_default$l<0 | 1>;
-            dictionaries: Array<0 | 1, export_default$t<0 | 1>>;
+            dictionaries: Array$1<0 | 1, export_default$t<0 | 1>>;
             dictionary: export_default$t<0 | 1>;
-            lexemes: Array<0 | 1, export_default$l<0 | 1>>;
+            lexemes: Array$1<0 | 1, export_default$l<0 | 1>>;
         };
     }>;
     tsHeadline(this: export_default$l<1>, a1: export_default$d<1>): export_default$l<1>;
@@ -9525,18 +10056,18 @@ declare class export_default$l<N extends number> extends Any<Parsed$k, N> {
     xmltext(this: export_default$l<1>): export_default$1<1>;
     xmltext(this: export_default$l<0 | 1>): export_default$1<0 | 1>;
     xmltext(this: export_default$l<number>): export_default$1<0 | 1>;
-    xpath(this: export_default$l<1>, a1: export_default$1<1>): Array<1, export_default$1<0 | 1>>;
-    xpath(this: export_default$l<0 | 1>, a1: export_default$1<0 | 1>): Array<0 | 1, export_default$1<0 | 1>>;
-    xpath(this: export_default$l<number>, a1: export_default$1<number>): Array<0 | 1, export_default$1<0 | 1>>;
-    xpath(this: export_default$l<1>, a1: export_default$1<1>, a2: Array<1, export_default$l<0 | 1>>): Array<1, export_default$1<0 | 1>>;
-    xpath(this: export_default$l<0 | 1>, a1: export_default$1<0 | 1>, a2: Array<0 | 1, export_default$l<0 | 1>>): Array<0 | 1, export_default$1<0 | 1>>;
-    xpath(this: export_default$l<number>, a1: export_default$1<number>, a2: Array<number, export_default$l<0 | 1>>): Array<0 | 1, export_default$1<0 | 1>>;
+    xpath(this: export_default$l<1>, a1: export_default$1<1>): Array$1<1, export_default$1<0 | 1>>;
+    xpath(this: export_default$l<0 | 1>, a1: export_default$1<0 | 1>): Array$1<0 | 1, export_default$1<0 | 1>>;
+    xpath(this: export_default$l<number>, a1: export_default$1<number>): Array$1<0 | 1, export_default$1<0 | 1>>;
+    xpath(this: export_default$l<1>, a1: export_default$1<1>, a2: Array$1<1, export_default$l<0 | 1>>): Array$1<1, export_default$1<0 | 1>>;
+    xpath(this: export_default$l<0 | 1>, a1: export_default$1<0 | 1>, a2: Array$1<0 | 1, export_default$l<0 | 1>>): Array$1<0 | 1, export_default$1<0 | 1>>;
+    xpath(this: export_default$l<number>, a1: export_default$1<number>, a2: Array$1<number, export_default$l<0 | 1>>): Array$1<0 | 1, export_default$1<0 | 1>>;
     xpathExists(this: export_default$l<1>, a1: export_default$1<1>): export_default$1g<1>;
     xpathExists(this: export_default$l<0 | 1>, a1: export_default$1<0 | 1>): export_default$1g<0 | 1>;
     xpathExists(this: export_default$l<number>, a1: export_default$1<number>): export_default$1g<0 | 1>;
-    xpathExists(this: export_default$l<1>, a1: export_default$1<1>, a2: Array<1, export_default$l<0 | 1>>): export_default$1g<1>;
-    xpathExists(this: export_default$l<0 | 1>, a1: export_default$1<0 | 1>, a2: Array<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-    xpathExists(this: export_default$l<number>, a1: export_default$1<number>, a2: Array<number, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
+    xpathExists(this: export_default$l<1>, a1: export_default$1<1>, a2: Array$1<1, export_default$l<0 | 1>>): export_default$1g<1>;
+    xpathExists(this: export_default$l<0 | 1>, a1: export_default$1<0 | 1>, a2: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
+    xpathExists(this: export_default$l<number>, a1: export_default$1<number>, a2: Array$1<number, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
     ["^@"](this: export_default$l<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$1g<1>;
     ["^@"](this: export_default$l<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$1g<0 | 1>;
     ["^@"](this: export_default$l<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$1g<0 | 1>;
@@ -10529,21 +11060,21 @@ declare class export_default$9<N extends number> extends Any<Parsed$8, N> {
     setweight(this: export_default$9<1>, a1: export_default$1c<1>): export_default$9<1>;
     setweight(this: export_default$9<0 | 1>, a1: export_default$1c<0 | 1>): export_default$9<0 | 1>;
     setweight(this: export_default$9<number>, a1: export_default$1c<number>): export_default$9<0 | 1>;
-    setweight(this: export_default$9<1>, a1: export_default$1c<1>, a2: Array<1, export_default$l<0 | 1>>): export_default$9<1>;
-    setweight(this: export_default$9<0 | 1>, a1: export_default$1c<0 | 1>, a2: Array<0 | 1, export_default$l<0 | 1>>): export_default$9<0 | 1>;
-    setweight(this: export_default$9<number>, a1: export_default$1c<number>, a2: Array<number, export_default$l<0 | 1>>): export_default$9<0 | 1>;
+    setweight(this: export_default$9<1>, a1: export_default$1c<1>, a2: Array$1<1, export_default$l<0 | 1>>): export_default$9<1>;
+    setweight(this: export_default$9<0 | 1>, a1: export_default$1c<0 | 1>, a2: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$9<0 | 1>;
+    setweight(this: export_default$9<number>, a1: export_default$1c<number>, a2: Array$1<number, export_default$l<0 | 1>>): export_default$9<0 | 1>;
     strip(this: export_default$9<1>): export_default$9<1>;
     strip(this: export_default$9<0 | 1>): export_default$9<0 | 1>;
     strip(this: export_default$9<number>): export_default$9<0 | 1>;
-    tsDelete(this: export_default$9<1>, a1: Array<1, export_default$l<0 | 1>>): export_default$9<1>;
-    tsDelete(this: export_default$9<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$9<0 | 1>;
-    tsDelete(this: export_default$9<number>, a1: Array<number, export_default$l<0 | 1>>): export_default$9<0 | 1>;
+    tsDelete(this: export_default$9<1>, a1: Array$1<1, export_default$l<0 | 1>>): export_default$9<1>;
+    tsDelete(this: export_default$9<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$9<0 | 1>;
+    tsDelete(this: export_default$9<number>, a1: Array$1<number, export_default$l<0 | 1>>): export_default$9<0 | 1>;
     tsDelete(this: export_default$9<1>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$9<1>;
     tsDelete(this: export_default$9<0 | 1>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$9<0 | 1>;
     tsDelete(this: export_default$9<number>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$9<0 | 1>;
-    tsFilter(this: export_default$9<1>, a1: Array<1, export_default$1c<0 | 1>>): export_default$9<1>;
-    tsFilter(this: export_default$9<0 | 1>, a1: Array<0 | 1, export_default$1c<0 | 1>>): export_default$9<0 | 1>;
-    tsFilter(this: export_default$9<number>, a1: Array<number, export_default$1c<0 | 1>>): export_default$9<0 | 1>;
+    tsFilter(this: export_default$9<1>, a1: Array$1<1, export_default$1c<0 | 1>>): export_default$9<1>;
+    tsFilter(this: export_default$9<0 | 1>, a1: Array$1<0 | 1, export_default$1c<0 | 1>>): export_default$9<0 | 1>;
+    tsFilter(this: export_default$9<number>, a1: Array$1<number, export_default$1c<0 | 1>>): export_default$9<0 | 1>;
     tsMatchVq(this: export_default$9<1>, a1: export_default$d<1>): export_default$1g<1>;
     tsMatchVq(this: export_default$9<0 | 1>, a1: export_default$d<0 | 1>): export_default$1g<0 | 1>;
     tsMatchVq(this: export_default$9<number>, a1: export_default$d<number>): export_default$1g<0 | 1>;
@@ -10586,28 +11117,28 @@ declare class export_default$9<N extends number> extends Any<Parsed$8, N> {
     tsvectorNe(this: export_default$9<1>, a1: export_default$9<1>): export_default$1g<1>;
     tsvectorNe(this: export_default$9<0 | 1>, a1: export_default$9<0 | 1>): export_default$1g<0 | 1>;
     tsvectorNe(this: export_default$9<number>, a1: export_default$9<number>): export_default$1g<0 | 1>;
-    tsvectorToArray(this: export_default$9<1>): Array<1, export_default$l<0 | 1>>;
-    tsvectorToArray(this: export_default$9<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
-    tsvectorToArray(this: export_default$9<number>): Array<0 | 1, export_default$l<0 | 1>>;
+    tsvectorToArray(this: export_default$9<1>): Array$1<1, export_default$l<0 | 1>>;
+    tsvectorToArray(this: export_default$9<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
+    tsvectorToArray(this: export_default$9<number>): Array$1<0 | 1, export_default$l<0 | 1>>;
     unnest(this: export_default$9<1>): Setof<{
         from: {
             lexeme: export_default$l<1>;
-            positions: Array<1, export_default$12<0 | 1>>;
-            weights: Array<1, export_default$l<0 | 1>>;
+            positions: Array$1<1, export_default$12<0 | 1>>;
+            weights: Array$1<1, export_default$l<0 | 1>>;
         };
     }>;
     unnest(this: export_default$9<0 | 1>): Setof<{
         from: {
             lexeme: export_default$l<0 | 1>;
-            positions: Array<0 | 1, export_default$12<0 | 1>>;
-            weights: Array<0 | 1, export_default$l<0 | 1>>;
+            positions: Array$1<0 | 1, export_default$12<0 | 1>>;
+            weights: Array$1<0 | 1, export_default$l<0 | 1>>;
         };
     }>;
     unnest(this: export_default$9<number>): Setof<{
         from: {
             lexeme: export_default$l<0 | 1>;
-            positions: Array<0 | 1, export_default$12<0 | 1>>;
-            weights: Array<0 | 1, export_default$l<0 | 1>>;
+            positions: Array$1<0 | 1, export_default$12<0 | 1>>;
+            weights: Array$1<0 | 1, export_default$l<0 | 1>>;
         };
     }>;
     ["@@@"](this: export_default$9<1>, a1: export_default$d<1>): export_default$1g<1>;
@@ -10957,162 +11488,162 @@ declare class export_default$1<N extends number> extends Any<Parsed, N> {
 declare class export_default<N extends number, T extends Any> extends Any<NonNullable<T["resultType"]>[], N> {
     static parse(v: string): unknown;
     static typeString(): string | undefined;
-    asAggregate(): Array<number, T> | undefined;
-    arrayAgg(this: Array<number, T>): Array<0 | 1, T>;
-    arrayAppend<T extends Any>(this: Array<1, T>, a1: T | Input<T>): Array<1, T>;
-    arrayAppend<T extends Any>(this: Array<0 | 1, T>, a1: T | Input<T>): Array<0 | 1, T>;
-    arrayAppend<T extends Any>(this: Array<number, T>, a1: T | Input<T>): Array<0 | 1, T>;
-    arrayCat<T extends Any>(this: Array<1, T>, a1: Array<1, T>): Array<1, T>;
-    arrayCat<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): Array<0 | 1, T>;
-    arrayCat<T extends Any>(this: Array<number, T>, a1: Array<number, T>): Array<0 | 1, T>;
-    arrayDims(this: Array<1, T>): export_default$l<1>;
-    arrayDims(this: Array<0 | 1, T>): export_default$l<0 | 1>;
-    arrayDims(this: Array<number, T>): export_default$l<0 | 1>;
-    arrayEq<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    arrayEq<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    arrayEq<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    arrayGe<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    arrayGe<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    arrayGe<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    arrayGt<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    arrayGt<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    arrayGt<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    arrayLarger<T extends Any>(this: Array<1, T>, a1: Array<1, T>): Array<1, T>;
-    arrayLarger<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): Array<0 | 1, T>;
-    arrayLarger<T extends Any>(this: Array<number, T>, a1: Array<number, T>): Array<0 | 1, T>;
-    arrayLe<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    arrayLe<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    arrayLe<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    arrayLength(this: Array<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): export_default$10<1>;
-    arrayLength(this: Array<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
-    arrayLength(this: Array<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
-    arrayLower(this: Array<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): export_default$10<1>;
-    arrayLower(this: Array<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
-    arrayLower(this: Array<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
-    arrayLt<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    arrayLt<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    arrayLt<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    arrayNdims(this: Array<1, T>): export_default$10<1>;
-    arrayNdims(this: Array<0 | 1, T>): export_default$10<0 | 1>;
-    arrayNdims(this: Array<number, T>): export_default$10<0 | 1>;
-    arrayNe<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    arrayNe<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    arrayNe<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    arrayPosition<T extends Any>(this: Array<1, T>, a1: T | Input<T>): export_default$10<1>;
-    arrayPosition<T extends Any>(this: Array<0 | 1, T>, a1: T | Input<T>): export_default$10<0 | 1>;
-    arrayPosition<T extends Any>(this: Array<number, T>, a1: T | Input<T>): export_default$10<0 | 1>;
-    arrayPosition<T extends Any>(this: Array<1, T>, a1: T | Input<T>, a2: export_default$10<1> | Input<export_default$10<0 | 1>>): export_default$10<1>;
-    arrayPosition<T extends Any>(this: Array<0 | 1, T>, a1: T | Input<T>, a2: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
-    arrayPosition<T extends Any>(this: Array<number, T>, a1: T | Input<T>, a2: export_default$10<number> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
-    arrayPositions<T extends Any>(this: Array<1, T>, a1: T | Input<T>): Array<1, export_default$10<0 | 1>>;
-    arrayPositions<T extends Any>(this: Array<0 | 1, T>, a1: T | Input<T>): Array<0 | 1, export_default$10<0 | 1>>;
-    arrayPositions<T extends Any>(this: Array<number, T>, a1: T | Input<T>): Array<0 | 1, export_default$10<0 | 1>>;
-    arrayRemove<T extends Any>(this: Array<1, T>, a1: T | Input<T>): Array<1, T>;
-    arrayRemove<T extends Any>(this: Array<0 | 1, T>, a1: T | Input<T>): Array<0 | 1, T>;
-    arrayRemove<T extends Any>(this: Array<number, T>, a1: T | Input<T>): Array<0 | 1, T>;
-    arrayReplace<T extends Any>(this: Array<1, T>, a1: T | Input<T>, a2: T | Input<T>): Array<1, T>;
-    arrayReplace<T extends Any>(this: Array<0 | 1, T>, a1: T | Input<T>, a2: T | Input<T>): Array<0 | 1, T>;
-    arrayReplace<T extends Any>(this: Array<number, T>, a1: T | Input<T>, a2: T | Input<T>): Array<0 | 1, T>;
-    arraySample(this: Array<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): Array<1, T>;
-    arraySample(this: Array<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): Array<0 | 1, T>;
-    arraySample(this: Array<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): Array<0 | 1, T>;
-    arrayShuffle(this: Array<1, T>): Array<1, T>;
-    arrayShuffle(this: Array<0 | 1, T>): Array<0 | 1, T>;
-    arrayShuffle(this: Array<number, T>): Array<0 | 1, T>;
-    arraySmaller<T extends Any>(this: Array<1, T>, a1: Array<1, T>): Array<1, T>;
-    arraySmaller<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): Array<0 | 1, T>;
-    arraySmaller<T extends Any>(this: Array<number, T>, a1: Array<number, T>): Array<0 | 1, T>;
-    arrayToJson(this: Array<1, T>): export_default$V<1>;
-    arrayToJson(this: Array<0 | 1, T>): export_default$V<0 | 1>;
-    arrayToJson(this: Array<number, T>): export_default$V<0 | 1>;
-    arrayToJson(this: Array<1, T>, a1: export_default$1g<1> | Input<export_default$1g<0 | 1>>): export_default$V<1>;
-    arrayToJson(this: Array<0 | 1, T>, a1: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>): export_default$V<0 | 1>;
-    arrayToJson(this: Array<number, T>, a1: export_default$1g<number> | Input<export_default$1g<0 | 1>>): export_default$V<0 | 1>;
-    arrayToString(this: Array<1, T>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$l<1>;
-    arrayToString(this: Array<0 | 1, T>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
-    arrayToString(this: Array<number, T>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
-    arrayToString(this: Array<1, T>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>, a2: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$l<1>;
-    arrayToString(this: Array<0 | 1, T>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a2: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
-    arrayToString(this: Array<number, T>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>, a2: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
-    arrayUpper(this: Array<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): export_default$10<1>;
-    arrayUpper(this: Array<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
-    arrayUpper(this: Array<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
-    arraycontained<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    arraycontained<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    arraycontained<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    arraycontains<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    arraycontains<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    arraycontains<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    arrayoverlap<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    arrayoverlap<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    arrayoverlap<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    btarraycmp<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$10<1>;
-    btarraycmp<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$10<0 | 1>;
-    btarraycmp<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$10<0 | 1>;
-    cardinality(this: Array<1, T>): export_default$10<1>;
-    cardinality(this: Array<0 | 1, T>): export_default$10<0 | 1>;
-    cardinality(this: Array<number, T>): export_default$10<0 | 1>;
-    generateSubscripts(this: Array<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): Setof<{
+    asAggregate(): Array$1<number, T> | undefined;
+    arrayAgg(this: Array$1<number, T>): Array$1<0 | 1, T>;
+    arrayAppend<T extends Any>(this: Array$1<1, T>, a1: T | Input<T>): Array$1<1, T>;
+    arrayAppend<T extends Any>(this: Array$1<0 | 1, T>, a1: T | Input<T>): Array$1<0 | 1, T>;
+    arrayAppend<T extends Any>(this: Array$1<number, T>, a1: T | Input<T>): Array$1<0 | 1, T>;
+    arrayCat<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): Array$1<1, T>;
+    arrayCat<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): Array$1<0 | 1, T>;
+    arrayCat<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): Array$1<0 | 1, T>;
+    arrayDims(this: Array$1<1, T>): export_default$l<1>;
+    arrayDims(this: Array$1<0 | 1, T>): export_default$l<0 | 1>;
+    arrayDims(this: Array$1<number, T>): export_default$l<0 | 1>;
+    arrayEq<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    arrayEq<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    arrayEq<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    arrayGe<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    arrayGe<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    arrayGe<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    arrayGt<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    arrayGt<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    arrayGt<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    arrayLarger<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): Array$1<1, T>;
+    arrayLarger<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): Array$1<0 | 1, T>;
+    arrayLarger<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): Array$1<0 | 1, T>;
+    arrayLe<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    arrayLe<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    arrayLe<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    arrayLength(this: Array$1<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): export_default$10<1>;
+    arrayLength(this: Array$1<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
+    arrayLength(this: Array$1<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
+    arrayLower(this: Array$1<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): export_default$10<1>;
+    arrayLower(this: Array$1<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
+    arrayLower(this: Array$1<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
+    arrayLt<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    arrayLt<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    arrayLt<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    arrayNdims(this: Array$1<1, T>): export_default$10<1>;
+    arrayNdims(this: Array$1<0 | 1, T>): export_default$10<0 | 1>;
+    arrayNdims(this: Array$1<number, T>): export_default$10<0 | 1>;
+    arrayNe<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    arrayNe<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    arrayNe<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    arrayPosition<T extends Any>(this: Array$1<1, T>, a1: T | Input<T>): export_default$10<1>;
+    arrayPosition<T extends Any>(this: Array$1<0 | 1, T>, a1: T | Input<T>): export_default$10<0 | 1>;
+    arrayPosition<T extends Any>(this: Array$1<number, T>, a1: T | Input<T>): export_default$10<0 | 1>;
+    arrayPosition<T extends Any>(this: Array$1<1, T>, a1: T | Input<T>, a2: export_default$10<1> | Input<export_default$10<0 | 1>>): export_default$10<1>;
+    arrayPosition<T extends Any>(this: Array$1<0 | 1, T>, a1: T | Input<T>, a2: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
+    arrayPosition<T extends Any>(this: Array$1<number, T>, a1: T | Input<T>, a2: export_default$10<number> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
+    arrayPositions<T extends Any>(this: Array$1<1, T>, a1: T | Input<T>): Array$1<1, export_default$10<0 | 1>>;
+    arrayPositions<T extends Any>(this: Array$1<0 | 1, T>, a1: T | Input<T>): Array$1<0 | 1, export_default$10<0 | 1>>;
+    arrayPositions<T extends Any>(this: Array$1<number, T>, a1: T | Input<T>): Array$1<0 | 1, export_default$10<0 | 1>>;
+    arrayRemove<T extends Any>(this: Array$1<1, T>, a1: T | Input<T>): Array$1<1, T>;
+    arrayRemove<T extends Any>(this: Array$1<0 | 1, T>, a1: T | Input<T>): Array$1<0 | 1, T>;
+    arrayRemove<T extends Any>(this: Array$1<number, T>, a1: T | Input<T>): Array$1<0 | 1, T>;
+    arrayReplace<T extends Any>(this: Array$1<1, T>, a1: T | Input<T>, a2: T | Input<T>): Array$1<1, T>;
+    arrayReplace<T extends Any>(this: Array$1<0 | 1, T>, a1: T | Input<T>, a2: T | Input<T>): Array$1<0 | 1, T>;
+    arrayReplace<T extends Any>(this: Array$1<number, T>, a1: T | Input<T>, a2: T | Input<T>): Array$1<0 | 1, T>;
+    arraySample(this: Array$1<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): Array$1<1, T>;
+    arraySample(this: Array$1<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): Array$1<0 | 1, T>;
+    arraySample(this: Array$1<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): Array$1<0 | 1, T>;
+    arrayShuffle(this: Array$1<1, T>): Array$1<1, T>;
+    arrayShuffle(this: Array$1<0 | 1, T>): Array$1<0 | 1, T>;
+    arrayShuffle(this: Array$1<number, T>): Array$1<0 | 1, T>;
+    arraySmaller<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): Array$1<1, T>;
+    arraySmaller<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): Array$1<0 | 1, T>;
+    arraySmaller<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): Array$1<0 | 1, T>;
+    arrayToJson(this: Array$1<1, T>): export_default$V<1>;
+    arrayToJson(this: Array$1<0 | 1, T>): export_default$V<0 | 1>;
+    arrayToJson(this: Array$1<number, T>): export_default$V<0 | 1>;
+    arrayToJson(this: Array$1<1, T>, a1: export_default$1g<1> | Input<export_default$1g<0 | 1>>): export_default$V<1>;
+    arrayToJson(this: Array$1<0 | 1, T>, a1: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>): export_default$V<0 | 1>;
+    arrayToJson(this: Array$1<number, T>, a1: export_default$1g<number> | Input<export_default$1g<0 | 1>>): export_default$V<0 | 1>;
+    arrayToString(this: Array$1<1, T>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$l<1>;
+    arrayToString(this: Array$1<0 | 1, T>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
+    arrayToString(this: Array$1<number, T>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
+    arrayToString(this: Array$1<1, T>, a1: export_default$l<1> | Input<export_default$l<0 | 1>>, a2: export_default$l<1> | Input<export_default$l<0 | 1>>): export_default$l<1>;
+    arrayToString(this: Array$1<0 | 1, T>, a1: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>, a2: export_default$l<0 | 1> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
+    arrayToString(this: Array$1<number, T>, a1: export_default$l<number> | Input<export_default$l<0 | 1>>, a2: export_default$l<number> | Input<export_default$l<0 | 1>>): export_default$l<0 | 1>;
+    arrayUpper(this: Array$1<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): export_default$10<1>;
+    arrayUpper(this: Array$1<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
+    arrayUpper(this: Array$1<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): export_default$10<0 | 1>;
+    arraycontained<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    arraycontained<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    arraycontained<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    arraycontains<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    arraycontains<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    arraycontains<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    arrayoverlap<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    arrayoverlap<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    arrayoverlap<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    btarraycmp<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$10<1>;
+    btarraycmp<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$10<0 | 1>;
+    btarraycmp<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$10<0 | 1>;
+    cardinality(this: Array$1<1, T>): export_default$10<1>;
+    cardinality(this: Array$1<0 | 1, T>): export_default$10<0 | 1>;
+    cardinality(this: Array$1<number, T>): export_default$10<0 | 1>;
+    generateSubscripts(this: Array$1<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): Setof<{
         from: {};
     }>;
-    generateSubscripts(this: Array<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): Setof<{
+    generateSubscripts(this: Array$1<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): Setof<{
         from: {};
     }>;
-    generateSubscripts(this: Array<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): Setof<{
+    generateSubscripts(this: Array$1<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): Setof<{
         from: {};
     }>;
-    generateSubscripts(this: Array<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>, a2: export_default$1g<1> | Input<export_default$1g<0 | 1>>): Setof<{
+    generateSubscripts(this: Array$1<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>, a2: export_default$1g<1> | Input<export_default$1g<0 | 1>>): Setof<{
         from: {};
     }>;
-    generateSubscripts(this: Array<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>, a2: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>): Setof<{
+    generateSubscripts(this: Array$1<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>, a2: export_default$1g<0 | 1> | Input<export_default$1g<0 | 1>>): Setof<{
         from: {};
     }>;
-    generateSubscripts(this: Array<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>, a2: export_default$1g<number> | Input<export_default$1g<0 | 1>>): Setof<{
+    generateSubscripts(this: Array$1<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>, a2: export_default$1g<number> | Input<export_default$1g<0 | 1>>): Setof<{
         from: {};
     }>;
-    hashArray(this: Array<1, T>): export_default$10<1>;
-    hashArray(this: Array<0 | 1, T>): export_default$10<0 | 1>;
-    hashArray(this: Array<number, T>): export_default$10<0 | 1>;
-    hashArrayExtended(this: Array<1, T>, a1: export_default$Z<1> | Input<export_default$Z<0 | 1>>): export_default$Z<1>;
-    hashArrayExtended(this: Array<0 | 1, T>, a1: export_default$Z<0 | 1> | Input<export_default$Z<0 | 1>>): export_default$Z<0 | 1>;
-    hashArrayExtended(this: Array<number, T>, a1: export_default$Z<number> | Input<export_default$Z<0 | 1>>): export_default$Z<0 | 1>;
-    max(this: Array<number, T>): Array<0 | 1, T>;
-    trimArray(this: Array<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): Array<1, T>;
-    trimArray(this: Array<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): Array<0 | 1, T>;
-    trimArray(this: Array<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): Array<0 | 1, T>;
-    unnest(this: Array<1, T>): Setof<{
+    hashArray(this: Array$1<1, T>): export_default$10<1>;
+    hashArray(this: Array$1<0 | 1, T>): export_default$10<0 | 1>;
+    hashArray(this: Array$1<number, T>): export_default$10<0 | 1>;
+    hashArrayExtended(this: Array$1<1, T>, a1: export_default$Z<1> | Input<export_default$Z<0 | 1>>): export_default$Z<1>;
+    hashArrayExtended(this: Array$1<0 | 1, T>, a1: export_default$Z<0 | 1> | Input<export_default$Z<0 | 1>>): export_default$Z<0 | 1>;
+    hashArrayExtended(this: Array$1<number, T>, a1: export_default$Z<number> | Input<export_default$Z<0 | 1>>): export_default$Z<0 | 1>;
+    max(this: Array$1<number, T>): Array$1<0 | 1, T>;
+    trimArray(this: Array$1<1, T>, a1: export_default$10<1> | Input<export_default$10<0 | 1>>): Array$1<1, T>;
+    trimArray(this: Array$1<0 | 1, T>, a1: export_default$10<0 | 1> | Input<export_default$10<0 | 1>>): Array$1<0 | 1, T>;
+    trimArray(this: Array$1<number, T>, a1: export_default$10<number> | Input<export_default$10<0 | 1>>): Array$1<0 | 1, T>;
+    unnest(this: Array$1<1, T>): Setof<{
         from: {};
     }>;
-    unnest(this: Array<0 | 1, T>): Setof<{
+    unnest(this: Array$1<0 | 1, T>): Setof<{
         from: {};
     }>;
-    unnest(this: Array<number, T>): Setof<{
+    unnest(this: Array$1<number, T>): Setof<{
         from: {};
     }>;
-    ["="]<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    ["="]<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    ["="]<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    [">="]<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    [">="]<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    [">="]<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    [">"]<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    [">"]<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    [">"]<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    ["<="]<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    ["<="]<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    ["<="]<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    ["<"]<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    ["<"]<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    ["<"]<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    ["<>"]<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    ["<>"]<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    ["<>"]<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    ["@>"]<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    ["@>"]<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    ["@>"]<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
-    ["&&"]<T extends Any>(this: Array<1, T>, a1: Array<1, T>): export_default$1g<1>;
-    ["&&"]<T extends Any>(this: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-    ["&&"]<T extends Any>(this: Array<number, T>, a1: Array<number, T>): export_default$1g<0 | 1>;
+    ["="]<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    ["="]<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    ["="]<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    [">="]<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    [">="]<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    [">="]<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    [">"]<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    [">"]<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    [">"]<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    ["<="]<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    ["<="]<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    ["<="]<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    ["<"]<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    ["<"]<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    ["<"]<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    ["<>"]<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    ["<>"]<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    ["<>"]<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    ["@>"]<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    ["@>"]<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    ["@>"]<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
+    ["&&"]<T extends Any>(this: Array$1<1, T>, a1: Array$1<1, T>): export_default$1g<1>;
+    ["&&"]<T extends Any>(this: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+    ["&&"]<T extends Any>(this: Array$1<number, T>, a1: Array$1<number, T>): export_default$1g<0 | 1>;
 }
 
 type ClassType<T> = {
@@ -11122,15 +11653,15 @@ type ClassType<T> = {
     prototype: T;
 };
 type ArrayClass<T extends Any> = {
-    new (v: string): Array<number, T>;
-    ["new"](v: string): Array<1, T>;
-    ["new"](v: null): Array<0, T>;
-    ["new"](v: Expression): Array<0 | 1, T>;
+    new (v: string): Array$1<number, T>;
+    ["new"](v: string): Array$1<1, T>;
+    ["new"](v: null): Array$1<0, T>;
+    ["new"](v: Expression): Array$1<0 | 1, T>;
     typeString(): string | undefined;
     subtype(): UseSubtype | undefined;
     parse(v: string): T["resultType"][];
 };
-declare class Array<N extends number, T extends Any> extends export_default<N, T> {
+declare class Array$1<N extends number, T extends Any> extends export_default<N, T> {
     static of<C extends ClassType<Any>>(subtype: C): ArrayClass<C["prototype"]>;
 }
 
@@ -11214,11 +11745,10 @@ declare class Setof<Q extends Query> extends Expression {
         [key: string]: QueryAlias;
     };
     query: Q;
-    db: Kysely<any>;
     fromRow: RowLike | Scalar;
     constructor(rawFromExpr: Expression, fromAlias: QueryAlias, joinAliases: {
         [key: string]: QueryAlias;
-    }, query: Q, db: Kysely<any>, fromRow: RowLike | Scalar);
+    }, query: Q, fromRow: RowLike | Scalar);
     static of<R extends RowLike>(fromRow: R): {
         new (rawFromExpr: Expression, fromAlias: QueryAlias, joinAliases: {
             [key: string]: QueryAlias;
@@ -11227,7 +11757,7 @@ declare class Setof<Q extends Query> extends Expression {
             select: R;
             wheres: undefined;
             groupBy: undefined;
-        }, db: Kysely<any>, fromRow: RowLike | Scalar): {
+        }, fromRow: RowLike | Scalar): {
             rawFromExpr: Expression;
             fromAlias: QueryAlias;
             joinAliases: {
@@ -11239,7 +11769,6 @@ declare class Setof<Q extends Query> extends Expression {
                 wheres: undefined;
                 groupBy: undefined;
             };
-            db: Kysely<any>;
             fromRow: RowLike | Scalar;
             toSelectArgs(): [R extends RowLike ? Record$1<1, R> & R : R, JoinTables<{
                 from: R;
@@ -11287,7 +11816,7 @@ declare class Setof<Q extends Query> extends Expression {
                 joins: {
                     [as]: {
                         table: Setof<J_1>;
-                        on: export_default$1g<1> | export_default$1g<0 | 1>;
+                        on: export_default$1g<0 | 1> | export_default$1g<1>;
                         row: RowLike;
                     };
                 };
@@ -11303,7 +11832,7 @@ declare class Setof<Q extends Query> extends Expression {
             tableColumnAlias(): RawBuilder<unknown>;
             compile(ctxIn: Context): RawBuilder<unknown>;
             debug(): /*elided*/ any;
-            execute(db?: Kysely<any>): Promise<AwaitedResultType<{
+            execute(db: Kysely<any>): Promise<AwaitedResultType<{
                 from: R;
                 select: R;
                 wheres: undefined;
@@ -11328,7 +11857,7 @@ declare class Setof<Q extends Query> extends Expression {
                 select: RowLike;
                 wheres: undefined;
                 groupBy: undefined;
-            }, db: Kysely<any>, fromRow: RowLike | Scalar): {
+            }, fromRow: RowLike | Scalar): {
                 rawFromExpr: Expression;
                 fromAlias: QueryAlias;
                 joinAliases: {
@@ -11340,7 +11869,6 @@ declare class Setof<Q extends Query> extends Expression {
                     wheres: undefined;
                     groupBy: undefined;
                 };
-                db: Kysely<any>;
                 fromRow: RowLike | Scalar;
                 toSelectArgs(): [Record$1<1, RowLike> & RowLike, JoinTables<{
                     from: RowLike;
@@ -11388,7 +11916,7 @@ declare class Setof<Q extends Query> extends Expression {
                     joins: {
                         [as]: {
                             table: Setof<J_1>;
-                            on: export_default$1g<1> | export_default$1g<0 | 1>;
+                            on: export_default$1g<0 | 1> | export_default$1g<1>;
                             row: RowLike;
                         };
                     };
@@ -11399,7 +11927,7 @@ declare class Setof<Q extends Query> extends Expression {
                 tableColumnAlias(): RawBuilder<unknown>;
                 compile(ctxIn: Context): RawBuilder<unknown>;
                 debug(): /*elided*/ any;
-                execute(db?: Kysely<any>): Promise<{
+                execute(db: Kysely<any>): Promise<{
                     [x: string]: unknown;
                 }[]>;
                 scalar<S extends Scalar>(this: Setof<{
@@ -11426,7 +11954,7 @@ declare class Setof<Q extends Query> extends Expression {
             select: RowLike;
             wheres: undefined;
             groupBy: undefined;
-        }, db: Kysely<any>, fromRow: RowLike | Scalar): {
+        }, fromRow: RowLike | Scalar): {
             rawFromExpr: Expression;
             fromAlias: QueryAlias;
             joinAliases: {
@@ -11438,7 +11966,6 @@ declare class Setof<Q extends Query> extends Expression {
                 wheres: undefined;
                 groupBy: undefined;
             };
-            db: Kysely<any>;
             fromRow: RowLike | Scalar;
             toSelectArgs(): [Record$1<1, RowLike> & RowLike, JoinTables<{
                 from: RowLike;
@@ -11486,7 +12013,7 @@ declare class Setof<Q extends Query> extends Expression {
                 joins: {
                     [as]: {
                         table: Setof<J_1>;
-                        on: export_default$1g<1> | export_default$1g<0 | 1>;
+                        on: export_default$1g<0 | 1> | export_default$1g<1>;
                         row: RowLike;
                     };
                 };
@@ -11497,7 +12024,7 @@ declare class Setof<Q extends Query> extends Expression {
             tableColumnAlias(): RawBuilder<unknown>;
             compile(ctxIn: Context): RawBuilder<unknown>;
             debug(): /*elided*/ any;
-            execute(db?: Kysely<any>): Promise<{
+            execute(db: Kysely<any>): Promise<{
                 [x: string]: unknown;
             }[]>;
             scalar<S extends Scalar>(this: Setof<{
@@ -11516,7 +12043,7 @@ declare class Setof<Q extends Query> extends Expression {
                 select: R;
                 wheres: undefined;
                 groupBy: undefined;
-            }, db: Kysely<any>, fromRow: RowLike | Scalar): {
+            }, fromRow: RowLike | Scalar): {
                 rawFromExpr: Expression;
                 fromAlias: QueryAlias;
                 joinAliases: {
@@ -11528,7 +12055,6 @@ declare class Setof<Q extends Query> extends Expression {
                     wheres: undefined;
                     groupBy: undefined;
                 };
-                db: Kysely<any>;
                 fromRow: RowLike | Scalar;
                 toSelectArgs(): [R extends RowLike ? Record$1<1, R> & R : R, JoinTables<{
                     from: R;
@@ -11576,7 +12102,7 @@ declare class Setof<Q extends Query> extends Expression {
                     joins: {
                         [as]: {
                             table: Setof<J_1>;
-                            on: export_default$1g<1> | export_default$1g<0 | 1>;
+                            on: export_default$1g<0 | 1> | export_default$1g<1>;
                             row: RowLike;
                         };
                     };
@@ -11592,7 +12118,7 @@ declare class Setof<Q extends Query> extends Expression {
                 tableColumnAlias(): RawBuilder<unknown>;
                 compile(ctxIn: Context): RawBuilder<unknown>;
                 debug(): /*elided*/ any;
-                execute(db?: Kysely<any>): Promise<AwaitedResultType<{
+                execute(db: Kysely<any>): Promise<AwaitedResultType<{
                     from: R;
                     select: R;
                     wheres: undefined;
@@ -11620,7 +12146,7 @@ declare class Setof<Q extends Query> extends Expression {
         select: MaybePrimitiveToSqlType<S>;
     }>;
     where(fn: (...from: SelectArgs<Q>) => export_default$1g<0 | 1> | boolean): Setof<Q & {
-        wheres: [export_default$1g<0 | 1>, ...export_default$1g<0 | 1>[], export_default$1g<1> | export_default$1g<0 | 1>] | [export_default$1g<1> | export_default$1g<0 | 1>];
+        wheres: [export_default$1g<0 | 1>, ...export_default$1g<0 | 1>[], export_default$1g<0 | 1> | export_default$1g<1>] | [export_default$1g<0 | 1> | export_default$1g<1>];
     }>;
     groupBy<G extends Any<unknown, 0 | 1>[]>(fn: (from: Q["from"]) => G): Setof<Q & {
         groupBy: [...(Q["groupBy"] extends unknown[] ? Q["groupBy"] : []), ...G];
@@ -11632,7 +12158,7 @@ declare class Setof<Q extends Query> extends Expression {
         joins: Q["joins"] & {
             [as]: {
                 table: Setof<J>;
-                on: export_default$1g<1> | export_default$1g<0 | 1>;
+                on: export_default$1g<0 | 1> | export_default$1g<1>;
                 row: RowLike;
             };
         };
@@ -11643,7 +12169,7 @@ declare class Setof<Q extends Query> extends Expression {
     tableColumnAlias(): RawBuilder<unknown>;
     compile(ctxIn: Context): RawBuilder<unknown>;
     debug(): this;
-    execute(db?: Kysely<any>): Promise<AwaitedResultType<Q>>;
+    execute(db: Kysely<any>): Promise<AwaitedResultType<Q>>;
     scalar<S extends Scalar>(this: Setof<{
         select: S;
         from: Query["from"];
@@ -11715,16 +12241,15 @@ declare class Table<Q extends Query> extends Setof<Q> {
     fromAlias: QueryAlias;
     joinAliases: Record<string, QueryAlias>;
     query: Q;
-    db: Kysely<any>;
     fromRow: RowLike;
-    constructor(rawFromExpr: RawTableReferenceExpression, fromAlias: QueryAlias, joinAliases: Record<string, QueryAlias>, query: Q, db: Kysely<any>, fromRow: RowLike);
+    constructor(rawFromExpr: RawTableReferenceExpression, fromAlias: QueryAlias, joinAliases: Record<string, QueryAlias>, query: Q, fromRow: RowLike);
     static of<R extends RowLike>(fromRow: R): {
         new (rawFromExpr: RawTableReferenceExpression, fromAlias: QueryAlias, joinAliases: Record<string, QueryAlias>, query: {
             from: R;
             select: R;
             wheres: undefined;
             groupBy: undefined;
-        }, db: Kysely<any>, fromRow: RowLike): {
+        }, fromRow: RowLike): {
             rawFromExpr: RawTableReferenceExpression;
             fromAlias: QueryAlias;
             joinAliases: Record<string, QueryAlias>;
@@ -11734,7 +12259,6 @@ declare class Table<Q extends Query> extends Setof<Q> {
                 wheres: undefined;
                 groupBy: undefined;
             };
-            db: Kysely<any>;
             fromRow: RowLike;
             insert<Q2 extends {
                 from: RowLike;
@@ -11779,7 +12303,7 @@ declare class Table<Q extends Query> extends Setof<Q> {
                 joins: {
                     [as]: {
                         table: Setof<J_1>;
-                        on: export_default$1g<1> | export_default$1g<0 | 1>;
+                        on: export_default$1g<0 | 1> | export_default$1g<1>;
                         row: RowLike;
                     };
                 };
@@ -11795,7 +12319,7 @@ declare class Table<Q extends Query> extends Setof<Q> {
             tableColumnAlias(): kysely.RawBuilder<unknown>;
             compile(ctxIn: Context): kysely.RawBuilder<unknown>;
             debug(): /*elided*/ any;
-            execute(db?: Kysely<any>): Promise<AwaitedResultType<{
+            execute(db: Kysely<any>): Promise<AwaitedResultType<{
                 from: R;
                 select: R;
                 wheres: undefined;
@@ -11820,7 +12344,7 @@ declare class Table<Q extends Query> extends Setof<Q> {
                 select: RowLike;
                 wheres: undefined;
                 groupBy: undefined;
-            }, db: Kysely<any>, fromRow: RowLike | Scalar): {
+            }, fromRow: RowLike | Scalar): {
                 rawFromExpr: Expression;
                 fromAlias: QueryAlias;
                 joinAliases: {
@@ -11832,7 +12356,6 @@ declare class Table<Q extends Query> extends Setof<Q> {
                     wheres: undefined;
                     groupBy: undefined;
                 };
-                db: Kysely<any>;
                 fromRow: RowLike | Scalar;
                 toSelectArgs(): [Record$1<1, RowLike> & RowLike, {}];
                 select<S extends RowLikeRelaxed | ScalarRelaxed>(fn: (from_0: Record$1<1, RowLike> & RowLike, from_1: {}) => S): Setof<{
@@ -11855,7 +12378,7 @@ declare class Table<Q extends Query> extends Setof<Q> {
                     joins: {
                         [as]: {
                             table: Setof<J_1>;
-                            on: export_default$1g<1> | export_default$1g<0 | 1>;
+                            on: export_default$1g<0 | 1> | export_default$1g<1>;
                             row: RowLike;
                         };
                     };
@@ -11866,7 +12389,7 @@ declare class Table<Q extends Query> extends Setof<Q> {
                 tableColumnAlias(): kysely.RawBuilder<unknown>;
                 compile(ctxIn: Context): kysely.RawBuilder<unknown>;
                 debug(): /*elided*/ any;
-                execute(db?: Kysely<any>): Promise<{
+                execute(db: Kysely<any>): Promise<{
                     [x: string]: unknown;
                 }[]>;
                 scalar<S extends Scalar>(this: Setof<{
@@ -11885,7 +12408,7 @@ declare class Table<Q extends Query> extends Setof<Q> {
                     select: R_1;
                     wheres: undefined;
                     groupBy: undefined;
-                }, db: Kysely<any>, fromRow: RowLike | Scalar): {
+                }, fromRow: RowLike | Scalar): {
                     rawFromExpr: Expression;
                     fromAlias: QueryAlias;
                     joinAliases: {
@@ -11897,7 +12420,6 @@ declare class Table<Q extends Query> extends Setof<Q> {
                         wheres: undefined;
                         groupBy: undefined;
                     };
-                    db: Kysely<any>;
                     fromRow: RowLike | Scalar;
                     toSelectArgs(): [R_1 extends RowLike ? Record$1<1, R_1> & R_1 : R_1, {}];
                     select<S extends RowLikeRelaxed | ScalarRelaxed>(fn: (from_0: R_1 extends RowLike ? Record$1<1, R_1> & R_1 : R_1, from_1: {}) => S): Setof<{
@@ -11920,7 +12442,7 @@ declare class Table<Q extends Query> extends Setof<Q> {
                         joins: {
                             [as]: {
                                 table: Setof<J_1>;
-                                on: export_default$1g<1> | export_default$1g<0 | 1>;
+                                on: export_default$1g<0 | 1> | export_default$1g<1>;
                                 row: RowLike;
                             };
                         };
@@ -11936,7 +12458,7 @@ declare class Table<Q extends Query> extends Setof<Q> {
                     tableColumnAlias(): kysely.RawBuilder<unknown>;
                     compile(ctxIn: Context): kysely.RawBuilder<unknown>;
                     debug(): /*elided*/ any;
-                    execute(db?: Kysely<any>): Promise<AwaitedResultType<{
+                    execute(db: Kysely<any>): Promise<AwaitedResultType<{
                         from: R_1;
                         select: R_1;
                         wheres: undefined;
@@ -12024,9 +12546,9 @@ declare function abs(a0: export_default$12<0 | 1>): export_default$12<0 | 1>;
 declare function abs(a0: export_default$10<0 | 1>): export_default$10<0 | 1>;
 declare function abs(a0: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
 declare function abs(a0: export_default$L<0 | 1>): export_default$L<0 | 1>;
-declare function aclcontains(a0: Array<0 | 1, export_default$1m<0 | 1>>, a1: export_default$1m<0 | 1>): export_default$1g<0 | 1>;
-declare function acldefault(a0: export_default$1c<0 | 1>, a1: export_default$I<0 | 1>): Array<0 | 1, export_default$1m<0 | 1>>;
-declare function aclexplode(a0: Array<0 | 1, export_default$1m<0 | 1>>): Setof<{
+declare function aclcontains(a0: Array$1<0 | 1, export_default$1m<0 | 1>>, a1: export_default$1m<0 | 1>): export_default$1g<0 | 1>;
+declare function acldefault(a0: export_default$1c<0 | 1>, a1: export_default$I<0 | 1>): Array$1<0 | 1, export_default$1m<0 | 1>>;
+declare function aclexplode(a0: Array$1<0 | 1, export_default$1m<0 | 1>>): Setof<{
     from: {
         grantor: export_default$I<0 | 1>;
         grantee: export_default$I<0 | 1>;
@@ -12034,9 +12556,9 @@ declare function aclexplode(a0: Array<0 | 1, export_default$1m<0 | 1>>): Setof<{
         is_grantable: export_default$1g<0 | 1>;
     };
 }>;
-declare function aclinsert(a0: Array<0 | 1, export_default$1m<0 | 1>>, a1: export_default$1m<0 | 1>): Array<0 | 1, export_default$1m<0 | 1>>;
+declare function aclinsert(a0: Array$1<0 | 1, export_default$1m<0 | 1>>, a1: export_default$1m<0 | 1>): Array$1<0 | 1, export_default$1m<0 | 1>>;
 declare function aclitemeq(a0: export_default$1m<0 | 1>, a1: export_default$1m<0 | 1>): export_default$1g<0 | 1>;
-declare function aclremove(a0: Array<0 | 1, export_default$1m<0 | 1>>, a1: export_default$1m<0 | 1>): Array<0 | 1, export_default$1m<0 | 1>>;
+declare function aclremove(a0: Array$1<0 | 1, export_default$1m<0 | 1>>, a1: export_default$1m<0 | 1>): Array$1<0 | 1, export_default$1m<0 | 1>>;
 declare function acos(a0: export_default$14<0 | 1>): export_default$14<0 | 1>;
 declare function acosd(a0: export_default$14<0 | 1>): export_default$14<0 | 1>;
 declare function acosh(a0: export_default$14<0 | 1>): export_default$14<0 | 1>;
@@ -12052,41 +12574,41 @@ declare function anytextcat<T extends Any>(a0: T, a1: export_default$l<0 | 1>): 
 declare function area(a0: export_default$1f<0 | 1>): export_default$14<0 | 1>;
 declare function area(a0: export_default$19<0 | 1>): export_default$14<0 | 1>;
 declare function area(a0: export_default$G<0 | 1>): export_default$14<0 | 1>;
-declare function arrayAgg<T extends Any>(a0: Array<number, T>): Array<0 | 1, T>;
-declare function arrayAgg<T extends Any>(a0: T): Array<0 | 1, T>;
-declare function arrayAppend<T extends Any>(a0: Array<0 | 1, T>, a1: T): Array<0 | 1, T>;
-declare function arrayCat<T extends Any>(a0: Array<0 | 1, T>, a1: Array<0 | 1, T>): Array<0 | 1, T>;
-declare function arrayDims<T extends Any>(a0: Array<0 | 1, T>): export_default$l<0 | 1>;
-declare function arrayEq<T extends Any>(a0: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-declare function arrayFill<T extends Any>(a0: T, a1: Array<0 | 1, export_default$10<0 | 1>>): Array<0 | 1, T>;
-declare function arrayFill<T extends Any>(a0: T, a1: Array<0 | 1, export_default$10<0 | 1>>, a2: Array<0 | 1, export_default$10<0 | 1>>): Array<0 | 1, T>;
-declare function arrayGe<T extends Any>(a0: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-declare function arrayGt<T extends Any>(a0: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-declare function arrayLarger<T extends Any>(a0: Array<0 | 1, T>, a1: Array<0 | 1, T>): Array<0 | 1, T>;
-declare function arrayLe<T extends Any>(a0: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-declare function arrayLength<T extends Any>(a0: Array<0 | 1, T>, a1: export_default$10<0 | 1>): export_default$10<0 | 1>;
-declare function arrayLower<T extends Any>(a0: Array<0 | 1, T>, a1: export_default$10<0 | 1>): export_default$10<0 | 1>;
-declare function arrayLt<T extends Any>(a0: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-declare function arrayNdims<T extends Any>(a0: Array<0 | 1, T>): export_default$10<0 | 1>;
-declare function arrayNe<T extends Any>(a0: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-declare function arrayPosition<T extends Any>(a0: Array<0 | 1, T>, a1: T): export_default$10<0 | 1>;
-declare function arrayPosition<T extends Any>(a0: Array<0 | 1, T>, a1: T, a2: export_default$10<0 | 1>): export_default$10<0 | 1>;
-declare function arrayPositions<T extends Any>(a0: Array<0 | 1, T>, a1: T): Array<0 | 1, export_default$10<0 | 1>>;
-declare function arrayPrepend<T extends Any>(a0: T, a1: Array<0 | 1, T>): Array<0 | 1, T>;
-declare function arrayRemove<T extends Any>(a0: Array<0 | 1, T>, a1: T): Array<0 | 1, T>;
-declare function arrayReplace<T extends Any>(a0: Array<0 | 1, T>, a1: T, a2: T): Array<0 | 1, T>;
-declare function arraySample<T extends Any>(a0: Array<0 | 1, T>, a1: export_default$10<0 | 1>): Array<0 | 1, T>;
-declare function arrayShuffle<T extends Any>(a0: Array<0 | 1, T>): Array<0 | 1, T>;
-declare function arraySmaller<T extends Any>(a0: Array<0 | 1, T>, a1: Array<0 | 1, T>): Array<0 | 1, T>;
-declare function arrayToJson<T extends Any>(a0: Array<0 | 1, T>): export_default$V<0 | 1>;
-declare function arrayToJson<T extends Any>(a0: Array<0 | 1, T>, a1: export_default$1g<0 | 1>): export_default$V<0 | 1>;
-declare function arrayToString<T extends Any>(a0: Array<0 | 1, T>, a1: export_default$l<0 | 1>): export_default$l<0 | 1>;
-declare function arrayToString<T extends Any>(a0: Array<0 | 1, T>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>): export_default$l<0 | 1>;
-declare function arrayToTsvector(a0: Array<0 | 1, export_default$l<0 | 1>>): export_default$9<0 | 1>;
-declare function arrayUpper<T extends Any>(a0: Array<0 | 1, T>, a1: export_default$10<0 | 1>): export_default$10<0 | 1>;
-declare function arraycontained<T extends Any>(a0: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-declare function arraycontains<T extends Any>(a0: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
-declare function arrayoverlap<T extends Any>(a0: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$1g<0 | 1>;
+declare function arrayAgg<T extends Any>(a0: Array$1<number, T>): Array$1<0 | 1, T>;
+declare function arrayAgg<T extends Any>(a0: T): Array$1<0 | 1, T>;
+declare function arrayAppend<T extends Any>(a0: Array$1<0 | 1, T>, a1: T): Array$1<0 | 1, T>;
+declare function arrayCat<T extends Any>(a0: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): Array$1<0 | 1, T>;
+declare function arrayDims<T extends Any>(a0: Array$1<0 | 1, T>): export_default$l<0 | 1>;
+declare function arrayEq<T extends Any>(a0: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+declare function arrayFill<T extends Any>(a0: T, a1: Array$1<0 | 1, export_default$10<0 | 1>>): Array$1<0 | 1, T>;
+declare function arrayFill<T extends Any>(a0: T, a1: Array$1<0 | 1, export_default$10<0 | 1>>, a2: Array$1<0 | 1, export_default$10<0 | 1>>): Array$1<0 | 1, T>;
+declare function arrayGe<T extends Any>(a0: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+declare function arrayGt<T extends Any>(a0: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+declare function arrayLarger<T extends Any>(a0: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): Array$1<0 | 1, T>;
+declare function arrayLe<T extends Any>(a0: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+declare function arrayLength<T extends Any>(a0: Array$1<0 | 1, T>, a1: export_default$10<0 | 1>): export_default$10<0 | 1>;
+declare function arrayLower<T extends Any>(a0: Array$1<0 | 1, T>, a1: export_default$10<0 | 1>): export_default$10<0 | 1>;
+declare function arrayLt<T extends Any>(a0: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+declare function arrayNdims<T extends Any>(a0: Array$1<0 | 1, T>): export_default$10<0 | 1>;
+declare function arrayNe<T extends Any>(a0: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+declare function arrayPosition<T extends Any>(a0: Array$1<0 | 1, T>, a1: T): export_default$10<0 | 1>;
+declare function arrayPosition<T extends Any>(a0: Array$1<0 | 1, T>, a1: T, a2: export_default$10<0 | 1>): export_default$10<0 | 1>;
+declare function arrayPositions<T extends Any>(a0: Array$1<0 | 1, T>, a1: T): Array$1<0 | 1, export_default$10<0 | 1>>;
+declare function arrayPrepend<T extends Any>(a0: T, a1: Array$1<0 | 1, T>): Array$1<0 | 1, T>;
+declare function arrayRemove<T extends Any>(a0: Array$1<0 | 1, T>, a1: T): Array$1<0 | 1, T>;
+declare function arrayReplace<T extends Any>(a0: Array$1<0 | 1, T>, a1: T, a2: T): Array$1<0 | 1, T>;
+declare function arraySample<T extends Any>(a0: Array$1<0 | 1, T>, a1: export_default$10<0 | 1>): Array$1<0 | 1, T>;
+declare function arrayShuffle<T extends Any>(a0: Array$1<0 | 1, T>): Array$1<0 | 1, T>;
+declare function arraySmaller<T extends Any>(a0: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): Array$1<0 | 1, T>;
+declare function arrayToJson<T extends Any>(a0: Array$1<0 | 1, T>): export_default$V<0 | 1>;
+declare function arrayToJson<T extends Any>(a0: Array$1<0 | 1, T>, a1: export_default$1g<0 | 1>): export_default$V<0 | 1>;
+declare function arrayToString<T extends Any>(a0: Array$1<0 | 1, T>, a1: export_default$l<0 | 1>): export_default$l<0 | 1>;
+declare function arrayToString<T extends Any>(a0: Array$1<0 | 1, T>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>): export_default$l<0 | 1>;
+declare function arrayToTsvector(a0: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$9<0 | 1>;
+declare function arrayUpper<T extends Any>(a0: Array$1<0 | 1, T>, a1: export_default$10<0 | 1>): export_default$10<0 | 1>;
+declare function arraycontained<T extends Any>(a0: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+declare function arraycontains<T extends Any>(a0: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
+declare function arrayoverlap<T extends Any>(a0: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$1g<0 | 1>;
 declare function ascii(a0: export_default$l<0 | 1>): export_default$10<0 | 1>;
 declare function asind(a0: export_default$14<0 | 1>): export_default$14<0 | 1>;
 declare function asinh(a0: export_default$14<0 | 1>): export_default$14<0 | 1>;
@@ -12103,7 +12625,7 @@ declare function avg(a0: export_default$10<number>): export_default$L<0 | 1>;
 declare function avg(a0: export_default$Z<number>): export_default$L<0 | 1>;
 declare function avg(a0: export_default$L<number>): export_default$L<0 | 1>;
 declare function binaryUpgradeAddSubRelState(a0: export_default$l<0 | 1>, a1: export_default$I<0 | 1>, a2: export_default$1c<0 | 1>, a3: export_default$E<0 | 1>): export_default$4<0 | 1>;
-declare function binaryUpgradeCreateEmptyExtension(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$1g<0 | 1>, a3: export_default$l<0 | 1>, a4: Array<0 | 1, export_default$I<0 | 1>>, a5: Array<0 | 1, export_default$l<0 | 1>>, a6: Array<0 | 1, export_default$l<0 | 1>>): export_default$4<0 | 1>;
+declare function binaryUpgradeCreateEmptyExtension(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$1g<0 | 1>, a3: export_default$l<0 | 1>, a4: Array$1<0 | 1, export_default$I<0 | 1>>, a5: Array$1<0 | 1, export_default$l<0 | 1>>, a6: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$4<0 | 1>;
 declare function binaryUpgradeLogicalSlotHasCaughtUp(a0: export_default$M<0 | 1>): export_default$1g<0 | 1>;
 declare function binaryUpgradeReploriginAdvance(a0: export_default$l<0 | 1>, a1: export_default$E<0 | 1>): export_default$4<0 | 1>;
 declare function binaryUpgradeSetMissingValue(a0: export_default$I<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>): export_default$4<0 | 1>;
@@ -12227,7 +12749,7 @@ declare function brinDesummarizeRange(a0: export_default$w<0 | 1>, a1: export_de
 declare function brinSummarizeNewValues(a0: export_default$w<0 | 1>): export_default$10<0 | 1>;
 declare function brinSummarizeRange(a0: export_default$w<0 | 1>, a1: export_default$Z<0 | 1>): export_default$10<0 | 1>;
 declare function broadcast(a0: export_default$13<0 | 1>): export_default$13<0 | 1>;
-declare function btarraycmp<T extends Any>(a0: Array<0 | 1, T>, a1: Array<0 | 1, T>): export_default$10<0 | 1>;
+declare function btarraycmp<T extends Any>(a0: Array$1<0 | 1, T>, a1: Array$1<0 | 1, T>): export_default$10<0 | 1>;
 declare function btboolcmp(a0: export_default$1g<0 | 1>, a1: export_default$1g<0 | 1>): export_default$10<0 | 1>;
 declare function btbpcharPatternCmp(a0: export_default$1e<0 | 1>, a1: export_default$1e<0 | 1>): export_default$10<0 | 1>;
 declare function btcharcmp(a0: export_default$1c<0 | 1>, a1: export_default$1c<0 | 1>): export_default$10<0 | 1>;
@@ -12273,7 +12795,7 @@ declare function bytealike(a0: export_default$1d<0 | 1>, a1: export_default$1d<0
 declare function bytealt(a0: export_default$1d<0 | 1>, a1: export_default$1d<0 | 1>): export_default$1g<0 | 1>;
 declare function byteane(a0: export_default$1d<0 | 1>, a1: export_default$1d<0 | 1>): export_default$1g<0 | 1>;
 declare function byteanlike(a0: export_default$1d<0 | 1>, a1: export_default$1d<0 | 1>): export_default$1g<0 | 1>;
-declare function cardinality<T extends Any>(a0: Array<0 | 1, T>): export_default$10<0 | 1>;
+declare function cardinality<T extends Any>(a0: Array$1<0 | 1, T>): export_default$10<0 | 1>;
 declare function cashCmp(a0: export_default$N<0 | 1>, a1: export_default$N<0 | 1>): export_default$10<0 | 1>;
 declare function cashDivCash(a0: export_default$N<0 | 1>, a1: export_default$N<0 | 1>): export_default$14<0 | 1>;
 declare function cashDivFlt4(a0: export_default$N<0 | 1>, a1: export_default$15<0 | 1>): export_default$N<0 | 1>;
@@ -12374,7 +12896,7 @@ declare function cumeDist(a0: Any<number>): export_default$14<0 | 1>;
 declare function currentDatabase(): export_default$M<0 | 1>;
 declare function currentQuery(): export_default$l<0 | 1>;
 declare function currentSchema(): export_default$M<0 | 1>;
-declare function currentSchemas(a0: export_default$1g<0 | 1>): Array<0 | 1, export_default$M<0 | 1>>;
+declare function currentSchemas(a0: export_default$1g<0 | 1>): Array$1<0 | 1, export_default$M<0 | 1>>;
 declare function currentSetting(a0: export_default$l<0 | 1>): export_default$l<0 | 1>;
 declare function currentSetting(a0: export_default$l<0 | 1>, a1: export_default$1g<0 | 1>): export_default$l<0 | 1>;
 declare function currentUser(): export_default$M<0 | 1>;
@@ -12430,7 +12952,7 @@ declare function dateTrunc(a0: export_default$l<0 | 1>, a1: export_default$i<0 |
 declare function dateTrunc(a0: export_default$l<0 | 1>, a1: export_default$h<0 | 1>): export_default$h<0 | 1>;
 declare function dateTrunc(a0: export_default$l<0 | 1>, a1: export_default$h<0 | 1>, a2: export_default$l<0 | 1>): export_default$h<0 | 1>;
 declare function datemultirange(): export_default$17<0 | 1>;
-declare function datemultirange(a0: Array<0 | 1, export_default$16<0 | 1>>): export_default$17<0 | 1>;
+declare function datemultirange(a0: Array$1<0 | 1, export_default$16<0 | 1>>): export_default$17<0 | 1>;
 declare function datemultirange(a0: export_default$16<0 | 1>): export_default$17<0 | 1>;
 declare function daterange(a0: export_default$18<0 | 1>, a1: export_default$18<0 | 1>): export_default$16<0 | 1>;
 declare function daterange(a0: export_default$18<0 | 1>, a1: export_default$18<0 | 1>, a2: export_default$l<0 | 1>): export_default$16<0 | 1>;
@@ -12484,8 +13006,8 @@ declare function enumLast<T extends Any>(a0: T): T;
 declare function enumLe<T extends Any>(a0: T, a1: T): export_default$1g<0 | 1>;
 declare function enumLt<T extends Any>(a0: T, a1: T): export_default$1g<0 | 1>;
 declare function enumNe<T extends Any>(a0: T, a1: T): export_default$1g<0 | 1>;
-declare function enumRange<T extends Any>(a0: T): Array<0 | 1, T>;
-declare function enumRange<T extends Any>(a0: T, a1: T): Array<0 | 1, T>;
+declare function enumRange<T extends Any>(a0: T): Array$1<0 | 1, T>;
+declare function enumRange<T extends Any>(a0: T, a1: T): Array$1<0 | 1, T>;
 declare function enumSmaller<T extends Any>(a0: T, a1: T): T;
 declare function erf(a0: export_default$14<0 | 1>): export_default$14<0 | 1>;
 declare function erfc(a0: export_default$14<0 | 1>): export_default$14<0 | 1>;
@@ -12517,7 +13039,7 @@ declare function float48Mi(a0: export_default$15<0 | 1>, a1: export_default$14<0
 declare function float48Mul(a0: export_default$15<0 | 1>, a1: export_default$14<0 | 1>): export_default$14<0 | 1>;
 declare function float48Ne(a0: export_default$15<0 | 1>, a1: export_default$14<0 | 1>): export_default$1g<0 | 1>;
 declare function float48Pl(a0: export_default$15<0 | 1>, a1: export_default$14<0 | 1>): export_default$14<0 | 1>;
-declare function float4Accum(a0: Array<0 | 1, export_default$14<0 | 1>>, a1: export_default$15<0 | 1>): Array<0 | 1, export_default$14<0 | 1>>;
+declare function float4Accum(a0: Array$1<0 | 1, export_default$14<0 | 1>>, a1: export_default$15<0 | 1>): Array$1<0 | 1, export_default$14<0 | 1>>;
 declare function float4Abs(a0: export_default$15<0 | 1>): export_default$15<0 | 1>;
 declare function float4Div(a0: export_default$15<0 | 1>, a1: export_default$15<0 | 1>): export_default$15<0 | 1>;
 declare function float4Eq(a0: export_default$15<0 | 1>, a1: export_default$15<0 | 1>): export_default$1g<0 | 1>;
@@ -12549,26 +13071,26 @@ declare function float84Mi(a0: export_default$14<0 | 1>, a1: export_default$15<0
 declare function float84Mul(a0: export_default$14<0 | 1>, a1: export_default$15<0 | 1>): export_default$14<0 | 1>;
 declare function float84Ne(a0: export_default$14<0 | 1>, a1: export_default$15<0 | 1>): export_default$1g<0 | 1>;
 declare function float84Pl(a0: export_default$14<0 | 1>, a1: export_default$15<0 | 1>): export_default$14<0 | 1>;
-declare function float8Accum(a0: Array<0 | 1, export_default$14<0 | 1>>, a1: export_default$14<0 | 1>): Array<0 | 1, export_default$14<0 | 1>>;
-declare function float8Avg(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8Combine(a0: Array<0 | 1, export_default$14<0 | 1>>, a1: Array<0 | 1, export_default$14<0 | 1>>): Array<0 | 1, export_default$14<0 | 1>>;
-declare function float8Corr(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8CovarPop(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8CovarSamp(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8RegrAccum(a0: Array<0 | 1, export_default$14<0 | 1>>, a1: export_default$14<0 | 1>, a2: export_default$14<0 | 1>): Array<0 | 1, export_default$14<0 | 1>>;
-declare function float8RegrAvgx(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8RegrAvgy(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8RegrCombine(a0: Array<0 | 1, export_default$14<0 | 1>>, a1: Array<0 | 1, export_default$14<0 | 1>>): Array<0 | 1, export_default$14<0 | 1>>;
-declare function float8RegrIntercept(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8RegrR2(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8RegrSlope(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8RegrSxx(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8RegrSxy(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8RegrSyy(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8StddevPop(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8StddevSamp(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8VarPop(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
-declare function float8VarSamp(a0: Array<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8Accum(a0: Array$1<0 | 1, export_default$14<0 | 1>>, a1: export_default$14<0 | 1>): Array$1<0 | 1, export_default$14<0 | 1>>;
+declare function float8Avg(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8Combine(a0: Array$1<0 | 1, export_default$14<0 | 1>>, a1: Array$1<0 | 1, export_default$14<0 | 1>>): Array$1<0 | 1, export_default$14<0 | 1>>;
+declare function float8Corr(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8CovarPop(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8CovarSamp(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8RegrAccum(a0: Array$1<0 | 1, export_default$14<0 | 1>>, a1: export_default$14<0 | 1>, a2: export_default$14<0 | 1>): Array$1<0 | 1, export_default$14<0 | 1>>;
+declare function float8RegrAvgx(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8RegrAvgy(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8RegrCombine(a0: Array$1<0 | 1, export_default$14<0 | 1>>, a1: Array$1<0 | 1, export_default$14<0 | 1>>): Array$1<0 | 1, export_default$14<0 | 1>>;
+declare function float8RegrIntercept(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8RegrR2(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8RegrSlope(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8RegrSxx(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8RegrSxy(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8RegrSyy(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8StddevPop(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8StddevSamp(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8VarPop(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
+declare function float8VarSamp(a0: Array$1<0 | 1, export_default$14<0 | 1>>): export_default$14<0 | 1>;
 declare function float8Abs(a0: export_default$14<0 | 1>): export_default$14<0 | 1>;
 declare function float8Div(a0: export_default$14<0 | 1>, a1: export_default$14<0 | 1>): export_default$14<0 | 1>;
 declare function float8Eq(a0: export_default$14<0 | 1>, a1: export_default$14<0 | 1>): export_default$1g<0 | 1>;
@@ -12625,10 +13147,10 @@ declare function generateSeries(a0: export_default$h<0 | 1>, a1: export_default$
 declare function generateSeries(a0: export_default$h<0 | 1>, a1: export_default$h<0 | 1>, a2: export_default$W<0 | 1>, a3: export_default$l<0 | 1>): Setof<{
     from: {};
 }>;
-declare function generateSubscripts<T extends Any>(a0: Array<0 | 1, T>, a1: export_default$10<0 | 1>): Setof<{
+declare function generateSubscripts<T extends Any>(a0: Array$1<0 | 1, T>, a1: export_default$10<0 | 1>): Setof<{
     from: {};
 }>;
-declare function generateSubscripts<T extends Any>(a0: Array<0 | 1, T>, a1: export_default$10<0 | 1>, a2: export_default$1g<0 | 1>): Setof<{
+declare function generateSubscripts<T extends Any>(a0: Array$1<0 | 1, T>, a1: export_default$10<0 | 1>, a2: export_default$1g<0 | 1>): Setof<{
     from: {};
 }>;
 declare function getBit(a0: export_default$1h<0 | 1>, a1: export_default$10<0 | 1>): export_default$10<0 | 1>;
@@ -12723,8 +13245,8 @@ declare function hasTypePrivilege(a0: export_default$I<0 | 1>, a1: export_defaul
 declare function hasTypePrivilege(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>): export_default$1g<0 | 1>;
 declare function hashAclitem(a0: export_default$1m<0 | 1>): export_default$10<0 | 1>;
 declare function hashAclitemExtended(a0: export_default$1m<0 | 1>, a1: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
-declare function hashArray<T extends Any>(a0: Array<0 | 1, T>): export_default$10<0 | 1>;
-declare function hashArrayExtended<T extends Any>(a0: Array<0 | 1, T>, a1: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
+declare function hashArray<T extends Any>(a0: Array$1<0 | 1, T>): export_default$10<0 | 1>;
+declare function hashArrayExtended<T extends Any>(a0: Array$1<0 | 1, T>, a1: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
 declare function hashMultirange<T extends Any>(a0: export_default$1k<0 | 1, T>): export_default$10<0 | 1>;
 declare function hashMultirangeExtended<T extends Any>(a0: export_default$1k<0 | 1, T>, a1: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
 declare function hashNumeric(a0: export_default$L<0 | 1>): export_default$10<0 | 1>;
@@ -12828,8 +13350,8 @@ declare function int28Mi(a0: export_default$12<0 | 1>, a1: export_default$Z<0 | 
 declare function int28Mul(a0: export_default$12<0 | 1>, a1: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
 declare function int28Ne(a0: export_default$12<0 | 1>, a1: export_default$Z<0 | 1>): export_default$1g<0 | 1>;
 declare function int28Pl(a0: export_default$12<0 | 1>, a1: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
-declare function int2AvgAccum(a0: Array<0 | 1, export_default$Z<0 | 1>>, a1: export_default$12<0 | 1>): Array<0 | 1, export_default$Z<0 | 1>>;
-declare function int2AvgAccumInv(a0: Array<0 | 1, export_default$Z<0 | 1>>, a1: export_default$12<0 | 1>): Array<0 | 1, export_default$Z<0 | 1>>;
+declare function int2AvgAccum(a0: Array$1<0 | 1, export_default$Z<0 | 1>>, a1: export_default$12<0 | 1>): Array$1<0 | 1, export_default$Z<0 | 1>>;
+declare function int2AvgAccumInv(a0: Array$1<0 | 1, export_default$Z<0 | 1>>, a1: export_default$12<0 | 1>): Array$1<0 | 1, export_default$Z<0 | 1>>;
 declare function int2MulCash(a0: export_default$12<0 | 1>, a1: export_default$N<0 | 1>): export_default$N<0 | 1>;
 declare function int2Sum(a0: export_default$Z<0 | 1>, a1: export_default$12<0 | 1>): export_default$Z<0 | 1>;
 declare function int2Abs(a0: export_default$12<0 | 1>): export_default$12<0 | 1>;
@@ -12838,7 +13360,7 @@ declare function int2Div(a0: export_default$12<0 | 1>, a1: export_default$12<0 |
 declare function int2Eq(a0: export_default$12<0 | 1>, a1: export_default$12<0 | 1>): export_default$1g<0 | 1>;
 declare function int2Ge(a0: export_default$12<0 | 1>, a1: export_default$12<0 | 1>): export_default$1g<0 | 1>;
 declare function int2Gt(a0: export_default$12<0 | 1>, a1: export_default$12<0 | 1>): export_default$1g<0 | 1>;
-declare function int2Int4Sum(a0: Array<0 | 1, export_default$Z<0 | 1>>): export_default$Z<0 | 1>;
+declare function int2Int4Sum(a0: Array$1<0 | 1, export_default$Z<0 | 1>>): export_default$Z<0 | 1>;
 declare function int2Larger(a0: export_default$12<0 | 1>, a1: export_default$12<0 | 1>): export_default$12<0 | 1>;
 declare function int2Le(a0: export_default$12<0 | 1>, a1: export_default$12<0 | 1>): export_default$1g<0 | 1>;
 declare function int2Lt(a0: export_default$12<0 | 1>, a1: export_default$12<0 | 1>): export_default$1g<0 | 1>;
@@ -12884,9 +13406,9 @@ declare function int48Mi(a0: export_default$10<0 | 1>, a1: export_default$Z<0 | 
 declare function int48Mul(a0: export_default$10<0 | 1>, a1: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
 declare function int48Ne(a0: export_default$10<0 | 1>, a1: export_default$Z<0 | 1>): export_default$1g<0 | 1>;
 declare function int48Pl(a0: export_default$10<0 | 1>, a1: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
-declare function int4AvgAccum(a0: Array<0 | 1, export_default$Z<0 | 1>>, a1: export_default$10<0 | 1>): Array<0 | 1, export_default$Z<0 | 1>>;
-declare function int4AvgAccumInv(a0: Array<0 | 1, export_default$Z<0 | 1>>, a1: export_default$10<0 | 1>): Array<0 | 1, export_default$Z<0 | 1>>;
-declare function int4AvgCombine(a0: Array<0 | 1, export_default$Z<0 | 1>>, a1: Array<0 | 1, export_default$Z<0 | 1>>): Array<0 | 1, export_default$Z<0 | 1>>;
+declare function int4AvgAccum(a0: Array$1<0 | 1, export_default$Z<0 | 1>>, a1: export_default$10<0 | 1>): Array$1<0 | 1, export_default$Z<0 | 1>>;
+declare function int4AvgAccumInv(a0: Array$1<0 | 1, export_default$Z<0 | 1>>, a1: export_default$10<0 | 1>): Array$1<0 | 1, export_default$Z<0 | 1>>;
+declare function int4AvgCombine(a0: Array$1<0 | 1, export_default$Z<0 | 1>>, a1: Array$1<0 | 1, export_default$Z<0 | 1>>): Array$1<0 | 1, export_default$Z<0 | 1>>;
 declare function int4MulCash(a0: export_default$10<0 | 1>, a1: export_default$N<0 | 1>): export_default$N<0 | 1>;
 declare function int4Sum(a0: export_default$Z<0 | 1>, a1: export_default$10<0 | 1>): export_default$Z<0 | 1>;
 declare function int4Abs(a0: export_default$10<0 | 1>): export_default$10<0 | 1>;
@@ -12903,7 +13425,7 @@ declare function int4Mi(a0: export_default$10<0 | 1>, a1: export_default$10<0 | 
 declare function int4Mod(a0: export_default$10<0 | 1>, a1: export_default$10<0 | 1>): export_default$10<0 | 1>;
 declare function int4Mul(a0: export_default$10<0 | 1>, a1: export_default$10<0 | 1>): export_default$10<0 | 1>;
 declare function int4Multirange(): export_default$$<0 | 1>;
-declare function int4Multirange(a0: Array<0 | 1, export_default$_<0 | 1>>): export_default$$<0 | 1>;
+declare function int4Multirange(a0: Array$1<0 | 1, export_default$_<0 | 1>>): export_default$$<0 | 1>;
 declare function int4Multirange(a0: export_default$_<0 | 1>): export_default$$<0 | 1>;
 declare function int4Ne(a0: export_default$10<0 | 1>, a1: export_default$10<0 | 1>): export_default$1g<0 | 1>;
 declare function int4Not(a0: export_default$10<0 | 1>): export_default$10<0 | 1>;
@@ -12947,7 +13469,7 @@ declare function int84Mi(a0: export_default$Z<0 | 1>, a1: export_default$10<0 | 
 declare function int84Mul(a0: export_default$Z<0 | 1>, a1: export_default$10<0 | 1>): export_default$Z<0 | 1>;
 declare function int84Ne(a0: export_default$Z<0 | 1>, a1: export_default$10<0 | 1>): export_default$1g<0 | 1>;
 declare function int84Pl(a0: export_default$Z<0 | 1>, a1: export_default$10<0 | 1>): export_default$Z<0 | 1>;
-declare function int8Avg(a0: Array<0 | 1, export_default$Z<0 | 1>>): export_default$L<0 | 1>;
+declare function int8Avg(a0: Array$1<0 | 1, export_default$Z<0 | 1>>): export_default$L<0 | 1>;
 declare function int8MulCash(a0: export_default$Z<0 | 1>, a1: export_default$N<0 | 1>): export_default$N<0 | 1>;
 declare function int8Sum(a0: export_default$L<0 | 1>, a1: export_default$Z<0 | 1>): export_default$L<0 | 1>;
 declare function int8Abs(a0: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
@@ -12968,7 +13490,7 @@ declare function int8Mi(a0: export_default$Z<0 | 1>, a1: export_default$Z<0 | 1>
 declare function int8Mod(a0: export_default$Z<0 | 1>, a1: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
 declare function int8Mul(a0: export_default$Z<0 | 1>, a1: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
 declare function int8Multirange(): export_default$Y<0 | 1>;
-declare function int8Multirange(a0: Array<0 | 1, export_default$X<0 | 1>>): export_default$Y<0 | 1>;
+declare function int8Multirange(a0: Array$1<0 | 1, export_default$X<0 | 1>>): export_default$Y<0 | 1>;
 declare function int8Multirange(a0: export_default$X<0 | 1>): export_default$Y<0 | 1>;
 declare function int8Ne(a0: export_default$Z<0 | 1>, a1: export_default$Z<0 | 1>): export_default$1g<0 | 1>;
 declare function int8Not(a0: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
@@ -13062,10 +13584,10 @@ declare function jsonEachText(a0: export_default$V<0 | 1>): Setof<{
         value: export_default$l<0 | 1>;
     };
 }>;
-declare function jsonExtractPath(a0: export_default$V<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$V<0 | 1>;
-declare function jsonExtractPathText(a0: export_default$V<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$l<0 | 1>;
-declare function jsonObject(a0: Array<0 | 1, export_default$l<0 | 1>>): export_default$V<0 | 1>;
-declare function jsonObject(a0: Array<0 | 1, export_default$l<0 | 1>>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$V<0 | 1>;
+declare function jsonExtractPath(a0: export_default$V<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$V<0 | 1>;
+declare function jsonExtractPathText(a0: export_default$V<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$l<0 | 1>;
+declare function jsonObject(a0: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$V<0 | 1>;
+declare function jsonObject(a0: Array$1<0 | 1, export_default$l<0 | 1>>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$V<0 | 1>;
 declare function jsonObjectAgg(a0: Any<number>, a1: Any<number>): export_default$V<0 | 1>;
 declare function jsonObjectAggStrict(a0: Any<number>, a1: Any<number>): export_default$V<0 | 1>;
 declare function jsonObjectAggUnique(a0: Any<number>, a1: Any<number>): export_default$V<0 | 1>;
@@ -13110,10 +13632,10 @@ declare function jsonbCmp(a0: export_default$U<0 | 1>, a1: export_default$U<0 | 
 declare function jsonbConcat(a0: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$U<0 | 1>;
 declare function jsonbContained(a0: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
 declare function jsonbContains(a0: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
-declare function jsonbDelete(a0: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+declare function jsonbDelete(a0: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
 declare function jsonbDelete(a0: export_default$U<0 | 1>, a1: export_default$10<0 | 1>): export_default$U<0 | 1>;
 declare function jsonbDelete(a0: export_default$U<0 | 1>, a1: export_default$l<0 | 1>): export_default$U<0 | 1>;
-declare function jsonbDeletePath(a0: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+declare function jsonbDeletePath(a0: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
 declare function jsonbEach(a0: export_default$U<0 | 1>): Setof<{
     from: {
         key: export_default$l<0 | 1>;
@@ -13128,20 +13650,20 @@ declare function jsonbEachText(a0: export_default$U<0 | 1>): Setof<{
 }>;
 declare function jsonbEq(a0: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
 declare function jsonbExists(a0: export_default$U<0 | 1>, a1: export_default$l<0 | 1>): export_default$1g<0 | 1>;
-declare function jsonbExistsAll(a0: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-declare function jsonbExistsAny(a0: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
-declare function jsonbExtractPath(a0: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
-declare function jsonbExtractPathText(a0: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$l<0 | 1>;
+declare function jsonbExistsAll(a0: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
+declare function jsonbExistsAny(a0: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
+declare function jsonbExtractPath(a0: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+declare function jsonbExtractPathText(a0: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$l<0 | 1>;
 declare function jsonbGe(a0: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
 declare function jsonbGt(a0: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
 declare function jsonbHash(a0: export_default$U<0 | 1>): export_default$10<0 | 1>;
 declare function jsonbHashExtended(a0: export_default$U<0 | 1>, a1: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
-declare function jsonbInsert(a0: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>, a2: export_default$U<0 | 1>, a3: export_default$1g<0 | 1>): export_default$U<0 | 1>;
+declare function jsonbInsert(a0: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>, a2: export_default$U<0 | 1>, a3: export_default$1g<0 | 1>): export_default$U<0 | 1>;
 declare function jsonbLe(a0: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
 declare function jsonbLt(a0: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
 declare function jsonbNe(a0: export_default$U<0 | 1>, a1: export_default$U<0 | 1>): export_default$1g<0 | 1>;
-declare function jsonbObject(a0: Array<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
-declare function jsonbObject(a0: Array<0 | 1, export_default$l<0 | 1>>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+declare function jsonbObject(a0: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
+declare function jsonbObject(a0: Array$1<0 | 1, export_default$l<0 | 1>>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$U<0 | 1>;
 declare function jsonbObjectAgg(a0: Any<number>, a1: Any<number>): export_default$U<0 | 1>;
 declare function jsonbObjectAggStrict(a0: Any<number>, a1: Any<number>): export_default$U<0 | 1>;
 declare function jsonbObjectAggUnique(a0: Any<number>, a1: Any<number>): export_default$U<0 | 1>;
@@ -13173,8 +13695,8 @@ declare function jsonbPopulateRecordset<T extends Any>(a0: T, a1: export_default
     from: {};
 }>;
 declare function jsonbPretty(a0: export_default$U<0 | 1>): export_default$l<0 | 1>;
-declare function jsonbSet(a0: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>, a2: export_default$U<0 | 1>, a3: export_default$1g<0 | 1>): export_default$U<0 | 1>;
-declare function jsonbSetLax(a0: export_default$U<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>, a2: export_default$U<0 | 1>, a3: export_default$1g<0 | 1>, a4: export_default$l<0 | 1>): export_default$U<0 | 1>;
+declare function jsonbSet(a0: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>, a2: export_default$U<0 | 1>, a3: export_default$1g<0 | 1>): export_default$U<0 | 1>;
+declare function jsonbSetLax(a0: export_default$U<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>, a2: export_default$U<0 | 1>, a3: export_default$1g<0 | 1>, a4: export_default$l<0 | 1>): export_default$U<0 | 1>;
 declare function jsonbStripNulls(a0: export_default$U<0 | 1>): export_default$U<0 | 1>;
 declare function jsonbToRecord(a0: export_default$U<0 | 1>): Record$1<0 | 1, {}>;
 declare function jsonbToRecordset(a0: export_default$U<0 | 1>): Setof<{
@@ -13307,7 +13829,7 @@ declare function makeTimestamptz(a0: export_default$10<0 | 1>, a1: export_defaul
 declare function makeTimestamptz(a0: export_default$10<0 | 1>, a1: export_default$10<0 | 1>, a2: export_default$10<0 | 1>, a3: export_default$10<0 | 1>, a4: export_default$10<0 | 1>, a5: export_default$14<0 | 1>, a6: export_default$l<0 | 1>): export_default$h<0 | 1>;
 declare function makeaclitem(a0: export_default$I<0 | 1>, a1: export_default$I<0 | 1>, a2: export_default$l<0 | 1>, a3: export_default$1g<0 | 1>): export_default$1m<0 | 1>;
 declare function masklen(a0: export_default$13<0 | 1>): export_default$10<0 | 1>;
-declare function max<T extends Any>(a0: Array<number, T>): Array<0 | 1, T>;
+declare function max<T extends Any>(a0: Array$1<number, T>): Array$1<0 | 1, T>;
 declare function max<T extends Any>(a0: T): T;
 declare function max(a0: export_default$1e<number>): export_default$1e<0 | 1>;
 declare function max(a0: export_default$18<number>): export_default$18<0 | 1>;
@@ -13457,7 +13979,7 @@ declare function numericSub(a0: export_default$L<0 | 1>, a1: export_default$L<0 
 declare function numericUminus(a0: export_default$L<0 | 1>): export_default$L<0 | 1>;
 declare function numericUplus(a0: export_default$L<0 | 1>): export_default$L<0 | 1>;
 declare function nummultirange(): export_default$K<0 | 1>;
-declare function nummultirange(a0: Array<0 | 1, export_default$J<0 | 1>>): export_default$K<0 | 1>;
+declare function nummultirange(a0: Array$1<0 | 1, export_default$J<0 | 1>>): export_default$K<0 | 1>;
 declare function nummultirange(a0: export_default$J<0 | 1>): export_default$K<0 | 1>;
 declare function numnode(a0: export_default$d<0 | 1>): export_default$10<0 | 1>;
 declare function numrange(a0: export_default$L<0 | 1>, a1: export_default$L<0 | 1>): export_default$J<0 | 1>;
@@ -13510,7 +14032,7 @@ declare function overlay(a0: export_default$1d<0 | 1>, a1: export_default$1d<0 |
 declare function overlay(a0: export_default$1d<0 | 1>, a1: export_default$1d<0 | 1>, a2: export_default$10<0 | 1>, a3: export_default$10<0 | 1>): export_default$1d<0 | 1>;
 declare function overlay(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$10<0 | 1>): export_default$l<0 | 1>;
 declare function overlay(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$10<0 | 1>, a3: export_default$10<0 | 1>): export_default$l<0 | 1>;
-declare function parseIdent(a0: export_default$l<0 | 1>, a1: export_default$1g<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
+declare function parseIdent(a0: export_default$l<0 | 1>, a1: export_default$1g<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
 declare function path(a0: export_default$z<0 | 1>): export_default$G<0 | 1>;
 declare function pathAdd(a0: export_default$G<0 | 1>, a1: export_default$G<0 | 1>): export_default$G<0 | 1>;
 declare function pathAddPt(a0: export_default$G<0 | 1>, a1: export_default$A<0 | 1>): export_default$G<0 | 1>;
@@ -13530,11 +14052,11 @@ declare function pathSubPt(a0: export_default$G<0 | 1>, a1: export_default$A<0 |
 declare function pclose(a0: export_default$G<0 | 1>): export_default$G<0 | 1>;
 declare function percentRank(): export_default$14<0 | 1>;
 declare function percentRank(a0: Any<number>): export_default$14<0 | 1>;
-declare function percentileCont(a0: Array<number, export_default$14<0 | 1>>, a1: export_default$14<number>): Array<0 | 1, export_default$14<0 | 1>>;
-declare function percentileCont(a0: Array<number, export_default$14<0 | 1>>, a1: export_default$W<number>): Array<0 | 1, export_default$W<0 | 1>>;
+declare function percentileCont(a0: Array$1<number, export_default$14<0 | 1>>, a1: export_default$14<number>): Array$1<0 | 1, export_default$14<0 | 1>>;
+declare function percentileCont(a0: Array$1<number, export_default$14<0 | 1>>, a1: export_default$W<number>): Array$1<0 | 1, export_default$W<0 | 1>>;
 declare function percentileCont(a0: export_default$14<number>, a1: export_default$14<number>): export_default$14<0 | 1>;
 declare function percentileCont(a0: export_default$14<number>, a1: export_default$W<number>): export_default$W<0 | 1>;
-declare function percentileDisc<T extends Any>(a0: Array<number, export_default$14<0 | 1>>, a1: T): Array<0 | 1, T>;
+declare function percentileDisc<T extends Any>(a0: Array$1<number, export_default$14<0 | 1>>, a1: T): Array$1<0 | 1, T>;
 declare function percentileDisc<T extends Any>(a0: export_default$14<number>, a1: T): T;
 declare function pgAdvisoryLock(a0: export_default$10<0 | 1>, a1: export_default$10<0 | 1>): export_default$4<0 | 1>;
 declare function pgAdvisoryLock(a0: export_default$Z<0 | 1>): export_default$4<0 | 1>;
@@ -13557,7 +14079,7 @@ declare function pgAvailableExtensionVersions(): Setof<{
         trusted: export_default$1g<0 | 1>;
         relocatable: export_default$1g<0 | 1>;
         schema: export_default$M<0 | 1>;
-        requires: Array<0 | 1, export_default$M<0 | 1>>;
+        requires: Array$1<0 | 1, export_default$M<0 | 1>>;
         comment: export_default$l<0 | 1>;
     };
 }>;
@@ -13583,7 +14105,7 @@ declare function pgBackupStop(a0: export_default$1g<0 | 1>): Record$1<0 | 1, {
     spcmapfile: export_default$l<0 | 1>;
 }>;
 declare function pgBasetype(a0: export_default$m<0 | 1>): export_default$m<0 | 1>;
-declare function pgBlockingPids(a0: export_default$10<0 | 1>): Array<0 | 1, export_default$10<0 | 1>>;
+declare function pgBlockingPids(a0: export_default$10<0 | 1>): Array$1<0 | 1, export_default$10<0 | 1>>;
 declare function pgCancelBackend(a0: export_default$10<0 | 1>): export_default$1g<0 | 1>;
 declare function pgCharToEncoding(a0: export_default$M<0 | 1>): export_default$10<0 | 1>;
 declare function pgClientEncoding(): export_default$M<0 | 1>;
@@ -13727,8 +14249,8 @@ declare function pgEventTriggerDroppedObjects(): Setof<{
         schema_name: export_default$l<0 | 1>;
         object_name: export_default$l<0 | 1>;
         object_identity: export_default$l<0 | 1>;
-        address_names: Array<0 | 1, export_default$l<0 | 1>>;
-        address_args: Array<0 | 1, export_default$l<0 | 1>>;
+        address_names: Array$1<0 | 1, export_default$l<0 | 1>>;
+        address_args: Array$1<0 | 1, export_default$l<0 | 1>>;
     };
 }>;
 declare function pgEventTriggerTableRewriteOid(): export_default$I<0 | 1>;
@@ -13760,9 +14282,9 @@ declare function pgGetBackendMemoryContexts(): Setof<{
 declare function pgGetCatalogForeignKeys(): Setof<{
     from: {
         fktable: export_default$w<0 | 1>;
-        fkcols: Array<0 | 1, export_default$l<0 | 1>>;
+        fkcols: Array$1<0 | 1, export_default$l<0 | 1>>;
         pktable: export_default$w<0 | 1>;
-        pkcols: Array<0 | 1, export_default$l<0 | 1>>;
+        pkcols: Array$1<0 | 1, export_default$l<0 | 1>>;
         is_array: export_default$1g<0 | 1>;
         is_opt: export_default$1g<0 | 1>;
     };
@@ -13794,14 +14316,14 @@ declare function pgGetMultixactMembers(a0: export_default$3<0 | 1>): Setof<{
         mode: export_default$l<0 | 1>;
     };
 }>;
-declare function pgGetObjectAddress(a0: export_default$l<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>, a2: Array<0 | 1, export_default$l<0 | 1>>): Record$1<0 | 1, {
+declare function pgGetObjectAddress(a0: export_default$l<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>, a2: Array$1<0 | 1, export_default$l<0 | 1>>): Record$1<0 | 1, {
     classid: export_default$I<0 | 1>;
     objid: export_default$I<0 | 1>;
     objsubid: export_default$10<0 | 1>;
 }>;
 declare function pgGetPartitionConstraintdef(a0: export_default$I<0 | 1>): export_default$l<0 | 1>;
 declare function pgGetPartkeydef(a0: export_default$I<0 | 1>): export_default$l<0 | 1>;
-declare function pgGetPublicationTables(a0: Array<0 | 1, export_default$l<0 | 1>>): Setof<{
+declare function pgGetPublicationTables(a0: Array$1<0 | 1, export_default$l<0 | 1>>): Setof<{
     from: {
         pubid: export_default$I<0 | 1>;
         relid: export_default$I<0 | 1>;
@@ -13846,7 +14368,7 @@ declare function pgGetShmemAllocations(): Setof<{
 }>;
 declare function pgGetStatisticsobjdef(a0: export_default$I<0 | 1>): export_default$l<0 | 1>;
 declare function pgGetStatisticsobjdefColumns(a0: export_default$I<0 | 1>): export_default$l<0 | 1>;
-declare function pgGetStatisticsobjdefExpressions(a0: export_default$I<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
+declare function pgGetStatisticsobjdefExpressions(a0: export_default$I<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
 declare function pgGetTriggerdef(a0: export_default$I<0 | 1>): export_default$l<0 | 1>;
 declare function pgGetTriggerdef(a0: export_default$I<0 | 1>, a1: export_default$1g<0 | 1>): export_default$l<0 | 1>;
 declare function pgGetUserbyid(a0: export_default$I<0 | 1>): export_default$M<0 | 1>;
@@ -13888,12 +14410,12 @@ declare function pgHbaFileRules(): Setof<{
         file_name: export_default$l<0 | 1>;
         line_number: export_default$10<0 | 1>;
         type: export_default$l<0 | 1>;
-        database: Array<0 | 1, export_default$l<0 | 1>>;
-        user_name: Array<0 | 1, export_default$l<0 | 1>>;
+        database: Array$1<0 | 1, export_default$l<0 | 1>>;
+        user_name: Array$1<0 | 1, export_default$l<0 | 1>>;
         address: export_default$l<0 | 1>;
         netmask: export_default$l<0 | 1>;
         auth_method: export_default$l<0 | 1>;
-        options: Array<0 | 1, export_default$l<0 | 1>>;
+        options: Array$1<0 | 1, export_default$l<0 | 1>>;
         error: export_default$l<0 | 1>;
     };
 }>;
@@ -13916,8 +14438,8 @@ declare function pgIdentifyObject(a0: export_default$I<0 | 1>, a1: export_defaul
 }>;
 declare function pgIdentifyObjectAsAddress(a0: export_default$I<0 | 1>, a1: export_default$I<0 | 1>, a2: export_default$10<0 | 1>): Record$1<0 | 1, {
     type: export_default$l<0 | 1>;
-    object_names: Array<0 | 1, export_default$l<0 | 1>>;
-    object_args: Array<0 | 1, export_default$l<0 | 1>>;
+    object_names: Array$1<0 | 1, export_default$l<0 | 1>>;
+    object_args: Array$1<0 | 1, export_default$l<0 | 1>>;
 }>;
 declare function pgImportSystemCollations(a0: export_default$s<0 | 1>): export_default$10<0 | 1>;
 declare function pgIndexColumnHasProperty(a0: export_default$w<0 | 1>, a1: export_default$10<0 | 1>, a2: export_default$l<0 | 1>): export_default$1g<0 | 1>;
@@ -13935,7 +14457,7 @@ declare function pgInputIsValid(a0: export_default$l<0 | 1>, a1: export_default$
 declare function pgIsInRecovery(): export_default$1g<0 | 1>;
 declare function pgIsOtherTempSchema(a0: export_default$I<0 | 1>): export_default$1g<0 | 1>;
 declare function pgIsWalReplayPaused(): export_default$1g<0 | 1>;
-declare function pgIsolationTestSessionIsBlocked(a0: export_default$10<0 | 1>, a1: Array<0 | 1, export_default$10<0 | 1>>): export_default$1g<0 | 1>;
+declare function pgIsolationTestSessionIsBlocked(a0: export_default$10<0 | 1>, a1: Array$1<0 | 1, export_default$10<0 | 1>>): export_default$1g<0 | 1>;
 declare function pgJitAvailable(): export_default$1g<0 | 1>;
 declare function pgLastCommittedXact(): Record$1<0 | 1, {
     xid: export_default$3<0 | 1>;
@@ -13972,28 +14494,28 @@ declare function pgLogBackendMemoryContexts(a0: export_default$10<0 | 1>): expor
 declare function pgLogStandbySnapshot(): export_default$E<0 | 1>;
 declare function pgLogicalEmitMessage(a0: export_default$1g<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$1d<0 | 1>, a3: export_default$1g<0 | 1>): export_default$E<0 | 1>;
 declare function pgLogicalEmitMessage(a0: export_default$1g<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>, a3: export_default$1g<0 | 1>): export_default$E<0 | 1>;
-declare function pgLogicalSlotGetBinaryChanges(a0: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1>, a3: Array<0 | 1, export_default$l<0 | 1>>): Setof<{
+declare function pgLogicalSlotGetBinaryChanges(a0: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1>, a3: Array$1<0 | 1, export_default$l<0 | 1>>): Setof<{
     from: {
         lsn: export_default$E<0 | 1>;
         xid: export_default$3<0 | 1>;
         data: export_default$1d<0 | 1>;
     };
 }>;
-declare function pgLogicalSlotGetChanges(a0: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1>, a3: Array<0 | 1, export_default$l<0 | 1>>): Setof<{
+declare function pgLogicalSlotGetChanges(a0: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1>, a3: Array$1<0 | 1, export_default$l<0 | 1>>): Setof<{
     from: {
         lsn: export_default$E<0 | 1>;
         xid: export_default$3<0 | 1>;
         data: export_default$l<0 | 1>;
     };
 }>;
-declare function pgLogicalSlotPeekBinaryChanges(a0: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1>, a3: Array<0 | 1, export_default$l<0 | 1>>): Setof<{
+declare function pgLogicalSlotPeekBinaryChanges(a0: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1>, a3: Array$1<0 | 1, export_default$l<0 | 1>>): Setof<{
     from: {
         lsn: export_default$E<0 | 1>;
         xid: export_default$3<0 | 1>;
         data: export_default$1d<0 | 1>;
     };
 }>;
-declare function pgLogicalSlotPeekChanges(a0: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1>, a3: Array<0 | 1, export_default$l<0 | 1>>): Setof<{
+declare function pgLogicalSlotPeekChanges(a0: export_default$M<0 | 1>, a1: export_default$E<0 | 1>, a2: export_default$10<0 | 1>, a3: Array$1<0 | 1, export_default$l<0 | 1>>): Setof<{
     from: {
         lsn: export_default$E<0 | 1>;
         xid: export_default$3<0 | 1>;
@@ -14080,8 +14602,8 @@ declare function pgLsnSmaller(a0: export_default$E<0 | 1>, a1: export_default$E<
 declare function pgMcvListItems(a0: export_default$D<0 | 1>): Setof<{
     from: {
         index: export_default$10<0 | 1>;
-        values: Array<0 | 1, export_default$l<0 | 1>>;
-        nulls: Array<0 | 1, export_default$1g<0 | 1>>;
+        values: Array$1<0 | 1, export_default$l<0 | 1>>;
+        nulls: Array$1<0 | 1, export_default$1g<0 | 1>>;
         frequency: export_default$14<0 | 1>;
         base_frequency: export_default$14<0 | 1>;
     };
@@ -14093,7 +14615,7 @@ declare function pgNotify(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 
 declare function pgOpclassIsVisible(a0: export_default$I<0 | 1>): export_default$1g<0 | 1>;
 declare function pgOperatorIsVisible(a0: export_default$I<0 | 1>): export_default$1g<0 | 1>;
 declare function pgOpfamilyIsVisible(a0: export_default$I<0 | 1>): export_default$1g<0 | 1>;
-declare function pgOptionsToTable(a0: Array<0 | 1, export_default$l<0 | 1>>): Setof<{
+declare function pgOptionsToTable(a0: Array$1<0 | 1, export_default$l<0 | 1>>): Setof<{
     from: {
         option_name: export_default$l<0 | 1>;
         option_value: export_default$l<0 | 1>;
@@ -14119,8 +14641,8 @@ declare function pgPreparedStatement(): Setof<{
         name: export_default$l<0 | 1>;
         statement: export_default$l<0 | 1>;
         prepare_time: export_default$h<0 | 1>;
-        parameter_types: Array<0 | 1, export_default$m<0 | 1>>;
-        result_types: Array<0 | 1, export_default$m<0 | 1>>;
+        parameter_types: Array$1<0 | 1, export_default$m<0 | 1>>;
+        result_types: Array$1<0 | 1, export_default$m<0 | 1>>;
         from_sql: export_default$1g<0 | 1>;
         generic_plans: export_default$Z<0 | 1>;
         custom_plans: export_default$Z<0 | 1>;
@@ -14167,7 +14689,7 @@ declare function pgReplicationSlotAdvance(a0: export_default$M<0 | 1>, a1: expor
     end_lsn: export_default$E<0 | 1>;
 }>;
 declare function pgRotateLogfile(): export_default$1g<0 | 1>;
-declare function pgSafeSnapshotBlockingPids(a0: export_default$10<0 | 1>): Array<0 | 1, export_default$10<0 | 1>>;
+declare function pgSafeSnapshotBlockingPids(a0: export_default$10<0 | 1>): Array$1<0 | 1, export_default$10<0 | 1>>;
 declare function pgSequenceLastValue(a0: export_default$w<0 | 1>): export_default$Z<0 | 1>;
 declare function pgSequenceParameters(a0: export_default$I<0 | 1>): Record$1<0 | 1, {
     start_value: export_default$Z<0 | 1>;
@@ -14178,7 +14700,7 @@ declare function pgSequenceParameters(a0: export_default$I<0 | 1>): Record$1<0 |
     cache_size: export_default$Z<0 | 1>;
     data_type: export_default$I<0 | 1>;
 }>;
-declare function pgSettingsGetFlags(a0: export_default$l<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
+declare function pgSettingsGetFlags(a0: export_default$l<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
 declare function pgShowAllFileSettings(): Setof<{
     from: {
         sourcefile: export_default$l<0 | 1>;
@@ -14203,7 +14725,7 @@ declare function pgShowAllSettings(): Setof<{
         source: export_default$l<0 | 1>;
         min_val: export_default$l<0 | 1>;
         max_val: export_default$l<0 | 1>;
-        enumvals: Array<0 | 1, export_default$l<0 | 1>>;
+        enumvals: Array$1<0 | 1, export_default$l<0 | 1>>;
         boot_val: export_default$l<0 | 1>;
         reset_val: export_default$l<0 | 1>;
         sourcefile: export_default$l<0 | 1>;
@@ -14672,7 +15194,7 @@ declare function popen(a0: export_default$G<0 | 1>): export_default$G<0 | 1>;
 declare function position(a0: export_default$1h<0 | 1>, a1: export_default$1h<0 | 1>): export_default$10<0 | 1>;
 declare function position(a0: export_default$1d<0 | 1>, a1: export_default$1d<0 | 1>): export_default$10<0 | 1>;
 declare function position(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>): export_default$10<0 | 1>;
-declare function postgresqlFdwValidator(a0: Array<0 | 1, export_default$l<0 | 1>>, a1: export_default$I<0 | 1>): export_default$1g<0 | 1>;
+declare function postgresqlFdwValidator(a0: Array$1<0 | 1, export_default$l<0 | 1>>, a1: export_default$I<0 | 1>): export_default$1g<0 | 1>;
 declare function pow(a0: export_default$14<0 | 1>, a1: export_default$14<0 | 1>): export_default$14<0 | 1>;
 declare function pow(a0: export_default$L<0 | 1>, a1: export_default$L<0 | 1>): export_default$L<0 | 1>;
 declare function power(a0: export_default$14<0 | 1>, a1: export_default$14<0 | 1>): export_default$14<0 | 1>;
@@ -14779,8 +15301,8 @@ declare function regexpInstr(a0: export_default$l<0 | 1>, a1: export_default$l<0
 declare function regexpInstr(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$10<0 | 1>, a3: export_default$10<0 | 1>, a4: export_default$10<0 | 1>, a5: export_default$l<0 | 1>, a6: export_default$10<0 | 1>): export_default$10<0 | 1>;
 declare function regexpLike(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>): export_default$1g<0 | 1>;
 declare function regexpLike(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>): export_default$1g<0 | 1>;
-declare function regexpMatch(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
-declare function regexpMatch(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
+declare function regexpMatch(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
+declare function regexpMatch(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
 declare function regexpMatches(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>): Setof<{
     from: {};
 }>;
@@ -14792,8 +15314,8 @@ declare function regexpReplace(a0: export_default$l<0 | 1>, a1: export_default$l
 declare function regexpReplace(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>, a3: export_default$10<0 | 1>, a4: export_default$10<0 | 1>): export_default$l<0 | 1>;
 declare function regexpReplace(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>, a3: export_default$10<0 | 1>, a4: export_default$10<0 | 1>, a5: export_default$l<0 | 1>): export_default$l<0 | 1>;
 declare function regexpReplace(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>, a3: export_default$l<0 | 1>): export_default$l<0 | 1>;
-declare function regexpSplitToArray(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
-declare function regexpSplitToArray(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
+declare function regexpSplitToArray(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
+declare function regexpSplitToArray(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
 declare function regexpSplitToTable(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>): Setof<{
     from: {};
 }>;
@@ -14851,7 +15373,7 @@ declare function setseed(a0: export_default$14<0 | 1>): export_default$4<0 | 1>;
 declare function setval(a0: export_default$w<0 | 1>, a1: export_default$Z<0 | 1>): export_default$Z<0 | 1>;
 declare function setval(a0: export_default$w<0 | 1>, a1: export_default$Z<0 | 1>, a2: export_default$1g<0 | 1>): export_default$Z<0 | 1>;
 declare function setweight(a0: export_default$9<0 | 1>, a1: export_default$1c<0 | 1>): export_default$9<0 | 1>;
-declare function setweight(a0: export_default$9<0 | 1>, a1: export_default$1c<0 | 1>, a2: Array<0 | 1, export_default$l<0 | 1>>): export_default$9<0 | 1>;
+declare function setweight(a0: export_default$9<0 | 1>, a1: export_default$1c<0 | 1>, a2: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$9<0 | 1>;
 declare function sha224(a0: export_default$1d<0 | 1>): export_default$1d<0 | 1>;
 declare function sha256(a0: export_default$1d<0 | 1>): export_default$1d<0 | 1>;
 declare function sha384(a0: export_default$1d<0 | 1>): export_default$1d<0 | 1>;
@@ -14891,8 +15413,8 @@ declare function stddevSamp(a0: export_default$Z<number>): export_default$L<0 | 
 declare function stddevSamp(a0: export_default$L<number>): export_default$L<0 | 1>;
 declare function stringAgg(a0: export_default$1d<number>, a1: export_default$1d<number>): export_default$1d<0 | 1>;
 declare function stringAgg(a0: export_default$l<number>, a1: export_default$l<number>): export_default$l<0 | 1>;
-declare function stringToArray(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
-declare function stringToArray(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
+declare function stringToArray(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
+declare function stringToArray(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
 declare function stringToTable(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>): Setof<{
     from: {};
 }>;
@@ -15123,7 +15645,7 @@ declare function toTsvector(a0: export_default$u<0 | 1>, a1: export_default$l<0 
 declare function toTsvector(a0: export_default$l<0 | 1>): export_default$9<0 | 1>;
 declare function transactionTimestamp(): export_default$h<0 | 1>;
 declare function translate(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$l<0 | 1>): export_default$l<0 | 1>;
-declare function trimArray<T extends Any>(a0: Array<0 | 1, T>, a1: export_default$10<0 | 1>): Array<0 | 1, T>;
+declare function trimArray<T extends Any>(a0: Array$1<0 | 1, T>, a1: export_default$10<0 | 1>): Array$1<0 | 1, T>;
 declare function trimScale(a0: export_default$L<0 | 1>): export_default$L<0 | 1>;
 declare function trunc(a0: export_default$14<0 | 1>): export_default$14<0 | 1>;
 declare function trunc(a0: export_default$P<0 | 1>): export_default$P<0 | 1>;
@@ -15135,9 +15657,9 @@ declare function tsDebug(a0: export_default$u<0 | 1>, a1: export_default$l<0 | 1
         alias: export_default$l<0 | 1>;
         description: export_default$l<0 | 1>;
         token: export_default$l<0 | 1>;
-        dictionaries: Array<0 | 1, export_default$t<0 | 1>>;
+        dictionaries: Array$1<0 | 1, export_default$t<0 | 1>>;
         dictionary: export_default$t<0 | 1>;
-        lexemes: Array<0 | 1, export_default$l<0 | 1>>;
+        lexemes: Array$1<0 | 1, export_default$l<0 | 1>>;
     };
 }>;
 declare function tsDebug(a0: export_default$l<0 | 1>): Setof<{
@@ -15145,14 +15667,14 @@ declare function tsDebug(a0: export_default$l<0 | 1>): Setof<{
         alias: export_default$l<0 | 1>;
         description: export_default$l<0 | 1>;
         token: export_default$l<0 | 1>;
-        dictionaries: Array<0 | 1, export_default$t<0 | 1>>;
+        dictionaries: Array$1<0 | 1, export_default$t<0 | 1>>;
         dictionary: export_default$t<0 | 1>;
-        lexemes: Array<0 | 1, export_default$l<0 | 1>>;
+        lexemes: Array$1<0 | 1, export_default$l<0 | 1>>;
     };
 }>;
-declare function tsDelete(a0: export_default$9<0 | 1>, a1: Array<0 | 1, export_default$l<0 | 1>>): export_default$9<0 | 1>;
+declare function tsDelete(a0: export_default$9<0 | 1>, a1: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$9<0 | 1>;
 declare function tsDelete(a0: export_default$9<0 | 1>, a1: export_default$l<0 | 1>): export_default$9<0 | 1>;
-declare function tsFilter(a0: export_default$9<0 | 1>, a1: Array<0 | 1, export_default$1c<0 | 1>>): export_default$9<0 | 1>;
+declare function tsFilter(a0: export_default$9<0 | 1>, a1: Array$1<0 | 1, export_default$1c<0 | 1>>): export_default$9<0 | 1>;
 declare function tsHeadline(a0: export_default$V<0 | 1>, a1: export_default$d<0 | 1>): export_default$V<0 | 1>;
 declare function tsHeadline(a0: export_default$V<0 | 1>, a1: export_default$d<0 | 1>, a2: export_default$l<0 | 1>): export_default$V<0 | 1>;
 declare function tsHeadline(a0: export_default$u<0 | 1>, a1: export_default$V<0 | 1>, a2: export_default$d<0 | 1>): export_default$V<0 | 1>;
@@ -15165,7 +15687,7 @@ declare function tsHeadline(a0: export_default$u<0 | 1>, a1: export_default$l<0 
 declare function tsHeadline(a0: export_default$u<0 | 1>, a1: export_default$l<0 | 1>, a2: export_default$d<0 | 1>, a3: export_default$l<0 | 1>): export_default$l<0 | 1>;
 declare function tsHeadline(a0: export_default$l<0 | 1>, a1: export_default$d<0 | 1>): export_default$l<0 | 1>;
 declare function tsHeadline(a0: export_default$l<0 | 1>, a1: export_default$d<0 | 1>, a2: export_default$l<0 | 1>): export_default$l<0 | 1>;
-declare function tsLexize(a0: export_default$t<0 | 1>, a1: export_default$l<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
+declare function tsLexize(a0: export_default$t<0 | 1>, a1: export_default$l<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
 declare function tsMatchQv(a0: export_default$d<0 | 1>, a1: export_default$9<0 | 1>): export_default$1g<0 | 1>;
 declare function tsMatchQv(a0: export_default$d<0 | 1>, a1: export_default$9<0 | 1>): export_default$1g<0 | 1>;
 declare function tsMatchTq(a0: export_default$l<0 | 1>, a1: export_default$d<0 | 1>): export_default$1g<0 | 1>;
@@ -15184,12 +15706,12 @@ declare function tsParse(a0: export_default$l<0 | 1>, a1: export_default$l<0 | 1
         token: export_default$l<0 | 1>;
     };
 }>;
-declare function tsRank(a0: Array<0 | 1, export_default$15<0 | 1>>, a1: export_default$9<0 | 1>, a2: export_default$d<0 | 1>): export_default$15<0 | 1>;
-declare function tsRank(a0: Array<0 | 1, export_default$15<0 | 1>>, a1: export_default$9<0 | 1>, a2: export_default$d<0 | 1>, a3: export_default$10<0 | 1>): export_default$15<0 | 1>;
+declare function tsRank(a0: Array$1<0 | 1, export_default$15<0 | 1>>, a1: export_default$9<0 | 1>, a2: export_default$d<0 | 1>): export_default$15<0 | 1>;
+declare function tsRank(a0: Array$1<0 | 1, export_default$15<0 | 1>>, a1: export_default$9<0 | 1>, a2: export_default$d<0 | 1>, a3: export_default$10<0 | 1>): export_default$15<0 | 1>;
 declare function tsRank(a0: export_default$9<0 | 1>, a1: export_default$d<0 | 1>): export_default$15<0 | 1>;
 declare function tsRank(a0: export_default$9<0 | 1>, a1: export_default$d<0 | 1>, a2: export_default$10<0 | 1>): export_default$15<0 | 1>;
-declare function tsRankCd(a0: Array<0 | 1, export_default$15<0 | 1>>, a1: export_default$9<0 | 1>, a2: export_default$d<0 | 1>): export_default$15<0 | 1>;
-declare function tsRankCd(a0: Array<0 | 1, export_default$15<0 | 1>>, a1: export_default$9<0 | 1>, a2: export_default$d<0 | 1>, a3: export_default$10<0 | 1>): export_default$15<0 | 1>;
+declare function tsRankCd(a0: Array$1<0 | 1, export_default$15<0 | 1>>, a1: export_default$9<0 | 1>, a2: export_default$d<0 | 1>): export_default$15<0 | 1>;
+declare function tsRankCd(a0: Array$1<0 | 1, export_default$15<0 | 1>>, a1: export_default$9<0 | 1>, a2: export_default$d<0 | 1>, a3: export_default$10<0 | 1>): export_default$15<0 | 1>;
 declare function tsRankCd(a0: export_default$9<0 | 1>, a1: export_default$d<0 | 1>): export_default$15<0 | 1>;
 declare function tsRankCd(a0: export_default$9<0 | 1>, a1: export_default$d<0 | 1>, a2: export_default$10<0 | 1>): export_default$15<0 | 1>;
 declare function tsRewrite(a0: export_default$d<0 | 1>, a1: export_default$l<0 | 1>): export_default$d<0 | 1>;
@@ -15223,7 +15745,7 @@ declare function tsTokenType(a0: export_default$l<0 | 1>): Setof<{
     };
 }>;
 declare function tsmultirange(): export_default$e<0 | 1>;
-declare function tsmultirange(a0: Array<0 | 1, export_default$c<0 | 1>>): export_default$e<0 | 1>;
+declare function tsmultirange(a0: Array$1<0 | 1, export_default$c<0 | 1>>): export_default$e<0 | 1>;
 declare function tsmultirange(a0: export_default$c<0 | 1>): export_default$e<0 | 1>;
 declare function tsqMcontained(a0: export_default$d<0 | 1>, a1: export_default$d<0 | 1>): export_default$1g<0 | 1>;
 declare function tsqMcontains(a0: export_default$d<0 | 1>, a1: export_default$d<0 | 1>): export_default$1g<0 | 1>;
@@ -15243,7 +15765,7 @@ declare function tsrange(a0: export_default$i<0 | 1>, a1: export_default$i<0 | 1
 declare function tsrange(a0: export_default$i<0 | 1>, a1: export_default$i<0 | 1>, a2: export_default$l<0 | 1>): export_default$c<0 | 1>;
 declare function tsrangeSubdiff(a0: export_default$i<0 | 1>, a1: export_default$i<0 | 1>): export_default$14<0 | 1>;
 declare function tstzmultirange(): export_default$b<0 | 1>;
-declare function tstzmultirange(a0: Array<0 | 1, export_default$a<0 | 1>>): export_default$b<0 | 1>;
+declare function tstzmultirange(a0: Array$1<0 | 1, export_default$a<0 | 1>>): export_default$b<0 | 1>;
 declare function tstzmultirange(a0: export_default$a<0 | 1>): export_default$b<0 | 1>;
 declare function tstzrange(a0: export_default$h<0 | 1>, a1: export_default$h<0 | 1>): export_default$a<0 | 1>;
 declare function tstzrange(a0: export_default$h<0 | 1>, a1: export_default$h<0 | 1>, a2: export_default$l<0 | 1>): export_default$a<0 | 1>;
@@ -15256,7 +15778,7 @@ declare function tsvectorGt(a0: export_default$9<0 | 1>, a1: export_default$9<0 
 declare function tsvectorLe(a0: export_default$9<0 | 1>, a1: export_default$9<0 | 1>): export_default$1g<0 | 1>;
 declare function tsvectorLt(a0: export_default$9<0 | 1>, a1: export_default$9<0 | 1>): export_default$1g<0 | 1>;
 declare function tsvectorNe(a0: export_default$9<0 | 1>, a1: export_default$9<0 | 1>): export_default$1g<0 | 1>;
-declare function tsvectorToArray(a0: export_default$9<0 | 1>): Array<0 | 1, export_default$l<0 | 1>>;
+declare function tsvectorToArray(a0: export_default$9<0 | 1>): Array$1<0 | 1, export_default$l<0 | 1>>;
 declare function tsvectorUpdateTrigger(): export_default$f<0 | 1>;
 declare function tsvectorUpdateTriggerColumn(): export_default$f<0 | 1>;
 declare function txidCurrent(): export_default$Z<0 | 1>;
@@ -15272,7 +15794,7 @@ declare function unicodeAssigned(a0: export_default$l<0 | 1>): export_default$1g
 declare function unicodeVersion(): export_default$l<0 | 1>;
 declare function uniqueKeyRecheck(): export_default$f<0 | 1>;
 declare function unistr(a0: export_default$l<0 | 1>): export_default$l<0 | 1>;
-declare function unnest<T extends Any>(a0: Array<0 | 1, T>): Setof<{
+declare function unnest<T extends Any>(a0: Array$1<0 | 1, T>): Setof<{
     from: {};
 }>;
 declare function unnest<T extends Any>(a0: export_default$1k<0 | 1, T>): Setof<{
@@ -15281,8 +15803,8 @@ declare function unnest<T extends Any>(a0: export_default$1k<0 | 1, T>): Setof<{
 declare function unnest(a0: export_default$9<0 | 1>): Setof<{
     from: {
         lexeme: export_default$l<0 | 1>;
-        positions: Array<0 | 1, export_default$12<0 | 1>>;
-        weights: Array<0 | 1, export_default$l<0 | 1>>;
+        positions: Array$1<0 | 1, export_default$12<0 | 1>>;
+        weights: Array$1<0 | 1, export_default$l<0 | 1>>;
     };
 }>;
 declare function upper<T extends Any>(a0: export_default$1k<0 | 1, T>): T;
@@ -15335,7 +15857,7 @@ declare function version(): export_default$l<0 | 1>;
 declare function websearchToTsquery(a0: export_default$u<0 | 1>, a1: export_default$l<0 | 1>): export_default$d<0 | 1>;
 declare function websearchToTsquery(a0: export_default$l<0 | 1>): export_default$d<0 | 1>;
 declare function width(a0: export_default$1f<0 | 1>): export_default$14<0 | 1>;
-declare function widthBucket<T extends Any>(a0: T, a1: Array<0 | 1, T>): export_default$10<0 | 1>;
+declare function widthBucket<T extends Any>(a0: T, a1: Array$1<0 | 1, T>): export_default$10<0 | 1>;
 declare function widthBucket(a0: export_default$14<0 | 1>, a1: export_default$14<0 | 1>, a2: export_default$14<0 | 1>, a3: export_default$10<0 | 1>): export_default$10<0 | 1>;
 declare function widthBucket(a0: export_default$L<0 | 1>, a1: export_default$L<0 | 1>, a2: export_default$L<0 | 1>, a3: export_default$10<0 | 1>): export_default$10<0 | 1>;
 declare function xid(a0: export_default$2<0 | 1>): export_default$3<0 | 1>;
@@ -15362,677 +15884,10 @@ declare function xmlconcat2(a0: export_default$1<0 | 1>, a1: export_default$1<0 
 declare function xmlexists(a0: export_default$l<0 | 1>, a1: export_default$1<0 | 1>): export_default$1g<0 | 1>;
 declare function xmltext(a0: export_default$l<0 | 1>): export_default$1<0 | 1>;
 declare function xmlvalidate(a0: export_default$1<0 | 1>, a1: export_default$l<0 | 1>): export_default$1g<0 | 1>;
-declare function xpath(a0: export_default$l<0 | 1>, a1: export_default$1<0 | 1>): Array<0 | 1, export_default$1<0 | 1>>;
-declare function xpath(a0: export_default$l<0 | 1>, a1: export_default$1<0 | 1>, a2: Array<0 | 1, export_default$l<0 | 1>>): Array<0 | 1, export_default$1<0 | 1>>;
+declare function xpath(a0: export_default$l<0 | 1>, a1: export_default$1<0 | 1>): Array$1<0 | 1, export_default$1<0 | 1>>;
+declare function xpath(a0: export_default$l<0 | 1>, a1: export_default$1<0 | 1>, a2: Array$1<0 | 1, export_default$l<0 | 1>>): Array$1<0 | 1, export_default$1<0 | 1>>;
 declare function xpathExists(a0: export_default$l<0 | 1>, a1: export_default$1<0 | 1>): export_default$1g<0 | 1>;
-declare function xpathExists(a0: export_default$l<0 | 1>, a1: export_default$1<0 | 1>, a2: Array<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
+declare function xpathExists(a0: export_default$l<0 | 1>, a1: export_default$1<0 | 1>, a2: Array$1<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
 
-declare const db: {
-    person: {
-        rawFromExpr: RawTableReferenceExpression;
-        fromAlias: QueryAlias;
-        joinAliases: Record<string, QueryAlias>;
-        query: {
-            from: {
-                firstName: export_default$l<1>;
-                lastName: export_default$l<0>;
-                gender: export_default$l<1>;
-                id: export_default$10<1>;
-                createdAt: export_default$i<1>;
-            };
-        };
-        db: kysely.Kysely<any>;
-        fromRow: RowLike;
-        insert<Q2 extends {
-            from: RowLike;
-            select: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T extends RowLike ? { [key in keyof T as (RowLike & ResultType<Q2>)[key] extends typeof Generated ? never : key]: (RowLike & ResultType<Q2>)[key]; } : never : never;
-        } | {
-            from: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T_1 extends RowLike ? { [key_1 in keyof T_1 as (RowLike & ResultType<Q2>)[key_1] extends typeof Generated ? never : key_1]: (RowLike & ResultType<Q2>)[key_1]; } : never : never;
-        }>(expr: Setof<Q2>): {
-            execute: (db: kysely.Kysely<any>) => Promise<{
-                firstName: string;
-                lastName: null;
-                gender: string;
-                id: number;
-                createdAt: string;
-            }[]>;
-        };
-        update<A extends {
-            where: (t: {
-                firstName: export_default$l<1>;
-                lastName: export_default$l<0>;
-                gender: export_default$l<1>;
-                id: export_default$10<1>;
-                createdAt: export_default$i<1>;
-            }) => export_default$1g<0 | 1>;
-            from?: ((t: {
-                firstName: export_default$l<1>;
-                lastName: export_default$l<0>;
-                gender: export_default$l<1>;
-                id: export_default$10<1>;
-                createdAt: export_default$i<1>;
-            }) => Setof<Query>) | undefined;
-        }>(arg: A): {
-            table: /*elided*/ any;
-            arg: A;
-            set(setCb: (t: {
-                firstName: export_default$l<1>;
-                lastName: export_default$l<0>;
-                gender: export_default$l<1>;
-                id: export_default$10<1>;
-                createdAt: export_default$i<1>;
-            }, ...f: A["from"] extends (t: {
-                firstName: export_default$l<1>;
-                lastName: export_default$l<0>;
-                gender: export_default$l<1>;
-                id: export_default$10<1>;
-                createdAt: export_default$i<1>;
-            }) => infer R ? R extends Setof<Query> ? SelectArgs<R["query"]> : [] : []) => Partial<{
-                firstName: export_default$l<1>;
-                lastName: export_default$l<0>;
-                gender: export_default$l<1>;
-                id: export_default$10<1>;
-                createdAt: export_default$i<1>;
-            }>): {
-                execute(db: kysely.Kysely<any>): Promise<{
-                    firstName: string;
-                    lastName: null;
-                    gender: string;
-                    id: number;
-                    createdAt: string;
-                }[]>;
-            };
-        };
-        toSelectArgs(): [Record$1<1, {
-            firstName: export_default$l<1>;
-            lastName: export_default$l<0>;
-            gender: export_default$l<1>;
-            id: export_default$10<1>;
-            createdAt: export_default$i<1>;
-        }> & {
-            firstName: export_default$l<1>;
-            lastName: export_default$l<0>;
-            gender: export_default$l<1>;
-            id: export_default$10<1>;
-            createdAt: export_default$i<1>;
-        }, {}];
-        select<S extends RowLikeRelaxed | ScalarRelaxed>(fn: (from_0: Record$1<1, {
-            firstName: export_default$l<1>;
-            lastName: export_default$l<0>;
-            gender: export_default$l<1>;
-            id: export_default$10<1>;
-            createdAt: export_default$i<1>;
-        }> & {
-            firstName: export_default$l<1>;
-            lastName: export_default$l<0>;
-            gender: export_default$l<1>;
-            id: export_default$10<1>;
-            createdAt: export_default$i<1>;
-        }, from_1: {}) => S): Setof<{
-            from: {
-                firstName: export_default$l<1>;
-                lastName: export_default$l<0>;
-                gender: export_default$l<1>;
-                id: export_default$10<1>;
-                createdAt: export_default$i<1>;
-            };
-        } & {
-            select: MaybePrimitiveToSqlType<S>;
-        }>;
-        where(fn: (from_0: Record$1<1, {
-            firstName: export_default$l<1>;
-            lastName: export_default$l<0>;
-            gender: export_default$l<1>;
-            id: export_default$10<1>;
-            createdAt: export_default$i<1>;
-        }> & {
-            firstName: export_default$l<1>;
-            lastName: export_default$l<0>;
-            gender: export_default$l<1>;
-            id: export_default$10<1>;
-            createdAt: export_default$i<1>;
-        }, from_1: {}) => export_default$1g<0 | 1> | boolean): Setof<{
-            from: {
-                firstName: export_default$l<1>;
-                lastName: export_default$l<0>;
-                gender: export_default$l<1>;
-                id: export_default$10<1>;
-                createdAt: export_default$i<1>;
-            };
-        } & {
-            wheres: [export_default$1g<0 | 1>, ...export_default$1g<0 | 1>[], export_default$1g<1> | export_default$1g<0 | 1>] | [export_default$1g<1> | export_default$1g<0 | 1>];
-        }>;
-        groupBy<G extends Any<unknown, 0 | 1>[]>(fn: (from: {
-            firstName: export_default$l<1>;
-            lastName: export_default$l<0>;
-            gender: export_default$l<1>;
-            id: export_default$10<1>;
-            createdAt: export_default$i<1>;
-        }) => G): Setof<{
-            from: {
-                firstName: export_default$l<1>;
-                lastName: export_default$l<0>;
-                gender: export_default$l<1>;
-                id: export_default$10<1>;
-                createdAt: export_default$i<1>;
-            };
-        } & {
-            groupBy: [...G];
-        }>;
-        joinTables(): {};
-        join<J extends Query, A extends string>(j: Setof<J>, as: A, on: (from: {
-            firstName: export_default$l<1>;
-            lastName: export_default$l<0>;
-            gender: export_default$l<1>;
-            id: export_default$10<1>;
-            createdAt: export_default$i<1>;
-        }, js: {} & { [a in A]: ResultType<J>; }) => export_default$1g<0 | 1> | boolean): Setof<{
-            from: {
-                firstName: export_default$l<1>;
-                lastName: export_default$l<0>;
-                gender: export_default$l<1>;
-                id: export_default$10<1>;
-                createdAt: export_default$i<1>;
-            };
-        } & {
-            joins: {
-                [as]: {
-                    table: Setof<J_1>;
-                    on: export_default$1g<1> | export_default$1g<0 | 1>;
-                    row: RowLike;
-                };
-            };
-        }>;
-        subquery(): Setof<{
-            from: {
-                firstName: export_default$l<1>;
-                lastName: export_default$l<0>;
-                gender: export_default$l<1>;
-                id: export_default$10<1>;
-                createdAt: export_default$i<1>;
-            };
-        }>;
-        tableColumnAlias(): kysely.RawBuilder<unknown>;
-        compile(ctxIn: Context): kysely.RawBuilder<unknown>;
-        debug(): /*elided*/ any;
-        execute(db?: kysely.Kysely<any>): Promise<{
-            firstName: string;
-            lastName: null;
-            gender: string;
-            id: number;
-            createdAt: string;
-        }[]>;
-        scalar<S extends Scalar>(this: Setof<{
-            select: S;
-            from: Query["from"];
-        }>): S;
-    };
-    kysely_migration: {
-        rawFromExpr: RawTableReferenceExpression;
-        fromAlias: QueryAlias;
-        joinAliases: Record<string, QueryAlias>;
-        query: {
-            from: {
-                name: export_default$l<1>;
-                timestamp: export_default$l<1>;
-            };
-        };
-        db: kysely.Kysely<any>;
-        fromRow: RowLike;
-        insert<Q2 extends {
-            from: RowLike;
-            select: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T extends RowLike ? { [key in keyof T as (RowLike & ResultType<Q2>)[key] extends typeof Generated ? never : key]: (RowLike & ResultType<Q2>)[key]; } : never : never;
-        } | {
-            from: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T_1 extends RowLike ? { [key_1 in keyof T_1 as (RowLike & ResultType<Q2>)[key_1] extends typeof Generated ? never : key_1]: (RowLike & ResultType<Q2>)[key_1]; } : never : never;
-        }>(expr: Setof<Q2>): {
-            execute: (db: kysely.Kysely<any>) => Promise<{
-                name: string;
-                timestamp: string;
-            }[]>;
-        };
-        update<A extends {
-            where: (t: {
-                name: export_default$l<1>;
-                timestamp: export_default$l<1>;
-            }) => export_default$1g<0 | 1>;
-            from?: ((t: {
-                name: export_default$l<1>;
-                timestamp: export_default$l<1>;
-            }) => Setof<Query>) | undefined;
-        }>(arg: A): {
-            table: /*elided*/ any;
-            arg: A;
-            set(setCb: (t: {
-                name: export_default$l<1>;
-                timestamp: export_default$l<1>;
-            }, ...f: A["from"] extends (t: {
-                name: export_default$l<1>;
-                timestamp: export_default$l<1>;
-            }) => infer R ? R extends Setof<Query> ? SelectArgs<R["query"]> : [] : []) => Partial<{
-                name: export_default$l<1>;
-                timestamp: export_default$l<1>;
-            }>): {
-                execute(db: kysely.Kysely<any>): Promise<{
-                    name: string;
-                    timestamp: string;
-                }[]>;
-            };
-        };
-        toSelectArgs(): [Record$1<1, {
-            name: export_default$l<1>;
-            timestamp: export_default$l<1>;
-        }> & {
-            name: export_default$l<1>;
-            timestamp: export_default$l<1>;
-        }, {}];
-        select<S extends RowLikeRelaxed | ScalarRelaxed>(fn: (from_0: Record$1<1, {
-            name: export_default$l<1>;
-            timestamp: export_default$l<1>;
-        }> & {
-            name: export_default$l<1>;
-            timestamp: export_default$l<1>;
-        }, from_1: {}) => S): Setof<{
-            from: {
-                name: export_default$l<1>;
-                timestamp: export_default$l<1>;
-            };
-        } & {
-            select: MaybePrimitiveToSqlType<S>;
-        }>;
-        where(fn: (from_0: Record$1<1, {
-            name: export_default$l<1>;
-            timestamp: export_default$l<1>;
-        }> & {
-            name: export_default$l<1>;
-            timestamp: export_default$l<1>;
-        }, from_1: {}) => export_default$1g<0 | 1> | boolean): Setof<{
-            from: {
-                name: export_default$l<1>;
-                timestamp: export_default$l<1>;
-            };
-        } & {
-            wheres: [export_default$1g<0 | 1>, ...export_default$1g<0 | 1>[], export_default$1g<1> | export_default$1g<0 | 1>] | [export_default$1g<1> | export_default$1g<0 | 1>];
-        }>;
-        groupBy<G extends Any<unknown, 0 | 1>[]>(fn: (from: {
-            name: export_default$l<1>;
-            timestamp: export_default$l<1>;
-        }) => G): Setof<{
-            from: {
-                name: export_default$l<1>;
-                timestamp: export_default$l<1>;
-            };
-        } & {
-            groupBy: [...G];
-        }>;
-        joinTables(): {};
-        join<J extends Query, A extends string>(j: Setof<J>, as: A, on: (from: {
-            name: export_default$l<1>;
-            timestamp: export_default$l<1>;
-        }, js: {} & { [a in A]: ResultType<J>; }) => export_default$1g<0 | 1> | boolean): Setof<{
-            from: {
-                name: export_default$l<1>;
-                timestamp: export_default$l<1>;
-            };
-        } & {
-            joins: {
-                [as]: {
-                    table: Setof<J_1>;
-                    on: export_default$1g<1> | export_default$1g<0 | 1>;
-                    row: RowLike;
-                };
-            };
-        }>;
-        subquery(): Setof<{
-            from: {
-                name: export_default$l<1>;
-                timestamp: export_default$l<1>;
-            };
-        }>;
-        tableColumnAlias(): kysely.RawBuilder<unknown>;
-        compile(ctxIn: Context): kysely.RawBuilder<unknown>;
-        debug(): /*elided*/ any;
-        execute(db?: kysely.Kysely<any>): Promise<{
-            name: string;
-            timestamp: string;
-        }[]>;
-        scalar<S extends Scalar>(this: Setof<{
-            select: S;
-            from: Query["from"];
-        }>): S;
-    };
-    pet: {
-        rawFromExpr: RawTableReferenceExpression;
-        fromAlias: QueryAlias;
-        joinAliases: Record<string, QueryAlias>;
-        query: {
-            from: {
-                name: export_default$l<1>;
-                ownerId: export_default$10<1>;
-                species: export_default$l<1>;
-                age: export_default$10<1>;
-                id: export_default$10<1>;
-            };
-        };
-        db: kysely.Kysely<any>;
-        fromRow: RowLike;
-        insert<Q2 extends {
-            from: RowLike;
-            select: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T extends RowLike ? { [key in keyof T as (RowLike & ResultType<Q2>)[key] extends typeof Generated ? never : key]: (RowLike & ResultType<Q2>)[key]; } : never : never;
-        } | {
-            from: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T_1 extends RowLike ? { [key_1 in keyof T_1 as (RowLike & ResultType<Q2>)[key_1] extends typeof Generated ? never : key_1]: (RowLike & ResultType<Q2>)[key_1]; } : never : never;
-        }>(expr: Setof<Q2>): {
-            execute: (db: kysely.Kysely<any>) => Promise<{
-                name: string;
-                ownerId: number;
-                species: string;
-                age: number;
-                id: number;
-            }[]>;
-        };
-        update<A extends {
-            where: (t: {
-                name: export_default$l<1>;
-                ownerId: export_default$10<1>;
-                species: export_default$l<1>;
-                age: export_default$10<1>;
-                id: export_default$10<1>;
-            }) => export_default$1g<0 | 1>;
-            from?: ((t: {
-                name: export_default$l<1>;
-                ownerId: export_default$10<1>;
-                species: export_default$l<1>;
-                age: export_default$10<1>;
-                id: export_default$10<1>;
-            }) => Setof<Query>) | undefined;
-        }>(arg: A): {
-            table: /*elided*/ any;
-            arg: A;
-            set(setCb: (t: {
-                name: export_default$l<1>;
-                ownerId: export_default$10<1>;
-                species: export_default$l<1>;
-                age: export_default$10<1>;
-                id: export_default$10<1>;
-            }, ...f: A["from"] extends (t: {
-                name: export_default$l<1>;
-                ownerId: export_default$10<1>;
-                species: export_default$l<1>;
-                age: export_default$10<1>;
-                id: export_default$10<1>;
-            }) => infer R ? R extends Setof<Query> ? SelectArgs<R["query"]> : [] : []) => Partial<{
-                name: export_default$l<1>;
-                ownerId: export_default$10<1>;
-                species: export_default$l<1>;
-                age: export_default$10<1>;
-                id: export_default$10<1>;
-            }>): {
-                execute(db: kysely.Kysely<any>): Promise<{
-                    name: string;
-                    ownerId: number;
-                    species: string;
-                    age: number;
-                    id: number;
-                }[]>;
-            };
-        };
-        toSelectArgs(): [Record$1<1, {
-            name: export_default$l<1>;
-            ownerId: export_default$10<1>;
-            species: export_default$l<1>;
-            age: export_default$10<1>;
-            id: export_default$10<1>;
-        }> & {
-            name: export_default$l<1>;
-            ownerId: export_default$10<1>;
-            species: export_default$l<1>;
-            age: export_default$10<1>;
-            id: export_default$10<1>;
-        }, {}];
-        select<S extends RowLikeRelaxed | ScalarRelaxed>(fn: (from_0: Record$1<1, {
-            name: export_default$l<1>;
-            ownerId: export_default$10<1>;
-            species: export_default$l<1>;
-            age: export_default$10<1>;
-            id: export_default$10<1>;
-        }> & {
-            name: export_default$l<1>;
-            ownerId: export_default$10<1>;
-            species: export_default$l<1>;
-            age: export_default$10<1>;
-            id: export_default$10<1>;
-        }, from_1: {}) => S): Setof<{
-            from: {
-                name: export_default$l<1>;
-                ownerId: export_default$10<1>;
-                species: export_default$l<1>;
-                age: export_default$10<1>;
-                id: export_default$10<1>;
-            };
-        } & {
-            select: MaybePrimitiveToSqlType<S>;
-        }>;
-        where(fn: (from_0: Record$1<1, {
-            name: export_default$l<1>;
-            ownerId: export_default$10<1>;
-            species: export_default$l<1>;
-            age: export_default$10<1>;
-            id: export_default$10<1>;
-        }> & {
-            name: export_default$l<1>;
-            ownerId: export_default$10<1>;
-            species: export_default$l<1>;
-            age: export_default$10<1>;
-            id: export_default$10<1>;
-        }, from_1: {}) => export_default$1g<0 | 1> | boolean): Setof<{
-            from: {
-                name: export_default$l<1>;
-                ownerId: export_default$10<1>;
-                species: export_default$l<1>;
-                age: export_default$10<1>;
-                id: export_default$10<1>;
-            };
-        } & {
-            wheres: [export_default$1g<0 | 1>, ...export_default$1g<0 | 1>[], export_default$1g<1> | export_default$1g<0 | 1>] | [export_default$1g<1> | export_default$1g<0 | 1>];
-        }>;
-        groupBy<G extends Any<unknown, 0 | 1>[]>(fn: (from: {
-            name: export_default$l<1>;
-            ownerId: export_default$10<1>;
-            species: export_default$l<1>;
-            age: export_default$10<1>;
-            id: export_default$10<1>;
-        }) => G): Setof<{
-            from: {
-                name: export_default$l<1>;
-                ownerId: export_default$10<1>;
-                species: export_default$l<1>;
-                age: export_default$10<1>;
-                id: export_default$10<1>;
-            };
-        } & {
-            groupBy: [...G];
-        }>;
-        joinTables(): {};
-        join<J extends Query, A extends string>(j: Setof<J>, as: A, on: (from: {
-            name: export_default$l<1>;
-            ownerId: export_default$10<1>;
-            species: export_default$l<1>;
-            age: export_default$10<1>;
-            id: export_default$10<1>;
-        }, js: {} & { [a in A]: ResultType<J>; }) => export_default$1g<0 | 1> | boolean): Setof<{
-            from: {
-                name: export_default$l<1>;
-                ownerId: export_default$10<1>;
-                species: export_default$l<1>;
-                age: export_default$10<1>;
-                id: export_default$10<1>;
-            };
-        } & {
-            joins: {
-                [as]: {
-                    table: Setof<J_1>;
-                    on: export_default$1g<1> | export_default$1g<0 | 1>;
-                    row: RowLike;
-                };
-            };
-        }>;
-        subquery(): Setof<{
-            from: {
-                name: export_default$l<1>;
-                ownerId: export_default$10<1>;
-                species: export_default$l<1>;
-                age: export_default$10<1>;
-                id: export_default$10<1>;
-            };
-        }>;
-        tableColumnAlias(): kysely.RawBuilder<unknown>;
-        compile(ctxIn: Context): kysely.RawBuilder<unknown>;
-        debug(): /*elided*/ any;
-        execute(db?: kysely.Kysely<any>): Promise<{
-            name: string;
-            ownerId: number;
-            species: string;
-            age: number;
-            id: number;
-        }[]>;
-        scalar<S extends Scalar>(this: Setof<{
-            select: S;
-            from: Query["from"];
-        }>): S;
-    };
-    kysely_migration_lock: {
-        rawFromExpr: RawTableReferenceExpression;
-        fromAlias: QueryAlias;
-        joinAliases: Record<string, QueryAlias>;
-        query: {
-            from: {
-                id: export_default$l<1>;
-                is_locked: export_default$10<1>;
-            };
-        };
-        db: kysely.Kysely<any>;
-        fromRow: RowLike;
-        insert<Q2 extends {
-            from: RowLike;
-            select: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T extends RowLike ? { [key in keyof T as (RowLike & ResultType<Q2>)[key] extends typeof Generated ? never : key]: (RowLike & ResultType<Q2>)[key]; } : never : never;
-        } | {
-            from: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T_1 extends RowLike ? { [key_1 in keyof T_1 as (RowLike & ResultType<Q2>)[key_1] extends typeof Generated ? never : key_1]: (RowLike & ResultType<Q2>)[key_1]; } : never : never;
-        }>(expr: Setof<Q2>): {
-            execute: (db: kysely.Kysely<any>) => Promise<{
-                id: string;
-                is_locked: number;
-            }[]>;
-        };
-        update<A extends {
-            where: (t: {
-                id: export_default$l<1>;
-                is_locked: export_default$10<1>;
-            }) => export_default$1g<0 | 1>;
-            from?: ((t: {
-                id: export_default$l<1>;
-                is_locked: export_default$10<1>;
-            }) => Setof<Query>) | undefined;
-        }>(arg: A): {
-            table: /*elided*/ any;
-            arg: A;
-            set(setCb: (t: {
-                id: export_default$l<1>;
-                is_locked: export_default$10<1>;
-            }, ...f: A["from"] extends (t: {
-                id: export_default$l<1>;
-                is_locked: export_default$10<1>;
-            }) => infer R ? R extends Setof<Query> ? SelectArgs<R["query"]> : [] : []) => Partial<{
-                id: export_default$l<1>;
-                is_locked: export_default$10<1>;
-            }>): {
-                execute(db: kysely.Kysely<any>): Promise<{
-                    id: string;
-                    is_locked: number;
-                }[]>;
-            };
-        };
-        toSelectArgs(): [Record$1<1, {
-            id: export_default$l<1>;
-            is_locked: export_default$10<1>;
-        }> & {
-            id: export_default$l<1>;
-            is_locked: export_default$10<1>;
-        }, {}];
-        select<S extends RowLikeRelaxed | ScalarRelaxed>(fn: (from_0: Record$1<1, {
-            id: export_default$l<1>;
-            is_locked: export_default$10<1>;
-        }> & {
-            id: export_default$l<1>;
-            is_locked: export_default$10<1>;
-        }, from_1: {}) => S): Setof<{
-            from: {
-                id: export_default$l<1>;
-                is_locked: export_default$10<1>;
-            };
-        } & {
-            select: MaybePrimitiveToSqlType<S>;
-        }>;
-        where(fn: (from_0: Record$1<1, {
-            id: export_default$l<1>;
-            is_locked: export_default$10<1>;
-        }> & {
-            id: export_default$l<1>;
-            is_locked: export_default$10<1>;
-        }, from_1: {}) => export_default$1g<0 | 1> | boolean): Setof<{
-            from: {
-                id: export_default$l<1>;
-                is_locked: export_default$10<1>;
-            };
-        } & {
-            wheres: [export_default$1g<0 | 1>, ...export_default$1g<0 | 1>[], export_default$1g<1> | export_default$1g<0 | 1>] | [export_default$1g<1> | export_default$1g<0 | 1>];
-        }>;
-        groupBy<G extends Any<unknown, 0 | 1>[]>(fn: (from: {
-            id: export_default$l<1>;
-            is_locked: export_default$10<1>;
-        }) => G): Setof<{
-            from: {
-                id: export_default$l<1>;
-                is_locked: export_default$10<1>;
-            };
-        } & {
-            groupBy: [...G];
-        }>;
-        joinTables(): {};
-        join<J extends Query, A extends string>(j: Setof<J>, as: A, on: (from: {
-            id: export_default$l<1>;
-            is_locked: export_default$10<1>;
-        }, js: {} & { [a in A]: ResultType<J>; }) => export_default$1g<0 | 1> | boolean): Setof<{
-            from: {
-                id: export_default$l<1>;
-                is_locked: export_default$10<1>;
-            };
-        } & {
-            joins: {
-                [as]: {
-                    table: Setof<J_1>;
-                    on: export_default$1g<1> | export_default$1g<0 | 1>;
-                    row: RowLike;
-                };
-            };
-        }>;
-        subquery(): Setof<{
-            from: {
-                id: export_default$l<1>;
-                is_locked: export_default$10<1>;
-            };
-        }>;
-        tableColumnAlias(): kysely.RawBuilder<unknown>;
-        compile(ctxIn: Context): kysely.RawBuilder<unknown>;
-        debug(): /*elided*/ any;
-        execute(db?: kysely.Kysely<any>): Promise<{
-            id: string;
-            is_locked: number;
-        }[]>;
-        scalar<S extends Scalar>(this: Setof<{
-            select: S;
-            from: Query["from"];
-        }>): S;
-    };
-};
-
-export { export_default$1m as Aclitem, Any, export_default$1l as Anyenum, export_default$1k as Anymultirange, export_default$1j as Anynonarray, export_default$1i as Anyrange, Array, BinaryOperatorExpression, export_default$1h as Bit, export_default$1g as Bool, export_default$1f as Box, export_default$1e as Bpchar, export_default$1d as Bytea, export_default$1c as Char, export_default$1b as Cid, export_default$1a as Cidr, export_default$19 as Circle, ColumnAliasExpression, Context, export_default$18 as Date, export_default$17 as Datemultirange, export_default$16 as Daterange, Expression, export_default$15 as Float4, export_default$14 as Float8, FunctionExpression, Generated, export_default$13 as Inet, export_default$12 as Int2, export_default$11 as Int2Vector, export_default$10 as Int4, export_default$$ as Int4Multirange, export_default$_ as Int4Range, export_default$Z as Int8, export_default$Y as Int8Multirange, export_default$X as Int8Range, export_default$W as Interval, export_default$V as Json, export_default$U as Jsonb, export_default$T as Jsonpath, export_default$S as LanguageHandler, export_default$R as Line, LiteralExpression, LiteralUnknownExpression, export_default$Q as Lseg, export_default$P as Macaddr, export_default$O as Macaddr8, export_default$N as Money, export_default$M as Name, export_default$L as Numeric, export_default$K as Nummultirange, export_default$J as Numrange, export_default$I as Oid, export_default$H as Oidvector, export_default$G as Path, export_default$F as PgDdlCommand, export_default$E as PgLsn, export_default$D as PgMcvList, export_default$C as PgNodeTree, export_default$B as PgSnapshot, export_default$A as Point, export_default$z as Polygon, QueryAlias, RawTableReferenceExpression, Record$1 as Record, export_default$x as Refcursor, export_default$w as Regclass, export_default$v as Regcollation, export_default$u as Regconfig, export_default$t as Regdictionary, export_default$s as Regnamespace, export_default$r as Regoper, export_default$q as Regoperator, export_default$p as Regproc, export_default$o as Regprocedure, export_default$n as Regrole, export_default$m as Regtype, SelectableExpression, SelectableFunctionExpression, Setof, SubqueryExpression, TableReferenceExpression, export_default$l as Text, export_default$k as Tid, export_default$j as Time, export_default$i as Timestamp, export_default$h as Timestamptz, export_default$g as Timetz, export_default$f as Trigger, export_default$e as Tsmultirange, export_default$d as Tsquery, export_default$c as Tsrange, export_default$b as Tstzmultirange, export_default$a as Tstzrange, export_default$9 as Tsvector, export_default$8 as TxidSnapshot, export_default$7 as Uuid, ValuesExpression, export_default$6 as Varbit, export_default$5 as Varchar, export_default$4 as Void, export_default$3 as Xid, export_default$2 as Xid8, export_default$1 as Xml, abbrev, abs, aclcontains, acldefault, aclexplode, aclinsert, aclitemeq, aclremove, acos, acosd, acosh, age, aliasRowLike, aliasScalar, amvalidate, anyValue, anyValueTransfn, anytextcat, area, arrayAgg, arrayAppend, arrayCat, arrayDims, arrayEq, arrayFill, arrayGe, arrayGt, arrayLarger, arrayLe, arrayLength, arrayLower, arrayLt, arrayNdims, arrayNe, arrayPosition, arrayPositions, arrayPrepend, arrayRemove, arrayReplace, arraySample, arrayShuffle, arraySmaller, arrayToJson, arrayToString, arrayToTsvector, arrayUpper, arraycontained, arraycontains, arrayoverlap, ascii, asind, asinh, atan, atan2, atan2D, atand, atanh, avg, binaryUpgradeAddSubRelState, binaryUpgradeCreateEmptyExtension, binaryUpgradeLogicalSlotHasCaughtUp, binaryUpgradeReploriginAdvance, binaryUpgradeSetMissingValue, binaryUpgradeSetNextArrayPgTypeOid, binaryUpgradeSetNextHeapPgClassOid, binaryUpgradeSetNextHeapRelfilenode, binaryUpgradeSetNextIndexPgClassOid, binaryUpgradeSetNextIndexRelfilenode, binaryUpgradeSetNextMultirangeArrayPgTypeOid, binaryUpgradeSetNextMultirangePgTypeOid, binaryUpgradeSetNextPgAuthidOid, binaryUpgradeSetNextPgEnumOid, binaryUpgradeSetNextPgTablespaceOid, binaryUpgradeSetNextPgTypeOid, binaryUpgradeSetNextToastPgClassOid, binaryUpgradeSetNextToastRelfilenode, binaryUpgradeSetRecordInitPrivs, bit, bitAnd, bitCount, bitLength, bitOr, bitXor, bitand, bitcat, bitcmp, biteq, bitge, bitgt, bitle, bitlt, bitne, bitnot, bitor, bitshiftleft, bitshiftright, bitxor, bool, boolAnd, boolOr, boolandStatefunc, booleq, boolge, boolgt, boolle, boollt, boolne, boolorStatefunc, boundBox, box, boxAbove, boxAboveEq, boxAdd, boxBelow, boxBelowEq, boxCenter, boxContainPt, boxContained, boxDistance, boxDiv, boxEq, boxGe, boxGt, boxIntersect, boxLe, boxLeft, boxLt, boxMul, boxOverabove, boxOverbelow, boxOverlap, boxOverleft, boxOverright, boxRight, boxSame, boxSub, bpchar, bpcharLarger, bpcharPatternGe, bpcharPatternGt, bpcharPatternLe, bpcharPatternLt, bpcharSmaller, bpcharcmp, bpchareq, bpcharge, bpchargt, bpchariclike, bpcharicnlike, bpcharicregexeq, bpcharicregexne, bpcharle, bpcharlike, bpcharlt, bpcharne, bpcharnlike, bpcharregexeq, bpcharregexne, brinDesummarizeRange, brinSummarizeNewValues, brinSummarizeRange, broadcast, btarraycmp, btboolcmp, btbpcharPatternCmp, btcharcmp, btequalimage, btfloat48Cmp, btfloat4Cmp, btfloat84Cmp, btfloat8Cmp, btint24Cmp, btint28Cmp, btint2Cmp, btint42Cmp, btint48Cmp, btint4Cmp, btint82Cmp, btint84Cmp, btint8Cmp, btnamecmp, btnametextcmp, btoidcmp, btoidvectorcmp, btrecordcmp, btrecordimagecmp, btrim, bttextPatternCmp, bttextcmp, bttextnamecmp, bttidcmp, btvarstrequalimage, byteacat, byteacmp, byteaeq, byteage, byteagt, byteale, bytealike, bytealt, byteane, byteanlike, cardinality, cashCmp, cashDivCash, cashDivFlt4, cashDivFlt8, cashDivInt2, cashDivInt4, cashDivInt8, cashEq, cashGe, cashGt, cashLe, cashLt, cashMi, cashMulFlt4, cashMulFlt8, cashMulInt2, cashMulInt4, cashMulInt8, cashNe, cashPl, cashWords, cashlarger, cashsmaller, cbrt, ceil, ceiling, center, char, charLength, characterLength, chareq, charge, chargt, charle, charlt, charne, chr, cideq, cidr, circle, circleAbove, circleAddPt, circleBelow, circleCenter, circleContainPt, circleContained, circleDistance, circleDivPt, circleEq, circleGe, circleGt, circleLe, circleLeft, circleLt, circleMulPt, circleNe, circleOverabove, circleOverbelow, circleOverlap, circleOverleft, circleOverright, circleRight, circleSame, circleSubPt, clockTimestamp, closeLs, closeLseg, closePb, closePl, closePs, closeSb, colDescription, concat, concatWs, convert, convertFrom, convertTo, corr, cos, cosd, cosh, cot, cotd, count, covarPop, covarSamp, cumeDist, currentDatabase, currentQuery, currentSchema, currentSchemas, currentSetting, currentUser, currtid2, currval, cursorToXml, cursorToXmlschema, database, databaseToXml, databaseToXmlAndXmlschema, databaseToXmlschema, date, dateAdd, dateCmp, dateCmpTimestamp, dateCmpTimestamptz, dateEq, dateEqTimestamp, dateEqTimestamptz, dateGe, dateGeTimestamp, dateGeTimestamptz, dateGt, dateGtTimestamp, dateGtTimestamptz, dateLarger, dateLe, dateLeTimestamp, dateLeTimestamptz, dateLt, dateLtTimestamp, dateLtTimestamptz, dateMi, dateMiInterval, dateMii, dateNe, dateNeTimestamp, dateNeTimestamptz, datePart, datePlInterval, datePli, dateSmaller, dateSubtract, dateTrunc, datemultirange, daterange, daterangeCanonical, daterangeSubdiff, datetimePl, datetimetzPl, db, dcbrt, decode, degrees, denseRank, dexp, diagonal, diameter, distBp, distBs, distCpoint, distCpoly, distLp, distLs, distPathp, distPb, distPc, distPl, distPolyc, distPolyp, distPpath, distPpoly, distPs, distSb, distSl, distSp, div, dlog1, dlog10, dpow, dround, dsqrt, dtrunc, elemContainedByMultirange, elemContainedByRange, encode, enumCmp, enumEq, enumFirst, enumGe, enumGt, enumLarger, enumLast, enumLe, enumLt, enumNe, enumRange, enumSmaller, erf, erfc, every, exp, extract, factorial, family, firstValue, float4, float48Div, float48Eq, float48Ge, float48Gt, float48Le, float48Lt, float48Mi, float48Mul, float48Ne, float48Pl, float4Abs, float4Accum, float4Div, float4Eq, float4Ge, float4Gt, float4Larger, float4Le, float4Lt, float4Mi, float4Mul, float4Ne, float4Pl, float4Smaller, float4Um, float4Up, float8, float84Div, float84Eq, float84Ge, float84Gt, float84Le, float84Lt, float84Mi, float84Mul, float84Ne, float84Pl, float8Abs, float8Accum, float8Avg, float8Combine, float8Corr, float8CovarPop, float8CovarSamp, float8Div, float8Eq, float8Ge, float8Gt, float8Larger, float8Le, float8Lt, float8Mi, float8Mul, float8Ne, float8Pl, float8RegrAccum, float8RegrAvgx, float8RegrAvgy, float8RegrCombine, float8RegrIntercept, float8RegrR2, float8RegrSlope, float8RegrSxx, float8RegrSxy, float8RegrSyy, float8Smaller, float8StddevPop, float8StddevSamp, float8Um, float8Up, float8VarPop, float8VarSamp, floor, flt4MulCash, flt8MulCash, fmgrCValidator, fmgrInternalValidator, fmgrSqlValidator, format, formatType, gcd, genRandomUuid, generateSeries, generateSubscripts, getBit, getByte, getCurrentTsConfig, getdatabaseencoding, getpgusername, ginCleanPendingList, ginCmpTslexeme, ginCompareJsonb, hasAnyColumnPrivilege, hasColumnPrivilege, hasDatabasePrivilege, hasForeignDataWrapperPrivilege, hasFunctionPrivilege, hasLanguagePrivilege, hasParameterPrivilege, hasSchemaPrivilege, hasSequencePrivilege, hasServerPrivilege, hasTablePrivilege, hasTablespacePrivilege, hasTypePrivilege, hashAclitem, hashAclitemExtended, hashArray, hashArrayExtended, hashMultirange, hashMultirangeExtended, hashNumeric, hashNumericExtended, hashRange, hashRangeExtended, hashRecord, hashRecordExtended, hashbpchar, hashbpcharextended, hashchar, hashcharextended, hashenum, hashenumextended, hashfloat4, hashfloat4Extended, hashfloat8, hashfloat8Extended, hashinet, hashinetextended, hashint2, hashint2Extended, hashint4, hashint4Extended, hashint8, hashint8Extended, hashmacaddr, hashmacaddr8, hashmacaddr8Extended, hashmacaddrextended, hashname, hashnameextended, hashoid, hashoidextended, hashoidvector, hashoidvectorextended, hashtext, hashtextextended, hashtid, hashtidextended, height, host, hostmask, icuUnicodeVersion, inRange, inetClientAddr, inetClientPort, inetMerge, inetSameFamily, inetServerAddr, inetServerPort, inetand, inetmi, inetmiInt8, inetnot, inetor, inetpl, initcap, int2, int24Div, int24Eq, int24Ge, int24Gt, int24Le, int24Lt, int24Mi, int24Mul, int24Ne, int24Pl, int28Div, int28Eq, int28Ge, int28Gt, int28Le, int28Lt, int28Mi, int28Mul, int28Ne, int28Pl, int2Abs, int2And, int2AvgAccum, int2AvgAccumInv, int2Div, int2Eq, int2Ge, int2Gt, int2Int4Sum, int2Larger, int2Le, int2Lt, int2Mi, int2Mod, int2Mul, int2MulCash, int2Ne, int2Not, int2Or, int2Pl, int2Shl, int2Shr, int2Smaller, int2Sum, int2Um, int2Up, int2Xor, int4, int42Div, int42Eq, int42Ge, int42Gt, int42Le, int42Lt, int42Mi, int42Mul, int42Ne, int42Pl, int48Div, int48Eq, int48Ge, int48Gt, int48Le, int48Lt, int48Mi, int48Mul, int48Ne, int48Pl, int4Abs, int4And, int4AvgAccum, int4AvgAccumInv, int4AvgCombine, int4Div, int4Eq, int4Ge, int4Gt, int4Inc, int4Larger, int4Le, int4Lt, int4Mi, int4Mod, int4Mul, int4MulCash, int4Multirange, int4Ne, int4Not, int4Or, int4Pl, int4Range, int4RangeCanonical, int4RangeSubdiff, int4Shl, int4Shr, int4Smaller, int4Sum, int4Um, int4Up, int4Xor, int8, int82Div, int82Eq, int82Ge, int82Gt, int82Le, int82Lt, int82Mi, int82Mul, int82Ne, int82Pl, int84Div, int84Eq, int84Ge, int84Gt, int84Le, int84Lt, int84Mi, int84Mul, int84Ne, int84Pl, int8Abs, int8And, int8Avg, int8Dec, int8DecAny, int8Div, int8Eq, int8Ge, int8Gt, int8Inc, int8IncAny, int8IncFloat8Float8, int8Larger, int8Le, int8Lt, int8Mi, int8Mod, int8Mul, int8MulCash, int8Multirange, int8Ne, int8Not, int8Or, int8Pl, int8PlInet, int8Range, int8RangeCanonical, int8RangeSubdiff, int8Shl, int8Shr, int8Smaller, int8Sum, int8Um, int8Up, int8Xor, integerPlDate, interLb, interSb, interSl, interval, intervalCmp, intervalDiv, intervalEq, intervalGe, intervalGt, intervalHash, intervalHashExtended, intervalLarger, intervalLe, intervalLt, intervalMi, intervalMul, intervalNe, intervalPl, intervalPlDate, intervalPlTime, intervalPlTimestamp, intervalPlTimestamptz, intervalPlTimetz, intervalSmaller, intervalUm, isNormalized, isScalar, isScalarRelaxed, isclosed, isempty, isfinite, ishorizontal, isopen, isparallel, isperp, isvertical, jsonAgg, jsonAggStrict, jsonArrayElement, jsonArrayElementText, jsonArrayElements, jsonArrayElementsText, jsonArrayLength, jsonBuildArray, jsonBuildObject, jsonEach, jsonEachText, jsonExtractPath, jsonExtractPathText, jsonObject, jsonObjectAgg, jsonObjectAggStrict, jsonObjectAggUnique, jsonObjectAggUniqueStrict, jsonObjectField, jsonObjectFieldText, jsonObjectKeys, jsonPopulateRecord, jsonPopulateRecordset, jsonStripNulls, jsonToRecord, jsonToRecordset, jsonToTsvector, jsonTypeof, jsonbAgg, jsonbAggStrict, jsonbArrayElement, jsonbArrayElementText, jsonbArrayElements, jsonbArrayElementsText, jsonbArrayLength, jsonbBuildArray, jsonbBuildObject, jsonbCmp, jsonbConcat, jsonbContained, jsonbContains, jsonbDelete, jsonbDeletePath, jsonbEach, jsonbEachText, jsonbEq, jsonbExists, jsonbExistsAll, jsonbExistsAny, jsonbExtractPath, jsonbExtractPathText, jsonbGe, jsonbGt, jsonbHash, jsonbHashExtended, jsonbInsert, jsonbLe, jsonbLt, jsonbNe, jsonbObject, jsonbObjectAgg, jsonbObjectAggStrict, jsonbObjectAggUnique, jsonbObjectAggUniqueStrict, jsonbObjectField, jsonbObjectFieldText, jsonbObjectKeys, jsonbPathExists, jsonbPathExistsOpr, jsonbPathExistsTz, jsonbPathMatch, jsonbPathMatchOpr, jsonbPathMatchTz, jsonbPathQuery, jsonbPathQueryArray, jsonbPathQueryArrayTz, jsonbPathQueryFirst, jsonbPathQueryFirstTz, jsonbPathQueryTz, jsonbPopulateRecord, jsonbPopulateRecordValid, jsonbPopulateRecordset, jsonbPretty, jsonbSet, jsonbSetLax, jsonbStripNulls, jsonbToRecord, jsonbToRecordset, jsonbToTsvector, jsonbTypeof, justifyDays, justifyHours, justifyInterval, lag, lastValue, lastval, lcm, lead, left, length, like, likeEscape, line, lineDistance, lineEq, lineHorizontal, lineInterpt, lineIntersect, lineParallel, linePerp, lineVertical, ln, loClose, loCreat, loCreate, loExport, loFromBytea, loGet, loImport, loLseek, loLseek64, loOpen, loPut, loTell, loTell64, loTruncate, loTruncate64, loUnlink, log, log10, loread, lower, lowerInc, lowerInf, lowrite, lpad, lseg, lsegCenter, lsegDistance, lsegEq, lsegGe, lsegGt, lsegHorizontal, lsegInterpt, lsegIntersect, lsegLe, lsegLength, lsegLt, lsegNe, lsegParallel, lsegPerp, lsegVertical, ltrim, macaddr, macaddr8, macaddr8And, macaddr8Cmp, macaddr8Eq, macaddr8Ge, macaddr8Gt, macaddr8Le, macaddr8Lt, macaddr8Ne, macaddr8Not, macaddr8Or, macaddr8Set7Bit, macaddrAnd, macaddrCmp, macaddrEq, macaddrGe, macaddrGt, macaddrLe, macaddrLt, macaddrNe, macaddrNot, macaddrOr, makeDate, makeInterval, makeTime, makeTimestamp, makeTimestamptz, makeaclitem, masklen, max, md5, minScale, mod, mode, money, mulDInterval, multirange, multirangeAdjacentMultirange, multirangeAdjacentRange, multirangeAfterMultirange, multirangeAfterRange, multirangeBeforeMultirange, multirangeBeforeRange, multirangeCmp, multirangeContainedByMultirange, multirangeContainedByRange, multirangeContainsElem, multirangeContainsMultirange, multirangeContainsRange, multirangeEq, multirangeGe, multirangeGt, multirangeIntersect, multirangeIntersectAggTransfn, multirangeLe, multirangeLt, multirangeMinus, multirangeNe, multirangeOverlapsMultirange, multirangeOverlapsRange, multirangeOverleftMultirange, multirangeOverleftRange, multirangeOverrightMultirange, multirangeOverrightRange, multirangeUnion, mxidAge, name, nameconcatoid, nameeq, nameeqtext, namege, namegetext, namegt, namegttext, nameiclike, nameicnlike, nameicregexeq, nameicregexne, namele, nameletext, namelike, namelt, namelttext, namene, namenetext, namenlike, nameregexeq, nameregexne, netmask, network, networkCmp, networkEq, networkGe, networkGt, networkLarger, networkLe, networkLt, networkNe, networkOverlap, networkSmaller, networkSub, networkSubeq, networkSup, networkSupeq, nextval, normalize, notlike, now, npoints, nthValue, ntile, numNonnulls, numNulls, numeric, numericAbs, numericAdd, numericCmp, numericDiv, numericDivTrunc, numericEq, numericExp, numericGe, numericGt, numericInc, numericLarger, numericLe, numericLn, numericLog, numericLt, numericMod, numericMul, numericNe, numericPlPgLsn, numericPower, numericSmaller, numericSqrt, numericSub, numericUminus, numericUplus, nummultirange, numnode, numrange, numrangeSubdiff, objDescription, octetLength, oid, oideq, oidge, oidgt, oidlarger, oidle, oidlt, oidne, oidsmaller, oidvectoreq, oidvectorge, oidvectorgt, oidvectorle, oidvectorlt, oidvectorne, oidvectortypes, onPb, onPl, onPpath, onPs, onSb, onSl, overlaps, overlay, parseIdent, path, pathAdd, pathAddPt, pathContainPt, pathDistance, pathDivPt, pathInter, pathLength, pathMulPt, pathNEq, pathNGe, pathNGt, pathNLe, pathNLt, pathNpoints, pathSubPt, pclose, percentRank, percentileCont, percentileDisc, pgAdvisoryLock, pgAdvisoryLockShared, pgAdvisoryUnlock, pgAdvisoryUnlockAll, pgAdvisoryUnlockShared, pgAdvisoryXactLock, pgAdvisoryXactLockShared, pgAvailableExtensionVersions, pgAvailableExtensions, pgAvailableWalSummaries, pgBackendPid, pgBackupStart, pgBackupStop, pgBasetype, pgBlockingPids, pgCancelBackend, pgCharToEncoding, pgClientEncoding, pgCollationActualVersion, pgCollationFor, pgCollationIsVisible, pgColumnCompression, pgColumnIsUpdatable, pgColumnSize, pgColumnToastChunkId, pgConfLoadTime, pgConfig, pgControlCheckpoint, pgControlInit, pgControlRecovery, pgControlSystem, pgConversionIsVisible, pgCopyLogicalReplicationSlot, pgCopyPhysicalReplicationSlot, pgCreateLogicalReplicationSlot, pgCreatePhysicalReplicationSlot, pgCreateRestorePoint, pgCurrentLogfile, pgCurrentSnapshot, pgCurrentWalFlushLsn, pgCurrentWalInsertLsn, pgCurrentWalLsn, pgCurrentXactId, pgCurrentXactIdIfAssigned, pgCursor, pgDatabaseCollationActualVersion, pgDatabaseSize, pgDescribeObject, pgDropReplicationSlot, pgEncodingMaxLength, pgEncodingToChar, pgEventTriggerDdlCommands, pgEventTriggerDroppedObjects, pgEventTriggerTableRewriteOid, pgEventTriggerTableRewriteReason, pgExportSnapshot, pgExtensionConfigDump, pgExtensionUpdatePaths, pgFilenodeRelation, pgFunctionIsVisible, pgGetBackendMemoryContexts, pgGetCatalogForeignKeys, pgGetConstraintdef, pgGetExpr, pgGetFunctionArgDefault, pgGetFunctionArguments, pgGetFunctionIdentityArguments, pgGetFunctionResult, pgGetFunctionSqlbody, pgGetFunctiondef, pgGetIndexdef, pgGetKeywords, pgGetMultixactMembers, pgGetObjectAddress, pgGetPartitionConstraintdef, pgGetPartkeydef, pgGetPublicationTables, pgGetReplicaIdentityIndex, pgGetReplicationSlots, pgGetRuledef, pgGetSerialSequence, pgGetShmemAllocations, pgGetStatisticsobjdef, pgGetStatisticsobjdefColumns, pgGetStatisticsobjdefExpressions, pgGetTriggerdef, pgGetUserbyid, pgGetViewdef, pgGetWaitEvents, pgGetWalReplayPauseState, pgGetWalResourceManagers, pgGetWalSummarizerState, pgHasRole, pgHbaFileRules, pgIdentFileMappings, pgIdentifyObject, pgIdentifyObjectAsAddress, pgImportSystemCollations, pgIndexColumnHasProperty, pgIndexHasProperty, pgIndexamHasProperty, pgIndexamProgressPhasename, pgIndexesSize, pgInputErrorInfo, pgInputIsValid, pgIsInRecovery, pgIsOtherTempSchema, pgIsWalReplayPaused, pgIsolationTestSessionIsBlocked, pgJitAvailable, pgLastCommittedXact, pgLastWalReceiveLsn, pgLastWalReplayLsn, pgLastXactReplayTimestamp, pgListeningChannels, pgLockStatus, pgLogBackendMemoryContexts, pgLogStandbySnapshot, pgLogicalEmitMessage, pgLogicalSlotGetBinaryChanges, pgLogicalSlotGetChanges, pgLogicalSlotPeekBinaryChanges, pgLogicalSlotPeekChanges, pgLsArchiveStatusdir, pgLsDir, pgLsLogdir, pgLsLogicalmapdir, pgLsLogicalsnapdir, pgLsReplslotdir, pgLsTmpdir, pgLsWaldir, pgLsn, pgLsnCmp, pgLsnEq, pgLsnGe, pgLsnGt, pgLsnHash, pgLsnHashExtended, pgLsnLarger, pgLsnLe, pgLsnLt, pgLsnMi, pgLsnMii, pgLsnNe, pgLsnPli, pgLsnSmaller, pgMcvListItems, pgMyTempSchema, pgNextoid, pgNotificationQueueUsage, pgNotify, pgOpclassIsVisible, pgOperatorIsVisible, pgOpfamilyIsVisible, pgOptionsToTable, pgPartitionAncestors, pgPartitionRoot, pgPartitionTree, pgPostmasterStartTime, pgPreparedStatement, pgPreparedXact, pgPromote, pgReadBinaryFile, pgReadFile, pgRelationFilenode, pgRelationFilepath, pgRelationIsPublishable, pgRelationIsUpdatable, pgRelationSize, pgReloadConf, pgReplicationOriginAdvance, pgReplicationOriginCreate, pgReplicationOriginDrop, pgReplicationOriginOid, pgReplicationOriginProgress, pgReplicationOriginSessionIsSetup, pgReplicationOriginSessionProgress, pgReplicationOriginSessionReset, pgReplicationOriginSessionSetup, pgReplicationOriginXactReset, pgReplicationOriginXactSetup, pgReplicationSlotAdvance, pgRotateLogfile, pgSafeSnapshotBlockingPids, pgSequenceLastValue, pgSequenceParameters, pgSettingsGetFlags, pgShowAllFileSettings, pgShowAllSettings, pgShowReplicationOriginStatus, pgSizeBytes, pgSizePretty, pgSleep, pgSleepFor, pgSleepUntil, pgSnapshotXip, pgSnapshotXmax, pgSplitWalfileName, pgStatClearSnapshot, pgStatFile, pgStatForceNextFlush, pgStatGetActivity, pgStatGetAnalyzeCount, pgStatGetArchiver, pgStatGetAutoanalyzeCount, pgStatGetAutovacuumCount, pgStatGetBackendActivity, pgStatGetBackendActivityStart, pgStatGetBackendClientAddr, pgStatGetBackendClientPort, pgStatGetBackendDbid, pgStatGetBackendIdset, pgStatGetBackendPid, pgStatGetBackendStart, pgStatGetBackendSubxact, pgStatGetBackendUserid, pgStatGetBackendWaitEvent, pgStatGetBackendWaitEventType, pgStatGetBackendXactStart, pgStatGetBgwriterBufWrittenClean, pgStatGetBgwriterMaxwrittenClean, pgStatGetBgwriterStatResetTime, pgStatGetBlocksFetched, pgStatGetBlocksHit, pgStatGetBufAlloc, pgStatGetCheckpointerBuffersWritten, pgStatGetCheckpointerNumRequested, pgStatGetCheckpointerNumTimed, pgStatGetCheckpointerRestartpointsPerformed, pgStatGetCheckpointerRestartpointsRequested, pgStatGetCheckpointerRestartpointsTimed, pgStatGetCheckpointerStatResetTime, pgStatGetCheckpointerSyncTime, pgStatGetCheckpointerWriteTime, pgStatGetDbActiveTime, pgStatGetDbBlkReadTime, pgStatGetDbBlkWriteTime, pgStatGetDbBlocksFetched, pgStatGetDbBlocksHit, pgStatGetDbChecksumFailures, pgStatGetDbChecksumLastFailure, pgStatGetDbConflictAll, pgStatGetDbConflictLock, pgStatGetDbConflictLogicalslot, pgStatGetDbConflictSnapshot, pgStatGetDbConflictStartupDeadlock, pgStatGetDbConflictTablespace, pgStatGetDbDeadlocks, pgStatGetDbIdleInTransactionTime, pgStatGetDbNumbackends, pgStatGetDbSessionTime, pgStatGetDbSessions, pgStatGetDbSessionsAbandoned, pgStatGetDbSessionsFatal, pgStatGetDbSessionsKilled, pgStatGetDbStatResetTime, pgStatGetDbTempBytes, pgStatGetDbTempFiles, pgStatGetDbTuplesDeleted, pgStatGetDbTuplesFetched, pgStatGetDbTuplesInserted, pgStatGetDbTuplesReturned, pgStatGetDbTuplesUpdated, pgStatGetDbXactCommit, pgStatGetDbXactRollback, pgStatGetDeadTuples, pgStatGetFunctionCalls, pgStatGetFunctionSelfTime, pgStatGetFunctionTotalTime, pgStatGetInsSinceVacuum, pgStatGetIo, pgStatGetLastAnalyzeTime, pgStatGetLastAutoanalyzeTime, pgStatGetLastAutovacuumTime, pgStatGetLastVacuumTime, pgStatGetLastscan, pgStatGetLiveTuples, pgStatGetModSinceAnalyze, pgStatGetNumscans, pgStatGetProgressInfo, pgStatGetRecoveryPrefetch, pgStatGetReplicationSlot, pgStatGetSlru, pgStatGetSnapshotTimestamp, pgStatGetSubscription, pgStatGetSubscriptionStats, pgStatGetTuplesDeleted, pgStatGetTuplesFetched, pgStatGetTuplesHotUpdated, pgStatGetTuplesInserted, pgStatGetTuplesNewpageUpdated, pgStatGetTuplesReturned, pgStatGetTuplesUpdated, pgStatGetVacuumCount, pgStatGetWal, pgStatGetWalReceiver, pgStatGetWalSenders, pgStatGetXactBlocksFetched, pgStatGetXactBlocksHit, pgStatGetXactFunctionCalls, pgStatGetXactFunctionSelfTime, pgStatGetXactFunctionTotalTime, pgStatGetXactNumscans, pgStatGetXactTuplesDeleted, pgStatGetXactTuplesFetched, pgStatGetXactTuplesHotUpdated, pgStatGetXactTuplesInserted, pgStatGetXactTuplesNewpageUpdated, pgStatGetXactTuplesReturned, pgStatGetXactTuplesUpdated, pgStatHaveStats, pgStatReset, pgStatResetReplicationSlot, pgStatResetShared, pgStatResetSingleFunctionCounters, pgStatResetSingleTableCounters, pgStatResetSlru, pgStatResetSubscriptionStats, pgStatisticsObjIsVisible, pgStopMakingPinnedObjects, pgSwitchWal, pgSyncReplicationSlots, pgTableIsVisible, pgTableSize, pgTablespaceDatabases, pgTablespaceLocation, pgTablespaceSize, pgTerminateBackend, pgTimezoneAbbrevs, pgTimezoneNames, pgTotalRelationSize, pgTriggerDepth, pgTryAdvisoryLock, pgTryAdvisoryLockShared, pgTryAdvisoryXactLock, pgTryAdvisoryXactLockShared, pgTsConfigIsVisible, pgTsDictIsVisible, pgTsParserIsVisible, pgTsTemplateIsVisible, pgTypeIsVisible, pgTypeof, pgVisibleInSnapshot, pgWalLsnDiff, pgWalReplayPause, pgWalReplayResume, pgWalSummaryContents, pgWalfileName, pgWalfileNameOffset, pgXactCommitTimestamp, pgXactStatus, phrasetoTsquery, pi, plaintoTsquery, plpgsqlCallHandler, plpgsqlValidator, point, pointAbove, pointAdd, pointBelow, pointDistance, pointDiv, pointEq, pointHoriz, pointLeft, pointMul, pointNe, pointRight, pointSub, pointVert, polyAbove, polyBelow, polyCenter, polyContainPt, polyContained, polyDistance, polyLeft, polyNpoints, polyOverabove, polyOverbelow, polyOverlap, polyOverleft, polyOverright, polyRight, polySame, polygon, popen, position, postgresqlFdwValidator, pow, power, ptContainedCircle, ptContainedPoly, queryToXml, queryToXmlAndXmlschema, queryToXmlschema, querytree, quoteIdent, quoteLiteral, quoteNullable, radians, radius, random, randomNormal, rangeAdjacent, rangeAdjacentMultirange, rangeAfter, rangeAfterMultirange, rangeAgg, rangeBefore, rangeBeforeMultirange, rangeCmp, rangeContainedBy, rangeContainedByMultirange, rangeContains, rangeContainsElem, rangeContainsMultirange, rangeEq, rangeGe, rangeGt, rangeIntersect, rangeIntersectAgg, rangeIntersectAggTransfn, rangeLe, rangeLt, rangeMerge, rangeMinus, rangeNe, rangeOverlaps, rangeOverlapsMultirange, rangeOverleft, rangeOverleftMultirange, rangeOverright, rangeOverrightMultirange, rangeUnion, rank, recordEq, recordGe, recordGt, recordImageEq, recordImageGe, recordImageGt, recordImageLe, recordImageLt, recordImageNe, recordLe, recordLt, recordNe, regclass, regexpCount, regexpInstr, regexpLike, regexpMatch, regexpMatches, regexpReplace, regexpSplitToArray, regexpSplitToTable, regexpSubstr, regrAvgx, regrAvgy, regrCount, regrIntercept, regrR2, regrSlope, regrSxx, regrSxy, regrSyy, repeat, replace, resultType, reverse, riFKeyCascadeDel, riFKeyCascadeUpd, riFKeyCheckIns, riFKeyCheckUpd, riFKeyNoactionDel, riFKeyNoactionUpd, riFKeyRestrictDel, riFKeyRestrictUpd, riFKeySetdefaultDel, riFKeySetdefaultUpd, riFKeySetnullDel, riFKeySetnullUpd, right, round, rowNumber, rowSecurityActive, rowToJson, rpad, rtrim, satisfiesHashPartition, scale, schemaToXml, schemaToXmlAndXmlschema, schemaToXmlschema, sessionUser, setBit, setByte, setConfig, setMasklen, setseed, setval, setweight, sha224, sha256, sha384, sha512, shobjDescription, sign, similarEscape, similarToEscape, sind, sinh, slope, spgPolyQuadCompress, splitPart, sqlFunction, sqrt, startsWith, statementTimestamp, stddev, stddevPop, stddevSamp, stringAgg, stringToArray, stringToTable, strip, strpos, substr, substring, sum, suppressRedundantUpdatesTrigger, systemUser, tableToXml, tableToXmlAndXmlschema, tableToXmlschema, tan, tand, tanh, text, textGe, textGt, textLarger, textLe, textLt, textPatternGe, textPatternGt, textPatternLe, textPatternLt, textSmaller, textanycat, textcat, texteq, texteqname, textgename, textgtname, texticlike, texticnlike, texticregexeq, texticregexne, textlen, textlename, textlike, textltname, textne, textnename, textnlike, textregexeq, textregexne, tideq, tidge, tidgt, tidlarger, tidle, tidlt, tidne, tidsmaller, time, timeCmp, timeEq, timeGe, timeGt, timeHash, timeHashExtended, timeLarger, timeLe, timeLt, timeMiInterval, timeMiTime, timeNe, timePlInterval, timeSmaller, timedatePl, timeofday, timestamp, timestampCmp, timestampCmpDate, timestampCmpTimestamptz, timestampEq, timestampEqDate, timestampEqTimestamptz, timestampGe, timestampGeDate, timestampGeTimestamptz, timestampGt, timestampGtDate, timestampGtTimestamptz, timestampHash, timestampHashExtended, timestampLarger, timestampLe, timestampLeDate, timestampLeTimestamptz, timestampLt, timestampLtDate, timestampLtTimestamptz, timestampMi, timestampMiInterval, timestampNe, timestampNeDate, timestampNeTimestamptz, timestampPlInterval, timestampSmaller, timestamptz, timestamptzCmp, timestamptzCmpDate, timestamptzCmpTimestamp, timestamptzEq, timestamptzEqDate, timestamptzEqTimestamp, timestamptzGe, timestamptzGeDate, timestamptzGeTimestamp, timestamptzGt, timestamptzGtDate, timestamptzGtTimestamp, timestamptzLarger, timestamptzLe, timestamptzLeDate, timestamptzLeTimestamp, timestamptzLt, timestamptzLtDate, timestamptzLtTimestamp, timestamptzMi, timestamptzMiInterval, timestamptzNe, timestamptzNeDate, timestamptzNeTimestamp, timestamptzPlInterval, timestamptzSmaller, timetz, timetzCmp, timetzEq, timetzGe, timetzGt, timetzHash, timetzHashExtended, timetzLarger, timetzLe, timetzLt, timetzMiInterval, timetzNe, timetzPlInterval, timetzSmaller, timetzdatePl, timezone, toAscii, toChar, toDate, toHex, toJson, toJsonb, toNumber, toOct, toRegclass, toRegcollation, toRegnamespace, toRegoper, toRegoperator, toRegproc, toRegprocedure, toRegrole, toRegtype, toRegtypemod, toTimestamp, toTsquery, toTsvector, transactionTimestamp, translate, trimArray, trimScale, trunc, tsDebug, tsDelete, tsFilter, tsHeadline, tsLexize, tsMatchQv, tsMatchTq, tsMatchTt, tsMatchVq, tsParse, tsRank, tsRankCd, tsRewrite, tsStat, tsTokenType, tsmultirange, tsqMcontained, tsqMcontains, tsqueryAnd, tsqueryCmp, tsqueryEq, tsqueryGe, tsqueryGt, tsqueryLe, tsqueryLt, tsqueryNe, tsqueryNot, tsqueryOr, tsqueryPhrase, tsrange, tsrangeSubdiff, tstzmultirange, tstzrange, tstzrangeSubdiff, tsvectorCmp, tsvectorConcat, tsvectorEq, tsvectorGe, tsvectorGt, tsvectorLe, tsvectorLt, tsvectorNe, tsvectorToArray, tsvectorUpdateTrigger, tsvectorUpdateTriggerColumn, txidCurrent, txidCurrentIfAssigned, txidCurrentSnapshot, txidSnapshotXip, txidSnapshotXmax, txidStatus, txidVisibleInSnapshot, unicodeAssigned, unicodeVersion, uniqueKeyRecheck, unistr, unnest, upper, upperInc, upperInf, uuidCmp, uuidEq, uuidExtractTimestamp, uuidExtractVersion, uuidGe, uuidGt, uuidHash, uuidHashExtended, uuidLe, uuidLt, uuidNe, values, varPop, varSamp, varbit, varbitcmp, varbiteq, varbitge, varbitgt, varbitle, varbitlt, varbitne, varchar, variance, version, websearchToTsquery, width, widthBucket, xid, xid8Cmp, xid8Eq, xid8Ge, xid8Gt, xid8Larger, xid8Le, xid8Lt, xid8Ne, xid8Smaller, xideq, xideqint4, xidneq, xidneqint4, xml, xmlIsWellFormed, xmlIsWellFormedContent, xmlIsWellFormedDocument, xmlagg, xmlcomment, xmlconcat2, xmlexists, xmltext, xmlvalidate, xpath, xpathExists };
+export { export_default$1m as Aclitem, Any, export_default$1l as Anyenum, export_default$1k as Anymultirange, export_default$1j as Anynonarray, export_default$1i as Anyrange, Array$1 as Array, BinaryOperatorExpression, export_default$1h as Bit, export_default$1g as Bool, export_default$1f as Box, export_default$1e as Bpchar, export_default$1d as Bytea, export_default$1c as Char, export_default$1b as Cid, export_default$1a as Cidr, export_default$19 as Circle, ColumnAliasExpression, Context, export_default$18 as Date, export_default$17 as Datemultirange, export_default$16 as Daterange, Expression, export_default$15 as Float4, export_default$14 as Float8, FunctionExpression, Generated, export_default$13 as Inet, export_default$12 as Int2, export_default$11 as Int2Vector, export_default$10 as Int4, export_default$$ as Int4Multirange, export_default$_ as Int4Range, export_default$Z as Int8, export_default$Y as Int8Multirange, export_default$X as Int8Range, export_default$W as Interval, export_default$V as Json, export_default$U as Jsonb, export_default$T as Jsonpath, export_default$S as LanguageHandler, export_default$R as Line, LiteralExpression, LiteralUnknownExpression, export_default$Q as Lseg, export_default$P as Macaddr, export_default$O as Macaddr8, export_default$N as Money, export_default$M as Name, export_default$L as Numeric, export_default$K as Nummultirange, export_default$J as Numrange, export_default$I as Oid, export_default$H as Oidvector, export_default$G as Path, export_default$F as PgDdlCommand, export_default$E as PgLsn, export_default$D as PgMcvList, export_default$C as PgNodeTree, export_default$B as PgSnapshot, export_default$A as Point, export_default$z as Polygon, QueryAlias, RawTableReferenceExpression, Record$1 as Record, export_default$x as Refcursor, export_default$w as Regclass, export_default$v as Regcollation, export_default$u as Regconfig, export_default$t as Regdictionary, export_default$s as Regnamespace, export_default$r as Regoper, export_default$q as Regoperator, export_default$p as Regproc, export_default$o as Regprocedure, export_default$n as Regrole, export_default$m as Regtype, SelectableExpression, SelectableFunctionExpression, Setof, SubqueryExpression, TableReferenceExpression, export_default$l as Text, export_default$k as Tid, export_default$j as Time, export_default$i as Timestamp, export_default$h as Timestamptz, export_default$g as Timetz, export_default$f as Trigger, export_default$e as Tsmultirange, export_default$d as Tsquery, export_default$c as Tsrange, export_default$b as Tstzmultirange, export_default$a as Tstzrange, export_default$9 as Tsvector, export_default$8 as TxidSnapshot, export_default$7 as Uuid, ValuesExpression, export_default$6 as Varbit, export_default$5 as Varchar, export_default$4 as Void, export_default$3 as Xid, export_default$2 as Xid8, export_default$1 as Xml, abbrev, abs, aclcontains, acldefault, aclexplode, aclinsert, aclitemeq, aclremove, acos, acosd, acosh, age, aliasRowLike, aliasScalar, amvalidate, anyValue, anyValueTransfn, anytextcat, area, arrayAgg, arrayAppend, arrayCat, arrayDims, arrayEq, arrayFill, arrayGe, arrayGt, arrayLarger, arrayLe, arrayLength, arrayLower, arrayLt, arrayNdims, arrayNe, arrayPosition, arrayPositions, arrayPrepend, arrayRemove, arrayReplace, arraySample, arrayShuffle, arraySmaller, arrayToJson, arrayToString, arrayToTsvector, arrayUpper, arraycontained, arraycontains, arrayoverlap, ascii, asind, asinh, atan, atan2, atan2D, atand, atanh, avg, binaryUpgradeAddSubRelState, binaryUpgradeCreateEmptyExtension, binaryUpgradeLogicalSlotHasCaughtUp, binaryUpgradeReploriginAdvance, binaryUpgradeSetMissingValue, binaryUpgradeSetNextArrayPgTypeOid, binaryUpgradeSetNextHeapPgClassOid, binaryUpgradeSetNextHeapRelfilenode, binaryUpgradeSetNextIndexPgClassOid, binaryUpgradeSetNextIndexRelfilenode, binaryUpgradeSetNextMultirangeArrayPgTypeOid, binaryUpgradeSetNextMultirangePgTypeOid, binaryUpgradeSetNextPgAuthidOid, binaryUpgradeSetNextPgEnumOid, binaryUpgradeSetNextPgTablespaceOid, binaryUpgradeSetNextPgTypeOid, binaryUpgradeSetNextToastPgClassOid, binaryUpgradeSetNextToastRelfilenode, binaryUpgradeSetRecordInitPrivs, bit, bitAnd, bitCount, bitLength, bitOr, bitXor, bitand, bitcat, bitcmp, biteq, bitge, bitgt, bitle, bitlt, bitne, bitnot, bitor, bitshiftleft, bitshiftright, bitxor, bool, boolAnd, boolOr, boolandStatefunc, booleq, boolge, boolgt, boolle, boollt, boolne, boolorStatefunc, boundBox, box, boxAbove, boxAboveEq, boxAdd, boxBelow, boxBelowEq, boxCenter, boxContainPt, boxContained, boxDistance, boxDiv, boxEq, boxGe, boxGt, boxIntersect, boxLe, boxLeft, boxLt, boxMul, boxOverabove, boxOverbelow, boxOverlap, boxOverleft, boxOverright, boxRight, boxSame, boxSub, bpchar, bpcharLarger, bpcharPatternGe, bpcharPatternGt, bpcharPatternLe, bpcharPatternLt, bpcharSmaller, bpcharcmp, bpchareq, bpcharge, bpchargt, bpchariclike, bpcharicnlike, bpcharicregexeq, bpcharicregexne, bpcharle, bpcharlike, bpcharlt, bpcharne, bpcharnlike, bpcharregexeq, bpcharregexne, brinDesummarizeRange, brinSummarizeNewValues, brinSummarizeRange, broadcast, btarraycmp, btboolcmp, btbpcharPatternCmp, btcharcmp, btequalimage, btfloat48Cmp, btfloat4Cmp, btfloat84Cmp, btfloat8Cmp, btint24Cmp, btint28Cmp, btint2Cmp, btint42Cmp, btint48Cmp, btint4Cmp, btint82Cmp, btint84Cmp, btint8Cmp, btnamecmp, btnametextcmp, btoidcmp, btoidvectorcmp, btrecordcmp, btrecordimagecmp, btrim, bttextPatternCmp, bttextcmp, bttextnamecmp, bttidcmp, btvarstrequalimage, byteacat, byteacmp, byteaeq, byteage, byteagt, byteale, bytealike, bytealt, byteane, byteanlike, cardinality, cashCmp, cashDivCash, cashDivFlt4, cashDivFlt8, cashDivInt2, cashDivInt4, cashDivInt8, cashEq, cashGe, cashGt, cashLe, cashLt, cashMi, cashMulFlt4, cashMulFlt8, cashMulInt2, cashMulInt4, cashMulInt8, cashNe, cashPl, cashWords, cashlarger, cashsmaller, cbrt, ceil, ceiling, center, char, charLength, characterLength, chareq, charge, chargt, charle, charlt, charne, chr, cideq, cidr, circle, circleAbove, circleAddPt, circleBelow, circleCenter, circleContainPt, circleContained, circleDistance, circleDivPt, circleEq, circleGe, circleGt, circleLe, circleLeft, circleLt, circleMulPt, circleNe, circleOverabove, circleOverbelow, circleOverlap, circleOverleft, circleOverright, circleRight, circleSame, circleSubPt, clockTimestamp, closeLs, closeLseg, closePb, closePl, closePs, closeSb, colDescription, concat, concatWs, convert, convertFrom, convertTo, corr, cos, cosd, cosh, cot, cotd, count, covarPop, covarSamp, cumeDist, currentDatabase, currentQuery, currentSchema, currentSchemas, currentSetting, currentUser, currtid2, currval, cursorToXml, cursorToXmlschema, database, databaseToXml, databaseToXmlAndXmlschema, databaseToXmlschema, date, dateAdd, dateCmp, dateCmpTimestamp, dateCmpTimestamptz, dateEq, dateEqTimestamp, dateEqTimestamptz, dateGe, dateGeTimestamp, dateGeTimestamptz, dateGt, dateGtTimestamp, dateGtTimestamptz, dateLarger, dateLe, dateLeTimestamp, dateLeTimestamptz, dateLt, dateLtTimestamp, dateLtTimestamptz, dateMi, dateMiInterval, dateMii, dateNe, dateNeTimestamp, dateNeTimestamptz, datePart, datePlInterval, datePli, dateSmaller, dateSubtract, dateTrunc, datemultirange, daterange, daterangeCanonical, daterangeSubdiff, datetimePl, datetimetzPl, db, dcbrt, decode, degrees, denseRank, dexp, diagonal, diameter, distBp, distBs, distCpoint, distCpoly, distLp, distLs, distPathp, distPb, distPc, distPl, distPolyc, distPolyp, distPpath, distPpoly, distPs, distSb, distSl, distSp, div, dlog1, dlog10, dpow, dround, dsqrt, dtrunc, elemContainedByMultirange, elemContainedByRange, encode, enumCmp, enumEq, enumFirst, enumGe, enumGt, enumLarger, enumLast, enumLe, enumLt, enumNe, enumRange, enumSmaller, erf, erfc, every, exp, extract, factorial, family, firstValue, float4, float48Div, float48Eq, float48Ge, float48Gt, float48Le, float48Lt, float48Mi, float48Mul, float48Ne, float48Pl, float4Abs, float4Accum, float4Div, float4Eq, float4Ge, float4Gt, float4Larger, float4Le, float4Lt, float4Mi, float4Mul, float4Ne, float4Pl, float4Smaller, float4Um, float4Up, float8, float84Div, float84Eq, float84Ge, float84Gt, float84Le, float84Lt, float84Mi, float84Mul, float84Ne, float84Pl, float8Abs, float8Accum, float8Avg, float8Combine, float8Corr, float8CovarPop, float8CovarSamp, float8Div, float8Eq, float8Ge, float8Gt, float8Larger, float8Le, float8Lt, float8Mi, float8Mul, float8Ne, float8Pl, float8RegrAccum, float8RegrAvgx, float8RegrAvgy, float8RegrCombine, float8RegrIntercept, float8RegrR2, float8RegrSlope, float8RegrSxx, float8RegrSxy, float8RegrSyy, float8Smaller, float8StddevPop, float8StddevSamp, float8Um, float8Up, float8VarPop, float8VarSamp, floor, flt4MulCash, flt8MulCash, fmgrCValidator, fmgrInternalValidator, fmgrSqlValidator, format, formatType, gcd, genRandomUuid, generateSeries, generateSubscripts, getBit, getByte, getCurrentTsConfig, getdatabaseencoding, getpgusername, ginCleanPendingList, ginCmpTslexeme, ginCompareJsonb, hasAnyColumnPrivilege, hasColumnPrivilege, hasDatabasePrivilege, hasForeignDataWrapperPrivilege, hasFunctionPrivilege, hasLanguagePrivilege, hasParameterPrivilege, hasSchemaPrivilege, hasSequencePrivilege, hasServerPrivilege, hasTablePrivilege, hasTablespacePrivilege, hasTypePrivilege, hashAclitem, hashAclitemExtended, hashArray, hashArrayExtended, hashMultirange, hashMultirangeExtended, hashNumeric, hashNumericExtended, hashRange, hashRangeExtended, hashRecord, hashRecordExtended, hashbpchar, hashbpcharextended, hashchar, hashcharextended, hashenum, hashenumextended, hashfloat4, hashfloat4Extended, hashfloat8, hashfloat8Extended, hashinet, hashinetextended, hashint2, hashint2Extended, hashint4, hashint4Extended, hashint8, hashint8Extended, hashmacaddr, hashmacaddr8, hashmacaddr8Extended, hashmacaddrextended, hashname, hashnameextended, hashoid, hashoidextended, hashoidvector, hashoidvectorextended, hashtext, hashtextextended, hashtid, hashtidextended, height, host, hostmask, icuUnicodeVersion, inRange, inetClientAddr, inetClientPort, inetMerge, inetSameFamily, inetServerAddr, inetServerPort, inetand, inetmi, inetmiInt8, inetnot, inetor, inetpl, initcap, int2, int24Div, int24Eq, int24Ge, int24Gt, int24Le, int24Lt, int24Mi, int24Mul, int24Ne, int24Pl, int28Div, int28Eq, int28Ge, int28Gt, int28Le, int28Lt, int28Mi, int28Mul, int28Ne, int28Pl, int2Abs, int2And, int2AvgAccum, int2AvgAccumInv, int2Div, int2Eq, int2Ge, int2Gt, int2Int4Sum, int2Larger, int2Le, int2Lt, int2Mi, int2Mod, int2Mul, int2MulCash, int2Ne, int2Not, int2Or, int2Pl, int2Shl, int2Shr, int2Smaller, int2Sum, int2Um, int2Up, int2Xor, int4, int42Div, int42Eq, int42Ge, int42Gt, int42Le, int42Lt, int42Mi, int42Mul, int42Ne, int42Pl, int48Div, int48Eq, int48Ge, int48Gt, int48Le, int48Lt, int48Mi, int48Mul, int48Ne, int48Pl, int4Abs, int4And, int4AvgAccum, int4AvgAccumInv, int4AvgCombine, int4Div, int4Eq, int4Ge, int4Gt, int4Inc, int4Larger, int4Le, int4Lt, int4Mi, int4Mod, int4Mul, int4MulCash, int4Multirange, int4Ne, int4Not, int4Or, int4Pl, int4Range, int4RangeCanonical, int4RangeSubdiff, int4Shl, int4Shr, int4Smaller, int4Sum, int4Um, int4Up, int4Xor, int8, int82Div, int82Eq, int82Ge, int82Gt, int82Le, int82Lt, int82Mi, int82Mul, int82Ne, int82Pl, int84Div, int84Eq, int84Ge, int84Gt, int84Le, int84Lt, int84Mi, int84Mul, int84Ne, int84Pl, int8Abs, int8And, int8Avg, int8Dec, int8DecAny, int8Div, int8Eq, int8Ge, int8Gt, int8Inc, int8IncAny, int8IncFloat8Float8, int8Larger, int8Le, int8Lt, int8Mi, int8Mod, int8Mul, int8MulCash, int8Multirange, int8Ne, int8Not, int8Or, int8Pl, int8PlInet, int8Range, int8RangeCanonical, int8RangeSubdiff, int8Shl, int8Shr, int8Smaller, int8Sum, int8Um, int8Up, int8Xor, integerPlDate, interLb, interSb, interSl, interval, intervalCmp, intervalDiv, intervalEq, intervalGe, intervalGt, intervalHash, intervalHashExtended, intervalLarger, intervalLe, intervalLt, intervalMi, intervalMul, intervalNe, intervalPl, intervalPlDate, intervalPlTime, intervalPlTimestamp, intervalPlTimestamptz, intervalPlTimetz, intervalSmaller, intervalUm, isNormalized, isScalar, isScalarRelaxed, isclosed, isempty, isfinite, ishorizontal, isopen, isparallel, isperp, isvertical, jsonAgg, jsonAggStrict, jsonArrayElement, jsonArrayElementText, jsonArrayElements, jsonArrayElementsText, jsonArrayLength, jsonBuildArray, jsonBuildObject, jsonEach, jsonEachText, jsonExtractPath, jsonExtractPathText, jsonObject, jsonObjectAgg, jsonObjectAggStrict, jsonObjectAggUnique, jsonObjectAggUniqueStrict, jsonObjectField, jsonObjectFieldText, jsonObjectKeys, jsonPopulateRecord, jsonPopulateRecordset, jsonStripNulls, jsonToRecord, jsonToRecordset, jsonToTsvector, jsonTypeof, jsonbAgg, jsonbAggStrict, jsonbArrayElement, jsonbArrayElementText, jsonbArrayElements, jsonbArrayElementsText, jsonbArrayLength, jsonbBuildArray, jsonbBuildObject, jsonbCmp, jsonbConcat, jsonbContained, jsonbContains, jsonbDelete, jsonbDeletePath, jsonbEach, jsonbEachText, jsonbEq, jsonbExists, jsonbExistsAll, jsonbExistsAny, jsonbExtractPath, jsonbExtractPathText, jsonbGe, jsonbGt, jsonbHash, jsonbHashExtended, jsonbInsert, jsonbLe, jsonbLt, jsonbNe, jsonbObject, jsonbObjectAgg, jsonbObjectAggStrict, jsonbObjectAggUnique, jsonbObjectAggUniqueStrict, jsonbObjectField, jsonbObjectFieldText, jsonbObjectKeys, jsonbPathExists, jsonbPathExistsOpr, jsonbPathExistsTz, jsonbPathMatch, jsonbPathMatchOpr, jsonbPathMatchTz, jsonbPathQuery, jsonbPathQueryArray, jsonbPathQueryArrayTz, jsonbPathQueryFirst, jsonbPathQueryFirstTz, jsonbPathQueryTz, jsonbPopulateRecord, jsonbPopulateRecordValid, jsonbPopulateRecordset, jsonbPretty, jsonbSet, jsonbSetLax, jsonbStripNulls, jsonbToRecord, jsonbToRecordset, jsonbToTsvector, jsonbTypeof, justifyDays, justifyHours, justifyInterval, lag, lastValue, lastval, lcm, lead, left, length, like, likeEscape, line, lineDistance, lineEq, lineHorizontal, lineInterpt, lineIntersect, lineParallel, linePerp, lineVertical, ln, loClose, loCreat, loCreate, loExport, loFromBytea, loGet, loImport, loLseek, loLseek64, loOpen, loPut, loTell, loTell64, loTruncate, loTruncate64, loUnlink, log, log10, loread, lower, lowerInc, lowerInf, lowrite, lpad, lseg, lsegCenter, lsegDistance, lsegEq, lsegGe, lsegGt, lsegHorizontal, lsegInterpt, lsegIntersect, lsegLe, lsegLength, lsegLt, lsegNe, lsegParallel, lsegPerp, lsegVertical, ltrim, macaddr, macaddr8, macaddr8And, macaddr8Cmp, macaddr8Eq, macaddr8Ge, macaddr8Gt, macaddr8Le, macaddr8Lt, macaddr8Ne, macaddr8Not, macaddr8Or, macaddr8Set7Bit, macaddrAnd, macaddrCmp, macaddrEq, macaddrGe, macaddrGt, macaddrLe, macaddrLt, macaddrNe, macaddrNot, macaddrOr, makeDate, makeInterval, makeTime, makeTimestamp, makeTimestamptz, makeaclitem, masklen, max, md5, minScale, mod, mode, money, mulDInterval, multirange, multirangeAdjacentMultirange, multirangeAdjacentRange, multirangeAfterMultirange, multirangeAfterRange, multirangeBeforeMultirange, multirangeBeforeRange, multirangeCmp, multirangeContainedByMultirange, multirangeContainedByRange, multirangeContainsElem, multirangeContainsMultirange, multirangeContainsRange, multirangeEq, multirangeGe, multirangeGt, multirangeIntersect, multirangeIntersectAggTransfn, multirangeLe, multirangeLt, multirangeMinus, multirangeNe, multirangeOverlapsMultirange, multirangeOverlapsRange, multirangeOverleftMultirange, multirangeOverleftRange, multirangeOverrightMultirange, multirangeOverrightRange, multirangeUnion, mxidAge, name, nameconcatoid, nameeq, nameeqtext, namege, namegetext, namegt, namegttext, nameiclike, nameicnlike, nameicregexeq, nameicregexne, namele, nameletext, namelike, namelt, namelttext, namene, namenetext, namenlike, nameregexeq, nameregexne, netmask, network, networkCmp, networkEq, networkGe, networkGt, networkLarger, networkLe, networkLt, networkNe, networkOverlap, networkSmaller, networkSub, networkSubeq, networkSup, networkSupeq, nextval, normalize, notlike, now, npoints, nthValue, ntile, numNonnulls, numNulls, numeric, numericAbs, numericAdd, numericCmp, numericDiv, numericDivTrunc, numericEq, numericExp, numericGe, numericGt, numericInc, numericLarger, numericLe, numericLn, numericLog, numericLt, numericMod, numericMul, numericNe, numericPlPgLsn, numericPower, numericSmaller, numericSqrt, numericSub, numericUminus, numericUplus, nummultirange, numnode, numrange, numrangeSubdiff, objDescription, octetLength, oid, oideq, oidge, oidgt, oidlarger, oidle, oidlt, oidne, oidsmaller, oidvectoreq, oidvectorge, oidvectorgt, oidvectorle, oidvectorlt, oidvectorne, oidvectortypes, onPb, onPl, onPpath, onPs, onSb, onSl, overlaps, overlay, parseIdent, path, pathAdd, pathAddPt, pathContainPt, pathDistance, pathDivPt, pathInter, pathLength, pathMulPt, pathNEq, pathNGe, pathNGt, pathNLe, pathNLt, pathNpoints, pathSubPt, pclose, percentRank, percentileCont, percentileDisc, pgAdvisoryLock, pgAdvisoryLockShared, pgAdvisoryUnlock, pgAdvisoryUnlockAll, pgAdvisoryUnlockShared, pgAdvisoryXactLock, pgAdvisoryXactLockShared, pgAvailableExtensionVersions, pgAvailableExtensions, pgAvailableWalSummaries, pgBackendPid, pgBackupStart, pgBackupStop, pgBasetype, pgBlockingPids, pgCancelBackend, pgCharToEncoding, pgClientEncoding, pgCollationActualVersion, pgCollationFor, pgCollationIsVisible, pgColumnCompression, pgColumnIsUpdatable, pgColumnSize, pgColumnToastChunkId, pgConfLoadTime, pgConfig, pgControlCheckpoint, pgControlInit, pgControlRecovery, pgControlSystem, pgConversionIsVisible, pgCopyLogicalReplicationSlot, pgCopyPhysicalReplicationSlot, pgCreateLogicalReplicationSlot, pgCreatePhysicalReplicationSlot, pgCreateRestorePoint, pgCurrentLogfile, pgCurrentSnapshot, pgCurrentWalFlushLsn, pgCurrentWalInsertLsn, pgCurrentWalLsn, pgCurrentXactId, pgCurrentXactIdIfAssigned, pgCursor, pgDatabaseCollationActualVersion, pgDatabaseSize, pgDescribeObject, pgDropReplicationSlot, pgEncodingMaxLength, pgEncodingToChar, pgEventTriggerDdlCommands, pgEventTriggerDroppedObjects, pgEventTriggerTableRewriteOid, pgEventTriggerTableRewriteReason, pgExportSnapshot, pgExtensionConfigDump, pgExtensionUpdatePaths, pgFilenodeRelation, pgFunctionIsVisible, pgGetBackendMemoryContexts, pgGetCatalogForeignKeys, pgGetConstraintdef, pgGetExpr, pgGetFunctionArgDefault, pgGetFunctionArguments, pgGetFunctionIdentityArguments, pgGetFunctionResult, pgGetFunctionSqlbody, pgGetFunctiondef, pgGetIndexdef, pgGetKeywords, pgGetMultixactMembers, pgGetObjectAddress, pgGetPartitionConstraintdef, pgGetPartkeydef, pgGetPublicationTables, pgGetReplicaIdentityIndex, pgGetReplicationSlots, pgGetRuledef, pgGetSerialSequence, pgGetShmemAllocations, pgGetStatisticsobjdef, pgGetStatisticsobjdefColumns, pgGetStatisticsobjdefExpressions, pgGetTriggerdef, pgGetUserbyid, pgGetViewdef, pgGetWaitEvents, pgGetWalReplayPauseState, pgGetWalResourceManagers, pgGetWalSummarizerState, pgHasRole, pgHbaFileRules, pgIdentFileMappings, pgIdentifyObject, pgIdentifyObjectAsAddress, pgImportSystemCollations, pgIndexColumnHasProperty, pgIndexHasProperty, pgIndexamHasProperty, pgIndexamProgressPhasename, pgIndexesSize, pgInputErrorInfo, pgInputIsValid, pgIsInRecovery, pgIsOtherTempSchema, pgIsWalReplayPaused, pgIsolationTestSessionIsBlocked, pgJitAvailable, pgLastCommittedXact, pgLastWalReceiveLsn, pgLastWalReplayLsn, pgLastXactReplayTimestamp, pgListeningChannels, pgLockStatus, pgLogBackendMemoryContexts, pgLogStandbySnapshot, pgLogicalEmitMessage, pgLogicalSlotGetBinaryChanges, pgLogicalSlotGetChanges, pgLogicalSlotPeekBinaryChanges, pgLogicalSlotPeekChanges, pgLsArchiveStatusdir, pgLsDir, pgLsLogdir, pgLsLogicalmapdir, pgLsLogicalsnapdir, pgLsReplslotdir, pgLsTmpdir, pgLsWaldir, pgLsn, pgLsnCmp, pgLsnEq, pgLsnGe, pgLsnGt, pgLsnHash, pgLsnHashExtended, pgLsnLarger, pgLsnLe, pgLsnLt, pgLsnMi, pgLsnMii, pgLsnNe, pgLsnPli, pgLsnSmaller, pgMcvListItems, pgMyTempSchema, pgNextoid, pgNotificationQueueUsage, pgNotify, pgOpclassIsVisible, pgOperatorIsVisible, pgOpfamilyIsVisible, pgOptionsToTable, pgPartitionAncestors, pgPartitionRoot, pgPartitionTree, pgPostmasterStartTime, pgPreparedStatement, pgPreparedXact, pgPromote, pgReadBinaryFile, pgReadFile, pgRelationFilenode, pgRelationFilepath, pgRelationIsPublishable, pgRelationIsUpdatable, pgRelationSize, pgReloadConf, pgReplicationOriginAdvance, pgReplicationOriginCreate, pgReplicationOriginDrop, pgReplicationOriginOid, pgReplicationOriginProgress, pgReplicationOriginSessionIsSetup, pgReplicationOriginSessionProgress, pgReplicationOriginSessionReset, pgReplicationOriginSessionSetup, pgReplicationOriginXactReset, pgReplicationOriginXactSetup, pgReplicationSlotAdvance, pgRotateLogfile, pgSafeSnapshotBlockingPids, pgSequenceLastValue, pgSequenceParameters, pgSettingsGetFlags, pgShowAllFileSettings, pgShowAllSettings, pgShowReplicationOriginStatus, pgSizeBytes, pgSizePretty, pgSleep, pgSleepFor, pgSleepUntil, pgSnapshotXip, pgSnapshotXmax, pgSplitWalfileName, pgStatClearSnapshot, pgStatFile, pgStatForceNextFlush, pgStatGetActivity, pgStatGetAnalyzeCount, pgStatGetArchiver, pgStatGetAutoanalyzeCount, pgStatGetAutovacuumCount, pgStatGetBackendActivity, pgStatGetBackendActivityStart, pgStatGetBackendClientAddr, pgStatGetBackendClientPort, pgStatGetBackendDbid, pgStatGetBackendIdset, pgStatGetBackendPid, pgStatGetBackendStart, pgStatGetBackendSubxact, pgStatGetBackendUserid, pgStatGetBackendWaitEvent, pgStatGetBackendWaitEventType, pgStatGetBackendXactStart, pgStatGetBgwriterBufWrittenClean, pgStatGetBgwriterMaxwrittenClean, pgStatGetBgwriterStatResetTime, pgStatGetBlocksFetched, pgStatGetBlocksHit, pgStatGetBufAlloc, pgStatGetCheckpointerBuffersWritten, pgStatGetCheckpointerNumRequested, pgStatGetCheckpointerNumTimed, pgStatGetCheckpointerRestartpointsPerformed, pgStatGetCheckpointerRestartpointsRequested, pgStatGetCheckpointerRestartpointsTimed, pgStatGetCheckpointerStatResetTime, pgStatGetCheckpointerSyncTime, pgStatGetCheckpointerWriteTime, pgStatGetDbActiveTime, pgStatGetDbBlkReadTime, pgStatGetDbBlkWriteTime, pgStatGetDbBlocksFetched, pgStatGetDbBlocksHit, pgStatGetDbChecksumFailures, pgStatGetDbChecksumLastFailure, pgStatGetDbConflictAll, pgStatGetDbConflictLock, pgStatGetDbConflictLogicalslot, pgStatGetDbConflictSnapshot, pgStatGetDbConflictStartupDeadlock, pgStatGetDbConflictTablespace, pgStatGetDbDeadlocks, pgStatGetDbIdleInTransactionTime, pgStatGetDbNumbackends, pgStatGetDbSessionTime, pgStatGetDbSessions, pgStatGetDbSessionsAbandoned, pgStatGetDbSessionsFatal, pgStatGetDbSessionsKilled, pgStatGetDbStatResetTime, pgStatGetDbTempBytes, pgStatGetDbTempFiles, pgStatGetDbTuplesDeleted, pgStatGetDbTuplesFetched, pgStatGetDbTuplesInserted, pgStatGetDbTuplesReturned, pgStatGetDbTuplesUpdated, pgStatGetDbXactCommit, pgStatGetDbXactRollback, pgStatGetDeadTuples, pgStatGetFunctionCalls, pgStatGetFunctionSelfTime, pgStatGetFunctionTotalTime, pgStatGetInsSinceVacuum, pgStatGetIo, pgStatGetLastAnalyzeTime, pgStatGetLastAutoanalyzeTime, pgStatGetLastAutovacuumTime, pgStatGetLastVacuumTime, pgStatGetLastscan, pgStatGetLiveTuples, pgStatGetModSinceAnalyze, pgStatGetNumscans, pgStatGetProgressInfo, pgStatGetRecoveryPrefetch, pgStatGetReplicationSlot, pgStatGetSlru, pgStatGetSnapshotTimestamp, pgStatGetSubscription, pgStatGetSubscriptionStats, pgStatGetTuplesDeleted, pgStatGetTuplesFetched, pgStatGetTuplesHotUpdated, pgStatGetTuplesInserted, pgStatGetTuplesNewpageUpdated, pgStatGetTuplesReturned, pgStatGetTuplesUpdated, pgStatGetVacuumCount, pgStatGetWal, pgStatGetWalReceiver, pgStatGetWalSenders, pgStatGetXactBlocksFetched, pgStatGetXactBlocksHit, pgStatGetXactFunctionCalls, pgStatGetXactFunctionSelfTime, pgStatGetXactFunctionTotalTime, pgStatGetXactNumscans, pgStatGetXactTuplesDeleted, pgStatGetXactTuplesFetched, pgStatGetXactTuplesHotUpdated, pgStatGetXactTuplesInserted, pgStatGetXactTuplesNewpageUpdated, pgStatGetXactTuplesReturned, pgStatGetXactTuplesUpdated, pgStatHaveStats, pgStatReset, pgStatResetReplicationSlot, pgStatResetShared, pgStatResetSingleFunctionCounters, pgStatResetSingleTableCounters, pgStatResetSlru, pgStatResetSubscriptionStats, pgStatisticsObjIsVisible, pgStopMakingPinnedObjects, pgSwitchWal, pgSyncReplicationSlots, pgTableIsVisible, pgTableSize, pgTablespaceDatabases, pgTablespaceLocation, pgTablespaceSize, pgTerminateBackend, pgTimezoneAbbrevs, pgTimezoneNames, pgTotalRelationSize, pgTriggerDepth, pgTryAdvisoryLock, pgTryAdvisoryLockShared, pgTryAdvisoryXactLock, pgTryAdvisoryXactLockShared, pgTsConfigIsVisible, pgTsDictIsVisible, pgTsParserIsVisible, pgTsTemplateIsVisible, pgTypeIsVisible, pgTypeof, pgVisibleInSnapshot, pgWalLsnDiff, pgWalReplayPause, pgWalReplayResume, pgWalSummaryContents, pgWalfileName, pgWalfileNameOffset, pgXactCommitTimestamp, pgXactStatus, phrasetoTsquery, pi, plaintoTsquery, plpgsqlCallHandler, plpgsqlValidator, point, pointAbove, pointAdd, pointBelow, pointDistance, pointDiv, pointEq, pointHoriz, pointLeft, pointMul, pointNe, pointRight, pointSub, pointVert, polyAbove, polyBelow, polyCenter, polyContainPt, polyContained, polyDistance, polyLeft, polyNpoints, polyOverabove, polyOverbelow, polyOverlap, polyOverleft, polyOverright, polyRight, polySame, polygon, popen, position, postgresqlFdwValidator, pow, power, ptContainedCircle, ptContainedPoly, queryToXml, queryToXmlAndXmlschema, queryToXmlschema, querytree, quoteIdent, quoteLiteral, quoteNullable, radians, radius, random, randomNormal, rangeAdjacent, rangeAdjacentMultirange, rangeAfter, rangeAfterMultirange, rangeAgg, rangeBefore, rangeBeforeMultirange, rangeCmp, rangeContainedBy, rangeContainedByMultirange, rangeContains, rangeContainsElem, rangeContainsMultirange, rangeEq, rangeGe, rangeGt, rangeIntersect, rangeIntersectAgg, rangeIntersectAggTransfn, rangeLe, rangeLt, rangeMerge, rangeMinus, rangeNe, rangeOverlaps, rangeOverlapsMultirange, rangeOverleft, rangeOverleftMultirange, rangeOverright, rangeOverrightMultirange, rangeUnion, rank, recordEq, recordGe, recordGt, recordImageEq, recordImageGe, recordImageGt, recordImageLe, recordImageLt, recordImageNe, recordLe, recordLt, recordNe, regclass, regexpCount, regexpInstr, regexpLike, regexpMatch, regexpMatches, regexpReplace, regexpSplitToArray, regexpSplitToTable, regexpSubstr, regrAvgx, regrAvgy, regrCount, regrIntercept, regrR2, regrSlope, regrSxx, regrSxy, regrSyy, repeat, replace, resultType, reverse, riFKeyCascadeDel, riFKeyCascadeUpd, riFKeyCheckIns, riFKeyCheckUpd, riFKeyNoactionDel, riFKeyNoactionUpd, riFKeyRestrictDel, riFKeyRestrictUpd, riFKeySetdefaultDel, riFKeySetdefaultUpd, riFKeySetnullDel, riFKeySetnullUpd, right, round, rowNumber, rowSecurityActive, rowToJson, rpad, rtrim, satisfiesHashPartition, scale, schemaToXml, schemaToXmlAndXmlschema, schemaToXmlschema, sessionUser, setBit, setByte, setConfig, setMasklen, setseed, setval, setweight, sha224, sha256, sha384, sha512, shobjDescription, sign, similarEscape, similarToEscape, sind, sinh, slope, spgPolyQuadCompress, splitPart, sqlFunction, sqrt, startsWith, statementTimestamp, stddev, stddevPop, stddevSamp, stringAgg, stringToArray, stringToTable, strip, strpos, substr, substring, sum, suppressRedundantUpdatesTrigger, systemUser, tableToXml, tableToXmlAndXmlschema, tableToXmlschema, tan, tand, tanh, text, textGe, textGt, textLarger, textLe, textLt, textPatternGe, textPatternGt, textPatternLe, textPatternLt, textSmaller, textanycat, textcat, texteq, texteqname, textgename, textgtname, texticlike, texticnlike, texticregexeq, texticregexne, textlen, textlename, textlike, textltname, textne, textnename, textnlike, textregexeq, textregexne, tideq, tidge, tidgt, tidlarger, tidle, tidlt, tidne, tidsmaller, time, timeCmp, timeEq, timeGe, timeGt, timeHash, timeHashExtended, timeLarger, timeLe, timeLt, timeMiInterval, timeMiTime, timeNe, timePlInterval, timeSmaller, timedatePl, timeofday, timestamp, timestampCmp, timestampCmpDate, timestampCmpTimestamptz, timestampEq, timestampEqDate, timestampEqTimestamptz, timestampGe, timestampGeDate, timestampGeTimestamptz, timestampGt, timestampGtDate, timestampGtTimestamptz, timestampHash, timestampHashExtended, timestampLarger, timestampLe, timestampLeDate, timestampLeTimestamptz, timestampLt, timestampLtDate, timestampLtTimestamptz, timestampMi, timestampMiInterval, timestampNe, timestampNeDate, timestampNeTimestamptz, timestampPlInterval, timestampSmaller, timestamptz, timestamptzCmp, timestamptzCmpDate, timestamptzCmpTimestamp, timestamptzEq, timestamptzEqDate, timestamptzEqTimestamp, timestamptzGe, timestamptzGeDate, timestamptzGeTimestamp, timestamptzGt, timestamptzGtDate, timestamptzGtTimestamp, timestamptzLarger, timestamptzLe, timestamptzLeDate, timestamptzLeTimestamp, timestamptzLt, timestamptzLtDate, timestamptzLtTimestamp, timestamptzMi, timestamptzMiInterval, timestamptzNe, timestamptzNeDate, timestamptzNeTimestamp, timestamptzPlInterval, timestamptzSmaller, timetz, timetzCmp, timetzEq, timetzGe, timetzGt, timetzHash, timetzHashExtended, timetzLarger, timetzLe, timetzLt, timetzMiInterval, timetzNe, timetzPlInterval, timetzSmaller, timetzdatePl, timezone, toAscii, toChar, toDate, toHex, toJson, toJsonb, toNumber, toOct, toRegclass, toRegcollation, toRegnamespace, toRegoper, toRegoperator, toRegproc, toRegprocedure, toRegrole, toRegtype, toRegtypemod, toTimestamp, toTsquery, toTsvector, transactionTimestamp, translate, trimArray, trimScale, trunc, tsDebug, tsDelete, tsFilter, tsHeadline, tsLexize, tsMatchQv, tsMatchTq, tsMatchTt, tsMatchVq, tsParse, tsRank, tsRankCd, tsRewrite, tsStat, tsTokenType, tsmultirange, tsqMcontained, tsqMcontains, tsqueryAnd, tsqueryCmp, tsqueryEq, tsqueryGe, tsqueryGt, tsqueryLe, tsqueryLt, tsqueryNe, tsqueryNot, tsqueryOr, tsqueryPhrase, tsrange, tsrangeSubdiff, tstzmultirange, tstzrange, tstzrangeSubdiff, tsvectorCmp, tsvectorConcat, tsvectorEq, tsvectorGe, tsvectorGt, tsvectorLe, tsvectorLt, tsvectorNe, tsvectorToArray, tsvectorUpdateTrigger, tsvectorUpdateTriggerColumn, txidCurrent, txidCurrentIfAssigned, txidCurrentSnapshot, txidSnapshotXip, txidSnapshotXmax, txidStatus, txidVisibleInSnapshot, unicodeAssigned, unicodeVersion, uniqueKeyRecheck, unistr, unnest, upper, upperInc, upperInf, uuidCmp, uuidEq, uuidExtractTimestamp, uuidExtractVersion, uuidGe, uuidGt, uuidHash, uuidHashExtended, uuidLe, uuidLt, uuidNe, values, varPop, varSamp, varbit, varbitcmp, varbiteq, varbitge, varbitgt, varbitle, varbitlt, varbitne, varchar, variance, version, websearchToTsquery, width, widthBucket, xid, xid8Cmp, xid8Eq, xid8Ge, xid8Gt, xid8Larger, xid8Le, xid8Lt, xid8Ne, xid8Smaller, xideq, xideqint4, xidneq, xidneqint4, xml, xmlIsWellFormed, xmlIsWellFormedContent, xmlIsWellFormedDocument, xmlagg, xmlcomment, xmlconcat2, xmlexists, xmltext, xmlvalidate, xpath, xpathExists };
 export type { Aggregate, AwaitedResultType, BindedSetof, Input, Query, ResultType, RowLike, RowLikeRelaxed, Scalar, ScalarRelaxed, SelectArgs };

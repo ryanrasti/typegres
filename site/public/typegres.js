@@ -1,10 +1,13459 @@
-import { sql, PostgresDialect, Kysely } from 'kysely';
-import { Pool } from 'pg';
-import array from 'postgres-array';
-import 'postgres-date';
-import 'postgres-interval';
-import 'postgres-bytea';
-import range from 'postgres-range';
+/// <reference types="./object-utils.d.ts" />
+function isUndefined(obj) {
+    return typeof obj === 'undefined' || obj === undefined;
+}
+function isString(obj) {
+    return typeof obj === 'string';
+}
+function isNumber(obj) {
+    return typeof obj === 'number';
+}
+function isBoolean(obj) {
+    return typeof obj === 'boolean';
+}
+function isNull(obj) {
+    return obj === null;
+}
+function isDate(obj) {
+    return obj instanceof Date;
+}
+function isBigInt(obj) {
+    return typeof obj === 'bigint';
+}
+function isFunction(obj) {
+    return typeof obj === 'function';
+}
+function isObject(obj) {
+    return typeof obj === 'object' && obj !== null;
+}
+function freeze(obj) {
+    return Object.freeze(obj);
+}
+function asArray(arg) {
+    if (isReadonlyArray(arg)) {
+        return arg;
+    }
+    else {
+        return [arg];
+    }
+}
+function isReadonlyArray(arg) {
+    return Array.isArray(arg);
+}
+function noop(obj) {
+    return obj;
+}
+
+/// <reference types="./alter-table-node.d.ts" />
+/**
+ * @internal
+ */
+const AlterTableNode = freeze({
+    is(node) {
+        return node.kind === 'AlterTableNode';
+    },
+    create(table) {
+        return freeze({
+            kind: 'AlterTableNode',
+            table,
+        });
+    },
+    cloneWithTableProps(node, props) {
+        return freeze({
+            ...node,
+            ...props,
+        });
+    },
+    cloneWithColumnAlteration(node, columnAlteration) {
+        return freeze({
+            ...node,
+            columnAlterations: node.columnAlterations
+                ? [...node.columnAlterations, columnAlteration]
+                : [columnAlteration],
+        });
+    },
+});
+
+/// <reference types="./identifier-node.d.ts" />
+/**
+ * @internal
+ */
+const IdentifierNode = freeze({
+    is(node) {
+        return node.kind === 'IdentifierNode';
+    },
+    create(name) {
+        return freeze({
+            kind: 'IdentifierNode',
+            name,
+        });
+    },
+});
+
+/// <reference types="./create-index-node.d.ts" />
+/**
+ * @internal
+ */
+const CreateIndexNode = freeze({
+    is(node) {
+        return node.kind === 'CreateIndexNode';
+    },
+    create(name) {
+        return freeze({
+            kind: 'CreateIndexNode',
+            name: IdentifierNode.create(name),
+        });
+    },
+    cloneWith(node, props) {
+        return freeze({
+            ...node,
+            ...props,
+        });
+    },
+    cloneWithColumns(node, columns) {
+        return freeze({
+            ...node,
+            columns: [...(node.columns || []), ...columns],
+        });
+    },
+});
+
+/// <reference types="./create-schema-node.d.ts" />
+/**
+ * @internal
+ */
+const CreateSchemaNode = freeze({
+    is(node) {
+        return node.kind === 'CreateSchemaNode';
+    },
+    create(schema, params) {
+        return freeze({
+            kind: 'CreateSchemaNode',
+            schema: IdentifierNode.create(schema),
+            ...params,
+        });
+    },
+    cloneWith(createSchema, params) {
+        return freeze({
+            ...createSchema,
+            ...params,
+        });
+    },
+});
+
+/// <reference types="./create-table-node.d.ts" />
+const ON_COMMIT_ACTIONS = ['preserve rows', 'delete rows', 'drop'];
+/**
+ * @internal
+ */
+const CreateTableNode = freeze({
+    is(node) {
+        return node.kind === 'CreateTableNode';
+    },
+    create(table) {
+        return freeze({
+            kind: 'CreateTableNode',
+            table,
+            columns: freeze([]),
+        });
+    },
+    cloneWithColumn(createTable, column) {
+        return freeze({
+            ...createTable,
+            columns: freeze([...createTable.columns, column]),
+        });
+    },
+    cloneWithConstraint(createTable, constraint) {
+        return freeze({
+            ...createTable,
+            constraints: createTable.constraints
+                ? freeze([...createTable.constraints, constraint])
+                : freeze([constraint]),
+        });
+    },
+    cloneWithFrontModifier(createTable, modifier) {
+        return freeze({
+            ...createTable,
+            frontModifiers: createTable.frontModifiers
+                ? freeze([...createTable.frontModifiers, modifier])
+                : freeze([modifier]),
+        });
+    },
+    cloneWithEndModifier(createTable, modifier) {
+        return freeze({
+            ...createTable,
+            endModifiers: createTable.endModifiers
+                ? freeze([...createTable.endModifiers, modifier])
+                : freeze([modifier]),
+        });
+    },
+    cloneWith(createTable, params) {
+        return freeze({
+            ...createTable,
+            ...params,
+        });
+    },
+});
+
+/// <reference types="./schemable-identifier-node.d.ts" />
+/**
+ * @internal
+ */
+const SchemableIdentifierNode = freeze({
+    is(node) {
+        return node.kind === 'SchemableIdentifierNode';
+    },
+    create(identifier) {
+        return freeze({
+            kind: 'SchemableIdentifierNode',
+            identifier: IdentifierNode.create(identifier),
+        });
+    },
+    createWithSchema(schema, identifier) {
+        return freeze({
+            kind: 'SchemableIdentifierNode',
+            schema: IdentifierNode.create(schema),
+            identifier: IdentifierNode.create(identifier),
+        });
+    },
+});
+
+/// <reference types="./drop-index-node.d.ts" />
+/**
+ * @internal
+ */
+const DropIndexNode = freeze({
+    is(node) {
+        return node.kind === 'DropIndexNode';
+    },
+    create(name, params) {
+        return freeze({
+            kind: 'DropIndexNode',
+            name: SchemableIdentifierNode.create(name),
+            ...params,
+        });
+    },
+    cloneWith(dropIndex, props) {
+        return freeze({
+            ...dropIndex,
+            ...props,
+        });
+    },
+});
+
+/// <reference types="./drop-schema-node.d.ts" />
+/**
+ * @internal
+ */
+const DropSchemaNode = freeze({
+    is(node) {
+        return node.kind === 'DropSchemaNode';
+    },
+    create(schema, params) {
+        return freeze({
+            kind: 'DropSchemaNode',
+            schema: IdentifierNode.create(schema),
+            ...params,
+        });
+    },
+    cloneWith(dropSchema, params) {
+        return freeze({
+            ...dropSchema,
+            ...params,
+        });
+    },
+});
+
+/// <reference types="./drop-table-node.d.ts" />
+/**
+ * @internal
+ */
+const DropTableNode = freeze({
+    is(node) {
+        return node.kind === 'DropTableNode';
+    },
+    create(table, params) {
+        return freeze({
+            kind: 'DropTableNode',
+            table,
+            ...params,
+        });
+    },
+    cloneWith(dropIndex, params) {
+        return freeze({
+            ...dropIndex,
+            ...params,
+        });
+    },
+});
+
+/// <reference types="./alias-node.d.ts" />
+/**
+ * @internal
+ */
+const AliasNode = freeze({
+    is(node) {
+        return node.kind === 'AliasNode';
+    },
+    create(node, alias) {
+        return freeze({
+            kind: 'AliasNode',
+            node,
+            alias,
+        });
+    },
+});
+
+/// <reference types="./table-node.d.ts" />
+/**
+ * @internal
+ */
+const TableNode = freeze({
+    is(node) {
+        return node.kind === 'TableNode';
+    },
+    create(table) {
+        return freeze({
+            kind: 'TableNode',
+            table: SchemableIdentifierNode.create(table),
+        });
+    },
+    createWithSchema(schema, table) {
+        return freeze({
+            kind: 'TableNode',
+            table: SchemableIdentifierNode.createWithSchema(schema, table),
+        });
+    },
+});
+
+/// <reference types="./operation-node-source.d.ts" />
+function isOperationNodeSource(obj) {
+    return isObject(obj) && isFunction(obj.toOperationNode);
+}
+
+/// <reference types="./expression.d.ts" />
+function isExpression(obj) {
+    return isObject(obj) && 'expressionType' in obj && isOperationNodeSource(obj);
+}
+function isAliasedExpression(obj) {
+    return (isObject(obj) &&
+        'expression' in obj &&
+        isString(obj.alias) &&
+        isOperationNodeSource(obj));
+}
+
+/// <reference types="./select-modifier-node.d.ts" />
+/**
+ * @internal
+ */
+const SelectModifierNode = freeze({
+    is(node) {
+        return node.kind === 'SelectModifierNode';
+    },
+    create(modifier, of) {
+        return freeze({
+            kind: 'SelectModifierNode',
+            modifier,
+            of,
+        });
+    },
+    createWithExpression(modifier) {
+        return freeze({
+            kind: 'SelectModifierNode',
+            rawModifier: modifier,
+        });
+    },
+});
+
+/// <reference types="./and-node.d.ts" />
+/**
+ * @internal
+ */
+const AndNode = freeze({
+    is(node) {
+        return node.kind === 'AndNode';
+    },
+    create(left, right) {
+        return freeze({
+            kind: 'AndNode',
+            left,
+            right,
+        });
+    },
+});
+
+/// <reference types="./or-node.d.ts" />
+/**
+ * @internal
+ */
+const OrNode = freeze({
+    is(node) {
+        return node.kind === 'OrNode';
+    },
+    create(left, right) {
+        return freeze({
+            kind: 'OrNode',
+            left,
+            right,
+        });
+    },
+});
+
+/// <reference types="./on-node.d.ts" />
+/**
+ * @internal
+ */
+const OnNode = freeze({
+    is(node) {
+        return node.kind === 'OnNode';
+    },
+    create(filter) {
+        return freeze({
+            kind: 'OnNode',
+            on: filter,
+        });
+    },
+    cloneWithOperation(onNode, operator, operation) {
+        return freeze({
+            ...onNode,
+            on: operator === 'And'
+                ? AndNode.create(onNode.on, operation)
+                : OrNode.create(onNode.on, operation),
+        });
+    },
+});
+
+/// <reference types="./join-node.d.ts" />
+/**
+ * @internal
+ */
+const JoinNode = freeze({
+    is(node) {
+        return node.kind === 'JoinNode';
+    },
+    create(joinType, table) {
+        return freeze({
+            kind: 'JoinNode',
+            joinType,
+            table,
+            on: undefined,
+        });
+    },
+    createWithOn(joinType, table, on) {
+        return freeze({
+            kind: 'JoinNode',
+            joinType,
+            table,
+            on: OnNode.create(on),
+        });
+    },
+    cloneWithOn(joinNode, operation) {
+        return freeze({
+            ...joinNode,
+            on: joinNode.on
+                ? OnNode.cloneWithOperation(joinNode.on, 'And', operation)
+                : OnNode.create(operation),
+        });
+    },
+});
+
+/// <reference types="./binary-operation-node.d.ts" />
+/**
+ * @internal
+ */
+const BinaryOperationNode = freeze({
+    is(node) {
+        return node.kind === 'BinaryOperationNode';
+    },
+    create(leftOperand, operator, rightOperand) {
+        return freeze({
+            kind: 'BinaryOperationNode',
+            leftOperand,
+            operator,
+            rightOperand,
+        });
+    },
+});
+
+/// <reference types="./operator-node.d.ts" />
+const COMPARISON_OPERATORS = [
+    '=',
+    '==',
+    '!=',
+    '<>',
+    '>',
+    '>=',
+    '<',
+    '<=',
+    'in',
+    'not in',
+    'is',
+    'is not',
+    'like',
+    'not like',
+    'match',
+    'ilike',
+    'not ilike',
+    '@>',
+    '<@',
+    '^@',
+    '&&',
+    '?',
+    '?&',
+    '?|',
+    '!<',
+    '!>',
+    '<=>',
+    '!~',
+    '~',
+    '~*',
+    '!~*',
+    '@@',
+    '@@@',
+    '!!',
+    '<->',
+    'regexp',
+    'is distinct from',
+    'is not distinct from',
+];
+const ARITHMETIC_OPERATORS = [
+    '+',
+    '-',
+    '*',
+    '/',
+    '%',
+    '^',
+    '&',
+    '|',
+    '#',
+    '<<',
+    '>>',
+];
+const JSON_OPERATORS = ['->', '->>'];
+const BINARY_OPERATORS = [
+    ...COMPARISON_OPERATORS,
+    ...ARITHMETIC_OPERATORS,
+    '&&',
+    '||',
+];
+const UNARY_FILTER_OPERATORS = ['exists', 'not exists'];
+const UNARY_OPERATORS = ['not', '-', ...UNARY_FILTER_OPERATORS];
+const OPERATORS = [
+    ...BINARY_OPERATORS,
+    ...JSON_OPERATORS,
+    ...UNARY_OPERATORS,
+    'between',
+    'between symmetric',
+];
+/**
+ * @internal
+ */
+const OperatorNode = freeze({
+    is(node) {
+        return node.kind === 'OperatorNode';
+    },
+    create(operator) {
+        return freeze({
+            kind: 'OperatorNode',
+            operator,
+        });
+    },
+});
+function isJSONOperator(op) {
+    return isString(op) && JSON_OPERATORS.includes(op);
+}
+
+/// <reference types="./column-node.d.ts" />
+/**
+ * @internal
+ */
+const ColumnNode = freeze({
+    is(node) {
+        return node.kind === 'ColumnNode';
+    },
+    create(column) {
+        return freeze({
+            kind: 'ColumnNode',
+            column: IdentifierNode.create(column),
+        });
+    },
+});
+
+/// <reference types="./select-all-node.d.ts" />
+/**
+ * @internal
+ */
+const SelectAllNode = freeze({
+    is(node) {
+        return node.kind === 'SelectAllNode';
+    },
+    create() {
+        return freeze({
+            kind: 'SelectAllNode',
+        });
+    },
+});
+
+/// <reference types="./reference-node.d.ts" />
+/**
+ * @internal
+ */
+const ReferenceNode = freeze({
+    is(node) {
+        return node.kind === 'ReferenceNode';
+    },
+    create(column, table) {
+        return freeze({
+            kind: 'ReferenceNode',
+            table,
+            column,
+        });
+    },
+    createSelectAll(table) {
+        return freeze({
+            kind: 'ReferenceNode',
+            table,
+            column: SelectAllNode.create(),
+        });
+    },
+});
+
+/// <reference types="./dynamic-reference-builder.d.ts" />
+class DynamicReferenceBuilder {
+    #dynamicReference;
+    get dynamicReference() {
+        return this.#dynamicReference;
+    }
+    /**
+     * @private
+     *
+     * This needs to be here just so that the typings work. Without this
+     * the generated .d.ts file contains no reference to the type param R
+     * which causes this type to be equal to DynamicReferenceBuilder with
+     * any R.
+     */
+    get refType() {
+        return undefined;
+    }
+    constructor(reference) {
+        this.#dynamicReference = reference;
+    }
+    toOperationNode() {
+        return parseSimpleReferenceExpression(this.#dynamicReference);
+    }
+}
+function isDynamicReferenceBuilder(obj) {
+    return (isObject(obj) &&
+        isOperationNodeSource(obj) &&
+        isString(obj.dynamicReference));
+}
+
+/// <reference types="./order-by-item-node.d.ts" />
+/**
+ * @internal
+ */
+const OrderByItemNode = freeze({
+    is(node) {
+        return node.kind === 'OrderByItemNode';
+    },
+    create(orderBy, direction) {
+        return freeze({
+            kind: 'OrderByItemNode',
+            orderBy,
+            direction,
+        });
+    },
+});
+
+/// <reference types="./raw-node.d.ts" />
+/**
+ * @internal
+ */
+const RawNode = freeze({
+    is(node) {
+        return node.kind === 'RawNode';
+    },
+    create(sqlFragments, parameters) {
+        return freeze({
+            kind: 'RawNode',
+            sqlFragments: freeze(sqlFragments),
+            parameters: freeze(parameters),
+        });
+    },
+    createWithSql(sql) {
+        return RawNode.create([sql], []);
+    },
+    createWithChild(child) {
+        return RawNode.create(['', ''], [child]);
+    },
+    createWithChildren(children) {
+        return RawNode.create(new Array(children.length + 1).fill(''), children);
+    },
+});
+
+/// <reference types="./order-by-parser.d.ts" />
+function isOrderByDirection(thing) {
+    return thing === 'asc' || thing === 'desc';
+}
+function parseOrderBy(args) {
+    if (args.length === 2) {
+        return [parseOrderByItem(args[0], args[1])];
+    }
+    if (args.length === 1) {
+        const [orderBy] = args;
+        if (Array.isArray(orderBy)) {
+            return orderBy.map((item) => parseOrderByItem(item));
+        }
+        return [parseOrderByItem(orderBy)];
+    }
+    throw new Error(`Invalid number of arguments at order by! expected 1-2, received ${args.length}`);
+}
+function parseOrderByItem(ref, direction) {
+    const parsedRef = parseOrderByExpression(ref);
+    if (OrderByItemNode.is(parsedRef)) {
+        if (direction) {
+            throw new Error('Cannot specify direction twice!');
+        }
+        return parsedRef;
+    }
+    return OrderByItemNode.create(parsedRef, parseOrderByDirectionExpression(direction));
+}
+function parseOrderByExpression(expr) {
+    if (isExpressionOrFactory(expr)) {
+        return parseExpression(expr);
+    }
+    if (isDynamicReferenceBuilder(expr)) {
+        return expr.toOperationNode();
+    }
+    const [ref, direction] = expr.split(' ');
+    if (direction) {
+        if (!isOrderByDirection(direction)) {
+            throw new Error(`Invalid order by direction: ${direction}`);
+        }
+        return OrderByItemNode.create(parseStringReference(ref), parseOrderByDirectionExpression(direction));
+    }
+    return parseStringReference(expr);
+}
+function parseOrderByDirectionExpression(expr) {
+    if (!expr) {
+        return undefined;
+    }
+    if (expr === 'asc' || expr === 'desc') {
+        return RawNode.createWithSql(expr);
+    }
+    return expr.toOperationNode();
+}
+
+/// <reference types="./json-reference-node.d.ts" />
+/**
+ * @internal
+ */
+const JSONReferenceNode = freeze({
+    is(node) {
+        return node.kind === 'JSONReferenceNode';
+    },
+    create(reference, traversal) {
+        return freeze({
+            kind: 'JSONReferenceNode',
+            reference,
+            traversal,
+        });
+    },
+    cloneWithTraversal(node, traversal) {
+        return freeze({
+            ...node,
+            traversal,
+        });
+    },
+});
+
+/// <reference types="./json-operator-chain-node.d.ts" />
+/**
+ * @internal
+ */
+const JSONOperatorChainNode = freeze({
+    is(node) {
+        return node.kind === 'JSONOperatorChainNode';
+    },
+    create(operator) {
+        return freeze({
+            kind: 'JSONOperatorChainNode',
+            operator,
+            values: freeze([]),
+        });
+    },
+    cloneWithValue(node, value) {
+        return freeze({
+            ...node,
+            values: freeze([...node.values, value]),
+        });
+    },
+});
+
+/// <reference types="./json-path-node.d.ts" />
+/**
+ * @internal
+ */
+const JSONPathNode = freeze({
+    is(node) {
+        return node.kind === 'JSONPathNode';
+    },
+    create(inOperator) {
+        return freeze({
+            kind: 'JSONPathNode',
+            inOperator,
+            pathLegs: freeze([]),
+        });
+    },
+    cloneWithLeg(jsonPathNode, pathLeg) {
+        return freeze({
+            ...jsonPathNode,
+            pathLegs: freeze([...jsonPathNode.pathLegs, pathLeg]),
+        });
+    },
+});
+
+/// <reference types="./reference-parser.d.ts" />
+function parseSimpleReferenceExpression(exp) {
+    if (isString(exp)) {
+        return parseStringReference(exp);
+    }
+    return exp.toOperationNode();
+}
+function parseReferenceExpressionOrList(arg) {
+    if (isReadonlyArray(arg)) {
+        return arg.map((it) => parseReferenceExpression(it));
+    }
+    else {
+        return [parseReferenceExpression(arg)];
+    }
+}
+function parseReferenceExpression(exp) {
+    if (isExpressionOrFactory(exp)) {
+        return parseExpression(exp);
+    }
+    return parseSimpleReferenceExpression(exp);
+}
+function parseJSONReference(ref, op) {
+    const referenceNode = parseStringReference(ref);
+    if (isJSONOperator(op)) {
+        return JSONReferenceNode.create(referenceNode, JSONOperatorChainNode.create(OperatorNode.create(op)));
+    }
+    const opWithoutLastChar = op.slice(0, -1);
+    if (isJSONOperator(opWithoutLastChar)) {
+        return JSONReferenceNode.create(referenceNode, JSONPathNode.create(OperatorNode.create(opWithoutLastChar)));
+    }
+    throw new Error(`Invalid JSON operator: ${op}`);
+}
+function parseStringReference(ref) {
+    const COLUMN_SEPARATOR = '.';
+    if (!ref.includes(COLUMN_SEPARATOR)) {
+        return ReferenceNode.create(ColumnNode.create(ref));
+    }
+    const parts = ref.split(COLUMN_SEPARATOR).map(trim$2);
+    if (parts.length === 3) {
+        return parseStringReferenceWithTableAndSchema(parts);
+    }
+    if (parts.length === 2) {
+        return parseStringReferenceWithTable(parts);
+    }
+    throw new Error(`invalid column reference ${ref}`);
+}
+function parseAliasedStringReference(ref) {
+    const ALIAS_SEPARATOR = ' as ';
+    if (ref.includes(ALIAS_SEPARATOR)) {
+        const [columnRef, alias] = ref.split(ALIAS_SEPARATOR).map(trim$2);
+        return AliasNode.create(parseStringReference(columnRef), IdentifierNode.create(alias));
+    }
+    else {
+        return parseStringReference(ref);
+    }
+}
+function parseColumnName(column) {
+    return ColumnNode.create(column);
+}
+function parseOrderedColumnName(column) {
+    const ORDER_SEPARATOR = ' ';
+    if (column.includes(ORDER_SEPARATOR)) {
+        const [columnName, order] = column.split(ORDER_SEPARATOR).map(trim$2);
+        if (!isOrderByDirection(order)) {
+            throw new Error(`invalid order direction "${order}" next to "${columnName}"`);
+        }
+        return parseOrderBy([columnName, order])[0];
+    }
+    else {
+        return parseColumnName(column);
+    }
+}
+function parseStringReferenceWithTableAndSchema(parts) {
+    const [schema, table, column] = parts;
+    return ReferenceNode.create(ColumnNode.create(column), TableNode.createWithSchema(schema, table));
+}
+function parseStringReferenceWithTable(parts) {
+    const [table, column] = parts;
+    return ReferenceNode.create(ColumnNode.create(column), TableNode.create(table));
+}
+function trim$2(str) {
+    return str.trim();
+}
+
+/// <reference types="./primitive-value-list-node.d.ts" />
+/**
+ * @internal
+ */
+const PrimitiveValueListNode = freeze({
+    is(node) {
+        return node.kind === 'PrimitiveValueListNode';
+    },
+    create(values) {
+        return freeze({
+            kind: 'PrimitiveValueListNode',
+            values: freeze([...values]),
+        });
+    },
+});
+
+/// <reference types="./value-list-node.d.ts" />
+/**
+ * @internal
+ */
+const ValueListNode = freeze({
+    is(node) {
+        return node.kind === 'ValueListNode';
+    },
+    create(values) {
+        return freeze({
+            kind: 'ValueListNode',
+            values: freeze(values),
+        });
+    },
+});
+
+/// <reference types="./value-node.d.ts" />
+/**
+ * @internal
+ */
+const ValueNode = freeze({
+    is(node) {
+        return node.kind === 'ValueNode';
+    },
+    create(value) {
+        return freeze({
+            kind: 'ValueNode',
+            value,
+        });
+    },
+    createImmediate(value) {
+        return freeze({
+            kind: 'ValueNode',
+            value,
+            immediate: true,
+        });
+    },
+});
+
+/// <reference types="./value-parser.d.ts" />
+function parseValueExpressionOrList(arg) {
+    if (isReadonlyArray(arg)) {
+        return parseValueExpressionList(arg);
+    }
+    return parseValueExpression(arg);
+}
+function parseValueExpression(exp) {
+    if (isExpressionOrFactory(exp)) {
+        return parseExpression(exp);
+    }
+    return ValueNode.create(exp);
+}
+function isSafeImmediateValue(value) {
+    return isNumber(value) || isBoolean(value) || isNull(value);
+}
+function parseSafeImmediateValue(value) {
+    if (!isSafeImmediateValue(value)) {
+        throw new Error(`unsafe immediate value ${JSON.stringify(value)}`);
+    }
+    return ValueNode.createImmediate(value);
+}
+function parseValueExpressionList(arg) {
+    if (arg.some(isExpressionOrFactory)) {
+        return ValueListNode.create(arg.map((it) => parseValueExpression(it)));
+    }
+    return PrimitiveValueListNode.create(arg);
+}
+
+/// <reference types="./parens-node.d.ts" />
+/**
+ * @internal
+ */
+const ParensNode = freeze({
+    is(node) {
+        return node.kind === 'ParensNode';
+    },
+    create(node) {
+        return freeze({
+            kind: 'ParensNode',
+            node,
+        });
+    },
+});
+
+/// <reference types="./binary-operation-parser.d.ts" />
+function parseValueBinaryOperationOrExpression(args) {
+    if (args.length === 3) {
+        return parseValueBinaryOperation(args[0], args[1], args[2]);
+    }
+    else if (args.length === 1) {
+        return parseValueExpression(args[0]);
+    }
+    throw new Error(`invalid arguments: ${JSON.stringify(args)}`);
+}
+function parseValueBinaryOperation(left, operator, right) {
+    if (isIsOperator(operator) && needsIsOperator(right)) {
+        return BinaryOperationNode.create(parseReferenceExpression(left), parseOperator(operator), ValueNode.createImmediate(right));
+    }
+    return BinaryOperationNode.create(parseReferenceExpression(left), parseOperator(operator), parseValueExpressionOrList(right));
+}
+function parseReferentialBinaryOperation(left, operator, right) {
+    return BinaryOperationNode.create(parseReferenceExpression(left), parseOperator(operator), parseReferenceExpression(right));
+}
+function parseFilterObject(obj, combinator) {
+    return parseFilterList(Object.entries(obj)
+        .filter(([, v]) => !isUndefined(v))
+        .map(([k, v]) => parseValueBinaryOperation(k, needsIsOperator(v) ? 'is' : '=', v)), combinator);
+}
+function parseFilterList(list, combinator, withParens = true) {
+    const combine = combinator === 'and' ? AndNode.create : OrNode.create;
+    if (list.length === 0) {
+        return BinaryOperationNode.create(ValueNode.createImmediate(1), OperatorNode.create('='), ValueNode.createImmediate(combinator === 'and' ? 1 : 0));
+    }
+    let node = toOperationNode(list[0]);
+    for (let i = 1; i < list.length; ++i) {
+        node = combine(node, toOperationNode(list[i]));
+    }
+    if (list.length > 1 && withParens) {
+        return ParensNode.create(node);
+    }
+    return node;
+}
+function isIsOperator(operator) {
+    return operator === 'is' || operator === 'is not';
+}
+function needsIsOperator(value) {
+    return isNull(value) || isBoolean(value);
+}
+function parseOperator(operator) {
+    if (isString(operator) && OPERATORS.includes(operator)) {
+        return OperatorNode.create(operator);
+    }
+    if (isOperationNodeSource(operator)) {
+        return operator.toOperationNode();
+    }
+    throw new Error(`invalid operator ${JSON.stringify(operator)}`);
+}
+function toOperationNode(nodeOrSource) {
+    return isOperationNodeSource(nodeOrSource)
+        ? nodeOrSource.toOperationNode()
+        : nodeOrSource;
+}
+
+/// <reference types="./order-by-node.d.ts" />
+/**
+ * @internal
+ */
+const OrderByNode = freeze({
+    is(node) {
+        return node.kind === 'OrderByNode';
+    },
+    create(items) {
+        return freeze({
+            kind: 'OrderByNode',
+            items: freeze([...items]),
+        });
+    },
+    cloneWithItems(orderBy, items) {
+        return freeze({
+            ...orderBy,
+            items: freeze([...orderBy.items, ...items]),
+        });
+    },
+});
+
+/// <reference types="./partition-by-node.d.ts" />
+/**
+ * @internal
+ */
+const PartitionByNode = freeze({
+    is(node) {
+        return node.kind === 'PartitionByNode';
+    },
+    create(items) {
+        return freeze({
+            kind: 'PartitionByNode',
+            items: freeze(items),
+        });
+    },
+    cloneWithItems(partitionBy, items) {
+        return freeze({
+            ...partitionBy,
+            items: freeze([...partitionBy.items, ...items]),
+        });
+    },
+});
+
+/// <reference types="./over-node.d.ts" />
+/**
+ * @internal
+ */
+const OverNode = freeze({
+    is(node) {
+        return node.kind === 'OverNode';
+    },
+    create() {
+        return freeze({
+            kind: 'OverNode',
+        });
+    },
+    cloneWithOrderByItems(overNode, items) {
+        return freeze({
+            ...overNode,
+            orderBy: overNode.orderBy
+                ? OrderByNode.cloneWithItems(overNode.orderBy, items)
+                : OrderByNode.create(items),
+        });
+    },
+    cloneWithPartitionByItems(overNode, items) {
+        return freeze({
+            ...overNode,
+            partitionBy: overNode.partitionBy
+                ? PartitionByNode.cloneWithItems(overNode.partitionBy, items)
+                : PartitionByNode.create(items),
+        });
+    },
+});
+
+/// <reference types="./from-node.d.ts" />
+/**
+ * @internal
+ */
+const FromNode = freeze({
+    is(node) {
+        return node.kind === 'FromNode';
+    },
+    create(froms) {
+        return freeze({
+            kind: 'FromNode',
+            froms: freeze(froms),
+        });
+    },
+    cloneWithFroms(from, froms) {
+        return freeze({
+            ...from,
+            froms: freeze([...from.froms, ...froms]),
+        });
+    },
+});
+
+/// <reference types="./group-by-node.d.ts" />
+/**
+ * @internal
+ */
+const GroupByNode = freeze({
+    is(node) {
+        return node.kind === 'GroupByNode';
+    },
+    create(items) {
+        return freeze({
+            kind: 'GroupByNode',
+            items: freeze(items),
+        });
+    },
+    cloneWithItems(groupBy, items) {
+        return freeze({
+            ...groupBy,
+            items: freeze([...groupBy.items, ...items]),
+        });
+    },
+});
+
+/// <reference types="./having-node.d.ts" />
+/**
+ * @internal
+ */
+const HavingNode = freeze({
+    is(node) {
+        return node.kind === 'HavingNode';
+    },
+    create(filter) {
+        return freeze({
+            kind: 'HavingNode',
+            having: filter,
+        });
+    },
+    cloneWithOperation(havingNode, operator, operation) {
+        return freeze({
+            ...havingNode,
+            having: operator === 'And'
+                ? AndNode.create(havingNode.having, operation)
+                : OrNode.create(havingNode.having, operation),
+        });
+    },
+});
+
+/// <reference types="./select-query-node.d.ts" />
+/**
+ * @internal
+ */
+const SelectQueryNode = freeze({
+    is(node) {
+        return node.kind === 'SelectQueryNode';
+    },
+    create(withNode) {
+        return freeze({
+            kind: 'SelectQueryNode',
+            ...(withNode && { with: withNode }),
+        });
+    },
+    createFrom(fromItems, withNode) {
+        return freeze({
+            kind: 'SelectQueryNode',
+            from: FromNode.create(fromItems),
+            ...(withNode && { with: withNode }),
+        });
+    },
+    cloneWithSelections(select, selections) {
+        return freeze({
+            ...select,
+            selections: select.selections
+                ? freeze([...select.selections, ...selections])
+                : freeze(selections),
+        });
+    },
+    cloneWithDistinctOn(select, expressions) {
+        return freeze({
+            ...select,
+            distinctOn: select.distinctOn
+                ? freeze([...select.distinctOn, ...expressions])
+                : freeze(expressions),
+        });
+    },
+    cloneWithFrontModifier(select, modifier) {
+        return freeze({
+            ...select,
+            frontModifiers: select.frontModifiers
+                ? freeze([...select.frontModifiers, modifier])
+                : freeze([modifier]),
+        });
+    },
+    cloneWithEndModifier(select, modifier) {
+        return freeze({
+            ...select,
+            endModifiers: select.endModifiers
+                ? freeze([...select.endModifiers, modifier])
+                : freeze([modifier]),
+        });
+    },
+    cloneWithOrderByItems(selectNode, items) {
+        return freeze({
+            ...selectNode,
+            orderBy: selectNode.orderBy
+                ? OrderByNode.cloneWithItems(selectNode.orderBy, items)
+                : OrderByNode.create(items),
+        });
+    },
+    cloneWithGroupByItems(selectNode, items) {
+        return freeze({
+            ...selectNode,
+            groupBy: selectNode.groupBy
+                ? GroupByNode.cloneWithItems(selectNode.groupBy, items)
+                : GroupByNode.create(items),
+        });
+    },
+    cloneWithLimit(selectNode, limit) {
+        return freeze({
+            ...selectNode,
+            limit,
+        });
+    },
+    cloneWithOffset(selectNode, offset) {
+        return freeze({
+            ...selectNode,
+            offset,
+        });
+    },
+    cloneWithFetch(selectNode, fetch) {
+        return freeze({
+            ...selectNode,
+            fetch,
+        });
+    },
+    cloneWithHaving(selectNode, operation) {
+        return freeze({
+            ...selectNode,
+            having: selectNode.having
+                ? HavingNode.cloneWithOperation(selectNode.having, 'And', operation)
+                : HavingNode.create(operation),
+        });
+    },
+    cloneWithSetOperations(selectNode, setOperations) {
+        return freeze({
+            ...selectNode,
+            setOperations: selectNode.setOperations
+                ? freeze([...selectNode.setOperations, ...setOperations])
+                : freeze([...setOperations]),
+        });
+    },
+    cloneWithoutSelections(select) {
+        return freeze({
+            ...select,
+            selections: [],
+        });
+    },
+    cloneWithoutLimit(select) {
+        return freeze({
+            ...select,
+            limit: undefined,
+        });
+    },
+    cloneWithoutOffset(select) {
+        return freeze({
+            ...select,
+            offset: undefined,
+        });
+    },
+    cloneWithoutOrderBy(select) {
+        return freeze({
+            ...select,
+            orderBy: undefined,
+        });
+    },
+    cloneWithoutGroupBy(select) {
+        return freeze({
+            ...select,
+            groupBy: undefined,
+        });
+    },
+});
+
+/// <reference types="./prevent-await.d.ts" />
+function preventAwait(clazz, message) {
+    Object.defineProperties(clazz.prototype, {
+        then: {
+            enumerable: false,
+            value: () => {
+                throw new Error(message);
+            },
+        },
+    });
+}
+
+/// <reference types="./join-builder.d.ts" />
+class JoinBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    on(...args) {
+        return new JoinBuilder({
+            ...this.#props,
+            joinNode: JoinNode.cloneWithOn(this.#props.joinNode, parseValueBinaryOperationOrExpression(args)),
+        });
+    }
+    /**
+     * Just like {@link WhereInterface.whereRef} but adds an item to the join's
+     * `on` clause instead.
+     *
+     * See {@link WhereInterface.whereRef} for documentation and examples.
+     */
+    onRef(lhs, op, rhs) {
+        return new JoinBuilder({
+            ...this.#props,
+            joinNode: JoinNode.cloneWithOn(this.#props.joinNode, parseReferentialBinaryOperation(lhs, op, rhs)),
+        });
+    }
+    /**
+     * Adds `on true`.
+     */
+    onTrue() {
+        return new JoinBuilder({
+            ...this.#props,
+            joinNode: JoinNode.cloneWithOn(this.#props.joinNode, RawNode.createWithSql('true')),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.joinNode;
+    }
+}
+preventAwait(JoinBuilder, "don't await JoinBuilder instances. They are never executed directly and are always just a part of a query.");
+
+/// <reference types="./partition-by-item-node.d.ts" />
+/**
+ * @internal
+ */
+const PartitionByItemNode = freeze({
+    is(node) {
+        return node.kind === 'PartitionByItemNode';
+    },
+    create(partitionBy) {
+        return freeze({
+            kind: 'PartitionByItemNode',
+            partitionBy,
+        });
+    },
+});
+
+/// <reference types="./partition-by-parser.d.ts" />
+function parsePartitionBy(partitionBy) {
+    return parseReferenceExpressionOrList(partitionBy).map(PartitionByItemNode.create);
+}
+
+/// <reference types="./over-builder.d.ts" />
+class OverBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /**
+     * Adds an order by clause item inside the over function.
+     *
+     * ```ts
+     * const result = await db
+     *   .selectFrom('person')
+     *   .select(
+     *     (eb) => eb.fn.avg<number>('age').over(
+     *       ob => ob.orderBy('first_name', 'asc').orderBy('last_name', 'asc')
+     *     ).as('average_age')
+     *   )
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * select avg("age") over(order by "first_name" asc, "last_name" asc) as "average_age"
+     * from "person"
+     * ```
+     */
+    orderBy(orderBy, direction) {
+        return new OverBuilder({
+            overNode: OverNode.cloneWithOrderByItems(this.#props.overNode, parseOrderBy([orderBy, direction])),
+        });
+    }
+    partitionBy(partitionBy) {
+        return new OverBuilder({
+            overNode: OverNode.cloneWithPartitionByItems(this.#props.overNode, parsePartitionBy(partitionBy)),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.overNode;
+    }
+}
+preventAwait(OverBuilder, "don't await OverBuilder instances. They are never executed directly and are always just a part of a query.");
+
+/// <reference types="./selection-node.d.ts" />
+/**
+ * @internal
+ */
+const SelectionNode = freeze({
+    is(node) {
+        return node.kind === 'SelectionNode';
+    },
+    create(selection) {
+        return freeze({
+            kind: 'SelectionNode',
+            selection: selection,
+        });
+    },
+    createSelectAll() {
+        return freeze({
+            kind: 'SelectionNode',
+            selection: SelectAllNode.create(),
+        });
+    },
+    createSelectAllFromTable(table) {
+        return freeze({
+            kind: 'SelectionNode',
+            selection: ReferenceNode.createSelectAll(table),
+        });
+    },
+});
+
+/// <reference types="./select-parser.d.ts" />
+function parseSelectArg(selection) {
+    if (isFunction(selection)) {
+        return parseSelectArg(selection(expressionBuilder()));
+    }
+    else if (isReadonlyArray(selection)) {
+        return selection.map((it) => parseSelectExpression(it));
+    }
+    else {
+        return [parseSelectExpression(selection)];
+    }
+}
+function parseSelectExpression(selection) {
+    if (isString(selection)) {
+        return SelectionNode.create(parseAliasedStringReference(selection));
+    }
+    else if (isDynamicReferenceBuilder(selection)) {
+        return SelectionNode.create(selection.toOperationNode());
+    }
+    else {
+        return SelectionNode.create(parseAliasedExpression(selection));
+    }
+}
+function parseSelectAll(table) {
+    if (!table) {
+        return [SelectionNode.createSelectAll()];
+    }
+    else if (Array.isArray(table)) {
+        return table.map(parseSelectAllArg);
+    }
+    else {
+        return [parseSelectAllArg(table)];
+    }
+}
+function parseSelectAllArg(table) {
+    if (isString(table)) {
+        return SelectionNode.createSelectAllFromTable(parseTable(table));
+    }
+    throw new Error(`invalid value selectAll expression: ${JSON.stringify(table)}`);
+}
+
+/// <reference types="./values-node.d.ts" />
+/**
+ * @internal
+ */
+const ValuesNode = freeze({
+    is(node) {
+        return node.kind === 'ValuesNode';
+    },
+    create(values) {
+        return freeze({
+            kind: 'ValuesNode',
+            values: freeze(values),
+        });
+    },
+});
+
+/// <reference types="./default-insert-value-node.d.ts" />
+/**
+ * @internal
+ */
+const DefaultInsertValueNode = freeze({
+    is(node) {
+        return node.kind === 'DefaultInsertValueNode';
+    },
+    create() {
+        return freeze({
+            kind: 'DefaultInsertValueNode',
+        });
+    },
+});
+
+/// <reference types="./insert-values-parser.d.ts" />
+function parseInsertExpression(arg) {
+    const objectOrList = isFunction(arg) ? arg(expressionBuilder()) : arg;
+    const list = isReadonlyArray(objectOrList)
+        ? objectOrList
+        : freeze([objectOrList]);
+    return parseInsertColumnsAndValues(list);
+}
+function parseInsertColumnsAndValues(rows) {
+    const columns = parseColumnNamesAndIndexes(rows);
+    return [
+        freeze([...columns.keys()].map(ColumnNode.create)),
+        ValuesNode.create(rows.map((row) => parseRowValues(row, columns))),
+    ];
+}
+function parseColumnNamesAndIndexes(rows) {
+    const columns = new Map();
+    for (const row of rows) {
+        const cols = Object.keys(row);
+        for (const col of cols) {
+            if (!columns.has(col) && row[col] !== undefined) {
+                columns.set(col, columns.size);
+            }
+        }
+    }
+    return columns;
+}
+function parseRowValues(row, columns) {
+    const rowColumns = Object.keys(row);
+    const rowValues = Array.from({
+        length: columns.size,
+    });
+    let hasUndefinedOrComplexColumns = false;
+    for (const col of rowColumns) {
+        const columnIdx = columns.get(col);
+        if (isUndefined(columnIdx)) {
+            continue;
+        }
+        const value = row[col];
+        if (isUndefined(value) || isExpressionOrFactory(value)) {
+            hasUndefinedOrComplexColumns = true;
+        }
+        rowValues[columnIdx] = value;
+    }
+    const hasMissingColumns = rowColumns.length < columns.size;
+    if (hasMissingColumns || hasUndefinedOrComplexColumns) {
+        const defaultValue = DefaultInsertValueNode.create();
+        return ValueListNode.create(rowValues.map((it) => isUndefined(it) ? defaultValue : parseValueExpression(it)));
+    }
+    return PrimitiveValueListNode.create(rowValues);
+}
+
+/// <reference types="./insert-query-node.d.ts" />
+/**
+ * @internal
+ */
+const InsertQueryNode = freeze({
+    is(node) {
+        return node.kind === 'InsertQueryNode';
+    },
+    create(into, withNode, replace) {
+        return freeze({
+            kind: 'InsertQueryNode',
+            into,
+            ...(withNode && { with: withNode }),
+            replace,
+        });
+    },
+    createWithoutInto() {
+        return freeze({
+            kind: 'InsertQueryNode',
+        });
+    },
+    cloneWith(insertQuery, props) {
+        return freeze({
+            ...insertQuery,
+            ...props,
+        });
+    },
+});
+
+/// <reference types="./update-query-node.d.ts" />
+/**
+ * @internal
+ */
+const UpdateQueryNode = freeze({
+    is(node) {
+        return node.kind === 'UpdateQueryNode';
+    },
+    create(table, withNode) {
+        return freeze({
+            kind: 'UpdateQueryNode',
+            table,
+            ...(withNode && { with: withNode }),
+        });
+    },
+    createWithoutTable() {
+        return freeze({
+            kind: 'UpdateQueryNode',
+        });
+    },
+    cloneWithFromItems(updateQuery, fromItems) {
+        return freeze({
+            ...updateQuery,
+            from: updateQuery.from
+                ? FromNode.cloneWithFroms(updateQuery.from, fromItems)
+                : FromNode.create(fromItems),
+        });
+    },
+    cloneWithUpdates(updateQuery, updates) {
+        return freeze({
+            ...updateQuery,
+            updates: updateQuery.updates
+                ? freeze([...updateQuery.updates, ...updates])
+                : updates,
+        });
+    },
+    cloneWithLimit(updateQuery, limit) {
+        return freeze({
+            ...updateQuery,
+            limit,
+        });
+    },
+});
+
+/// <reference types="./using-node.d.ts" />
+/**
+ * @internal
+ */
+const UsingNode = freeze({
+    is(node) {
+        return node.kind === 'UsingNode';
+    },
+    create(tables) {
+        return freeze({
+            kind: 'UsingNode',
+            tables: freeze(tables),
+        });
+    },
+    cloneWithTables(using, tables) {
+        return freeze({
+            ...using,
+            tables: freeze([...using.tables, ...tables]),
+        });
+    },
+});
+
+/// <reference types="./delete-query-node.d.ts" />
+/**
+ * @internal
+ */
+const DeleteQueryNode = freeze({
+    is(node) {
+        return node.kind === 'DeleteQueryNode';
+    },
+    create(fromItems, withNode) {
+        return freeze({
+            kind: 'DeleteQueryNode',
+            from: FromNode.create(fromItems),
+            ...(withNode && { with: withNode }),
+        });
+    },
+    cloneWithOrderByItems(deleteNode, items) {
+        return freeze({
+            ...deleteNode,
+            orderBy: deleteNode.orderBy
+                ? OrderByNode.cloneWithItems(deleteNode.orderBy, items)
+                : OrderByNode.create(items),
+        });
+    },
+    cloneWithoutOrderBy(deleteNode) {
+        return freeze({
+            ...deleteNode,
+            orderBy: undefined,
+        });
+    },
+    cloneWithLimit(deleteNode, limit) {
+        return freeze({
+            ...deleteNode,
+            limit,
+        });
+    },
+    cloneWithoutLimit(deleteNode) {
+        return freeze({
+            ...deleteNode,
+            limit: undefined,
+        });
+    },
+    cloneWithUsing(deleteNode, tables) {
+        return freeze({
+            ...deleteNode,
+            using: deleteNode.using !== undefined
+                ? UsingNode.cloneWithTables(deleteNode.using, tables)
+                : UsingNode.create(tables),
+        });
+    },
+});
+
+/// <reference types="./where-node.d.ts" />
+/**
+ * @internal
+ */
+const WhereNode = freeze({
+    is(node) {
+        return node.kind === 'WhereNode';
+    },
+    create(filter) {
+        return freeze({
+            kind: 'WhereNode',
+            where: filter,
+        });
+    },
+    cloneWithOperation(whereNode, operator, operation) {
+        return freeze({
+            ...whereNode,
+            where: operator === 'And'
+                ? AndNode.create(whereNode.where, operation)
+                : OrNode.create(whereNode.where, operation),
+        });
+    },
+});
+
+/// <reference types="./returning-node.d.ts" />
+/**
+ * @internal
+ */
+const ReturningNode = freeze({
+    is(node) {
+        return node.kind === 'ReturningNode';
+    },
+    create(selections) {
+        return freeze({
+            kind: 'ReturningNode',
+            selections: freeze(selections),
+        });
+    },
+    cloneWithSelections(returning, selections) {
+        return freeze({
+            ...returning,
+            selections: returning.selections
+                ? freeze([...returning.selections, ...selections])
+                : freeze(selections),
+        });
+    },
+});
+
+/// <reference types="./explain-node.d.ts" />
+/**
+ * @internal
+ */
+const ExplainNode = freeze({
+    is(node) {
+        return node.kind === 'ExplainNode';
+    },
+    create(format, options) {
+        return freeze({
+            kind: 'ExplainNode',
+            format,
+            options,
+        });
+    },
+});
+
+/// <reference types="./when-node.d.ts" />
+/**
+ * @internal
+ */
+const WhenNode = freeze({
+    is(node) {
+        return node.kind === 'WhenNode';
+    },
+    create(condition) {
+        return freeze({
+            kind: 'WhenNode',
+            condition,
+        });
+    },
+    cloneWithResult(whenNode, result) {
+        return freeze({
+            ...whenNode,
+            result,
+        });
+    },
+});
+
+/// <reference types="./merge-query-node.d.ts" />
+/**
+ * @internal
+ */
+const MergeQueryNode = freeze({
+    is(node) {
+        return node.kind === 'MergeQueryNode';
+    },
+    create(into, withNode) {
+        return freeze({
+            kind: 'MergeQueryNode',
+            into,
+            ...(withNode && { with: withNode }),
+        });
+    },
+    cloneWithUsing(mergeNode, using) {
+        return freeze({
+            ...mergeNode,
+            using,
+        });
+    },
+    cloneWithWhen(mergeNode, when) {
+        return freeze({
+            ...mergeNode,
+            whens: mergeNode.whens
+                ? freeze([...mergeNode.whens, when])
+                : freeze([when]),
+        });
+    },
+    cloneWithThen(mergeNode, then) {
+        return freeze({
+            ...mergeNode,
+            whens: mergeNode.whens
+                ? freeze([
+                    ...mergeNode.whens.slice(0, -1),
+                    WhenNode.cloneWithResult(mergeNode.whens[mergeNode.whens.length - 1], then),
+                ])
+                : undefined,
+        });
+    },
+});
+
+/// <reference types="./output-node.d.ts" />
+/**
+ * @internal
+ */
+const OutputNode = freeze({
+    is(node) {
+        return node.kind === 'OutputNode';
+    },
+    create(selections) {
+        return freeze({
+            kind: 'OutputNode',
+            selections: freeze(selections),
+        });
+    },
+    cloneWithSelections(output, selections) {
+        return freeze({
+            ...output,
+            selections: output.selections
+                ? freeze([...output.selections, ...selections])
+                : freeze(selections),
+        });
+    },
+});
+
+/// <reference types="./query-node.d.ts" />
+/**
+ * @internal
+ */
+const QueryNode = freeze({
+    is(node) {
+        return (SelectQueryNode.is(node) ||
+            InsertQueryNode.is(node) ||
+            UpdateQueryNode.is(node) ||
+            DeleteQueryNode.is(node) ||
+            MergeQueryNode.is(node));
+    },
+    cloneWithWhere(node, operation) {
+        return freeze({
+            ...node,
+            where: node.where
+                ? WhereNode.cloneWithOperation(node.where, 'And', operation)
+                : WhereNode.create(operation),
+        });
+    },
+    cloneWithJoin(node, join) {
+        return freeze({
+            ...node,
+            joins: node.joins ? freeze([...node.joins, join]) : freeze([join]),
+        });
+    },
+    cloneWithReturning(node, selections) {
+        return freeze({
+            ...node,
+            returning: node.returning
+                ? ReturningNode.cloneWithSelections(node.returning, selections)
+                : ReturningNode.create(selections),
+        });
+    },
+    cloneWithoutReturning(node) {
+        return freeze({
+            ...node,
+            returning: undefined,
+        });
+    },
+    cloneWithoutWhere(node) {
+        return freeze({
+            ...node,
+            where: undefined,
+        });
+    },
+    cloneWithExplain(node, format, options) {
+        return freeze({
+            ...node,
+            explain: ExplainNode.create(format, options?.toOperationNode()),
+        });
+    },
+    cloneWithTop(node, top) {
+        return freeze({
+            ...node,
+            top,
+        });
+    },
+    cloneWithOutput(node, selections) {
+        return freeze({
+            ...node,
+            output: node.output
+                ? OutputNode.cloneWithSelections(node.output, selections)
+                : OutputNode.create(selections),
+        });
+    },
+});
+
+/// <reference types="./column-update-node.d.ts" />
+/**
+ * @internal
+ */
+const ColumnUpdateNode = freeze({
+    is(node) {
+        return node.kind === 'ColumnUpdateNode';
+    },
+    create(column, value) {
+        return freeze({
+            kind: 'ColumnUpdateNode',
+            column,
+            value,
+        });
+    },
+});
+
+/// <reference types="./update-set-parser.d.ts" />
+function parseUpdate(...args) {
+    if (args.length === 2) {
+        return [
+            ColumnUpdateNode.create(parseReferenceExpression(args[0]), parseValueExpression(args[1])),
+        ];
+    }
+    return parseUpdateObjectExpression(args[0]);
+}
+function parseUpdateObjectExpression(update) {
+    const updateObj = isFunction(update) ? update(expressionBuilder()) : update;
+    return Object.entries(updateObj)
+        .filter(([_, value]) => value !== undefined)
+        .map(([key, value]) => {
+        return ColumnUpdateNode.create(ColumnNode.create(key), parseValueExpression(value));
+    });
+}
+
+/// <reference types="./on-duplicate-key-node.d.ts" />
+/**
+ * @internal
+ */
+const OnDuplicateKeyNode = freeze({
+    is(node) {
+        return node.kind === 'OnDuplicateKeyNode';
+    },
+    create(updates) {
+        return freeze({
+            kind: 'OnDuplicateKeyNode',
+            updates,
+        });
+    },
+});
+
+/// <reference types="./insert-result.d.ts" />
+/**
+ * The result of an insert query.
+ *
+ * If the table has an auto incrementing primary key {@link insertId} will hold
+ * the generated id on dialects that support it. For example PostgreSQL doesn't
+ * return the id by default and {@link insertId} is undefined. On PostgreSQL you
+ * need to use {@link ReturningInterface.returning} or {@link ReturningInterface.returningAll}
+ * to get out the inserted id.
+ *
+ * {@link numInsertedOrUpdatedRows} holds the number of (actually) inserted rows.
+ * On MySQL, updated rows are counted twice when using `on duplicate key update`.
+ *
+ * ### Examples
+ *
+ * ```ts
+ * const result = await db
+ *   .insertInto('person')
+ *   .values(person)
+ *   .executeTakeFirst()
+ *
+ * console.log(result.insertId)
+ * ```
+ */
+class InsertResult {
+    /**
+     * The auto incrementing primary key of the inserted row.
+     *
+     * This property can be undefined when the query contains an `on conflict`
+     * clause that makes the query succeed even when nothing gets inserted.
+     *
+     * This property is always undefined on dialects like PostgreSQL that
+     * don't return the inserted id by default. On those dialects you need
+     * to use the {@link ReturningInterface.returning | returning} method.
+     */
+    insertId;
+    /**
+     * Affected rows count.
+     */
+    numInsertedOrUpdatedRows;
+    constructor(insertId, numInsertedOrUpdatedRows) {
+        this.insertId = insertId;
+        this.numInsertedOrUpdatedRows = numInsertedOrUpdatedRows;
+    }
+}
+
+/// <reference types="./no-result-error.d.ts" />
+class NoResultError extends Error {
+    /**
+     * The operation node tree of the query that was executed.
+     */
+    node;
+    constructor(node) {
+        super('no result');
+        this.node = node;
+    }
+}
+function isNoResultErrorConstructor(fn) {
+    return Object.prototype.hasOwnProperty.call(fn, 'prototype');
+}
+
+/// <reference types="./on-conflict-node.d.ts" />
+/**
+ * @internal
+ */
+const OnConflictNode = freeze({
+    is(node) {
+        return node.kind === 'OnConflictNode';
+    },
+    create() {
+        return freeze({
+            kind: 'OnConflictNode',
+        });
+    },
+    cloneWith(node, props) {
+        return freeze({
+            ...node,
+            ...props,
+        });
+    },
+    cloneWithIndexWhere(node, operation) {
+        return freeze({
+            ...node,
+            indexWhere: node.indexWhere
+                ? WhereNode.cloneWithOperation(node.indexWhere, 'And', operation)
+                : WhereNode.create(operation),
+        });
+    },
+    cloneWithIndexOrWhere(node, operation) {
+        return freeze({
+            ...node,
+            indexWhere: node.indexWhere
+                ? WhereNode.cloneWithOperation(node.indexWhere, 'Or', operation)
+                : WhereNode.create(operation),
+        });
+    },
+    cloneWithUpdateWhere(node, operation) {
+        return freeze({
+            ...node,
+            updateWhere: node.updateWhere
+                ? WhereNode.cloneWithOperation(node.updateWhere, 'And', operation)
+                : WhereNode.create(operation),
+        });
+    },
+    cloneWithUpdateOrWhere(node, operation) {
+        return freeze({
+            ...node,
+            updateWhere: node.updateWhere
+                ? WhereNode.cloneWithOperation(node.updateWhere, 'Or', operation)
+                : WhereNode.create(operation),
+        });
+    },
+    cloneWithoutIndexWhere(node) {
+        return freeze({
+            ...node,
+            indexWhere: undefined,
+        });
+    },
+    cloneWithoutUpdateWhere(node) {
+        return freeze({
+            ...node,
+            updateWhere: undefined,
+        });
+    },
+});
+
+/// <reference types="./on-conflict-builder.d.ts" />
+class OnConflictBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /**
+     * Specify a single column as the conflict target.
+     *
+     * Also see the {@link columns}, {@link constraint} and {@link expression}
+     * methods for alternative ways to specify the conflict target.
+     */
+    column(column) {
+        const columnNode = ColumnNode.create(column);
+        return new OnConflictBuilder({
+            ...this.#props,
+            onConflictNode: OnConflictNode.cloneWith(this.#props.onConflictNode, {
+                columns: this.#props.onConflictNode.columns
+                    ? freeze([...this.#props.onConflictNode.columns, columnNode])
+                    : freeze([columnNode]),
+            }),
+        });
+    }
+    /**
+     * Specify a list of columns as the conflict target.
+     *
+     * Also see the {@link column}, {@link constraint} and {@link expression}
+     * methods for alternative ways to specify the conflict target.
+     */
+    columns(columns) {
+        const columnNodes = columns.map(ColumnNode.create);
+        return new OnConflictBuilder({
+            ...this.#props,
+            onConflictNode: OnConflictNode.cloneWith(this.#props.onConflictNode, {
+                columns: this.#props.onConflictNode.columns
+                    ? freeze([...this.#props.onConflictNode.columns, ...columnNodes])
+                    : freeze(columnNodes),
+            }),
+        });
+    }
+    /**
+     * Specify a specific constraint by name as the conflict target.
+     *
+     * Also see the {@link column}, {@link columns} and {@link expression}
+     * methods for alternative ways to specify the conflict target.
+     */
+    constraint(constraintName) {
+        return new OnConflictBuilder({
+            ...this.#props,
+            onConflictNode: OnConflictNode.cloneWith(this.#props.onConflictNode, {
+                constraint: IdentifierNode.create(constraintName),
+            }),
+        });
+    }
+    /**
+     * Specify an expression as the conflict target.
+     *
+     * This can be used if the unique index is an expression index.
+     *
+     * Also see the {@link column}, {@link columns} and {@link constraint}
+     * methods for alternative ways to specify the conflict target.
+     */
+    expression(expression) {
+        return new OnConflictBuilder({
+            ...this.#props,
+            onConflictNode: OnConflictNode.cloneWith(this.#props.onConflictNode, {
+                indexExpression: expression.toOperationNode(),
+            }),
+        });
+    }
+    where(...args) {
+        return new OnConflictBuilder({
+            ...this.#props,
+            onConflictNode: OnConflictNode.cloneWithIndexWhere(this.#props.onConflictNode, parseValueBinaryOperationOrExpression(args)),
+        });
+    }
+    whereRef(lhs, op, rhs) {
+        return new OnConflictBuilder({
+            ...this.#props,
+            onConflictNode: OnConflictNode.cloneWithIndexWhere(this.#props.onConflictNode, parseReferentialBinaryOperation(lhs, op, rhs)),
+        });
+    }
+    clearWhere() {
+        return new OnConflictBuilder({
+            ...this.#props,
+            onConflictNode: OnConflictNode.cloneWithoutIndexWhere(this.#props.onConflictNode),
+        });
+    }
+    /**
+     * Adds the "do nothing" conflict action.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db
+     *   .insertInto('person')
+     *   .values({ first_name, pic })
+     *   .onConflict((oc) => oc
+     *     .column('pic')
+     *     .doNothing()
+     *   )
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * insert into "person" ("first_name", "pic")
+     * values ($1, $2)
+     * on conflict ("pic") do nothing
+     * ```
+     */
+    doNothing() {
+        return new OnConflictDoNothingBuilder({
+            ...this.#props,
+            onConflictNode: OnConflictNode.cloneWith(this.#props.onConflictNode, {
+                doNothing: true,
+            }),
+        });
+    }
+    /**
+     * Adds the "do update set" conflict action.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db
+     *   .insertInto('person')
+     *   .values({ first_name, pic })
+     *   .onConflict((oc) => oc
+     *     .column('pic')
+     *     .doUpdateSet({ first_name })
+     *   )
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * insert into "person" ("first_name", "pic")
+     * values ($1, $2)
+     * on conflict ("pic")
+     * do update set "first_name" = $3
+     * ```
+     *
+     * In the next example we use the `ref` method to reference
+     * columns of the virtual table `excluded` in a type-safe way
+     * to create an upsert operation:
+     *
+     * ```ts
+     * db.insertInto('person')
+     *   .values(person)
+     *   .onConflict((oc) => oc
+     *     .column('id')
+     *     .doUpdateSet((eb) => ({
+     *       first_name: eb.ref('excluded.first_name'),
+     *       last_name: eb.ref('excluded.last_name')
+     *     }))
+     *   )
+     * ```
+     */
+    doUpdateSet(update) {
+        return new OnConflictUpdateBuilder({
+            ...this.#props,
+            onConflictNode: OnConflictNode.cloneWith(this.#props.onConflictNode, {
+                updates: parseUpdateObjectExpression(update),
+            }),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+}
+preventAwait(OnConflictBuilder, "don't await OnConflictBuilder instances.");
+class OnConflictDoNothingBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    toOperationNode() {
+        return this.#props.onConflictNode;
+    }
+}
+preventAwait(OnConflictDoNothingBuilder, "don't await OnConflictDoNothingBuilder instances.");
+class OnConflictUpdateBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    where(...args) {
+        return new OnConflictUpdateBuilder({
+            ...this.#props,
+            onConflictNode: OnConflictNode.cloneWithUpdateWhere(this.#props.onConflictNode, parseValueBinaryOperationOrExpression(args)),
+        });
+    }
+    /**
+     * Specify a where condition for the update operation.
+     *
+     * See {@link WhereInterface.whereRef} for more info.
+     */
+    whereRef(lhs, op, rhs) {
+        return new OnConflictUpdateBuilder({
+            ...this.#props,
+            onConflictNode: OnConflictNode.cloneWithUpdateWhere(this.#props.onConflictNode, parseReferentialBinaryOperation(lhs, op, rhs)),
+        });
+    }
+    clearWhere() {
+        return new OnConflictUpdateBuilder({
+            ...this.#props,
+            onConflictNode: OnConflictNode.cloneWithoutUpdateWhere(this.#props.onConflictNode),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.onConflictNode;
+    }
+}
+preventAwait(OnConflictUpdateBuilder, "don't await OnConflictUpdateBuilder instances.");
+
+/// <reference types="./top-node.d.ts" />
+/**
+ * @internal
+ */
+const TopNode = freeze({
+    is(node) {
+        return node.kind === 'TopNode';
+    },
+    create(expression, modifiers) {
+        return freeze({
+            kind: 'TopNode',
+            expression,
+            modifiers,
+        });
+    },
+});
+
+/// <reference types="./top-parser.d.ts" />
+function parseTop(expression, modifiers) {
+    if (!isNumber(expression) && !isBigInt(expression)) {
+        throw new Error(`Invalid top expression: ${expression}`);
+    }
+    if (!isUndefined(modifiers) && !isTopModifiers(modifiers)) {
+        throw new Error(`Invalid top modifiers: ${modifiers}`);
+    }
+    return TopNode.create(expression, modifiers);
+}
+function isTopModifiers(modifiers) {
+    return (modifiers === 'percent' ||
+        modifiers === 'with ties' ||
+        modifiers === 'percent with ties');
+}
+
+/// <reference types="./insert-query-builder.d.ts" />
+class InsertQueryBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /**
+     * Sets the values to insert for an {@link Kysely.insertInto | insert} query.
+     *
+     * This method takes an object whose keys are column names and values are
+     * values to insert. In addition to the column's type, the values can be
+     * raw {@link sql} snippets or select queries.
+     *
+     * You must provide all fields you haven't explicitly marked as nullable
+     * or optional using {@link Generated} or {@link ColumnType}.
+     *
+     * The return value of an `insert` query is an instance of {@link InsertResult}. The
+     * {@link InsertResult.insertId | insertId} field holds the auto incremented primary
+     * key if the database returned one.
+     *
+     * On PostgreSQL and some other dialects, you need to call `returning` to get
+     * something out of the query.
+     *
+     * Also see the {@link expression} method for inserting the result of a select
+     * query or any other expression.
+     *
+     * ### Examples
+     *
+     * <!-- siteExample("insert", "Single row", 10) -->
+     *
+     * Insert a single row:
+     *
+     * ```ts
+     * const result = await db
+     *   .insertInto('person')
+     *   .values({
+     *     first_name: 'Jennifer',
+     *     last_name: 'Aniston',
+     *     age: 40
+     *   })
+     *   .executeTakeFirst()
+     *
+     * // `insertId` is only available on dialects that
+     * // automatically return the id of the inserted row
+     * // such as MySQL and SQLite. On PostgreSQL, for example,
+     * // you need to add a `returning` clause to the query to
+     * // get anything out. See the "returning data" example.
+     * console.log(result.insertId)
+     * ```
+     *
+     * The generated SQL (MySQL):
+     *
+     * ```sql
+     * insert into `person` (`first_name`, `last_name`, `age`) values (?, ?, ?)
+     * ```
+     *
+     * <!-- siteExample("insert", "Multiple rows", 20) -->
+     *
+     * On dialects that support it (for example PostgreSQL) you can insert multiple
+     * rows by providing an array. Note that the return value is once again very
+     * dialect-specific. Some databases may only return the id of the *last* inserted
+     * row and some return nothing at all unless you call `returning`.
+     *
+     * ```ts
+     * await db
+     *   .insertInto('person')
+     *   .values([{
+     *     first_name: 'Jennifer',
+     *     last_name: 'Aniston',
+     *     age: 40,
+     *   }, {
+     *     first_name: 'Arnold',
+     *     last_name: 'Schwarzenegger',
+     *     age: 70,
+     *   }])
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * insert into "person" ("first_name", "last_name", "age") values (($1, $2, $3), ($4, $5, $6))
+     * ```
+     *
+     * <!-- siteExample("insert", "Returning data", 30) -->
+     *
+     * On supported dialects like PostgreSQL you need to chain `returning` to the query to get
+     * the inserted row's columns (or any other expression) as the return value. `returning`
+     * works just like `select`. Refer to `select` method's examples and documentation for
+     * more info.
+     *
+     * ```ts
+     * const result = await db
+     *   .insertInto('person')
+     *   .values({
+     *     first_name: 'Jennifer',
+     *     last_name: 'Aniston',
+     *     age: 40,
+     *   })
+     *   .returning(['id', 'first_name as name'])
+     *   .executeTakeFirstOrThrow()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * insert into "person" ("first_name", "last_name", "age") values ($1, $2, $3) returning "id", "first_name" as "name"
+     * ```
+     *
+     * <!-- siteExample("insert", "Complex values", 40) -->
+     *
+     * In addition to primitives, the values can also be arbitrary expressions.
+     * You can build the expressions by using a callback and calling the methods
+     * on the expression builder passed to it:
+     *
+     * ```ts
+     * import { sql } from 'kysely'
+     *
+     * const ani = "Ani"
+     * const ston = "ston"
+     *
+     * const result = await db
+     *   .insertInto('person')
+     *   .values(({ ref, selectFrom, fn }) => ({
+     *     first_name: 'Jennifer',
+     *     last_name: sql<string>`>concat(${ani}, ${ston})`,
+     *     middle_name: ref('first_name'),
+     *     age: selectFrom('person')
+     *       .select(fn.avg<number>('age').as('avg_age')),
+     *   }))
+     *   .executeTakeFirst()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * insert into "person" (
+     *   "first_name",
+     *   "last_name",
+     *   "middle_name",
+     *   "age"
+     * )
+     * values (
+     *   $1,
+     *   concat($2, $3),
+     *   "first_name",
+     *   (select avg("age") as "avg_age" from "person")
+     * )
+     * ```
+     *
+     * You can also use the callback version of subqueries or raw expressions:
+     *
+     * ```ts
+     * db.with('jennifer', (db) => db
+     *   .selectFrom('person')
+     *   .where('first_name', '=', 'Jennifer')
+     *   .select(['id', 'first_name', 'gender'])
+     *   .limit(1)
+     * ).insertInto('pet').values((eb) => ({
+     *   owner_id: eb.selectFrom('jennifer').select('id'),
+     *   name: eb.selectFrom('jennifer').select('first_name'),
+     *   species: 'cat',
+     * }))
+     * ```
+     */
+    values(insert) {
+        const [columns, values] = parseInsertExpression(insert);
+        return new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: InsertQueryNode.cloneWith(this.#props.queryNode, {
+                columns,
+                values,
+            }),
+        });
+    }
+    /**
+     * Sets the columns to insert.
+     *
+     * The {@link values} method sets both the columns and the values and this method
+     * is not needed. But if you are using the {@link expression} method, you can use
+     * this method to set the columns to insert.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.insertInto('person')
+     *   .columns(['first_name'])
+     *   .expression((eb) => eb.selectFrom('pet').select('pet.name'))
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * insert into "person" ("first_name")
+     * select "pet"."name" from "pet"
+     * ```
+     */
+    columns(columns) {
+        return new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: InsertQueryNode.cloneWith(this.#props.queryNode, {
+                columns: freeze(columns.map(ColumnNode.create)),
+            }),
+        });
+    }
+    /**
+     * Insert an arbitrary expression. For example the result of a select query.
+     *
+     * ### Examples
+     *
+     * <!-- siteExample("insert", "Insert subquery", 50) -->
+     *
+     * You can create an `INSERT INTO SELECT FROM` query using the `expression` method.
+     * This API doesn't follow our WYSIWYG principles and might be a bit difficult to
+     * remember. The reasons for this design stem from implementation difficulties.
+     *
+     * ```ts
+     * const result = await db.insertInto('person')
+     *   .columns(['first_name', 'last_name', 'age'])
+     *   .expression((eb) => eb
+     *     .selectFrom('pet')
+     *     .select((eb) => [
+     *       'pet.name',
+     *       eb.val('Petson').as('last_name'),
+     *       eb.lit(7).as('age'),
+     *     ])
+     *   )
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * insert into "person" ("first_name", "last_name", "age")
+     * select "pet"."name", $1 as "last_name", 7 as "age from "pet"
+     * ```
+     */
+    expression(expression) {
+        return new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: InsertQueryNode.cloneWith(this.#props.queryNode, {
+                values: parseExpression(expression),
+            }),
+        });
+    }
+    /**
+     * Creates an `insert into "person" default values` query.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.insertInto('person')
+     *   .defaultValues()
+     *   .execute()
+     * ```
+     */
+    defaultValues() {
+        return new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: InsertQueryNode.cloneWith(this.#props.queryNode, {
+                defaultValues: true,
+            }),
+        });
+    }
+    /**
+     * Changes an `insert into` query to an `insert ignore into` query.
+     *
+     * If you use the ignore modifier, ignorable errors that occur while executing the
+     * insert statement are ignored. For example, without ignore, a row that duplicates
+     * an existing unique index or primary key value in the table causes a duplicate-key
+     * error and the statement is aborted. With ignore, the row is discarded and no error
+     * occurs.
+     *
+     * This is only supported on some dialects like MySQL. On most dialects you should
+     * use the {@link onConflict} method.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.insertInto('person')
+     *   .ignore()
+     *   .values(values)
+     *   .execute()
+     * ```
+     */
+    ignore() {
+        return new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: InsertQueryNode.cloneWith(this.#props.queryNode, {
+                ignore: true,
+            }),
+        });
+    }
+    /**
+     * Changes an `insert into` query to an `insert top into` query.
+     *
+     * `top` clause is only supported by some dialects like MS SQL Server.
+     *
+     * ### Examples
+     *
+     * Insert the first 5 rows:
+     *
+     * ```ts
+     * await db.insertInto('person')
+     *   .top(5)
+     *   .columns(['first_name', 'gender'])
+     *   .expression(
+     *     (eb) => eb.selectFrom('pet').select(['name', sql.lit('other').as('gender')])
+     *   )
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (MS SQL Server):
+     *
+     * ```sql
+     * insert top(5) into "person" ("first_name", "gender") select "name", 'other' as "gender" from "pet"
+     * ```
+     *
+     * Insert the first 50 percent of rows:
+     *
+     * ```ts
+     * await db.insertInto('person')
+     *   .top(50, 'percent')
+     *   .columns(['first_name', 'gender'])
+     *   .expression(
+     *     (eb) => eb.selectFrom('pet').select(['name', sql.lit('other').as('gender')])
+     *   )
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (MS SQL Server):
+     *
+     * ```sql
+     * insert top(50) percent into "person" ("first_name", "gender") select "name", 'other' as "gender" from "pet"
+     * ```
+     */
+    top(expression, modifiers) {
+        return new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithTop(this.#props.queryNode, parseTop(expression, modifiers)),
+        });
+    }
+    /**
+     * Adds an `on conflict` clause to the query.
+     *
+     * `on conflict` is only supported by some dialects like PostgreSQL and SQLite. On MySQL
+     * you can use {@link ignore} and {@link onDuplicateKeyUpdate} to achieve similar results.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db
+     *   .insertInto('pet')
+     *   .values({
+     *     name: 'Catto',
+     *     species: 'cat',
+     *   })
+     *   .onConflict((oc) => oc
+     *     .column('name')
+     *     .doUpdateSet({ species: 'hamster' })
+     *   )
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * insert into "pet" ("name", "species")
+     * values ($1, $2)
+     * on conflict ("name")
+     * do update set "species" = $3
+     * ```
+     *
+     * You can provide the name of the constraint instead of a column name:
+     *
+     * ```ts
+     * await db
+     *   .insertInto('pet')
+     *   .values({
+     *     name: 'Catto',
+     *     species: 'cat',
+     *   })
+     *   .onConflict((oc) => oc
+     *     .constraint('pet_name_key')
+     *     .doUpdateSet({ species: 'hamster' })
+     *   )
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * insert into "pet" ("name", "species")
+     * values ($1, $2)
+     * on conflict on constraint "pet_name_key"
+     * do update set "species" = $3
+     * ```
+     *
+     * You can also specify an expression as the conflict target in case
+     * the unique index is an expression index:
+     *
+     * ```ts
+     * import { sql } from 'kysely'
+     *
+     * await db
+     *   .insertInto('pet')
+     *   .values({
+     *     name: 'Catto',
+     *     species: 'cat',
+     *   })
+     *   .onConflict((oc) => oc
+     *     .expression(sql<string>`lower(name)`)
+     *     .doUpdateSet({ species: 'hamster' })
+     *   )
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * insert into "pet" ("name", "species")
+     * values ($1, $2)
+     * on conflict (lower(name))
+     * do update set "species" = $3
+     * ```
+     *
+     * You can add a filter for the update statement like this:
+     *
+     * ```ts
+     * await db
+     *   .insertInto('pet')
+     *   .values({
+     *     name: 'Catto',
+     *     species: 'cat',
+     *   })
+     *   .onConflict((oc) => oc
+     *     .column('name')
+     *     .doUpdateSet({ species: 'hamster' })
+     *     .where('excluded.name', '!=', 'Catto'')
+     *   )
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * insert into "pet" ("name", "species")
+     * values ($1, $2)
+     * on conflict ("name")
+     * do update set "species" = $3
+     * where "excluded"."name" != $4
+     * ```
+     *
+     * You can create an `on conflict do nothing` clauses like this:
+     *
+     * ```ts
+     * await db
+     *   .insertInto('pet')
+     *   .values({
+     *     name: 'Catto',
+     *     species: 'cat',
+     *   })
+     *   .onConflict((oc) => oc
+     *     .column('name')
+     *     .doNothing()
+     *   )
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * insert into "pet" ("name", "species")
+     * values ($1, $2)
+     * on conflict ("name") do nothing
+     * ```
+     *
+     * You can refer to the columns of the virtual `excluded` table
+     * in a type-safe way using a callback and the `ref` method of
+     * `ExpressionBuilder`:
+     *
+     * ```ts
+     * db.insertInto('person')
+     *   .values(person)
+     *   .onConflict(oc => oc
+     *     .column('id')
+     *     .doUpdateSet({
+     *       first_name: (eb) => eb.ref('excluded.first_name'),
+     *       last_name: (eb) => eb.ref('excluded.last_name')
+     *     })
+     *   )
+     * ```
+     */
+    onConflict(callback) {
+        return new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: InsertQueryNode.cloneWith(this.#props.queryNode, {
+                onConflict: callback(new OnConflictBuilder({
+                    onConflictNode: OnConflictNode.create(),
+                })).toOperationNode(),
+            }),
+        });
+    }
+    /**
+     * Adds `on duplicate key update` to the query.
+     *
+     * If you specify `on duplicate key update`, and a row is inserted that would cause
+     * a duplicate value in a unique index or primary key, an update of the old row occurs.
+     *
+     * This is only implemented by some dialects like MySQL. On most dialects you should
+     * use {@link onConflict} instead.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db
+     *   .insertInto('person')
+     *   .values(values)
+     *   .onDuplicateKeyUpdate({ species: 'hamster' })
+     * ```
+     */
+    onDuplicateKeyUpdate(update) {
+        return new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: InsertQueryNode.cloneWith(this.#props.queryNode, {
+                onDuplicateKey: OnDuplicateKeyNode.create(parseUpdateObjectExpression(update)),
+            }),
+        });
+    }
+    returning(selection) {
+        return new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithReturning(this.#props.queryNode, parseSelectArg(selection)),
+        });
+    }
+    returningAll() {
+        return new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithReturning(this.#props.queryNode, parseSelectAll()),
+        });
+    }
+    output(args) {
+        return new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithOutput(this.#props.queryNode, parseSelectArg(args)),
+        });
+    }
+    outputAll(table) {
+        return new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithOutput(this.#props.queryNode, parseSelectAll(table)),
+        });
+    }
+    /**
+     * Clears all `returning` clauses from the query.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.insertInto('person')
+     *   .values({ first_name: 'James', last_name: 'Smith', age: 42 })
+     *   .returning(['first_name'])
+     *   .clearReturning()
+     * ```
+     *
+     * The generated SQL(PostgreSQL):
+     *
+     * ```sql
+     * insert into "person" ("James", "Smith", 42)
+     * ```
+     */
+    clearReturning() {
+        return new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithoutReturning(this.#props.queryNode),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     *
+     * If you want to conditionally call a method on `this`, see
+     * the {@link $if} method.
+     *
+     * ### Examples
+     *
+     * The next example uses a helper function `log` to log a query:
+     *
+     * ```ts
+     * function log<T extends Compilable>(qb: T): T {
+     *   console.log(qb.compile())
+     *   return qb
+     * }
+     *
+     * db.updateTable('person')
+     *   .set(values)
+     *   .$call(log)
+     *   .execute()
+     * ```
+     */
+    $call(func) {
+        return func(this);
+    }
+    /**
+     * Call `func(this)` if `condition` is true.
+     *
+     * This method is especially handy with optional selects. Any `returning` or `returningAll`
+     * method calls add columns as optional fields to the output type when called inside
+     * the `func` callback. This is because we can't know if those selections were actually
+     * made before running the code.
+     *
+     * You can also call any other methods inside the callback.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * async function insertPerson(values: InsertablePerson, returnLastName: boolean) {
+     *   return await db
+     *     .insertInto('person')
+     *     .values(values)
+     *     .returning(['id', 'first_name'])
+     *     .$if(returnLastName, (qb) => qb.returning('last_name'))
+     *     .executeTakeFirstOrThrow()
+     * }
+     * ```
+     *
+     * Any selections added inside the `if` callback will be added as optional fields to the
+     * output type since we can't know if the selections were actually made before running
+     * the code. In the example above the return type of the `insertPerson` function is:
+     *
+     * ```ts
+     * {
+     *   id: number
+     *   first_name: string
+     *   last_name?: string
+     * }
+     * ```
+     */
+    $if(condition, func) {
+        if (condition) {
+            return func(this);
+        }
+        return new InsertQueryBuilder({
+            ...this.#props,
+        });
+    }
+    /**
+     * Change the output type of the query.
+     *
+     * This method call doesn't change the SQL in any way. This methods simply
+     * returns a copy of this `InsertQueryBuilder` with a new output type.
+     */
+    $castTo() {
+        return new InsertQueryBuilder(this.#props);
+    }
+    /**
+     * Narrows (parts of) the output type of the query.
+     *
+     * Kysely tries to be as type-safe as possible, but in some cases we have to make
+     * compromises for better maintainability and compilation performance. At present,
+     * Kysely doesn't narrow the output type of the query based on {@link values} input
+     * when using {@link returning} or {@link returningAll}.
+     *
+     * This utility method is very useful for these situations, as it removes unncessary
+     * runtime assertion/guard code. Its input type is limited to the output type
+     * of the query, so you can't add a column that doesn't exist, or change a column's
+     * type to something that doesn't exist in its union type.
+     *
+     * ### Examples
+     *
+     * Turn this code:
+     *
+     * ```ts
+     * const person = await db.insertInto('person')
+     *   .values({ ...inputPerson, nullable_column: 'hell yeah!' })
+     *   .returningAll()
+     *   .executeTakeFirstOrThrow()
+     *
+     * if (nullable_column) {
+     *   functionThatExpectsPersonWithNonNullValue(person)
+     * }
+     * ```
+     *
+     * Into this:
+     *
+     * ```ts
+     * const person = await db.insertInto('person')
+     *   .values({ ...inputPerson, nullable_column: 'hell yeah!' })
+     *   .returningAll()
+     *   .$narrowType<{ nullable_column: string }>()
+     *   .executeTakeFirstOrThrow()
+     *
+     * functionThatExpectsPersonWithNonNullValue(person)
+     * ```
+     */
+    $narrowType() {
+        return new InsertQueryBuilder(this.#props);
+    }
+    /**
+     * Asserts that query's output row type equals the given type `T`.
+     *
+     * This method can be used to simplify excessively complex types to make TypeScript happy
+     * and much faster.
+     *
+     * Kysely uses complex type magic to achieve its type safety. This complexity is sometimes too much
+     * for TypeScript and you get errors like this:
+     *
+     * ```
+     * error TS2589: Type instantiation is excessively deep and possibly infinite.
+     * ```
+     *
+     * In these case you can often use this method to help TypeScript a little bit. When you use this
+     * method to assert the output type of a query, Kysely can drop the complex output type that
+     * consists of multiple nested helper types and replace it with the simple asserted type.
+     *
+     * Using this method doesn't reduce type safety at all. You have to pass in a type that is
+     * structurally equal to the current type.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * const result = await db
+     *   .with('new_person', (qb) => qb
+     *     .insertInto('person')
+     *     .values(person)
+     *     .returning('id')
+     *     .$assertType<{ id: string }>()
+     *   )
+     *   .with('new_pet', (qb) => qb
+     *     .insertInto('pet')
+     *     .values((eb) => ({ owner_id: eb.selectFrom('new_person').select('id'), ...pet }))
+     *     .returning(['name as pet_name', 'species'])
+     *     .$assertType<{ pet_name: string, species: Species }>()
+     *   )
+     *   .selectFrom(['new_person', 'new_pet'])
+     *   .selectAll()
+     *   .executeTakeFirstOrThrow()
+     * ```
+     */
+    $assertType() {
+        return new InsertQueryBuilder(this.#props);
+    }
+    /**
+     * Returns a copy of this InsertQueryBuilder instance with the given plugin installed.
+     */
+    withPlugin(plugin) {
+        return new InsertQueryBuilder({
+            ...this.#props,
+            executor: this.#props.executor.withPlugin(plugin),
+        });
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.queryNode, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    /**
+     * Executes the query and returns an array of rows.
+     *
+     * Also see the {@link executeTakeFirst} and {@link executeTakeFirstOrThrow} methods.
+     */
+    async execute() {
+        const compiledQuery = this.compile();
+        const result = await this.#props.executor.executeQuery(compiledQuery, this.#props.queryId);
+        const { adapter } = this.#props.executor;
+        const query = compiledQuery.query;
+        if ((query.returning && adapter.supportsReturning) ||
+            (query.output && adapter.supportsOutput)) {
+            return result.rows;
+        }
+        return [
+            new InsertResult(result.insertId, 
+            // TODO: remove numUpdatedOrDeletedRows.
+            result.numAffectedRows ?? result.numUpdatedOrDeletedRows),
+        ];
+    }
+    /**
+     * Executes the query and returns the first result or undefined if
+     * the query returned no result.
+     */
+    async executeTakeFirst() {
+        const [result] = await this.execute();
+        return result;
+    }
+    /**
+     * Executes the query and returns the first result or throws if
+     * the query returned no result.
+     *
+     * By default an instance of {@link NoResultError} is thrown, but you can
+     * provide a custom error class, or callback as the only argument to throw a different
+     * error.
+     */
+    async executeTakeFirstOrThrow(errorConstructor = NoResultError) {
+        const result = await this.executeTakeFirst();
+        if (result === undefined) {
+            const error = isNoResultErrorConstructor(errorConstructor)
+                ? new errorConstructor(this.toOperationNode())
+                : errorConstructor(this.toOperationNode());
+            throw error;
+        }
+        return result;
+    }
+    async *stream(chunkSize = 100) {
+        const compiledQuery = this.compile();
+        const stream = this.#props.executor.stream(compiledQuery, chunkSize, this.#props.queryId);
+        for await (const item of stream) {
+            yield* item.rows;
+        }
+    }
+    async explain(format, options) {
+        const builder = new InsertQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithExplain(this.#props.queryNode, format, options),
+        });
+        return await builder.execute();
+    }
+}
+preventAwait(InsertQueryBuilder, "don't await InsertQueryBuilder instances directly. To execute the query you need to call `execute` or `executeTakeFirst`.");
+
+/// <reference types="./delete-result.d.ts" />
+class DeleteResult {
+    numDeletedRows;
+    constructor(numDeletedRows) {
+        this.numDeletedRows = numDeletedRows;
+    }
+}
+
+/// <reference types="./limit-node.d.ts" />
+/**
+ * @internal
+ */
+const LimitNode = freeze({
+    is(node) {
+        return node.kind === 'LimitNode';
+    },
+    create(limit) {
+        return freeze({
+            kind: 'LimitNode',
+            limit,
+        });
+    },
+});
+
+/// <reference types="./delete-query-builder.d.ts" />
+class DeleteQueryBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    where(...args) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithWhere(this.#props.queryNode, parseValueBinaryOperationOrExpression(args)),
+        });
+    }
+    whereRef(lhs, op, rhs) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithWhere(this.#props.queryNode, parseReferentialBinaryOperation(lhs, op, rhs)),
+        });
+    }
+    clearWhere() {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithoutWhere(this.#props.queryNode),
+        });
+    }
+    /**
+     * Changes a `delete from` query into a `delete top from` query.
+     *
+     * `top` clause is only supported by some dialects like MS SQL Server.
+     *
+     * ### Examples
+     *
+     * Delete the first 5 rows:
+     *
+     * ```ts
+     * await db
+     *   .deleteFrom('person')
+     *   .top(5)
+     *   .where('age', '>', 18)
+     *   .executeTakeFirstOrThrow()
+     * ```
+     *
+     * The generated SQL (MS SQL Server):
+     *
+     * ```sql
+     * delete top(5) from "person" where "age" > @1
+     * ```
+     *
+     * Delete the first 50% of rows:
+     *
+     * ```ts
+     * await db
+     *   .deleteFrom('person')
+     *   .top(50, 'percent')
+     *   .where('age', '>', 18)
+     *   .executeTakeFirstOrThrow()
+     * ```
+     *
+     * The generated SQL (MS SQL Server):
+     *
+     * ```sql
+     * delete top(50) percent from "person" where "age" > @1
+     * ```
+     */
+    top(expression, modifiers) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithTop(this.#props.queryNode, parseTop(expression, modifiers)),
+        });
+    }
+    using(tables) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: DeleteQueryNode.cloneWithUsing(this.#props.queryNode, parseTableExpressionOrList(tables)),
+        });
+    }
+    innerJoin(...args) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('InnerJoin', args)),
+        });
+    }
+    leftJoin(...args) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('LeftJoin', args)),
+        });
+    }
+    rightJoin(...args) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('RightJoin', args)),
+        });
+    }
+    fullJoin(...args) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('FullJoin', args)),
+        });
+    }
+    returning(selection) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithReturning(this.#props.queryNode, parseSelectArg(selection)),
+        });
+    }
+    returningAll(table) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithReturning(this.#props.queryNode, parseSelectAll(table)),
+        });
+    }
+    output(args) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithOutput(this.#props.queryNode, parseSelectArg(args)),
+        });
+    }
+    outputAll(table) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithOutput(this.#props.queryNode, parseSelectAll(table)),
+        });
+    }
+    /**
+     * Clears all `returning` clauses from the query.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.deleteFrom('pet')
+     *   .returningAll()
+     *   .where('name', '=', 'Max')
+     *   .clearReturning()
+     * ```
+     *
+     * The generated SQL(PostgreSQL):
+     *
+     * ```sql
+     * delete from "pet" where "name" = "Max"
+     * ```
+     */
+    clearReturning() {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithoutReturning(this.#props.queryNode),
+        });
+    }
+    /**
+     * Clears the `limit` clause from the query.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.deleteFrom('pet')
+     *   .returningAll()
+     *   .where('name', '=', 'Max')
+     *   .limit(5)
+     *   .clearLimit()
+     * ```
+     *
+     * The generated SQL(PostgreSQL):
+     *
+     * ```sql
+     * delete from "pet" where "name" = "Max" returning *
+     * ```
+     */
+    clearLimit() {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: DeleteQueryNode.cloneWithoutLimit(this.#props.queryNode),
+        });
+    }
+    /**
+     * Clears the `order by` clause from the query.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.deleteFrom('pet')
+     *   .returningAll()
+     *   .where('name', '=', 'Max')
+     *   .orderBy('id')
+     *   .clearOrderBy()
+     * ```
+     *
+     * The generated SQL(PostgreSQL):
+     *
+     * ```sql
+     * delete from "pet" where "name" = "Max" returning *
+     * ```
+     */
+    clearOrderBy() {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: DeleteQueryNode.cloneWithoutOrderBy(this.#props.queryNode),
+        });
+    }
+    /**
+     * Adds an `order by` clause to the query.
+     *
+     * `orderBy` calls are additive. To order by multiple columns, call `orderBy`
+     * multiple times.
+     *
+     * The first argument is the expression to order by and the second is the
+     * order (`asc` or `desc`).
+     *
+     * An `order by` clause in a delete query is only supported by some dialects
+     * like MySQL.
+     *
+     * See {@link SelectQueryBuilder.orderBy} for more examples.
+     *
+     * ### Examples
+     *
+     * Delete 5 oldest items in a table:
+     *
+     * ```ts
+     * await db
+     *   .deleteFrom('pet')
+     *   .orderBy('created_at')
+     *   .limit(5)
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (MySQL):
+     *
+     * ```sql
+     * delete from `pet`
+     * order by `created_at`
+     * limit ?
+     * ```
+     */
+    orderBy(orderBy, direction) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: DeleteQueryNode.cloneWithOrderByItems(this.#props.queryNode, parseOrderBy([orderBy, direction])),
+        });
+    }
+    /**
+     * Adds a limit clause to the query.
+     *
+     * A limit clause in a delete query is only supported by some dialects
+     * like MySQL.
+     *
+     * ### Examples
+     *
+     * Delete 5 oldest items in a table:
+     *
+     * ```ts
+     * await db
+     *   .deleteFrom('pet')
+     *   .orderBy('created_at')
+     *   .limit(5)
+     *   .execute()
+     * ```
+     */
+    limit(limit) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: DeleteQueryNode.cloneWithLimit(this.#props.queryNode, LimitNode.create(parseValueExpression(limit))),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     *
+     * If you want to conditionally call a method on `this`, see
+     * the {@link $if} method.
+     *
+     * ### Examples
+     *
+     * The next example uses a helper function `log` to log a query:
+     *
+     * ```ts
+     * function log<T extends Compilable>(qb: T): T {
+     *   console.log(qb.compile())
+     *   return qb
+     * }
+     *
+     * db.deleteFrom('person')
+     *   .$call(log)
+     *   .execute()
+     * ```
+     */
+    $call(func) {
+        return func(this);
+    }
+    /**
+     * Call `func(this)` if `condition` is true.
+     *
+     * This method is especially handy with optional selects. Any `returning` or `returningAll`
+     * method calls add columns as optional fields to the output type when called inside
+     * the `func` callback. This is because we can't know if those selections were actually
+     * made before running the code.
+     *
+     * You can also call any other methods inside the callback.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * async function deletePerson(id: number, returnLastName: boolean) {
+     *   return await db
+     *     .deleteFrom('person')
+     *     .where('id', '=', id)
+     *     .returning(['id', 'first_name'])
+     *     .$if(returnLastName, (qb) => qb.returning('last_name'))
+     *     .executeTakeFirstOrThrow()
+     * }
+     * ```
+     *
+     * Any selections added inside the `if` callback will be added as optional fields to the
+     * output type since we can't know if the selections were actually made before running
+     * the code. In the example above the return type of the `deletePerson` function is:
+     *
+     * ```ts
+     * {
+     *   id: number
+     *   first_name: string
+     *   last_name?: string
+     * }
+     * ```
+     */
+    $if(condition, func) {
+        if (condition) {
+            return func(this);
+        }
+        return new DeleteQueryBuilder({
+            ...this.#props,
+        });
+    }
+    /**
+     * Change the output type of the query.
+     *
+     * This method call doesn't change the SQL in any way. This methods simply
+     * returns a copy of this `DeleteQueryBuilder` with a new output type.
+     */
+    $castTo() {
+        return new DeleteQueryBuilder(this.#props);
+    }
+    /**
+     * Narrows (parts of) the output type of the query.
+     *
+     * Kysely tries to be as type-safe as possible, but in some cases we have to make
+     * compromises for better maintainability and compilation performance. At present,
+     * Kysely doesn't narrow the output type of the query when using {@link where} and {@link returning} or {@link returningAll}.
+     *
+     * This utility method is very useful for these situations, as it removes unncessary
+     * runtime assertion/guard code. Its input type is limited to the output type
+     * of the query, so you can't add a column that doesn't exist, or change a column's
+     * type to something that doesn't exist in its union type.
+     *
+     * ### Examples
+     *
+     * Turn this code:
+     *
+     * ```ts
+     * const person = await db.deleteFrom('person')
+     *   .where('id', '=', id)
+     *   .where('nullable_column', 'is not', null)
+     *   .returningAll()
+     *   .executeTakeFirstOrThrow()
+     *
+     * if (person.nullable_column) {
+     *   functionThatExpectsPersonWithNonNullValue(person)
+     * }
+     * ```
+     *
+     * Into this:
+     *
+     * ```ts
+     * const person = await db.deleteFrom('person')
+     *   .where('id', '=', id)
+     *   .where('nullable_column', 'is not', null)
+     *   .returningAll()
+     *   .$narrowType<{ nullable_column: string }>()
+     *   .executeTakeFirstOrThrow()
+     *
+     * functionThatExpectsPersonWithNonNullValue(person)
+     * ```
+     */
+    $narrowType() {
+        return new DeleteQueryBuilder(this.#props);
+    }
+    /**
+     * Asserts that query's output row type equals the given type `T`.
+     *
+     * This method can be used to simplify excessively complex types to make TypeScript happy
+     * and much faster.
+     *
+     * Kysely uses complex type magic to achieve its type safety. This complexity is sometimes too much
+     * for TypeScript and you get errors like this:
+     *
+     * ```
+     * error TS2589: Type instantiation is excessively deep and possibly infinite.
+     * ```
+     *
+     * In these case you can often use this method to help TypeScript a little bit. When you use this
+     * method to assert the output type of a query, Kysely can drop the complex output type that
+     * consists of multiple nested helper types and replace it with the simple asserted type.
+     *
+     * Using this method doesn't reduce type safety at all. You have to pass in a type that is
+     * structurally equal to the current type.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * const result = await db
+     *   .with('deleted_person', (qb) => qb
+     *     .deleteFrom('person')
+     *     .where('id', '=', person.id)
+     *     .returning('first_name')
+     *     .$assertType<{ first_name: string }>()
+     *   )
+     *   .with('deleted_pet', (qb) => qb
+     *     .deleteFrom('pet')
+     *     .where('owner_id', '=', person.id)
+     *     .returning(['name as pet_name', 'species'])
+     *     .$assertType<{ pet_name: string, species: Species }>()
+     *   )
+     *   .selectFrom(['deleted_person', 'deleted_pet'])
+     *   .selectAll()
+     *   .executeTakeFirstOrThrow()
+     * ```
+     */
+    $assertType() {
+        return new DeleteQueryBuilder(this.#props);
+    }
+    /**
+     * Returns a copy of this DeleteQueryBuilder instance with the given plugin installed.
+     */
+    withPlugin(plugin) {
+        return new DeleteQueryBuilder({
+            ...this.#props,
+            executor: this.#props.executor.withPlugin(plugin),
+        });
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.queryNode, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    /**
+     * Executes the query and returns an array of rows.
+     *
+     * Also see the {@link executeTakeFirst} and {@link executeTakeFirstOrThrow} methods.
+     */
+    async execute() {
+        const compiledQuery = this.compile();
+        const result = await this.#props.executor.executeQuery(compiledQuery, this.#props.queryId);
+        const { adapter } = this.#props.executor;
+        const query = compiledQuery.query;
+        if ((query.returning && adapter.supportsReturning) ||
+            (query.output && adapter.supportsOutput)) {
+            return result.rows;
+        }
+        return [
+            new DeleteResult(
+            // TODO: remove numUpdatedOrDeletedRows.
+            result.numAffectedRows ?? result.numUpdatedOrDeletedRows ?? BigInt(0)),
+        ];
+    }
+    /**
+     * Executes the query and returns the first result or undefined if
+     * the query returned no result.
+     */
+    async executeTakeFirst() {
+        const [result] = await this.execute();
+        return result;
+    }
+    /**
+     * Executes the query and returns the first result or throws if
+     * the query returned no result.
+     *
+     * By default an instance of {@link NoResultError} is thrown, but you can
+     * provide a custom error class, or callback as the only argument to throw a different
+     * error.
+     */
+    async executeTakeFirstOrThrow(errorConstructor = NoResultError) {
+        const result = await this.executeTakeFirst();
+        if (result === undefined) {
+            const error = isNoResultErrorConstructor(errorConstructor)
+                ? new errorConstructor(this.toOperationNode())
+                : errorConstructor(this.toOperationNode());
+            throw error;
+        }
+        return result;
+    }
+    async *stream(chunkSize = 100) {
+        const compiledQuery = this.compile();
+        const stream = this.#props.executor.stream(compiledQuery, chunkSize, this.#props.queryId);
+        for await (const item of stream) {
+            yield* item.rows;
+        }
+    }
+    async explain(format, options) {
+        const builder = new DeleteQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithExplain(this.#props.queryNode, format, options),
+        });
+        return await builder.execute();
+    }
+}
+preventAwait(DeleteQueryBuilder, "don't await DeleteQueryBuilder instances directly. To execute the query you need to call `execute` or `executeTakeFirst`.");
+
+/// <reference types="./update-result.d.ts" />
+class UpdateResult {
+    /**
+     * The number of rows the update query updated (even if not changed).
+    */
+    numUpdatedRows;
+    /**
+     * The number of rows the update query changed.
+     *
+     * This is **optional** and only supported in dialects such as MySQL.
+     * You would probably use {@link numUpdatedRows} in most cases.
+    */
+    numChangedRows;
+    constructor(numUpdatedRows, numChangedRows) {
+        this.numUpdatedRows = numUpdatedRows;
+        this.numChangedRows = numChangedRows;
+    }
+}
+
+/// <reference types="./update-query-builder.d.ts" />
+class UpdateQueryBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    where(...args) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithWhere(this.#props.queryNode, parseValueBinaryOperationOrExpression(args)),
+        });
+    }
+    whereRef(lhs, op, rhs) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithWhere(this.#props.queryNode, parseReferentialBinaryOperation(lhs, op, rhs)),
+        });
+    }
+    clearWhere() {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithoutWhere(this.#props.queryNode),
+        });
+    }
+    /**
+     * Changes an `update` query into a `update top` query.
+     *
+     * `top` clause is only supported by some dialects like MS SQL Server.
+     *
+     * ### Examples
+     *
+     * Update the first row:
+     *
+     * ```ts
+     * await db.updateTable('person')
+     *   .top(1)
+     *   .set({ first_name: 'Foo' })
+     *   .where('age', '>', 18)
+     *   .executeTakeFirstOrThrow()
+     * ```
+     *
+     * The generated SQL (MS SQL Server):
+     *
+     * ```sql
+     * update top(1) "person" set "first_name" = @1 where "age" > @2
+     * ```
+     *
+     * Update the 50% first rows:
+     *
+     * ```ts
+     * await db.updateTable('person')
+     *   .top(50, 'percent')
+     *   .set({ first_name: 'Foo' })
+     *   .where('age', '>', 18)
+     *   .executeTakeFirstOrThrow()
+     * ```
+     *
+     * The generated SQL (MS SQL Server):
+     *
+     * ```sql
+     * update top(50) percent "person" set "first_name" = @1 where "age" > @2
+     * ```
+     */
+    top(expression, modifiers) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithTop(this.#props.queryNode, parseTop(expression, modifiers)),
+        });
+    }
+    from(from) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: UpdateQueryNode.cloneWithFromItems(this.#props.queryNode, parseTableExpressionOrList(from)),
+        });
+    }
+    innerJoin(...args) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('InnerJoin', args)),
+        });
+    }
+    leftJoin(...args) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('LeftJoin', args)),
+        });
+    }
+    rightJoin(...args) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('RightJoin', args)),
+        });
+    }
+    fullJoin(...args) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('FullJoin', args)),
+        });
+    }
+    /**
+     * Adds a limit clause to the update query for supported databases, such as MySQL.
+     *
+     * ### Examples
+     *
+     * Update the first 2 rows in the 'person' table:
+     *
+     * ```ts
+     * return await db
+     *   .updateTable('person')
+     *   .set({ first_name: 'Foo' })
+     *   .limit(2);
+     * ```
+     *
+     * The generated SQL (MySQL):
+     * ```sql
+     * update `person` set `first_name` = 'Foo' limit 2
+     * ```
+     */
+    limit(limit) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: UpdateQueryNode.cloneWithLimit(this.#props.queryNode, LimitNode.create(parseValueExpression(limit))),
+        });
+    }
+    set(...args) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: UpdateQueryNode.cloneWithUpdates(this.#props.queryNode, parseUpdate(...args)),
+        });
+    }
+    returning(selection) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithReturning(this.#props.queryNode, parseSelectArg(selection)),
+        });
+    }
+    returningAll(table) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithReturning(this.#props.queryNode, parseSelectAll(table)),
+        });
+    }
+    output(args) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithOutput(this.#props.queryNode, parseSelectArg(args)),
+        });
+    }
+    outputAll(table) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithOutput(this.#props.queryNode, parseSelectAll(table)),
+        });
+    }
+    /**
+     * Clears all `returning` clauses from the query.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.updateTable('person')
+     *   .returningAll()
+     *   .set({ age: 39 })
+     *   .where('first_name', '=', 'John')
+     *   .clearReturning()
+     * ```
+     *
+     * The generated SQL(PostgreSQL):
+     *
+     * ```sql
+     * update "person" set "age" = 39 where "first_name" = "John"
+     * ```
+     */
+    clearReturning() {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithoutReturning(this.#props.queryNode),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     *
+     * If you want to conditionally call a method on `this`, see
+     * the {@link $if} method.
+     *
+     * ### Examples
+     *
+     * The next example uses a helper function `log` to log a query:
+     *
+     * ```ts
+     * function log<T extends Compilable>(qb: T): T {
+     *   console.log(qb.compile())
+     *   return qb
+     * }
+     *
+     * db.updateTable('person')
+     *   .set(values)
+     *   .$call(log)
+     *   .execute()
+     * ```
+     */
+    $call(func) {
+        return func(this);
+    }
+    /**
+     * Call `func(this)` if `condition` is true.
+     *
+     * This method is especially handy with optional selects. Any `returning` or `returningAll`
+     * method calls add columns as optional fields to the output type when called inside
+     * the `func` callback. This is because we can't know if those selections were actually
+     * made before running the code.
+     *
+     * You can also call any other methods inside the callback.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * async function updatePerson(id: number, updates: UpdateablePerson, returnLastName: boolean) {
+     *   return await db
+     *     .updateTable('person')
+     *     .set(updates)
+     *     .where('id', '=', id)
+     *     .returning(['id', 'first_name'])
+     *     .$if(returnLastName, (qb) => qb.returning('last_name'))
+     *     .executeTakeFirstOrThrow()
+     * }
+     * ```
+     *
+     * Any selections added inside the `if` callback will be added as optional fields to the
+     * output type since we can't know if the selections were actually made before running
+     * the code. In the example above the return type of the `updatePerson` function is:
+     *
+     * ```ts
+     * {
+     *   id: number
+     *   first_name: string
+     *   last_name?: string
+     * }
+     * ```
+     */
+    $if(condition, func) {
+        if (condition) {
+            return func(this);
+        }
+        return new UpdateQueryBuilder({
+            ...this.#props,
+        });
+    }
+    /**
+     * Change the output type of the query.
+     *
+     * This method call doesn't change the SQL in any way. This methods simply
+     * returns a copy of this `UpdateQueryBuilder` with a new output type.
+     */
+    $castTo() {
+        return new UpdateQueryBuilder(this.#props);
+    }
+    /**
+     * Narrows (parts of) the output type of the query.
+     *
+     * Kysely tries to be as type-safe as possible, but in some cases we have to make
+     * compromises for better maintainability and compilation performance. At present,
+     * Kysely doesn't narrow the output type of the query based on {@link set} input
+     * when using {@link where} and/or {@link returning} or {@link returningAll}.
+     *
+     * This utility method is very useful for these situations, as it removes unncessary
+     * runtime assertion/guard code. Its input type is limited to the output type
+     * of the query, so you can't add a column that doesn't exist, or change a column's
+     * type to something that doesn't exist in its union type.
+     *
+     * ### Examples
+     *
+     * Turn this code:
+     *
+     * ```ts
+     * const person = await db.updateTable('person')
+     *   .set({ deletedAt: now })
+     *   .where('id', '=', id)
+     *   .where('nullable_column', 'is not', null)
+     *   .returningAll()
+     *   .executeTakeFirstOrThrow()
+     *
+     * if (person.nullable_column) {
+     *   functionThatExpectsPersonWithNonNullValue(person)
+     * }
+     * ```
+     *
+     * Into this:
+     *
+     * ```ts
+     * const person = await db.updateTable('person')
+     *   .set({ deletedAt: now })
+     *   .where('id', '=', id)
+     *   .where('nullable_column', 'is not', null)
+     *   .returningAll()
+     *   .$narrowType<{ deletedAt: Date; nullable_column: string }>()
+     *   .executeTakeFirstOrThrow()
+     *
+     * functionThatExpectsPersonWithNonNullValue(person)
+     * ```
+     */
+    $narrowType() {
+        return new UpdateQueryBuilder(this.#props);
+    }
+    /**
+     * Asserts that query's output row type equals the given type `T`.
+     *
+     * This method can be used to simplify excessively complex types to make TypeScript happy
+     * and much faster.
+     *
+     * Kysely uses complex type magic to achieve its type safety. This complexity is sometimes too much
+     * for TypeScript and you get errors like this:
+     *
+     * ```
+     * error TS2589: Type instantiation is excessively deep and possibly infinite.
+     * ```
+     *
+     * In these case you can often use this method to help TypeScript a little bit. When you use this
+     * method to assert the output type of a query, Kysely can drop the complex output type that
+     * consists of multiple nested helper types and replace it with the simple asserted type.
+     *
+     * Using this method doesn't reduce type safety at all. You have to pass in a type that is
+     * structurally equal to the current type.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * const result = await db
+     *   .with('updated_person', (qb) => qb
+     *     .updateTable('person')
+     *     .set(person)
+     *     .where('id', '=', person.id)
+     *     .returning('first_name')
+     *     .$assertType<{ first_name: string }>()
+     *   )
+     *   .with('updated_pet', (qb) => qb
+     *     .updateTable('pet')
+     *     .set(pet)
+     *     .where('owner_id', '=', person.id)
+     *     .returning(['name as pet_name', 'species'])
+     *     .$assertType<{ pet_name: string, species: Species }>()
+     *   )
+     *   .selectFrom(['updated_person', 'updated_pet'])
+     *   .selectAll()
+     *   .executeTakeFirstOrThrow()
+     * ```
+     */
+    $assertType() {
+        return new UpdateQueryBuilder(this.#props);
+    }
+    /**
+     * Returns a copy of this UpdateQueryBuilder instance with the given plugin installed.
+     */
+    withPlugin(plugin) {
+        return new UpdateQueryBuilder({
+            ...this.#props,
+            executor: this.#props.executor.withPlugin(plugin),
+        });
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.queryNode, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    /**
+     * Executes the query and returns an array of rows.
+     *
+     * Also see the {@link executeTakeFirst} and {@link executeTakeFirstOrThrow} methods.
+     */
+    async execute() {
+        const compiledQuery = this.compile();
+        const result = await this.#props.executor.executeQuery(compiledQuery, this.#props.queryId);
+        const { adapter } = this.#props.executor;
+        const query = compiledQuery.query;
+        if ((query.returning && adapter.supportsReturning) ||
+            (query.output && adapter.supportsOutput)) {
+            return result.rows;
+        }
+        return [
+            new UpdateResult(
+            // TODO: remove numUpdatedOrDeletedRows.
+            // TODO: https://github.com/kysely-org/kysely/pull/431#discussion_r1172330899
+            result.numAffectedRows ?? result.numUpdatedOrDeletedRows ?? BigInt(0), result.numChangedRows),
+        ];
+    }
+    /**
+     * Executes the query and returns the first result or undefined if
+     * the query returned no result.
+     */
+    async executeTakeFirst() {
+        const [result] = await this.execute();
+        return result;
+    }
+    /**
+     * Executes the query and returns the first result or throws if
+     * the query returned no result.
+     *
+     * By default an instance of {@link NoResultError} is thrown, but you can
+     * provide a custom error class, or callback as the only argument to throw a different
+     * error.
+     */
+    async executeTakeFirstOrThrow(errorConstructor = NoResultError) {
+        const result = await this.executeTakeFirst();
+        if (result === undefined) {
+            const error = isNoResultErrorConstructor(errorConstructor)
+                ? new errorConstructor(this.toOperationNode())
+                : errorConstructor(this.toOperationNode());
+            throw error;
+        }
+        return result;
+    }
+    async *stream(chunkSize = 100) {
+        const compiledQuery = this.compile();
+        const stream = this.#props.executor.stream(compiledQuery, chunkSize, this.#props.queryId);
+        for await (const item of stream) {
+            yield* item.rows;
+        }
+    }
+    async explain(format, options) {
+        const builder = new UpdateQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithExplain(this.#props.queryNode, format, options),
+        });
+        return await builder.execute();
+    }
+}
+preventAwait(UpdateQueryBuilder, "don't await UpdateQueryBuilder instances directly. To execute the query you need to call `execute` or `executeTakeFirst`.");
+
+/// <reference types="./common-table-expression-name-node.d.ts" />
+/**
+ * @internal
+ */
+const CommonTableExpressionNameNode = freeze({
+    is(node) {
+        return node.kind === 'CommonTableExpressionNameNode';
+    },
+    create(tableName, columnNames) {
+        return freeze({
+            kind: 'CommonTableExpressionNameNode',
+            table: TableNode.create(tableName),
+            columns: columnNames
+                ? freeze(columnNames.map(ColumnNode.create))
+                : undefined,
+        });
+    },
+});
+
+/// <reference types="./common-table-expression-node.d.ts" />
+/**
+ * @internal
+ */
+const CommonTableExpressionNode = freeze({
+    is(node) {
+        return node.kind === 'CommonTableExpressionNode';
+    },
+    create(name, expression) {
+        return freeze({
+            kind: 'CommonTableExpressionNode',
+            name,
+            expression,
+        });
+    },
+    cloneWith(node, props) {
+        return freeze({
+            ...node,
+            ...props,
+        });
+    },
+});
+
+/// <reference types="./cte-builder.d.ts" />
+class CTEBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /**
+     * Makes the common table expression materialized.
+     */
+    materialized() {
+        return new CTEBuilder({
+            ...this.#props,
+            node: CommonTableExpressionNode.cloneWith(this.#props.node, {
+                materialized: true,
+            }),
+        });
+    }
+    /**
+     * Makes the common table expression not materialized.
+     */
+    notMaterialized() {
+        return new CTEBuilder({
+            ...this.#props,
+            node: CommonTableExpressionNode.cloneWith(this.#props.node, {
+                materialized: false,
+            }),
+        });
+    }
+    toOperationNode() {
+        return this.#props.node;
+    }
+}
+preventAwait(CTEBuilder, "don't await CTEBuilder instances. They are never executed directly and are always just a part of a query.");
+
+/// <reference types="./with-parser.d.ts" />
+function parseCommonTableExpression(nameOrBuilderCallback, expression) {
+    const expressionNode = expression(createQueryCreator()).toOperationNode();
+    if (isFunction(nameOrBuilderCallback)) {
+        return nameOrBuilderCallback(cteBuilderFactory(expressionNode)).toOperationNode();
+    }
+    return CommonTableExpressionNode.create(parseCommonTableExpressionName(nameOrBuilderCallback), expressionNode);
+}
+function cteBuilderFactory(expressionNode) {
+    return (name) => {
+        return new CTEBuilder({
+            node: CommonTableExpressionNode.create(parseCommonTableExpressionName(name), expressionNode),
+        });
+    };
+}
+function parseCommonTableExpressionName(name) {
+    if (name.includes('(')) {
+        const parts = name.split(/[\(\)]/);
+        const table = parts[0];
+        const columns = parts[1].split(',').map((it) => it.trim());
+        return CommonTableExpressionNameNode.create(table, columns);
+    }
+    else {
+        return CommonTableExpressionNameNode.create(name);
+    }
+}
+
+/// <reference types="./with-node.d.ts" />
+/**
+ * @internal
+ */
+const WithNode = freeze({
+    is(node) {
+        return node.kind === 'WithNode';
+    },
+    create(expression, params) {
+        return freeze({
+            kind: 'WithNode',
+            expressions: freeze([expression]),
+            ...params,
+        });
+    },
+    cloneWithExpression(withNode, expression) {
+        return freeze({
+            ...withNode,
+            expressions: freeze([...withNode.expressions, expression]),
+        });
+    },
+});
+
+/// <reference types="./random-string.d.ts" />
+const CHARS = [
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+    'F',
+    'G',
+    'H',
+    'I',
+    'J',
+    'K',
+    'L',
+    'M',
+    'N',
+    'O',
+    'P',
+    'Q',
+    'R',
+    'S',
+    'T',
+    'U',
+    'V',
+    'W',
+    'X',
+    'Y',
+    'Z',
+    'a',
+    'b',
+    'c',
+    'd',
+    'e',
+    'f',
+    'g',
+    'h',
+    'i',
+    'j',
+    'k',
+    'l',
+    'm',
+    'n',
+    'o',
+    'p',
+    'q',
+    'r',
+    's',
+    't',
+    'u',
+    'v',
+    'w',
+    'x',
+    'y',
+    'z',
+    '0',
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+];
+function randomString(length) {
+    let chars = '';
+    for (let i = 0; i < length; ++i) {
+        chars += randomChar();
+    }
+    return chars;
+}
+function randomChar() {
+    return CHARS[~~(Math.random() * CHARS.length)];
+}
+
+/// <reference types="./query-id.d.ts" />
+function createQueryId() {
+    return new LazyQueryId();
+}
+class LazyQueryId {
+    #queryId;
+    get queryId() {
+        if (this.#queryId === undefined) {
+            this.#queryId = randomString(8);
+        }
+        return this.#queryId;
+    }
+}
+
+/// <reference types="./require-all-props.d.ts" />
+/**
+ * Helper function to check listed properties according to given type. Check if all properties has been used when object is initialised.
+ *
+ * Example use:
+ *
+ * ```ts
+ * type SomeType = { propA: string; propB?: number; }
+ *
+ * // propB has to be mentioned even it is optional. It still should be initialized with undefined.
+ * const a: SomeType = requireAllProps<SomeType>({ propA: "value A", propB: undefined });
+ *
+ * // checked type is implicit for variable.
+ * const b = requireAllProps<SomeType>({ propA: "value A", propB: undefined });
+ * ```
+ *
+ * Wrong use of this helper:
+ *
+ * 1. Omit checked type - all checked properties will be expect as of type never
+ *
+ * ```ts
+ * const z: SomeType = requireAllProps({ propC: "no type will work" });
+ * ```
+ *
+ * 2. Apply to spreaded object - there is no way how to check in compile time if spreaded object contains all properties
+ *
+ * ```ts
+ * const y: SomeType = { propA: "" }; // valid object according to SomeType declaration
+ * const x = requireAllProps<SomeType>( { ... y } );
+ * ```
+ *
+ * @param obj object to check if all properties has been used
+ * @returns untouched obj parameter is returned
+ */
+function requireAllProps(obj) {
+    return obj;
+}
+
+/// <reference types="./operation-node-transformer.d.ts" />
+/**
+ * Transforms an operation node tree into another one.
+ *
+ * Kysely queries are expressed internally as a tree of objects (operation nodes).
+ * `OperationNodeTransformer` takes such a tree as its input and returns a
+ * transformed deep copy of it. By default the `OperationNodeTransformer`
+ * does nothing. You need to override one or more methods to make it do
+ * something.
+ *
+ * There's a method for each node type. For example if you'd like to convert
+ * each identifier (table name, column name, alias etc.) from camelCase to
+ * snake_case, you'd do something like this:
+ *
+ * ```ts
+ * class CamelCaseTransformer extends OperationNodeTransformer {
+ *   transformIdentifier(node: IdentifierNode): IdentifierNode {
+ *     node = super.transformIdentifier(node),
+ *
+ *     return {
+ *       ...node,
+ *       name: snakeCase(node.name),
+ *     }
+ *   }
+ * }
+ *
+ * const transformer = new CamelCaseTransformer()
+ * const tree = transformer.transformNode(tree)
+ * ```
+ */
+class OperationNodeTransformer {
+    nodeStack = [];
+    #transformers = freeze({
+        AliasNode: this.transformAlias.bind(this),
+        ColumnNode: this.transformColumn.bind(this),
+        IdentifierNode: this.transformIdentifier.bind(this),
+        SchemableIdentifierNode: this.transformSchemableIdentifier.bind(this),
+        RawNode: this.transformRaw.bind(this),
+        ReferenceNode: this.transformReference.bind(this),
+        SelectQueryNode: this.transformSelectQuery.bind(this),
+        SelectionNode: this.transformSelection.bind(this),
+        TableNode: this.transformTable.bind(this),
+        FromNode: this.transformFrom.bind(this),
+        SelectAllNode: this.transformSelectAll.bind(this),
+        AndNode: this.transformAnd.bind(this),
+        OrNode: this.transformOr.bind(this),
+        ValueNode: this.transformValue.bind(this),
+        ValueListNode: this.transformValueList.bind(this),
+        PrimitiveValueListNode: this.transformPrimitiveValueList.bind(this),
+        ParensNode: this.transformParens.bind(this),
+        JoinNode: this.transformJoin.bind(this),
+        OperatorNode: this.transformOperator.bind(this),
+        WhereNode: this.transformWhere.bind(this),
+        InsertQueryNode: this.transformInsertQuery.bind(this),
+        DeleteQueryNode: this.transformDeleteQuery.bind(this),
+        ReturningNode: this.transformReturning.bind(this),
+        CreateTableNode: this.transformCreateTable.bind(this),
+        AddColumnNode: this.transformAddColumn.bind(this),
+        ColumnDefinitionNode: this.transformColumnDefinition.bind(this),
+        DropTableNode: this.transformDropTable.bind(this),
+        DataTypeNode: this.transformDataType.bind(this),
+        OrderByNode: this.transformOrderBy.bind(this),
+        OrderByItemNode: this.transformOrderByItem.bind(this),
+        GroupByNode: this.transformGroupBy.bind(this),
+        GroupByItemNode: this.transformGroupByItem.bind(this),
+        UpdateQueryNode: this.transformUpdateQuery.bind(this),
+        ColumnUpdateNode: this.transformColumnUpdate.bind(this),
+        LimitNode: this.transformLimit.bind(this),
+        OffsetNode: this.transformOffset.bind(this),
+        OnConflictNode: this.transformOnConflict.bind(this),
+        OnDuplicateKeyNode: this.transformOnDuplicateKey.bind(this),
+        CreateIndexNode: this.transformCreateIndex.bind(this),
+        DropIndexNode: this.transformDropIndex.bind(this),
+        ListNode: this.transformList.bind(this),
+        PrimaryKeyConstraintNode: this.transformPrimaryKeyConstraint.bind(this),
+        UniqueConstraintNode: this.transformUniqueConstraint.bind(this),
+        ReferencesNode: this.transformReferences.bind(this),
+        CheckConstraintNode: this.transformCheckConstraint.bind(this),
+        WithNode: this.transformWith.bind(this),
+        CommonTableExpressionNode: this.transformCommonTableExpression.bind(this),
+        CommonTableExpressionNameNode: this.transformCommonTableExpressionName.bind(this),
+        HavingNode: this.transformHaving.bind(this),
+        CreateSchemaNode: this.transformCreateSchema.bind(this),
+        DropSchemaNode: this.transformDropSchema.bind(this),
+        AlterTableNode: this.transformAlterTable.bind(this),
+        DropColumnNode: this.transformDropColumn.bind(this),
+        RenameColumnNode: this.transformRenameColumn.bind(this),
+        AlterColumnNode: this.transformAlterColumn.bind(this),
+        ModifyColumnNode: this.transformModifyColumn.bind(this),
+        AddConstraintNode: this.transformAddConstraint.bind(this),
+        DropConstraintNode: this.transformDropConstraint.bind(this),
+        ForeignKeyConstraintNode: this.transformForeignKeyConstraint.bind(this),
+        CreateViewNode: this.transformCreateView.bind(this),
+        DropViewNode: this.transformDropView.bind(this),
+        GeneratedNode: this.transformGenerated.bind(this),
+        DefaultValueNode: this.transformDefaultValue.bind(this),
+        OnNode: this.transformOn.bind(this),
+        ValuesNode: this.transformValues.bind(this),
+        SelectModifierNode: this.transformSelectModifier.bind(this),
+        CreateTypeNode: this.transformCreateType.bind(this),
+        DropTypeNode: this.transformDropType.bind(this),
+        ExplainNode: this.transformExplain.bind(this),
+        DefaultInsertValueNode: this.transformDefaultInsertValue.bind(this),
+        AggregateFunctionNode: this.transformAggregateFunction.bind(this),
+        OverNode: this.transformOver.bind(this),
+        PartitionByNode: this.transformPartitionBy.bind(this),
+        PartitionByItemNode: this.transformPartitionByItem.bind(this),
+        SetOperationNode: this.transformSetOperation.bind(this),
+        BinaryOperationNode: this.transformBinaryOperation.bind(this),
+        UnaryOperationNode: this.transformUnaryOperation.bind(this),
+        UsingNode: this.transformUsing.bind(this),
+        FunctionNode: this.transformFunction.bind(this),
+        CaseNode: this.transformCase.bind(this),
+        WhenNode: this.transformWhen.bind(this),
+        JSONReferenceNode: this.transformJSONReference.bind(this),
+        JSONPathNode: this.transformJSONPath.bind(this),
+        JSONPathLegNode: this.transformJSONPathLeg.bind(this),
+        JSONOperatorChainNode: this.transformJSONOperatorChain.bind(this),
+        TupleNode: this.transformTuple.bind(this),
+        MergeQueryNode: this.transformMergeQuery.bind(this),
+        MatchedNode: this.transformMatched.bind(this),
+        AddIndexNode: this.transformAddIndex.bind(this),
+        CastNode: this.transformCast.bind(this),
+        FetchNode: this.transformFetch.bind(this),
+        TopNode: this.transformTop.bind(this),
+        OutputNode: this.transformOutput.bind(this),
+    });
+    transformNode(node) {
+        if (!node) {
+            return node;
+        }
+        this.nodeStack.push(node);
+        const out = this.transformNodeImpl(node);
+        this.nodeStack.pop();
+        return freeze(out);
+    }
+    transformNodeImpl(node) {
+        return this.#transformers[node.kind](node);
+    }
+    transformNodeList(list) {
+        if (!list) {
+            return list;
+        }
+        return freeze(list.map((node) => this.transformNode(node)));
+    }
+    transformSelectQuery(node) {
+        return requireAllProps({
+            kind: 'SelectQueryNode',
+            from: this.transformNode(node.from),
+            selections: this.transformNodeList(node.selections),
+            distinctOn: this.transformNodeList(node.distinctOn),
+            joins: this.transformNodeList(node.joins),
+            groupBy: this.transformNode(node.groupBy),
+            orderBy: this.transformNode(node.orderBy),
+            where: this.transformNode(node.where),
+            frontModifiers: this.transformNodeList(node.frontModifiers),
+            endModifiers: this.transformNodeList(node.endModifiers),
+            limit: this.transformNode(node.limit),
+            offset: this.transformNode(node.offset),
+            with: this.transformNode(node.with),
+            having: this.transformNode(node.having),
+            explain: this.transformNode(node.explain),
+            setOperations: this.transformNodeList(node.setOperations),
+            fetch: this.transformNode(node.fetch),
+            top: this.transformNode(node.top),
+        });
+    }
+    transformSelection(node) {
+        return requireAllProps({
+            kind: 'SelectionNode',
+            selection: this.transformNode(node.selection),
+        });
+    }
+    transformColumn(node) {
+        return requireAllProps({
+            kind: 'ColumnNode',
+            column: this.transformNode(node.column),
+        });
+    }
+    transformAlias(node) {
+        return requireAllProps({
+            kind: 'AliasNode',
+            node: this.transformNode(node.node),
+            alias: this.transformNode(node.alias),
+        });
+    }
+    transformTable(node) {
+        return requireAllProps({
+            kind: 'TableNode',
+            table: this.transformNode(node.table),
+        });
+    }
+    transformFrom(node) {
+        return requireAllProps({
+            kind: 'FromNode',
+            froms: this.transformNodeList(node.froms),
+        });
+    }
+    transformReference(node) {
+        return requireAllProps({
+            kind: 'ReferenceNode',
+            column: this.transformNode(node.column),
+            table: this.transformNode(node.table),
+        });
+    }
+    transformAnd(node) {
+        return requireAllProps({
+            kind: 'AndNode',
+            left: this.transformNode(node.left),
+            right: this.transformNode(node.right),
+        });
+    }
+    transformOr(node) {
+        return requireAllProps({
+            kind: 'OrNode',
+            left: this.transformNode(node.left),
+            right: this.transformNode(node.right),
+        });
+    }
+    transformValueList(node) {
+        return requireAllProps({
+            kind: 'ValueListNode',
+            values: this.transformNodeList(node.values),
+        });
+    }
+    transformParens(node) {
+        return requireAllProps({
+            kind: 'ParensNode',
+            node: this.transformNode(node.node),
+        });
+    }
+    transformJoin(node) {
+        return requireAllProps({
+            kind: 'JoinNode',
+            joinType: node.joinType,
+            table: this.transformNode(node.table),
+            on: this.transformNode(node.on),
+        });
+    }
+    transformRaw(node) {
+        return requireAllProps({
+            kind: 'RawNode',
+            sqlFragments: freeze([...node.sqlFragments]),
+            parameters: this.transformNodeList(node.parameters),
+        });
+    }
+    transformWhere(node) {
+        return requireAllProps({
+            kind: 'WhereNode',
+            where: this.transformNode(node.where),
+        });
+    }
+    transformInsertQuery(node) {
+        return requireAllProps({
+            kind: 'InsertQueryNode',
+            into: this.transformNode(node.into),
+            columns: this.transformNodeList(node.columns),
+            values: this.transformNode(node.values),
+            returning: this.transformNode(node.returning),
+            onConflict: this.transformNode(node.onConflict),
+            onDuplicateKey: this.transformNode(node.onDuplicateKey),
+            with: this.transformNode(node.with),
+            ignore: node.ignore,
+            replace: node.replace,
+            explain: this.transformNode(node.explain),
+            defaultValues: node.defaultValues,
+            top: this.transformNode(node.top),
+            output: this.transformNode(node.output),
+        });
+    }
+    transformValues(node) {
+        return requireAllProps({
+            kind: 'ValuesNode',
+            values: this.transformNodeList(node.values),
+        });
+    }
+    transformDeleteQuery(node) {
+        return requireAllProps({
+            kind: 'DeleteQueryNode',
+            from: this.transformNode(node.from),
+            using: this.transformNode(node.using),
+            joins: this.transformNodeList(node.joins),
+            where: this.transformNode(node.where),
+            returning: this.transformNode(node.returning),
+            with: this.transformNode(node.with),
+            orderBy: this.transformNode(node.orderBy),
+            limit: this.transformNode(node.limit),
+            explain: this.transformNode(node.explain),
+            top: this.transformNode(node.top),
+            output: this.transformNode(node.output),
+        });
+    }
+    transformReturning(node) {
+        return requireAllProps({
+            kind: 'ReturningNode',
+            selections: this.transformNodeList(node.selections),
+        });
+    }
+    transformCreateTable(node) {
+        return requireAllProps({
+            kind: 'CreateTableNode',
+            table: this.transformNode(node.table),
+            columns: this.transformNodeList(node.columns),
+            constraints: this.transformNodeList(node.constraints),
+            temporary: node.temporary,
+            ifNotExists: node.ifNotExists,
+            onCommit: node.onCommit,
+            frontModifiers: this.transformNodeList(node.frontModifiers),
+            endModifiers: this.transformNodeList(node.endModifiers),
+            selectQuery: this.transformNode(node.selectQuery),
+        });
+    }
+    transformColumnDefinition(node) {
+        return requireAllProps({
+            kind: 'ColumnDefinitionNode',
+            column: this.transformNode(node.column),
+            dataType: this.transformNode(node.dataType),
+            references: this.transformNode(node.references),
+            primaryKey: node.primaryKey,
+            autoIncrement: node.autoIncrement,
+            unique: node.unique,
+            notNull: node.notNull,
+            unsigned: node.unsigned,
+            defaultTo: this.transformNode(node.defaultTo),
+            check: this.transformNode(node.check),
+            generated: this.transformNode(node.generated),
+            frontModifiers: this.transformNodeList(node.frontModifiers),
+            endModifiers: this.transformNodeList(node.endModifiers),
+            nullsNotDistinct: node.nullsNotDistinct,
+            identity: node.identity,
+            ifNotExists: node.ifNotExists,
+        });
+    }
+    transformAddColumn(node) {
+        return requireAllProps({
+            kind: 'AddColumnNode',
+            column: this.transformNode(node.column),
+        });
+    }
+    transformDropTable(node) {
+        return requireAllProps({
+            kind: 'DropTableNode',
+            table: this.transformNode(node.table),
+            ifExists: node.ifExists,
+            cascade: node.cascade,
+        });
+    }
+    transformOrderBy(node) {
+        return requireAllProps({
+            kind: 'OrderByNode',
+            items: this.transformNodeList(node.items),
+        });
+    }
+    transformOrderByItem(node) {
+        return requireAllProps({
+            kind: 'OrderByItemNode',
+            orderBy: this.transformNode(node.orderBy),
+            direction: this.transformNode(node.direction),
+        });
+    }
+    transformGroupBy(node) {
+        return requireAllProps({
+            kind: 'GroupByNode',
+            items: this.transformNodeList(node.items),
+        });
+    }
+    transformGroupByItem(node) {
+        return requireAllProps({
+            kind: 'GroupByItemNode',
+            groupBy: this.transformNode(node.groupBy),
+        });
+    }
+    transformUpdateQuery(node) {
+        return requireAllProps({
+            kind: 'UpdateQueryNode',
+            table: this.transformNode(node.table),
+            from: this.transformNode(node.from),
+            joins: this.transformNodeList(node.joins),
+            where: this.transformNode(node.where),
+            updates: this.transformNodeList(node.updates),
+            returning: this.transformNode(node.returning),
+            with: this.transformNode(node.with),
+            explain: this.transformNode(node.explain),
+            limit: this.transformNode(node.limit),
+            top: this.transformNode(node.top),
+            output: this.transformNode(node.output),
+        });
+    }
+    transformColumnUpdate(node) {
+        return requireAllProps({
+            kind: 'ColumnUpdateNode',
+            column: this.transformNode(node.column),
+            value: this.transformNode(node.value),
+        });
+    }
+    transformLimit(node) {
+        return requireAllProps({
+            kind: 'LimitNode',
+            limit: this.transformNode(node.limit),
+        });
+    }
+    transformOffset(node) {
+        return requireAllProps({
+            kind: 'OffsetNode',
+            offset: this.transformNode(node.offset),
+        });
+    }
+    transformOnConflict(node) {
+        return requireAllProps({
+            kind: 'OnConflictNode',
+            columns: this.transformNodeList(node.columns),
+            constraint: this.transformNode(node.constraint),
+            indexExpression: this.transformNode(node.indexExpression),
+            indexWhere: this.transformNode(node.indexWhere),
+            updates: this.transformNodeList(node.updates),
+            updateWhere: this.transformNode(node.updateWhere),
+            doNothing: node.doNothing,
+        });
+    }
+    transformOnDuplicateKey(node) {
+        return requireAllProps({
+            kind: 'OnDuplicateKeyNode',
+            updates: this.transformNodeList(node.updates),
+        });
+    }
+    transformCreateIndex(node) {
+        return requireAllProps({
+            kind: 'CreateIndexNode',
+            name: this.transformNode(node.name),
+            table: this.transformNode(node.table),
+            columns: this.transformNodeList(node.columns),
+            unique: node.unique,
+            using: this.transformNode(node.using),
+            ifNotExists: node.ifNotExists,
+            where: this.transformNode(node.where),
+            nullsNotDistinct: node.nullsNotDistinct,
+        });
+    }
+    transformList(node) {
+        return requireAllProps({
+            kind: 'ListNode',
+            items: this.transformNodeList(node.items),
+        });
+    }
+    transformDropIndex(node) {
+        return requireAllProps({
+            kind: 'DropIndexNode',
+            name: this.transformNode(node.name),
+            table: this.transformNode(node.table),
+            ifExists: node.ifExists,
+            cascade: node.cascade,
+        });
+    }
+    transformPrimaryKeyConstraint(node) {
+        return requireAllProps({
+            kind: 'PrimaryKeyConstraintNode',
+            columns: this.transformNodeList(node.columns),
+            name: this.transformNode(node.name),
+        });
+    }
+    transformUniqueConstraint(node) {
+        return requireAllProps({
+            kind: 'UniqueConstraintNode',
+            columns: this.transformNodeList(node.columns),
+            name: this.transformNode(node.name),
+            nullsNotDistinct: node.nullsNotDistinct,
+        });
+    }
+    transformForeignKeyConstraint(node) {
+        return requireAllProps({
+            kind: 'ForeignKeyConstraintNode',
+            columns: this.transformNodeList(node.columns),
+            references: this.transformNode(node.references),
+            name: this.transformNode(node.name),
+            onDelete: node.onDelete,
+            onUpdate: node.onUpdate,
+        });
+    }
+    transformSetOperation(node) {
+        return requireAllProps({
+            kind: 'SetOperationNode',
+            operator: node.operator,
+            expression: this.transformNode(node.expression),
+            all: node.all,
+        });
+    }
+    transformReferences(node) {
+        return requireAllProps({
+            kind: 'ReferencesNode',
+            table: this.transformNode(node.table),
+            columns: this.transformNodeList(node.columns),
+            onDelete: node.onDelete,
+            onUpdate: node.onUpdate,
+        });
+    }
+    transformCheckConstraint(node) {
+        return requireAllProps({
+            kind: 'CheckConstraintNode',
+            expression: this.transformNode(node.expression),
+            name: this.transformNode(node.name),
+        });
+    }
+    transformWith(node) {
+        return requireAllProps({
+            kind: 'WithNode',
+            expressions: this.transformNodeList(node.expressions),
+            recursive: node.recursive,
+        });
+    }
+    transformCommonTableExpression(node) {
+        return requireAllProps({
+            kind: 'CommonTableExpressionNode',
+            name: this.transformNode(node.name),
+            materialized: node.materialized,
+            expression: this.transformNode(node.expression),
+        });
+    }
+    transformCommonTableExpressionName(node) {
+        return requireAllProps({
+            kind: 'CommonTableExpressionNameNode',
+            table: this.transformNode(node.table),
+            columns: this.transformNodeList(node.columns),
+        });
+    }
+    transformHaving(node) {
+        return requireAllProps({
+            kind: 'HavingNode',
+            having: this.transformNode(node.having),
+        });
+    }
+    transformCreateSchema(node) {
+        return requireAllProps({
+            kind: 'CreateSchemaNode',
+            schema: this.transformNode(node.schema),
+            ifNotExists: node.ifNotExists,
+        });
+    }
+    transformDropSchema(node) {
+        return requireAllProps({
+            kind: 'DropSchemaNode',
+            schema: this.transformNode(node.schema),
+            ifExists: node.ifExists,
+            cascade: node.cascade,
+        });
+    }
+    transformAlterTable(node) {
+        return requireAllProps({
+            kind: 'AlterTableNode',
+            table: this.transformNode(node.table),
+            renameTo: this.transformNode(node.renameTo),
+            setSchema: this.transformNode(node.setSchema),
+            columnAlterations: this.transformNodeList(node.columnAlterations),
+            addConstraint: this.transformNode(node.addConstraint),
+            dropConstraint: this.transformNode(node.dropConstraint),
+            addIndex: this.transformNode(node.addIndex),
+            dropIndex: this.transformNode(node.dropIndex),
+        });
+    }
+    transformDropColumn(node) {
+        return requireAllProps({
+            kind: 'DropColumnNode',
+            column: this.transformNode(node.column),
+        });
+    }
+    transformRenameColumn(node) {
+        return requireAllProps({
+            kind: 'RenameColumnNode',
+            column: this.transformNode(node.column),
+            renameTo: this.transformNode(node.renameTo),
+        });
+    }
+    transformAlterColumn(node) {
+        return requireAllProps({
+            kind: 'AlterColumnNode',
+            column: this.transformNode(node.column),
+            dataType: this.transformNode(node.dataType),
+            dataTypeExpression: this.transformNode(node.dataTypeExpression),
+            setDefault: this.transformNode(node.setDefault),
+            dropDefault: node.dropDefault,
+            setNotNull: node.setNotNull,
+            dropNotNull: node.dropNotNull,
+        });
+    }
+    transformModifyColumn(node) {
+        return requireAllProps({
+            kind: 'ModifyColumnNode',
+            column: this.transformNode(node.column),
+        });
+    }
+    transformAddConstraint(node) {
+        return requireAllProps({
+            kind: 'AddConstraintNode',
+            constraint: this.transformNode(node.constraint),
+        });
+    }
+    transformDropConstraint(node) {
+        return requireAllProps({
+            kind: 'DropConstraintNode',
+            constraintName: this.transformNode(node.constraintName),
+            ifExists: node.ifExists,
+            modifier: node.modifier,
+        });
+    }
+    transformCreateView(node) {
+        return requireAllProps({
+            kind: 'CreateViewNode',
+            name: this.transformNode(node.name),
+            temporary: node.temporary,
+            orReplace: node.orReplace,
+            ifNotExists: node.ifNotExists,
+            materialized: node.materialized,
+            columns: this.transformNodeList(node.columns),
+            as: this.transformNode(node.as),
+        });
+    }
+    transformDropView(node) {
+        return requireAllProps({
+            kind: 'DropViewNode',
+            name: this.transformNode(node.name),
+            ifExists: node.ifExists,
+            materialized: node.materialized,
+            cascade: node.cascade,
+        });
+    }
+    transformGenerated(node) {
+        return requireAllProps({
+            kind: 'GeneratedNode',
+            byDefault: node.byDefault,
+            always: node.always,
+            identity: node.identity,
+            stored: node.stored,
+            expression: this.transformNode(node.expression),
+        });
+    }
+    transformDefaultValue(node) {
+        return requireAllProps({
+            kind: 'DefaultValueNode',
+            defaultValue: this.transformNode(node.defaultValue),
+        });
+    }
+    transformOn(node) {
+        return requireAllProps({
+            kind: 'OnNode',
+            on: this.transformNode(node.on),
+        });
+    }
+    transformSelectModifier(node) {
+        return requireAllProps({
+            kind: 'SelectModifierNode',
+            modifier: node.modifier,
+            rawModifier: this.transformNode(node.rawModifier),
+            of: this.transformNodeList(node.of),
+        });
+    }
+    transformCreateType(node) {
+        return requireAllProps({
+            kind: 'CreateTypeNode',
+            name: this.transformNode(node.name),
+            enum: this.transformNode(node.enum),
+        });
+    }
+    transformDropType(node) {
+        return requireAllProps({
+            kind: 'DropTypeNode',
+            name: this.transformNode(node.name),
+            ifExists: node.ifExists,
+        });
+    }
+    transformExplain(node) {
+        return requireAllProps({
+            kind: 'ExplainNode',
+            format: node.format,
+            options: this.transformNode(node.options),
+        });
+    }
+    transformSchemableIdentifier(node) {
+        return requireAllProps({
+            kind: 'SchemableIdentifierNode',
+            schema: this.transformNode(node.schema),
+            identifier: this.transformNode(node.identifier),
+        });
+    }
+    transformAggregateFunction(node) {
+        return requireAllProps({
+            kind: 'AggregateFunctionNode',
+            aggregated: this.transformNodeList(node.aggregated),
+            distinct: node.distinct,
+            filter: this.transformNode(node.filter),
+            func: node.func,
+            over: this.transformNode(node.over),
+        });
+    }
+    transformOver(node) {
+        return requireAllProps({
+            kind: 'OverNode',
+            orderBy: this.transformNode(node.orderBy),
+            partitionBy: this.transformNode(node.partitionBy),
+        });
+    }
+    transformPartitionBy(node) {
+        return requireAllProps({
+            kind: 'PartitionByNode',
+            items: this.transformNodeList(node.items),
+        });
+    }
+    transformPartitionByItem(node) {
+        return requireAllProps({
+            kind: 'PartitionByItemNode',
+            partitionBy: this.transformNode(node.partitionBy),
+        });
+    }
+    transformBinaryOperation(node) {
+        return requireAllProps({
+            kind: 'BinaryOperationNode',
+            leftOperand: this.transformNode(node.leftOperand),
+            operator: this.transformNode(node.operator),
+            rightOperand: this.transformNode(node.rightOperand),
+        });
+    }
+    transformUnaryOperation(node) {
+        return requireAllProps({
+            kind: 'UnaryOperationNode',
+            operator: this.transformNode(node.operator),
+            operand: this.transformNode(node.operand),
+        });
+    }
+    transformUsing(node) {
+        return requireAllProps({
+            kind: 'UsingNode',
+            tables: this.transformNodeList(node.tables),
+        });
+    }
+    transformFunction(node) {
+        return requireAllProps({
+            kind: 'FunctionNode',
+            func: node.func,
+            arguments: this.transformNodeList(node.arguments),
+        });
+    }
+    transformCase(node) {
+        return requireAllProps({
+            kind: 'CaseNode',
+            value: this.transformNode(node.value),
+            when: this.transformNodeList(node.when),
+            else: this.transformNode(node.else),
+            isStatement: node.isStatement,
+        });
+    }
+    transformWhen(node) {
+        return requireAllProps({
+            kind: 'WhenNode',
+            condition: this.transformNode(node.condition),
+            result: this.transformNode(node.result),
+        });
+    }
+    transformJSONReference(node) {
+        return requireAllProps({
+            kind: 'JSONReferenceNode',
+            reference: this.transformNode(node.reference),
+            traversal: this.transformNode(node.traversal),
+        });
+    }
+    transformJSONPath(node) {
+        return requireAllProps({
+            kind: 'JSONPathNode',
+            inOperator: this.transformNode(node.inOperator),
+            pathLegs: this.transformNodeList(node.pathLegs),
+        });
+    }
+    transformJSONPathLeg(node) {
+        return requireAllProps({
+            kind: 'JSONPathLegNode',
+            type: node.type,
+            value: node.value,
+        });
+    }
+    transformJSONOperatorChain(node) {
+        return requireAllProps({
+            kind: 'JSONOperatorChainNode',
+            operator: this.transformNode(node.operator),
+            values: this.transformNodeList(node.values),
+        });
+    }
+    transformTuple(node) {
+        return requireAllProps({
+            kind: 'TupleNode',
+            values: this.transformNodeList(node.values),
+        });
+    }
+    transformMergeQuery(node) {
+        return requireAllProps({
+            kind: 'MergeQueryNode',
+            into: this.transformNode(node.into),
+            using: this.transformNode(node.using),
+            whens: this.transformNodeList(node.whens),
+            with: this.transformNode(node.with),
+            top: this.transformNode(node.top),
+            output: this.transformNode(node.output),
+        });
+    }
+    transformMatched(node) {
+        return requireAllProps({
+            kind: 'MatchedNode',
+            not: node.not,
+            bySource: node.bySource,
+        });
+    }
+    transformAddIndex(node) {
+        return requireAllProps({
+            kind: 'AddIndexNode',
+            name: this.transformNode(node.name),
+            columns: this.transformNodeList(node.columns),
+            unique: node.unique,
+            using: this.transformNode(node.using),
+            ifNotExists: node.ifNotExists,
+        });
+    }
+    transformCast(node) {
+        return requireAllProps({
+            kind: 'CastNode',
+            expression: this.transformNode(node.expression),
+            dataType: this.transformNode(node.dataType),
+        });
+    }
+    transformFetch(node) {
+        return requireAllProps({
+            kind: 'FetchNode',
+            rowCount: this.transformNode(node.rowCount),
+            modifier: node.modifier,
+        });
+    }
+    transformTop(node) {
+        return requireAllProps({
+            kind: 'TopNode',
+            expression: node.expression,
+            modifiers: node.modifiers,
+        });
+    }
+    transformOutput(node) {
+        return requireAllProps({
+            kind: 'OutputNode',
+            selections: this.transformNodeList(node.selections),
+        });
+    }
+    transformDataType(node) {
+        // An Object.freezed leaf node. No need to clone.
+        return node;
+    }
+    transformSelectAll(node) {
+        // An Object.freezed leaf node. No need to clone.
+        return node;
+    }
+    transformIdentifier(node) {
+        // An Object.freezed leaf node. No need to clone.
+        return node;
+    }
+    transformValue(node) {
+        // An Object.freezed leaf node. No need to clone.
+        return node;
+    }
+    transformPrimitiveValueList(node) {
+        // An Object.freezed leaf node. No need to clone.
+        return node;
+    }
+    transformOperator(node) {
+        // An Object.freezed leaf node. No need to clone.
+        return node;
+    }
+    transformDefaultInsertValue(node) {
+        // An Object.freezed leaf node. No need to clone.
+        return node;
+    }
+}
+
+/// <reference types="./with-schema-transformer.d.ts" />
+// This object exist only so that we get a type error when a new RootOperationNode
+// is added. If you get a type error here, make sure to add the new root node and
+// handle it correctly in the transformer.
+//
+// DO NOT REFACTOR THIS EVEN IF IT SEEMS USELESS TO YOU!
+const ROOT_OPERATION_NODES = freeze({
+    AlterTableNode: true,
+    CreateIndexNode: true,
+    CreateSchemaNode: true,
+    CreateTableNode: true,
+    CreateTypeNode: true,
+    CreateViewNode: true,
+    DeleteQueryNode: true,
+    DropIndexNode: true,
+    DropSchemaNode: true,
+    DropTableNode: true,
+    DropTypeNode: true,
+    DropViewNode: true,
+    InsertQueryNode: true,
+    RawNode: true,
+    SelectQueryNode: true,
+    UpdateQueryNode: true,
+    MergeQueryNode: true,
+});
+class WithSchemaTransformer extends OperationNodeTransformer {
+    #schema;
+    #schemableIds = new Set();
+    #ctes = new Set();
+    constructor(schema) {
+        super();
+        this.#schema = schema;
+    }
+    transformNodeImpl(node) {
+        if (!this.#isRootOperationNode(node)) {
+            return super.transformNodeImpl(node);
+        }
+        const ctes = this.#collectCTEs(node);
+        for (const cte of ctes) {
+            this.#ctes.add(cte);
+        }
+        const tables = this.#collectSchemableIds(node);
+        for (const table of tables) {
+            this.#schemableIds.add(table);
+        }
+        const transformed = super.transformNodeImpl(node);
+        for (const table of tables) {
+            this.#schemableIds.delete(table);
+        }
+        for (const cte of ctes) {
+            this.#ctes.delete(cte);
+        }
+        return transformed;
+    }
+    transformSchemableIdentifier(node) {
+        const transformed = super.transformSchemableIdentifier(node);
+        if (transformed.schema || !this.#schemableIds.has(node.identifier.name)) {
+            return transformed;
+        }
+        return {
+            ...transformed,
+            schema: IdentifierNode.create(this.#schema),
+        };
+    }
+    transformReferences(node) {
+        const transformed = super.transformReferences(node);
+        if (transformed.table.table.schema) {
+            return transformed;
+        }
+        return {
+            ...transformed,
+            table: TableNode.createWithSchema(this.#schema, transformed.table.table.identifier.name),
+        };
+    }
+    #isRootOperationNode(node) {
+        return node.kind in ROOT_OPERATION_NODES;
+    }
+    #collectSchemableIds(node) {
+        const schemableIds = new Set();
+        if ('name' in node && node.name && SchemableIdentifierNode.is(node.name)) {
+            this.#collectSchemableId(node.name, schemableIds);
+        }
+        if ('from' in node && node.from) {
+            for (const from of node.from.froms) {
+                this.#collectSchemableIdsFromTableExpr(from, schemableIds);
+            }
+        }
+        if ('into' in node && node.into) {
+            this.#collectSchemableIdsFromTableExpr(node.into, schemableIds);
+        }
+        if ('table' in node && node.table) {
+            this.#collectSchemableIdsFromTableExpr(node.table, schemableIds);
+        }
+        if ('joins' in node && node.joins) {
+            for (const join of node.joins) {
+                this.#collectSchemableIdsFromTableExpr(join.table, schemableIds);
+            }
+        }
+        if ('using' in node && node.using) {
+            this.#collectSchemableIdsFromTableExpr(node.using, schemableIds);
+        }
+        return schemableIds;
+    }
+    #collectCTEs(node) {
+        const ctes = new Set();
+        if ('with' in node && node.with) {
+            this.#collectCTEIds(node.with, ctes);
+        }
+        return ctes;
+    }
+    #collectSchemableIdsFromTableExpr(node, schemableIds) {
+        const table = TableNode.is(node)
+            ? node
+            : AliasNode.is(node) && TableNode.is(node.node)
+                ? node.node
+                : null;
+        if (table) {
+            this.#collectSchemableId(table.table, schemableIds);
+        }
+    }
+    #collectSchemableId(node, schemableIds) {
+        const id = node.identifier.name;
+        if (!this.#schemableIds.has(id) && !this.#ctes.has(id)) {
+            schemableIds.add(id);
+        }
+    }
+    #collectCTEIds(node, ctes) {
+        for (const expr of node.expressions) {
+            const cteId = expr.name.table.table.identifier.name;
+            if (!this.#ctes.has(cteId)) {
+                ctes.add(cteId);
+            }
+        }
+    }
+}
+
+/// <reference types="./with-schema-plugin.d.ts" />
+class WithSchemaPlugin {
+    #transformer;
+    constructor(schema) {
+        this.#transformer = new WithSchemaTransformer(schema);
+    }
+    transformQuery(args) {
+        return this.#transformer.transformNode(args.node);
+    }
+    async transformResult(args) {
+        return args.result;
+    }
+}
+
+/// <reference types="./matched-node.d.ts" />
+/**
+ * @internal
+ */
+const MatchedNode = freeze({
+    is(node) {
+        return node.kind === 'MatchedNode';
+    },
+    create(not, bySource = false) {
+        return freeze({
+            kind: 'MatchedNode',
+            not,
+            bySource,
+        });
+    },
+});
+
+/// <reference types="./merge-parser.d.ts" />
+function parseMergeWhen(type, args, refRight) {
+    return WhenNode.create(parseFilterList([
+        MatchedNode.create(!type.isMatched, type.bySource),
+        ...(args && args.length > 0
+            ? [
+                args.length === 3 && refRight
+                    ? parseReferentialBinaryOperation(args[0], args[1], args[2])
+                    : parseValueBinaryOperationOrExpression(args),
+            ]
+            : []),
+    ], 'and', false));
+}
+function parseMergeThen(result) {
+    if (isString(result)) {
+        return RawNode.create([result], []);
+    }
+    if (isOperationNodeSource(result)) {
+        return result.toOperationNode();
+    }
+    return result;
+}
+
+/// <reference types="./deferred.d.ts" />
+class Deferred {
+    #promise;
+    #resolve;
+    #reject;
+    constructor() {
+        this.#promise = new Promise((resolve, reject) => {
+            this.#reject = reject;
+            this.#resolve = resolve;
+        });
+    }
+    get promise() {
+        return this.#promise;
+    }
+    resolve = (value) => {
+        if (this.#resolve) {
+            this.#resolve(value);
+        }
+    };
+    reject = (reason) => {
+        if (this.#reject) {
+            this.#reject(reason);
+        }
+    };
+}
+
+/// <reference types="./log-once.d.ts" />
+const LOGGED_MESSAGES = new Set();
+/**
+ * Use for system-level logging, such as deprecation messages.
+ * Logs a message and ensures it won't be logged again.
+ */
+function logOnce(message) {
+    if (LOGGED_MESSAGES.has(message)) {
+        return;
+    }
+    LOGGED_MESSAGES.add(message);
+    console.log(message);
+}
+
+/// <reference types="./query-executor-base.d.ts" />
+const NO_PLUGINS = freeze([]);
+class QueryExecutorBase {
+    #plugins;
+    constructor(plugins = NO_PLUGINS) {
+        this.#plugins = plugins;
+    }
+    get plugins() {
+        return this.#plugins;
+    }
+    transformQuery(node, queryId) {
+        for (const plugin of this.#plugins) {
+            const transformedNode = plugin.transformQuery({ node, queryId });
+            // We need to do a runtime check here. There is no good way
+            // to write types that enforce this constraint.
+            if (transformedNode.kind === node.kind) {
+                node = transformedNode;
+            }
+            else {
+                throw new Error([
+                    `KyselyPlugin.transformQuery must return a node`,
+                    `of the same kind that was given to it.`,
+                    `The plugin was given a ${node.kind}`,
+                    `but it returned a ${transformedNode.kind}`,
+                ].join(' '));
+            }
+        }
+        return node;
+    }
+    async executeQuery(compiledQuery, queryId) {
+        return await this.provideConnection(async (connection) => {
+            const result = await connection.executeQuery(compiledQuery);
+            const transformedResult = await this.#transformResult(result, queryId);
+            // TODO: remove.
+            warnOfOutdatedDriverOrPlugins(result, transformedResult);
+            return transformedResult;
+        });
+    }
+    async *stream(compiledQuery, chunkSize, queryId) {
+        const connectionDefer = new Deferred();
+        const connectionReleaseDefer = new Deferred();
+        this.provideConnection(async (connection) => {
+            connectionDefer.resolve(connection);
+            // Lets wait until we don't need connection before returning here (returning releases connection)
+            return await connectionReleaseDefer.promise;
+        }).catch((ex) => connectionDefer.reject(ex));
+        const connection = await connectionDefer.promise;
+        try {
+            for await (const result of connection.streamQuery(compiledQuery, chunkSize)) {
+                yield await this.#transformResult(result, queryId);
+            }
+        }
+        finally {
+            connectionReleaseDefer.resolve();
+        }
+    }
+    async #transformResult(result, queryId) {
+        for (const plugin of this.#plugins) {
+            result = await plugin.transformResult({ result, queryId });
+        }
+        return result;
+    }
+}
+// TODO: remove.
+function warnOfOutdatedDriverOrPlugins(result, transformedResult) {
+    const { numAffectedRows } = result;
+    if ((numAffectedRows === undefined &&
+        result.numUpdatedOrDeletedRows === undefined) ||
+        (numAffectedRows !== undefined &&
+            transformedResult.numAffectedRows !== undefined)) {
+        return;
+    }
+    logOnce('kysely:warning: outdated driver/plugin detected! QueryResult.numUpdatedOrDeletedRows is deprecated and will be removed in a future release.');
+}
+
+/// <reference types="./noop-query-executor.d.ts" />
+/**
+ * A {@link QueryExecutor} subclass that can be used when you don't
+ * have a {@link QueryCompiler}, {@link ConnectionProvider} or any
+ * other needed things to actually execute queries.
+ */
+class NoopQueryExecutor extends QueryExecutorBase {
+    get adapter() {
+        throw new Error('this query cannot be compiled to SQL');
+    }
+    compileQuery() {
+        throw new Error('this query cannot be compiled to SQL');
+    }
+    provideConnection() {
+        throw new Error('this query cannot be executed');
+    }
+    withConnectionProvider() {
+        throw new Error('this query cannot have a connection provider');
+    }
+    withPlugin(plugin) {
+        return new NoopQueryExecutor([...this.plugins, plugin]);
+    }
+    withPlugins(plugins) {
+        return new NoopQueryExecutor([...this.plugins, ...plugins]);
+    }
+    withPluginAtFront(plugin) {
+        return new NoopQueryExecutor([plugin, ...this.plugins]);
+    }
+    withoutPlugins() {
+        return new NoopQueryExecutor([]);
+    }
+}
+const NOOP_QUERY_EXECUTOR = new NoopQueryExecutor();
+
+/// <reference types="./merge-result.d.ts" />
+class MergeResult {
+    numChangedRows;
+    constructor(numChangedRows) {
+        this.numChangedRows = numChangedRows;
+    }
+}
+
+/// <reference types="./merge-query-builder.d.ts" />
+class MergeQueryBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /**
+     * Changes a `merge into` query to an `merge top into` query.
+     *
+     * `top` clause is only supported by some dialects like MS SQL Server.
+     *
+     * ### Examples
+     *
+     * Affect 5 matched rows at most:
+     *
+     * ```ts
+     * await db.mergeInto('person')
+     *   .top(5)
+     *   .using('pet', 'person.id', 'pet.owner_id')
+     *   .whenMatched()
+     *   .thenDelete()
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (MS SQL Server):
+     *
+     * ```sql
+     * merge top(5) into "person"
+     * using "pet" on "person"."id" = "pet"."owner_id"
+     * when matched then
+     *   delete
+     * ```
+     *
+     * Affect 50% of matched rows:
+     *
+     * ```ts
+     * await db.mergeInto('person')
+     *   .top(50, 'percent')
+     *   .using('pet', 'person.id', 'pet.owner_id')
+     *   .whenMatched()
+     *   .thenDelete()
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (MS SQL Server):
+     *
+     * ```sql
+     * merge top(50) percent into "person"
+     * using "pet" on "person"."id" = "pet"."owner_id"
+     * when matched then
+     *   delete
+     * ```
+     */
+    top(expression, modifiers) {
+        return new MergeQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithTop(this.#props.queryNode, parseTop(expression, modifiers)),
+        });
+    }
+    using(...args) {
+        return new WheneableMergeQueryBuilder({
+            ...this.#props,
+            queryNode: MergeQueryNode.cloneWithUsing(this.#props.queryNode, parseJoin('Using', args)),
+        });
+    }
+    output(args) {
+        return new MergeQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithOutput(this.#props.queryNode, parseSelectArg(args)),
+        });
+    }
+    outputAll(table) {
+        return new MergeQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithOutput(this.#props.queryNode, parseSelectAll(table)),
+        });
+    }
+}
+preventAwait(MergeQueryBuilder, "don't await MergeQueryBuilder instances directly. To execute the query you need to call `execute` when available.");
+class WheneableMergeQueryBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /**
+     * See {@link MergeQueryBuilder.top}.
+     */
+    top(expression, modifiers) {
+        return new WheneableMergeQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithTop(this.#props.queryNode, parseTop(expression, modifiers)),
+        });
+    }
+    /**
+     * Adds a simple `when matched` clause to the query.
+     *
+     * For a `when matched` clause with an `and` condition, see {@link whenMatchedAnd}.
+     *
+     * For a simple `when not matched` clause, see {@link whenNotMatched}.
+     *
+     * For a `when not matched` clause with an `and` condition, see {@link whenNotMatchedAnd}.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * const result = await db.mergeInto('person')
+     *   .using('pet', 'person.id', 'pet.owner_id')
+     *   .whenMatched()
+     *   .thenDelete()
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * merge into "person"
+     * using "pet" on "person"."id" = "pet"."owner_id"
+     * when matched then
+     *   delete
+     * ```
+     */
+    whenMatched() {
+        return this.#whenMatched([]);
+    }
+    whenMatchedAnd(...args) {
+        return this.#whenMatched(args);
+    }
+    /**
+     * Adds the `when matched` clause to the query with an `and` condition. But unlike
+     * {@link whenMatchedAnd}, this method accepts a column reference as the 3rd argument.
+     *
+     * This method is similar to {@link SelectQueryBuilder.whereRef}, so see the documentation
+     * for that method for more examples.
+     */
+    whenMatchedAndRef(lhs, op, rhs) {
+        return this.#whenMatched([lhs, op, rhs], true);
+    }
+    #whenMatched(args, refRight) {
+        return new MatchedThenableMergeQueryBuilder({
+            ...this.#props,
+            queryNode: MergeQueryNode.cloneWithWhen(this.#props.queryNode, parseMergeWhen({ isMatched: true }, args, refRight)),
+        });
+    }
+    /**
+     * Adds a simple `when not matched` clause to the query.
+     *
+     * For a `when not matched` clause with an `and` condition, see {@link whenNotMatchedAnd}.
+     *
+     * For a simple `when matched` clause, see {@link whenMatched}.
+     *
+     * For a `when matched` clause with an `and` condition, see {@link whenMatchedAnd}.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * const result = await db.mergeInto('person')
+     *   .using('pet', 'person.id', 'pet.owner_id')
+     *   .whenNotMatched()
+     *   .thenInsertValues({
+     *     first_name: 'John',
+     *     last_name: 'Doe',
+     *   })
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * merge into "person"
+     * using "pet" on "person"."id" = "pet"."owner_id"
+     * when not matched then
+     *   insert ("first_name", "last_name") values ($1, $2)
+     * ```
+     */
+    whenNotMatched() {
+        return this.#whenNotMatched([]);
+    }
+    whenNotMatchedAnd(...args) {
+        return this.#whenNotMatched(args);
+    }
+    /**
+     * Adds the `when not matched` clause to the query with an `and` condition. But unlike
+     * {@link whenNotMatchedAnd}, this method accepts a column reference as the 3rd argument.
+     *
+     * Unlike {@link whenMatchedAndRef}, you cannot reference columns from the target table.
+     *
+     * This method is similar to {@link SelectQueryBuilder.whereRef}, so see the documentation
+     * for that method for more examples.
+     */
+    whenNotMatchedAndRef(lhs, op, rhs) {
+        return this.#whenNotMatched([lhs, op, rhs], true);
+    }
+    /**
+     * Adds a simple `when not matched by source` clause to the query.
+     *
+     * Supported in MS SQL Server.
+     *
+     * Similar to {@link whenNotMatched}, but returns a {@link MatchedThenableMergeQueryBuilder}.
+     */
+    whenNotMatchedBySource() {
+        return this.#whenNotMatched([], false, true);
+    }
+    whenNotMatchedBySourceAnd(...args) {
+        return this.#whenNotMatched(args, false, true);
+    }
+    /**
+     * Adds the `when not matched by source` clause to the query with an `and` condition.
+     *
+     * Similar to {@link whenNotMatchedAndRef}, but you can reference columns from
+     * the target table, and not from source table and returns a {@link MatchedThenableMergeQueryBuilder}.
+     */
+    whenNotMatchedBySourceAndRef(lhs, op, rhs) {
+        return this.#whenNotMatched([lhs, op, rhs], true, true);
+    }
+    output(args) {
+        return new WheneableMergeQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithOutput(this.#props.queryNode, parseSelectArg(args)),
+        });
+    }
+    outputAll(table) {
+        return new WheneableMergeQueryBuilder({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithOutput(this.#props.queryNode, parseSelectAll(table)),
+        });
+    }
+    #whenNotMatched(args, refRight = false, bySource = false) {
+        const props = {
+            ...this.#props,
+            queryNode: MergeQueryNode.cloneWithWhen(this.#props.queryNode, parseMergeWhen({ isMatched: false, bySource }, args, refRight)),
+        };
+        const Builder = bySource
+            ? MatchedThenableMergeQueryBuilder
+            : NotMatchedThenableMergeQueryBuilder;
+        return new Builder(props);
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     *
+     * If you want to conditionally call a method on `this`, see
+     * the {@link $if} method.
+     *
+     * ### Examples
+     *
+     * The next example uses a helper function `log` to log a query:
+     *
+     * ```ts
+     * function log<T extends Compilable>(qb: T): T {
+     *   console.log(qb.compile())
+     *   return qb
+     * }
+     *
+     * db.updateTable('person')
+     *   .set(values)
+     *   .$call(log)
+     *   .execute()
+     * ```
+     */
+    $call(func) {
+        return func(this);
+    }
+    /**
+     * Call `func(this)` if `condition` is true.
+     *
+     * This method is especially handy with optional selects. Any `returning` or `returningAll`
+     * method calls add columns as optional fields to the output type when called inside
+     * the `func` callback. This is because we can't know if those selections were actually
+     * made before running the code.
+     *
+     * You can also call any other methods inside the callback.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * async function updatePerson(id: number, updates: UpdateablePerson, returnLastName: boolean) {
+     *   return await db
+     *     .updateTable('person')
+     *     .set(updates)
+     *     .where('id', '=', id)
+     *     .returning(['id', 'first_name'])
+     *     .$if(returnLastName, (qb) => qb.returning('last_name'))
+     *     .executeTakeFirstOrThrow()
+     * }
+     * ```
+     *
+     * Any selections added inside the `if` callback will be added as optional fields to the
+     * output type since we can't know if the selections were actually made before running
+     * the code. In the example above the return type of the `updatePerson` function is:
+     *
+     * ```ts
+     * {
+     *   id: number
+     *   first_name: string
+     *   last_name?: string
+     * }
+     * ```
+     */
+    $if(condition, func) {
+        if (condition) {
+            return func(this);
+        }
+        return new WheneableMergeQueryBuilder({
+            ...this.#props,
+        });
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.queryNode, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    /**
+     * Executes the query and returns an array of rows.
+     *
+     * Also see the {@link executeTakeFirst} and {@link executeTakeFirstOrThrow} methods.
+     */
+    async execute() {
+        const compiledQuery = this.compile();
+        const result = await this.#props.executor.executeQuery(compiledQuery, this.#props.queryId);
+        if (compiledQuery.query.output &&
+            this.#props.executor.adapter.supportsOutput) {
+            return result.rows;
+        }
+        return [new MergeResult(result.numAffectedRows)];
+    }
+    /**
+     * Executes the query and returns the first result or undefined if
+     * the query returned no result.
+     */
+    async executeTakeFirst() {
+        const [result] = await this.execute();
+        return result;
+    }
+    /**
+     * Executes the query and returns the first result or throws if
+     * the query returned no result.
+     *
+     * By default an instance of {@link NoResultError} is thrown, but you can
+     * provide a custom error class, or callback as the only argument to throw a different
+     * error.
+     */
+    async executeTakeFirstOrThrow(errorConstructor = NoResultError) {
+        const result = await this.executeTakeFirst();
+        if (result === undefined) {
+            const error = isNoResultErrorConstructor(errorConstructor)
+                ? new errorConstructor(this.toOperationNode())
+                : errorConstructor(this.toOperationNode());
+            throw error;
+        }
+        return result;
+    }
+}
+preventAwait(WheneableMergeQueryBuilder, "don't await WheneableMergeQueryBuilder instances directly. To execute the query you need to call `execute`.");
+class MatchedThenableMergeQueryBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /**
+     * Performs the `delete` action.
+     *
+     * To perform the `do nothing` action, see {@link thenDoNothing}.
+     *
+     * To perform the `update` action, see {@link thenUpdate} or {@link thenUpdateSet}.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * const result = await db.mergeInto('person')
+     *   .using('pet', 'person.id', 'pet.owner_id')
+     *   .whenMatched()
+     *   .thenDelete()
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * merge into "person"
+     * using "pet" on "person"."id" = "pet"."owner_id"
+     * when matched then
+     *   delete
+     * ```
+     */
+    thenDelete() {
+        return new WheneableMergeQueryBuilder({
+            ...this.#props,
+            queryNode: MergeQueryNode.cloneWithThen(this.#props.queryNode, parseMergeThen('delete')),
+        });
+    }
+    /**
+     * Performs the `do nothing` action.
+     *
+     * This is supported in PostgreSQL.
+     *
+     * To perform the `delete` action, see {@link thenDelete}.
+     *
+     * To perform the `update` action, see {@link thenUpdate} or {@link thenUpdateSet}.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * const result = await db.mergeInto('person')
+     *   .using('pet', 'person.id', 'pet.owner_id')
+     *   .whenMatched()
+     *   .thenDoNothing()
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * merge into "person"
+     * using "pet" on "person"."id" = "pet"."owner_id"
+     * when matched then
+     *   do nothing
+     * ```
+     */
+    thenDoNothing() {
+        return new WheneableMergeQueryBuilder({
+            ...this.#props,
+            queryNode: MergeQueryNode.cloneWithThen(this.#props.queryNode, parseMergeThen('do nothing')),
+        });
+    }
+    /**
+     * Perform an `update` operation with a full-fledged {@link UpdateQueryBuilder}.
+     * This is handy when multiple `set` invocations are needed.
+     *
+     * For a shorthand version of this method, see {@link thenUpdateSet}.
+     *
+     * To perform the `delete` action, see {@link thenDelete}.
+     *
+     * To perform the `do nothing` action, see {@link thenDoNothing}.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * import { sql } from 'kysely'
+     *
+     * const result = await db.mergeInto('person')
+     *   .using('pet', 'person.id', 'pet.owner_id')
+     *   .whenMatched()
+     *   .thenUpdate((ub) => ub
+     *     .set(sql`metadata['has_pets']`, 'Y')
+     *     .set({
+     *       updated_at: Date.now(),
+     *     })
+     *   )
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * merge into "person"
+     * using "pet" on "person"."id" = "pet"."owner_id"
+     * when matched then
+     *   update set metadata['has_pets'] = $1, "updated_at" = $2
+     * ```
+     */
+    thenUpdate(set) {
+        return new WheneableMergeQueryBuilder({
+            ...this.#props,
+            queryNode: MergeQueryNode.cloneWithThen(this.#props.queryNode, parseMergeThen(set(new UpdateQueryBuilder({
+                queryId: this.#props.queryId,
+                executor: NOOP_QUERY_EXECUTOR,
+                queryNode: UpdateQueryNode.createWithoutTable(),
+            })))),
+        });
+    }
+    thenUpdateSet(...args) {
+        // @ts-ignore not sure how to type this so it won't complain about set(...args).
+        return this.thenUpdate((ub) => ub.set(...args));
+    }
+}
+preventAwait(MatchedThenableMergeQueryBuilder, "don't await MatchedThenableMergeQueryBuilder instances directly. To execute the query you need to call `execute` when available.");
+class NotMatchedThenableMergeQueryBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /**
+     * Performs the `do nothing` action.
+     *
+     * This is supported in PostgreSQL.
+     *
+     * To perform the `insert` action, see {@link thenInsertValues}.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * const result = await db.mergeInto('person')
+     *   .using('pet', 'person.id', 'pet.owner_id')
+     *   .whenNotMatched()
+     *   .thenDoNothing()
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * merge into "person"
+     * using "pet" on "person"."id" = "pet"."owner_id"
+     * when not matched then
+     *   do nothing
+     * ```
+     */
+    thenDoNothing() {
+        return new WheneableMergeQueryBuilder({
+            ...this.#props,
+            queryNode: MergeQueryNode.cloneWithThen(this.#props.queryNode, parseMergeThen('do nothing')),
+        });
+    }
+    thenInsertValues(insert) {
+        const [columns, values] = parseInsertExpression(insert);
+        return new WheneableMergeQueryBuilder({
+            ...this.#props,
+            queryNode: MergeQueryNode.cloneWithThen(this.#props.queryNode, parseMergeThen(InsertQueryNode.cloneWith(InsertQueryNode.createWithoutInto(), {
+                columns,
+                values,
+            }))),
+        });
+    }
+}
+preventAwait(NotMatchedThenableMergeQueryBuilder, "don't await NotMatchedThenableMergeQueryBuilder instances directly. To execute the query you need to call `execute` when available.");
+
+/// <reference types="./query-creator.d.ts" />
+class QueryCreator {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    selectFrom(from) {
+        return createSelectQueryBuilder({
+            queryId: createQueryId(),
+            executor: this.#props.executor,
+            queryNode: SelectQueryNode.createFrom(parseTableExpressionOrList(from), this.#props.withNode),
+        });
+    }
+    selectNoFrom(selection) {
+        return createSelectQueryBuilder({
+            queryId: createQueryId(),
+            executor: this.#props.executor,
+            queryNode: SelectQueryNode.cloneWithSelections(SelectQueryNode.create(this.#props.withNode), parseSelectArg(selection)),
+        });
+    }
+    /**
+     * Creates an insert query.
+     *
+     * The return value of this query is an instance of {@link InsertResult}. {@link InsertResult}
+     * has the {@link InsertResult.insertId | insertId} field that holds the auto incremented id of
+     * the inserted row if the db returned one.
+     *
+     * See the {@link InsertQueryBuilder.values | values} method for more info and examples. Also see
+     * the {@link ReturningInterface.returning | returning} method for a way to return columns
+     * on supported databases like PostgreSQL.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * const result = await db
+     *   .insertInto('person')
+     *   .values({
+     *     first_name: 'Jennifer',
+     *     last_name: 'Aniston'
+     *   })
+     *   .executeTakeFirst()
+     *
+     * console.log(result.insertId)
+     * ```
+     *
+     * Some databases like PostgreSQL support the `returning` method:
+     *
+     * ```ts
+     * const { id } = await db
+     *   .insertInto('person')
+     *   .values({
+     *     first_name: 'Jennifer',
+     *     last_name: 'Aniston'
+     *   })
+     *   .returning('id')
+     *   .executeTakeFirst()
+     * ```
+     */
+    insertInto(table) {
+        return new InsertQueryBuilder({
+            queryId: createQueryId(),
+            executor: this.#props.executor,
+            queryNode: InsertQueryNode.create(parseTable(table), this.#props.withNode),
+        });
+    }
+    /**
+     * Creates a replace query.
+     *
+     * A MySQL-only statement similar to {@link InsertQueryBuilder.onDuplicateKeyUpdate}
+     * that deletes and inserts values on collision instead of updating existing rows.
+     *
+     * The return value of this query is an instance of {@link InsertResult}. {@link InsertResult}
+     * has the {@link InsertResult.insertId | insertId} field that holds the auto incremented id of
+     * the inserted row if the db returned one.
+     *
+     * See the {@link InsertQueryBuilder.values | values} method for more info and examples.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * const result = await db
+     *   .replaceInto('person')
+     *   .values({
+     *     first_name: 'Jennifer',
+     *     last_name: 'Aniston'
+     *   })
+     *   .executeTakeFirst()
+     *
+     * console.log(result.insertId)
+     * ```
+     */
+    replaceInto(table) {
+        return new InsertQueryBuilder({
+            queryId: createQueryId(),
+            executor: this.#props.executor,
+            queryNode: InsertQueryNode.create(parseTable(table), this.#props.withNode, true),
+        });
+    }
+    deleteFrom(tables) {
+        return new DeleteQueryBuilder({
+            queryId: createQueryId(),
+            executor: this.#props.executor,
+            queryNode: DeleteQueryNode.create(parseTableExpressionOrList(tables), this.#props.withNode),
+        });
+    }
+    updateTable(table) {
+        return new UpdateQueryBuilder({
+            queryId: createQueryId(),
+            executor: this.#props.executor,
+            queryNode: UpdateQueryNode.create(parseTableExpression(table), this.#props.withNode),
+        });
+    }
+    mergeInto(targetTable) {
+        return new MergeQueryBuilder({
+            queryId: createQueryId(),
+            executor: this.#props.executor,
+            queryNode: MergeQueryNode.create(parseAliasedTable(targetTable), this.#props.withNode),
+        });
+    }
+    /**
+     * Creates a `with` query (Common Table Expression).
+     *
+     * ### Examples
+     *
+     * <!-- siteExample("cte", "Simple selects", 10) -->
+     *
+     * Common table expressions (CTE) are a great way to modularize complex queries.
+     * Essentially they allow you to run multiple separate queries within a
+     * single roundtrip to the DB.
+     *
+     * Since CTEs are a part of the main query, query optimizers inside DB
+     * engines are able to optimize the overall query. For example, postgres
+     * is able to inline the CTEs inside the using queries if it decides it's
+     * faster.
+     *
+     * ```ts
+     * const result = await db
+     *   // Create a CTE called `jennifers` that selects all
+     *   // persons named 'Jennifer'.
+     *   .with('jennifers', (db) => db
+     *     .selectFrom('person')
+     *     .where('first_name', '=', 'Jennifer')
+     *     .select(['id', 'age'])
+     *   )
+     *   // Select all rows from the `jennifers` CTE and
+     *   // further filter it.
+     *   .with('adult_jennifers', (db) => db
+     *     .selectFrom('jennifers')
+     *     .where('age', '>', 18)
+     *     .select(['id', 'age'])
+     *   )
+     *   // Finally select all adult jennifers that are
+     *   // also younger than 60.
+     *   .selectFrom('adult_jennifers')
+     *   .where('age', '<', 60)
+     *   .selectAll()
+     *   .execute()
+     * ```
+     *
+     * <!-- siteExample("cte", "Inserts, updates and deletions", 20) -->
+     *
+     * Some databases like postgres also allow you to run other queries than selects
+     * in CTEs. On these databases CTEs are extremely powerful:
+     *
+     * ```ts
+     * const result = await db
+     *   .with('new_person', (db) => db
+     *     .insertInto('person')
+     *     .values({
+     *       first_name: 'Jennifer',
+     *       age: 35,
+     *     })
+     *     .returning('id')
+     *   )
+     *   .with('new_pet', (db) => db
+     *     .insertInto('pet')
+     *     .values({
+     *       name: 'Doggo',
+     *       species: 'dog',
+     *       is_favorite: true,
+     *       // Use the id of the person we just inserted.
+     *       owner_id: db
+     *         .selectFrom('new_person')
+     *         .select('id')
+     *     })
+     *     .returning('id')
+     *   )
+     *   .selectFrom(['new_person', 'new_pet'])
+     *   .select([
+     *     'new_person.id as person_id',
+     *     'new_pet.id as pet_id'
+     *   ])
+     *   .execute()
+     * ```
+     *
+     * The CTE name can optionally specify column names in addition to
+     * a name. In that case Kysely requires the expression to retun
+     * rows with the same columns.
+     *
+     * ```ts
+     * await db
+     *   .with('jennifers(id, age)', (db) => db
+     *     .selectFrom('person')
+     *     .where('first_name', '=', 'Jennifer')
+     *     // This is ok since we return columns with the same
+     *     // names as specified by `jennifers(id, age)`.
+     *     .select(['id', 'age'])
+     *   )
+     *   .selectFrom('jennifers')
+     *   .selectAll()
+     *   .execute()
+     * ```
+     *
+     * The first argument can also be a callback. The callback is passed
+     * a `CTEBuilder` instance that can be used to configure the CTE:
+     *
+     * ```ts
+     * await db
+     *   .with(
+     *     (cte) => cte('jennifers').materialized(),
+     *     (db) => db
+     *       .selectFrom('person')
+     *       .where('first_name', '=', 'Jennifer')
+     *       .select(['id', 'age'])
+     *   )
+     *   .selectFrom('jennifers')
+     *   .selectAll()
+     *   .execute()
+     * ```
+     */
+    with(nameOrBuilder, expression) {
+        const cte = parseCommonTableExpression(nameOrBuilder, expression);
+        return new QueryCreator({
+            ...this.#props,
+            withNode: this.#props.withNode
+                ? WithNode.cloneWithExpression(this.#props.withNode, cte)
+                : WithNode.create(cte),
+        });
+    }
+    /**
+     * Creates a recursive `with` query (Common Table Expression).
+     *
+     * Note that recursiveness is a property of the whole `with` statement.
+     * You cannot have recursive and non-recursive CTEs in a same `with` statement.
+     * Therefore the recursiveness is determined by the **first** `with` or
+     * `withRecusive` call you make.
+     *
+     * See the {@link with} method for examples and more documentation.
+     */
+    withRecursive(nameOrBuilder, expression) {
+        const cte = parseCommonTableExpression(nameOrBuilder, expression);
+        return new QueryCreator({
+            ...this.#props,
+            withNode: this.#props.withNode
+                ? WithNode.cloneWithExpression(this.#props.withNode, cte)
+                : WithNode.create(cte, { recursive: true }),
+        });
+    }
+    /**
+     * Returns a copy of this query creator instance with the given plugin installed.
+     */
+    withPlugin(plugin) {
+        return new QueryCreator({
+            ...this.#props,
+            executor: this.#props.executor.withPlugin(plugin),
+        });
+    }
+    /**
+     * Returns a copy of this query creator instance without any plugins.
+     */
+    withoutPlugins() {
+        return new QueryCreator({
+            ...this.#props,
+            executor: this.#props.executor.withoutPlugins(),
+        });
+    }
+    /**
+     * Sets the schema to be used for all table references that don't explicitly
+     * specify a schema.
+     *
+     * This only affects the query created through the builder returned from
+     * this method and doesn't modify the `db` instance.
+     *
+     * See [this recipe](https://github.com/koskimas/kysely/tree/master/site/docs/recipes/schemas.md)
+     * for a more detailed explanation.
+     *
+     * ### Examples
+     *
+     * ```
+     * await db
+     *   .withSchema('mammals')
+     *   .selectFrom('pet')
+     *   .selectAll()
+     *   .innerJoin('public.person', 'public.person.id', 'pet.owner_id')
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * select * from "mammals"."pet"
+     * inner join "public"."person"
+     * on "public"."person"."id" = "mammals"."pet"."owner_id"
+     * ```
+     *
+     * `withSchema` is smart enough to not add schema for aliases,
+     * common table expressions or other places where the schema
+     * doesn't belong to:
+     *
+     * ```
+     * await db
+     *   .withSchema('mammals')
+     *   .selectFrom('pet as p')
+     *   .select('p.name')
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * select "p"."name" from "mammals"."pet" as "p"
+     * ```
+     */
+    withSchema(schema) {
+        return new QueryCreator({
+            ...this.#props,
+            executor: this.#props.executor.withPluginAtFront(new WithSchemaPlugin(schema)),
+        });
+    }
+}
+
+/// <reference types="./parse-utils.d.ts" />
+function createQueryCreator() {
+    return new QueryCreator({
+        executor: NOOP_QUERY_EXECUTOR,
+    });
+}
+function createJoinBuilder(joinType, table) {
+    return new JoinBuilder({
+        joinNode: JoinNode.create(joinType, parseTableExpression(table)),
+    });
+}
+function createOverBuilder() {
+    return new OverBuilder({
+        overNode: OverNode.create(),
+    });
+}
+
+/// <reference types="./join-parser.d.ts" />
+function parseJoin(joinType, args) {
+    if (args.length === 3) {
+        return parseSingleOnJoin(joinType, args[0], args[1], args[2]);
+    }
+    else if (args.length === 2) {
+        return parseCallbackJoin(joinType, args[0], args[1]);
+    }
+    else {
+        throw new Error('not implemented');
+    }
+}
+function parseCallbackJoin(joinType, from, callback) {
+    return callback(createJoinBuilder(joinType, from)).toOperationNode();
+}
+function parseSingleOnJoin(joinType, from, lhsColumn, rhsColumn) {
+    return JoinNode.createWithOn(joinType, parseTableExpression(from), parseReferentialBinaryOperation(lhsColumn, '=', rhsColumn));
+}
+
+/// <reference types="./offset-node.d.ts" />
+/**
+ * @internal
+ */
+const OffsetNode = freeze({
+    is(node) {
+        return node.kind === 'OffsetNode';
+    },
+    create(offset) {
+        return freeze({
+            kind: 'OffsetNode',
+            offset,
+        });
+    },
+});
+
+/// <reference types="./group-by-item-node.d.ts" />
+/**
+ * @internal
+ */
+const GroupByItemNode = freeze({
+    is(node) {
+        return node.kind === 'GroupByItemNode';
+    },
+    create(groupBy) {
+        return freeze({
+            kind: 'GroupByItemNode',
+            groupBy,
+        });
+    },
+});
+
+/// <reference types="./group-by-parser.d.ts" />
+function parseGroupBy(groupBy) {
+    groupBy = isFunction(groupBy) ? groupBy(expressionBuilder()) : groupBy;
+    return parseReferenceExpressionOrList(groupBy).map(GroupByItemNode.create);
+}
+
+/// <reference types="./set-operation-node.d.ts" />
+/**
+ * @internal
+ */
+const SetOperationNode = freeze({
+    is(node) {
+        return node.kind === 'SetOperationNode';
+    },
+    create(operator, expression, all) {
+        return freeze({
+            kind: 'SetOperationNode',
+            operator,
+            expression,
+            all,
+        });
+    },
+});
+
+/// <reference types="./set-operation-parser.d.ts" />
+function parseSetOperations(operator, expression, all) {
+    if (isFunction(expression)) {
+        expression = expression(createExpressionBuilder());
+    }
+    if (!isReadonlyArray(expression)) {
+        expression = [expression];
+    }
+    return expression.map((expr) => SetOperationNode.create(operator, parseExpression(expr), all));
+}
+
+/// <reference types="./expression-wrapper.d.ts" />
+class ExpressionWrapper {
+    #node;
+    constructor(node) {
+        this.#node = node;
+    }
+    /** @private */
+    get expressionType() {
+        return undefined;
+    }
+    as(alias) {
+        return new AliasedExpressionWrapper(this, alias);
+    }
+    or(...args) {
+        return new OrWrapper(OrNode.create(this.#node, parseValueBinaryOperationOrExpression(args)));
+    }
+    and(...args) {
+        return new AndWrapper(AndNode.create(this.#node, parseValueBinaryOperationOrExpression(args)));
+    }
+    /**
+     * Change the output type of the expression.
+     *
+     * This method call doesn't change the SQL in any way. This methods simply
+     * returns a copy of this `ExpressionWrapper` with a new output type.
+     */
+    $castTo() {
+        return new ExpressionWrapper(this.#node);
+    }
+    /**
+     * Omit null from the expression's type.
+     *
+     * This function can be useful in cases where you know an expression can't be
+     * null, but Kysely is unable to infer it.
+     *
+     * This method call doesn't change the SQL in any way. This methods simply
+     * returns a copy of `this` with a new output type.
+     */
+    $notNull() {
+        return new ExpressionWrapper(this.#node);
+    }
+    toOperationNode() {
+        return this.#node;
+    }
+}
+class AliasedExpressionWrapper {
+    #expr;
+    #alias;
+    constructor(expr, alias) {
+        this.#expr = expr;
+        this.#alias = alias;
+    }
+    /** @private */
+    get expression() {
+        return this.#expr;
+    }
+    /** @private */
+    get alias() {
+        return this.#alias;
+    }
+    toOperationNode() {
+        return AliasNode.create(this.#expr.toOperationNode(), isOperationNodeSource(this.#alias)
+            ? this.#alias.toOperationNode()
+            : IdentifierNode.create(this.#alias));
+    }
+}
+class OrWrapper {
+    #node;
+    constructor(node) {
+        this.#node = node;
+    }
+    /** @private */
+    get expressionType() {
+        return undefined;
+    }
+    as(alias) {
+        return new AliasedExpressionWrapper(this, alias);
+    }
+    or(...args) {
+        return new OrWrapper(OrNode.create(this.#node, parseValueBinaryOperationOrExpression(args)));
+    }
+    /**
+     * Change the output type of the expression.
+     *
+     * This method call doesn't change the SQL in any way. This methods simply
+     * returns a copy of this `OrWrapper` with a new output type.
+     */
+    $castTo() {
+        return new OrWrapper(this.#node);
+    }
+    toOperationNode() {
+        return ParensNode.create(this.#node);
+    }
+}
+class AndWrapper {
+    #node;
+    constructor(node) {
+        this.#node = node;
+    }
+    /** @private */
+    get expressionType() {
+        return undefined;
+    }
+    as(alias) {
+        return new AliasedExpressionWrapper(this, alias);
+    }
+    and(...args) {
+        return new AndWrapper(AndNode.create(this.#node, parseValueBinaryOperationOrExpression(args)));
+    }
+    /**
+     * Change the output type of the expression.
+     *
+     * This method call doesn't change the SQL in any way. This methods simply
+     * returns a copy of this `AndWrapper` with a new output type.
+     */
+    $castTo() {
+        return new AndWrapper(this.#node);
+    }
+    toOperationNode() {
+        return ParensNode.create(this.#node);
+    }
+}
+
+/// <reference types="./fetch-node.d.ts" />
+/**
+ * @internal
+ */
+const FetchNode = {
+    is(node) {
+        return node.kind === 'FetchNode';
+    },
+    create(rowCount, modifier) {
+        return {
+            kind: 'FetchNode',
+            rowCount: ValueNode.create(rowCount),
+            modifier,
+        };
+    },
+};
+
+/// <reference types="./fetch-parser.d.ts" />
+function parseFetch(rowCount, modifier) {
+    if (!isNumber(rowCount) && !isBigInt(rowCount)) {
+        throw new Error(`Invalid fetch row count: ${rowCount}`);
+    }
+    if (!isFetchModifier(modifier)) {
+        throw new Error(`Invalid fetch modifier: ${modifier}`);
+    }
+    return FetchNode.create(rowCount, modifier);
+}
+function isFetchModifier(value) {
+    return value === 'only' || value === 'with ties';
+}
+
+/// <reference types="./select-query-builder.d.ts" />
+class SelectQueryBuilderImpl {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    get expressionType() {
+        return undefined;
+    }
+    get isSelectQueryBuilder() {
+        return true;
+    }
+    where(...args) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithWhere(this.#props.queryNode, parseValueBinaryOperationOrExpression(args)),
+        });
+    }
+    whereRef(lhs, op, rhs) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithWhere(this.#props.queryNode, parseReferentialBinaryOperation(lhs, op, rhs)),
+        });
+    }
+    having(...args) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithHaving(this.#props.queryNode, parseValueBinaryOperationOrExpression(args)),
+        });
+    }
+    havingRef(lhs, op, rhs) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithHaving(this.#props.queryNode, parseReferentialBinaryOperation(lhs, op, rhs)),
+        });
+    }
+    select(selection) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithSelections(this.#props.queryNode, parseSelectArg(selection)),
+        });
+    }
+    distinctOn(selection) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithDistinctOn(this.#props.queryNode, parseReferenceExpressionOrList(selection)),
+        });
+    }
+    modifyFront(modifier) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithFrontModifier(this.#props.queryNode, SelectModifierNode.createWithExpression(modifier.toOperationNode())),
+        });
+    }
+    modifyEnd(modifier) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithEndModifier(this.#props.queryNode, SelectModifierNode.createWithExpression(modifier.toOperationNode())),
+        });
+    }
+    distinct() {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithFrontModifier(this.#props.queryNode, SelectModifierNode.create('Distinct')),
+        });
+    }
+    forUpdate(of) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithEndModifier(this.#props.queryNode, SelectModifierNode.create('ForUpdate', of ? asArray(of).map(parseTable) : undefined)),
+        });
+    }
+    forShare(of) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithEndModifier(this.#props.queryNode, SelectModifierNode.create('ForShare', of ? asArray(of).map(parseTable) : undefined)),
+        });
+    }
+    forKeyShare(of) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithEndModifier(this.#props.queryNode, SelectModifierNode.create('ForKeyShare', of ? asArray(of).map(parseTable) : undefined)),
+        });
+    }
+    forNoKeyUpdate(of) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithEndModifier(this.#props.queryNode, SelectModifierNode.create('ForNoKeyUpdate', of ? asArray(of).map(parseTable) : undefined)),
+        });
+    }
+    skipLocked() {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithEndModifier(this.#props.queryNode, SelectModifierNode.create('SkipLocked')),
+        });
+    }
+    noWait() {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithEndModifier(this.#props.queryNode, SelectModifierNode.create('NoWait')),
+        });
+    }
+    selectAll(table) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithSelections(this.#props.queryNode, parseSelectAll(table)),
+        });
+    }
+    innerJoin(...args) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('InnerJoin', args)),
+        });
+    }
+    leftJoin(...args) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('LeftJoin', args)),
+        });
+    }
+    rightJoin(...args) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('RightJoin', args)),
+        });
+    }
+    fullJoin(...args) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('FullJoin', args)),
+        });
+    }
+    innerJoinLateral(...args) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('LateralInnerJoin', args)),
+        });
+    }
+    leftJoinLateral(...args) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithJoin(this.#props.queryNode, parseJoin('LateralLeftJoin', args)),
+        });
+    }
+    orderBy(...args) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithOrderByItems(this.#props.queryNode, parseOrderBy(args)),
+        });
+    }
+    groupBy(groupBy) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithGroupByItems(this.#props.queryNode, parseGroupBy(groupBy)),
+        });
+    }
+    limit(limit) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithLimit(this.#props.queryNode, LimitNode.create(parseValueExpression(limit))),
+        });
+    }
+    offset(offset) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithOffset(this.#props.queryNode, OffsetNode.create(parseValueExpression(offset))),
+        });
+    }
+    fetch(rowCount, modifier = 'only') {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithFetch(this.#props.queryNode, parseFetch(rowCount, modifier)),
+        });
+    }
+    top(expression, modifiers) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithTop(this.#props.queryNode, parseTop(expression, modifiers)),
+        });
+    }
+    union(expression) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithSetOperations(this.#props.queryNode, parseSetOperations('union', expression, false)),
+        });
+    }
+    unionAll(expression) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithSetOperations(this.#props.queryNode, parseSetOperations('union', expression, true)),
+        });
+    }
+    intersect(expression) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithSetOperations(this.#props.queryNode, parseSetOperations('intersect', expression, false)),
+        });
+    }
+    intersectAll(expression) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithSetOperations(this.#props.queryNode, parseSetOperations('intersect', expression, true)),
+        });
+    }
+    except(expression) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithSetOperations(this.#props.queryNode, parseSetOperations('except', expression, false)),
+        });
+    }
+    exceptAll(expression) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithSetOperations(this.#props.queryNode, parseSetOperations('except', expression, true)),
+        });
+    }
+    as(alias) {
+        return new AliasedSelectQueryBuilderImpl(this, alias);
+    }
+    clearSelect() {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithoutSelections(this.#props.queryNode),
+        });
+    }
+    clearWhere() {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithoutWhere(this.#props.queryNode),
+        });
+    }
+    clearLimit() {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithoutLimit(this.#props.queryNode),
+        });
+    }
+    clearOffset() {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithoutOffset(this.#props.queryNode),
+        });
+    }
+    clearOrderBy() {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithoutOrderBy(this.#props.queryNode),
+        });
+    }
+    clearGroupBy() {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: SelectQueryNode.cloneWithoutGroupBy(this.#props.queryNode),
+        });
+    }
+    $call(func) {
+        return func(this);
+    }
+    $if(condition, func) {
+        if (condition) {
+            return func(this);
+        }
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+        });
+    }
+    $castTo() {
+        return new SelectQueryBuilderImpl(this.#props);
+    }
+    $narrowType() {
+        return new SelectQueryBuilderImpl(this.#props);
+    }
+    $assertType() {
+        return new SelectQueryBuilderImpl(this.#props);
+    }
+    $asTuple() {
+        return new ExpressionWrapper(this.toOperationNode());
+    }
+    withPlugin(plugin) {
+        return new SelectQueryBuilderImpl({
+            ...this.#props,
+            executor: this.#props.executor.withPlugin(plugin),
+        });
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.queryNode, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        const compiledQuery = this.compile();
+        const result = await this.#props.executor.executeQuery(compiledQuery, this.#props.queryId);
+        return result.rows;
+    }
+    async executeTakeFirst() {
+        const [result] = await this.execute();
+        return result;
+    }
+    async executeTakeFirstOrThrow(errorConstructor = NoResultError) {
+        const result = await this.executeTakeFirst();
+        if (result === undefined) {
+            const error = isNoResultErrorConstructor(errorConstructor)
+                ? new errorConstructor(this.toOperationNode())
+                : errorConstructor(this.toOperationNode());
+            throw error;
+        }
+        return result;
+    }
+    async *stream(chunkSize = 100) {
+        const compiledQuery = this.compile();
+        const stream = this.#props.executor.stream(compiledQuery, chunkSize, this.#props.queryId);
+        for await (const item of stream) {
+            yield* item.rows;
+        }
+    }
+    async explain(format, options) {
+        const builder = new SelectQueryBuilderImpl({
+            ...this.#props,
+            queryNode: QueryNode.cloneWithExplain(this.#props.queryNode, format, options),
+        });
+        return await builder.execute();
+    }
+}
+preventAwait(SelectQueryBuilderImpl, "don't await SelectQueryBuilder instances directly. To execute the query you need to call `execute` or `executeTakeFirst`.");
+function createSelectQueryBuilder(props) {
+    return new SelectQueryBuilderImpl(props);
+}
+/**
+ * {@link SelectQueryBuilder} with an alias. The result of calling {@link SelectQueryBuilder.as}.
+ */
+class AliasedSelectQueryBuilderImpl {
+    #queryBuilder;
+    #alias;
+    constructor(queryBuilder, alias) {
+        this.#queryBuilder = queryBuilder;
+        this.#alias = alias;
+    }
+    get expression() {
+        return this.#queryBuilder;
+    }
+    get alias() {
+        return this.#alias;
+    }
+    get isAliasedSelectQueryBuilder() {
+        return true;
+    }
+    toOperationNode() {
+        return AliasNode.create(this.#queryBuilder.toOperationNode(), IdentifierNode.create(this.#alias));
+    }
+}
+preventAwait(AliasedSelectQueryBuilderImpl, "don't await AliasedSelectQueryBuilder instances directly. AliasedSelectQueryBuilder should never be executed directly since it's always a part of another query.");
+
+/// <reference types="./aggregate-function-node.d.ts" />
+/**
+ * @internal
+ */
+const AggregateFunctionNode = freeze({
+    is(node) {
+        return node.kind === 'AggregateFunctionNode';
+    },
+    create(aggregateFunction, aggregated = []) {
+        return freeze({
+            kind: 'AggregateFunctionNode',
+            func: aggregateFunction,
+            aggregated,
+        });
+    },
+    cloneWithDistinct(aggregateFunctionNode) {
+        return freeze({
+            ...aggregateFunctionNode,
+            distinct: true,
+        });
+    },
+    cloneWithFilter(aggregateFunctionNode, filter) {
+        return freeze({
+            ...aggregateFunctionNode,
+            filter: aggregateFunctionNode.filter
+                ? WhereNode.cloneWithOperation(aggregateFunctionNode.filter, 'And', filter)
+                : WhereNode.create(filter),
+        });
+    },
+    cloneWithOrFilter(aggregateFunctionNode, filter) {
+        return freeze({
+            ...aggregateFunctionNode,
+            filter: aggregateFunctionNode.filter
+                ? WhereNode.cloneWithOperation(aggregateFunctionNode.filter, 'Or', filter)
+                : WhereNode.create(filter),
+        });
+    },
+    cloneWithOver(aggregateFunctionNode, over) {
+        return freeze({
+            ...aggregateFunctionNode,
+            over,
+        });
+    },
+});
+
+/// <reference types="./function-node.d.ts" />
+/**
+ * @internal
+ */
+const FunctionNode = freeze({
+    is(node) {
+        return node.kind === 'FunctionNode';
+    },
+    create(func, args) {
+        return freeze({
+            kind: 'FunctionNode',
+            func,
+            arguments: args,
+        });
+    },
+});
+
+/// <reference types="./aggregate-function-builder.d.ts" />
+class AggregateFunctionBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /** @private */
+    get expressionType() {
+        return undefined;
+    }
+    /**
+     * Returns an aliased version of the function.
+     *
+     * In addition to slapping `as "the_alias"` to the end of the SQL,
+     * this method also provides strict typing:
+     *
+     * ```ts
+     * const result = await db
+     *   .selectFrom('person')
+     *   .select(
+     *     (eb) => eb.fn.count<number>('id').as('person_count')
+     *   )
+     *   .executeTakeFirstOrThrow()
+     *
+     * // `person_count: number` field exists in the result type.
+     * console.log(result.person_count)
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * select count("id") as "person_count"
+     * from "person"
+     * ```
+     */
+    as(alias) {
+        return new AliasedAggregateFunctionBuilder(this, alias);
+    }
+    /**
+     * Adds a `distinct` clause inside the function.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * const result = await db
+     *   .selectFrom('person')
+     *   .select((eb) =>
+     *     eb.fn.count<number>('first_name').distinct().as('first_name_count')
+     *   )
+     *   .executeTakeFirstOrThrow()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * select count(distinct "first_name") as "first_name_count"
+     * from "person"
+     * ```
+     */
+    distinct() {
+        return new AggregateFunctionBuilder({
+            ...this.#props,
+            aggregateFunctionNode: AggregateFunctionNode.cloneWithDistinct(this.#props.aggregateFunctionNode),
+        });
+    }
+    filterWhere(...args) {
+        return new AggregateFunctionBuilder({
+            ...this.#props,
+            aggregateFunctionNode: AggregateFunctionNode.cloneWithFilter(this.#props.aggregateFunctionNode, parseValueBinaryOperationOrExpression(args)),
+        });
+    }
+    /**
+     * Adds a `filter` clause with a nested `where` clause after the function, where
+     * both sides of the operator are references to columns.
+     *
+     * Similar to {@link WhereInterface}'s `whereRef` method.
+     *
+     * ### Examples
+     *
+     * Count people with same first and last names versus general public:
+     *
+     * ```ts
+     * const result = await db
+     *   .selectFrom('person')
+     *   .select((eb) => [
+     *     eb.fn
+     *       .count<number>('id')
+     *       .filterWhereRef('first_name', '=', 'last_name')
+     *       .as('repeat_name_count'),
+     *     eb.fn.count<number>('id').as('total_count'),
+     *   ])
+     *   .executeTakeFirstOrThrow()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * select
+     *   count("id") filter(where "first_name" = "last_name") as "repeat_name_count",
+     *   count("id") as "total_count"
+     * from "person"
+     * ```
+     */
+    filterWhereRef(lhs, op, rhs) {
+        return new AggregateFunctionBuilder({
+            ...this.#props,
+            aggregateFunctionNode: AggregateFunctionNode.cloneWithFilter(this.#props.aggregateFunctionNode, parseReferentialBinaryOperation(lhs, op, rhs)),
+        });
+    }
+    /**
+     * Adds an `over` clause (window functions) after the function.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * const result = await db
+     *   .selectFrom('person')
+     *   .select(
+     *     (eb) => eb.fn.avg<number>('age').over().as('average_age')
+     *   )
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * select avg("age") over() as "average_age"
+     * from "person"
+     * ```
+     *
+     * Also supports passing a callback that returns an over builder,
+     * allowing to add partition by and sort by clauses inside over.
+     *
+     * ```ts
+     * const result = await db
+     *   .selectFrom('person')
+     *   .select(
+     *     (eb) => eb.fn.avg<number>('age').over(
+     *       ob => ob.partitionBy('last_name').orderBy('first_name', 'asc')
+     *     ).as('average_age')
+     *   )
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * select avg("age") over(partition by "last_name" order by "first_name" asc) as "average_age"
+     * from "person"
+     * ```
+     */
+    over(over) {
+        const builder = createOverBuilder();
+        return new AggregateFunctionBuilder({
+            ...this.#props,
+            aggregateFunctionNode: AggregateFunctionNode.cloneWithOver(this.#props.aggregateFunctionNode, (over ? over(builder) : builder).toOperationNode()),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    /**
+     * Casts the expression to the given type.
+     *
+     * This method call doesn't change the SQL in any way. This methods simply
+     * returns a copy of this `AggregateFunctionBuilder` with a new output type.
+     */
+    $castTo() {
+        return new AggregateFunctionBuilder(this.#props);
+    }
+    /**
+     * Omit null from the expression's type.
+     *
+     * This function can be useful in cases where you know an expression can't be
+     * null, but Kysely is unable to infer it.
+     *
+     * This method call doesn't change the SQL in any way. This methods simply
+     * returns a copy of `this` with a new output type.
+     */
+    $notNull() {
+        return new AggregateFunctionBuilder(this.#props);
+    }
+    toOperationNode() {
+        return this.#props.aggregateFunctionNode;
+    }
+}
+preventAwait(AggregateFunctionBuilder, "don't await AggregateFunctionBuilder instances. They are never executed directly and are always just a part of a query.");
+/**
+ * {@link AggregateFunctionBuilder} with an alias. The result of calling {@link AggregateFunctionBuilder.as}.
+ */
+class AliasedAggregateFunctionBuilder {
+    #aggregateFunctionBuilder;
+    #alias;
+    constructor(aggregateFunctionBuilder, alias) {
+        this.#aggregateFunctionBuilder = aggregateFunctionBuilder;
+        this.#alias = alias;
+    }
+    /** @private */
+    get expression() {
+        return this.#aggregateFunctionBuilder;
+    }
+    /** @private */
+    get alias() {
+        return this.#alias;
+    }
+    toOperationNode() {
+        return AliasNode.create(this.#aggregateFunctionBuilder.toOperationNode(), IdentifierNode.create(this.#alias));
+    }
+}
+
+/// <reference types="./function-module.d.ts" />
+function createFunctionModule() {
+    const fn = (name, args) => {
+        return new ExpressionWrapper(FunctionNode.create(name, parseReferenceExpressionOrList(args ?? [])));
+    };
+    const agg = (name, args) => {
+        return new AggregateFunctionBuilder({
+            aggregateFunctionNode: AggregateFunctionNode.create(name, args ? parseReferenceExpressionOrList(args) : undefined),
+        });
+    };
+    return Object.assign(fn, {
+        agg,
+        avg(column) {
+            return agg('avg', [column]);
+        },
+        coalesce(...values) {
+            return fn('coalesce', values);
+        },
+        count(column) {
+            return agg('count', [column]);
+        },
+        countAll(table) {
+            return new AggregateFunctionBuilder({
+                aggregateFunctionNode: AggregateFunctionNode.create('count', parseSelectAll(table)),
+            });
+        },
+        max(column) {
+            return agg('max', [column]);
+        },
+        min(column) {
+            return agg('min', [column]);
+        },
+        sum(column) {
+            return agg('sum', [column]);
+        },
+        any(column) {
+            return fn('any', [column]);
+        },
+        jsonAgg(table) {
+            return new AggregateFunctionBuilder({
+                aggregateFunctionNode: AggregateFunctionNode.create('json_agg', [
+                    isString(table) ? parseTable(table) : table.toOperationNode(),
+                ]),
+            });
+        },
+        toJson(table) {
+            return new ExpressionWrapper(FunctionNode.create('to_json', [
+                isString(table) ? parseTable(table) : table.toOperationNode(),
+            ]));
+        },
+    });
+}
+
+/// <reference types="./unary-operation-node.d.ts" />
+/**
+ * @internal
+ */
+const UnaryOperationNode = freeze({
+    is(node) {
+        return node.kind === 'UnaryOperationNode';
+    },
+    create(operator, operand) {
+        return freeze({
+            kind: 'UnaryOperationNode',
+            operator,
+            operand,
+        });
+    },
+});
+
+/// <reference types="./unary-operation-parser.d.ts" />
+function parseUnaryOperation(operator, operand) {
+    return UnaryOperationNode.create(OperatorNode.create(operator), parseReferenceExpression(operand));
+}
+
+/// <reference types="./case-node.d.ts" />
+/**
+ * @internal
+ */
+const CaseNode = freeze({
+    is(node) {
+        return node.kind === 'CaseNode';
+    },
+    create(value) {
+        return freeze({
+            kind: 'CaseNode',
+            value,
+        });
+    },
+    cloneWithWhen(caseNode, when) {
+        return freeze({
+            ...caseNode,
+            when: freeze(caseNode.when ? [...caseNode.when, when] : [when]),
+        });
+    },
+    cloneWithThen(caseNode, then) {
+        return freeze({
+            ...caseNode,
+            when: caseNode.when
+                ? freeze([
+                    ...caseNode.when.slice(0, -1),
+                    WhenNode.cloneWithResult(caseNode.when[caseNode.when.length - 1], then),
+                ])
+                : undefined,
+        });
+    },
+    cloneWith(caseNode, props) {
+        return freeze({
+            ...caseNode,
+            ...props,
+        });
+    },
+});
+
+/// <reference types="./case-builder.d.ts" />
+class CaseBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    when(...args) {
+        return new CaseThenBuilder({
+            ...this.#props,
+            node: CaseNode.cloneWithWhen(this.#props.node, WhenNode.create(parseValueBinaryOperationOrExpression(args))),
+        });
+    }
+}
+class CaseThenBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    then(valueExpression) {
+        return new CaseWhenBuilder({
+            ...this.#props,
+            node: CaseNode.cloneWithThen(this.#props.node, isSafeImmediateValue(valueExpression)
+                ? parseSafeImmediateValue(valueExpression)
+                : parseValueExpression(valueExpression)),
+        });
+    }
+}
+class CaseWhenBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    when(...args) {
+        return new CaseThenBuilder({
+            ...this.#props,
+            node: CaseNode.cloneWithWhen(this.#props.node, WhenNode.create(parseValueBinaryOperationOrExpression(args))),
+        });
+    }
+    else(valueExpression) {
+        return new CaseEndBuilder({
+            ...this.#props,
+            node: CaseNode.cloneWith(this.#props.node, {
+                else: isSafeImmediateValue(valueExpression)
+                    ? parseSafeImmediateValue(valueExpression)
+                    : parseValueExpression(valueExpression),
+            }),
+        });
+    }
+    end() {
+        return new ExpressionWrapper(CaseNode.cloneWith(this.#props.node, { isStatement: false }));
+    }
+    endCase() {
+        return new ExpressionWrapper(CaseNode.cloneWith(this.#props.node, { isStatement: true }));
+    }
+}
+class CaseEndBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    end() {
+        return new ExpressionWrapper(CaseNode.cloneWith(this.#props.node, { isStatement: false }));
+    }
+    endCase() {
+        return new ExpressionWrapper(CaseNode.cloneWith(this.#props.node, { isStatement: true }));
+    }
+}
+
+/// <reference types="./json-path-leg-node.d.ts" />
+/**
+ * @internal
+ */
+const JSONPathLegNode = freeze({
+    is(node) {
+        return node.kind === 'JSONPathLegNode';
+    },
+    create(type, value) {
+        return freeze({
+            kind: 'JSONPathLegNode',
+            type,
+            value,
+        });
+    },
+});
+
+/// <reference types="./json-path-builder.d.ts" />
+class JSONPathBuilder {
+    #node;
+    constructor(node) {
+        this.#node = node;
+    }
+    /**
+     * Access an element of a JSON array in a specific location.
+     *
+     * Since there's no guarantee an element exists in the given array location, the
+     * resulting type is always nullable. If you're sure the element exists, you
+     * should use {@link SelectQueryBuilder.$assertType} to narrow the type safely.
+     *
+     * See also {@link key} to access properties of JSON objects.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.selectFrom('person').select(eb =>
+     *   eb.ref('nicknames', '->').at(0).as('primary_nickname')
+     * )
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * select "nicknames"->0 as "primary_nickname" from "person"
+     *```
+     *
+     * Combined with {@link key}:
+     *
+     * ```ts
+     * db.selectFrom('person').select(eb =>
+     *   eb.ref('experience', '->').at(0).key('role').as('first_role')
+     * )
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * select "experience"->0->'role' as "first_role" from "person"
+     * ```
+     *
+     * You can use `'last'` to access the last element of the array in MySQL:
+     *
+     * ```ts
+     * db.selectFrom('person').select(eb =>
+     *   eb.ref('nicknames', '->$').at('last').as('last_nickname')
+     * )
+     * ```
+     *
+     * The generated SQL (MySQL):
+     *
+     * ```sql
+     * select `nicknames`->'$[last]' as `last_nickname` from `person`
+     * ```
+     *
+     * Or `'#-1'` in SQLite:
+     *
+     * ```ts
+     * db.selectFrom('person').select(eb =>
+     *   eb.ref('nicknames', '->>$').at('#-1').as('last_nickname')
+     * )
+     * ```
+     *
+     * The generated SQL (SQLite):
+     *
+     * ```sql
+     * select "nicknames"->>'$[#-1]' as `last_nickname` from `person`
+     * ```
+     */
+    at(index) {
+        return this.#createBuilderWithPathLeg('ArrayLocation', index);
+    }
+    /**
+     * Access a property of a JSON object.
+     *
+     * If a field is optional, the resulting type will be nullable.
+     *
+     * See also {@link at} to access elements of JSON arrays.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.selectFrom('person').select(eb =>
+     *   eb.ref('address', '->').key('city').as('city')
+     * )
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * select "address"->'city' as "city" from "person"
+     * ```
+     *
+     * Going deeper:
+     *
+     * ```ts
+     * db.selectFrom('person').select(eb =>
+     *   eb.ref('profile', '->$').key('website').key('url').as('website_url')
+     * )
+     * ```
+     *
+     * The generated SQL (MySQL):
+     *
+     * ```sql
+     * select `profile`->'$.website.url' as `website_url` from `person`
+     * ```
+     *
+     * Combined with {@link at}:
+     *
+     * ```ts
+     * db.selectFrom('person').select(eb =>
+     *   eb.ref('profile', '->').key('addresses').at(0).key('city').as('city')
+     * )
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * select "profile"->'addresses'->0->'city' as "city" from "person"
+     * ```
+     */
+    key(key) {
+        return this.#createBuilderWithPathLeg('Member', key);
+    }
+    #createBuilderWithPathLeg(legType, value) {
+        if (JSONReferenceNode.is(this.#node)) {
+            return new TraversedJSONPathBuilder(JSONReferenceNode.cloneWithTraversal(this.#node, JSONPathNode.is(this.#node.traversal)
+                ? JSONPathNode.cloneWithLeg(this.#node.traversal, JSONPathLegNode.create(legType, value))
+                : JSONOperatorChainNode.cloneWithValue(this.#node.traversal, ValueNode.createImmediate(value))));
+        }
+        return new TraversedJSONPathBuilder(JSONPathNode.cloneWithLeg(this.#node, JSONPathLegNode.create(legType, value)));
+    }
+}
+class TraversedJSONPathBuilder extends JSONPathBuilder {
+    #node;
+    constructor(node) {
+        super(node);
+        this.#node = node;
+    }
+    /** @private */
+    get expressionType() {
+        return undefined;
+    }
+    as(alias) {
+        return new AliasedJSONPathBuilder(this, alias);
+    }
+    /**
+     * Change the output type of the json path.
+     *
+     * This method call doesn't change the SQL in any way. This methods simply
+     * returns a copy of this `JSONPathBuilder` with a new output type.
+     */
+    $castTo() {
+        return new JSONPathBuilder(this.#node);
+    }
+    $notNull() {
+        return new JSONPathBuilder(this.#node);
+    }
+    toOperationNode() {
+        return this.#node;
+    }
+}
+class AliasedJSONPathBuilder {
+    #jsonPath;
+    #alias;
+    constructor(jsonPath, alias) {
+        this.#jsonPath = jsonPath;
+        this.#alias = alias;
+    }
+    /** @private */
+    get expression() {
+        return this.#jsonPath;
+    }
+    /** @private */
+    get alias() {
+        return this.#alias;
+    }
+    toOperationNode() {
+        return AliasNode.create(this.#jsonPath.toOperationNode(), isOperationNodeSource(this.#alias)
+            ? this.#alias.toOperationNode()
+            : IdentifierNode.create(this.#alias));
+    }
+}
+
+/// <reference types="./tuple-node.d.ts" />
+/**
+ * @internal
+ */
+const TupleNode = freeze({
+    is(node) {
+        return node.kind === 'TupleNode';
+    },
+    create(values) {
+        return freeze({
+            kind: 'TupleNode',
+            values: freeze(values),
+        });
+    },
+});
+
+/// <reference types="./data-type-node.d.ts" />
+const SIMPLE_COLUMN_DATA_TYPES = [
+    'varchar',
+    'char',
+    'text',
+    'integer',
+    'int2',
+    'int4',
+    'int8',
+    'smallint',
+    'bigint',
+    'boolean',
+    'real',
+    'double precision',
+    'float4',
+    'float8',
+    'decimal',
+    'numeric',
+    'binary',
+    'bytea',
+    'date',
+    'datetime',
+    'time',
+    'timetz',
+    'timestamp',
+    'timestamptz',
+    'serial',
+    'bigserial',
+    'uuid',
+    'json',
+    'jsonb',
+    'blob',
+    'varbinary',
+];
+const COLUMN_DATA_TYPE_REGEX = [
+    /^varchar\(\d+\)$/,
+    /^char\(\d+\)$/,
+    /^decimal\(\d+, \d+\)$/,
+    /^numeric\(\d+, \d+\)$/,
+    /^binary\(\d+\)$/,
+    /^datetime\(\d+\)$/,
+    /^time\(\d+\)$/,
+    /^timetz\(\d+\)$/,
+    /^timestamp\(\d+\)$/,
+    /^timestamptz\(\d+\)$/,
+    /^varbinary\(\d+\)$/,
+];
+/**
+ * @internal
+ */
+const DataTypeNode = freeze({
+    is(node) {
+        return node.kind === 'DataTypeNode';
+    },
+    create(dataType) {
+        return freeze({
+            kind: 'DataTypeNode',
+            dataType,
+        });
+    },
+});
+function isColumnDataType(dataType) {
+    if (SIMPLE_COLUMN_DATA_TYPES.includes(dataType)) {
+        return true;
+    }
+    if (COLUMN_DATA_TYPE_REGEX.some((r) => r.test(dataType))) {
+        return true;
+    }
+    return false;
+}
+
+/// <reference types="./data-type-parser.d.ts" />
+function parseDataTypeExpression(dataType) {
+    if (isOperationNodeSource(dataType)) {
+        return dataType.toOperationNode();
+    }
+    if (isColumnDataType(dataType)) {
+        return DataTypeNode.create(dataType);
+    }
+    throw new Error(`invalid column data type ${JSON.stringify(dataType)}`);
+}
+
+/// <reference types="./cast-node.d.ts" />
+/**
+ * @internal
+ */
+const CastNode = freeze({
+    is(node) {
+        return node.kind === 'CastNode';
+    },
+    create(expression, dataType) {
+        return freeze({
+            kind: 'CastNode',
+            expression,
+            dataType,
+        });
+    },
+});
+
+/// <reference types="./expression-builder.d.ts" />
+function createExpressionBuilder(executor = NOOP_QUERY_EXECUTOR) {
+    function binary(lhs, op, rhs) {
+        return new ExpressionWrapper(parseValueBinaryOperation(lhs, op, rhs));
+    }
+    function unary(op, expr) {
+        return new ExpressionWrapper(parseUnaryOperation(op, expr));
+    }
+    const eb = Object.assign(binary, {
+        fn: undefined,
+        eb: undefined,
+        selectFrom(table) {
+            return createSelectQueryBuilder({
+                queryId: createQueryId(),
+                executor,
+                queryNode: SelectQueryNode.createFrom(parseTableExpressionOrList(table)),
+            });
+        },
+        case(reference) {
+            return new CaseBuilder({
+                node: CaseNode.create(isUndefined(reference)
+                    ? undefined
+                    : parseReferenceExpression(reference)),
+            });
+        },
+        ref(reference, op) {
+            if (isUndefined(op)) {
+                return new ExpressionWrapper(parseStringReference(reference));
+            }
+            return new JSONPathBuilder(parseJSONReference(reference, op));
+        },
+        jsonPath() {
+            return new JSONPathBuilder(JSONPathNode.create());
+        },
+        table(table) {
+            return new ExpressionWrapper(parseTable(table));
+        },
+        val(value) {
+            return new ExpressionWrapper(parseValueExpression(value));
+        },
+        refTuple(...values) {
+            return new ExpressionWrapper(TupleNode.create(values.map(parseReferenceExpression)));
+        },
+        tuple(...values) {
+            return new ExpressionWrapper(TupleNode.create(values.map(parseValueExpression)));
+        },
+        lit(value) {
+            return new ExpressionWrapper(parseSafeImmediateValue(value));
+        },
+        unary,
+        not(expr) {
+            return unary('not', expr);
+        },
+        exists(expr) {
+            return unary('exists', expr);
+        },
+        neg(expr) {
+            return unary('-', expr);
+        },
+        between(expr, start, end) {
+            return new ExpressionWrapper(BinaryOperationNode.create(parseReferenceExpression(expr), OperatorNode.create('between'), AndNode.create(parseValueExpression(start), parseValueExpression(end))));
+        },
+        betweenSymmetric(expr, start, end) {
+            return new ExpressionWrapper(BinaryOperationNode.create(parseReferenceExpression(expr), OperatorNode.create('between symmetric'), AndNode.create(parseValueExpression(start), parseValueExpression(end))));
+        },
+        and(exprs) {
+            if (isReadonlyArray(exprs)) {
+                return new ExpressionWrapper(parseFilterList(exprs, 'and'));
+            }
+            return new ExpressionWrapper(parseFilterObject(exprs, 'and'));
+        },
+        or(exprs) {
+            if (isReadonlyArray(exprs)) {
+                return new ExpressionWrapper(parseFilterList(exprs, 'or'));
+            }
+            return new ExpressionWrapper(parseFilterObject(exprs, 'or'));
+        },
+        parens(...args) {
+            const node = parseValueBinaryOperationOrExpression(args);
+            if (ParensNode.is(node)) {
+                // No double wrapping.
+                return new ExpressionWrapper(node);
+            }
+            else {
+                return new ExpressionWrapper(ParensNode.create(node));
+            }
+        },
+        cast(expr, dataType) {
+            return new ExpressionWrapper(CastNode.create(parseReferenceExpression(expr), parseDataTypeExpression(dataType)));
+        },
+        withSchema(schema) {
+            return createExpressionBuilder(executor.withPluginAtFront(new WithSchemaPlugin(schema)));
+        },
+    });
+    eb.fn = createFunctionModule();
+    eb.eb = eb;
+    return eb;
+}
+function expressionBuilder(_) {
+    return createExpressionBuilder();
+}
+
+/// <reference types="./expression-parser.d.ts" />
+function parseExpression(exp) {
+    if (isOperationNodeSource(exp)) {
+        return exp.toOperationNode();
+    }
+    else if (isFunction(exp)) {
+        return exp(expressionBuilder()).toOperationNode();
+    }
+    throw new Error(`invalid expression: ${JSON.stringify(exp)}`);
+}
+function parseAliasedExpression(exp) {
+    if (isOperationNodeSource(exp)) {
+        return exp.toOperationNode();
+    }
+    else if (isFunction(exp)) {
+        return exp(expressionBuilder()).toOperationNode();
+    }
+    throw new Error(`invalid aliased expression: ${JSON.stringify(exp)}`);
+}
+function isExpressionOrFactory(obj) {
+    return isExpression(obj) || isAliasedExpression(obj) || isFunction(obj);
+}
+
+/// <reference types="./table-parser.d.ts" />
+function parseTableExpressionOrList(table) {
+    if (isReadonlyArray(table)) {
+        return table.map((it) => parseTableExpression(it));
+    }
+    else {
+        return [parseTableExpression(table)];
+    }
+}
+function parseTableExpression(table) {
+    if (isString(table)) {
+        return parseAliasedTable(table);
+    }
+    else {
+        return parseAliasedExpression(table);
+    }
+}
+function parseAliasedTable(from) {
+    const ALIAS_SEPARATOR = ' as ';
+    if (from.includes(ALIAS_SEPARATOR)) {
+        const [table, alias] = from.split(ALIAS_SEPARATOR).map(trim$1);
+        return AliasNode.create(parseTable(table), IdentifierNode.create(alias));
+    }
+    else {
+        return parseTable(from);
+    }
+}
+function parseTable(from) {
+    const SCHEMA_SEPARATOR = '.';
+    if (from.includes(SCHEMA_SEPARATOR)) {
+        const [schema, table] = from.split(SCHEMA_SEPARATOR).map(trim$1);
+        return TableNode.createWithSchema(schema, table);
+    }
+    else {
+        return TableNode.create(from);
+    }
+}
+function trim$1(str) {
+    return str.trim();
+}
+
+/// <reference types="./add-column-node.d.ts" />
+/**
+ * @internal
+ */
+const AddColumnNode = freeze({
+    is(node) {
+        return node.kind === 'AddColumnNode';
+    },
+    create(column) {
+        return freeze({
+            kind: 'AddColumnNode',
+            column,
+        });
+    },
+});
+
+/// <reference types="./column-definition-node.d.ts" />
+/**
+ * @internal
+ */
+const ColumnDefinitionNode = freeze({
+    is(node) {
+        return node.kind === 'ColumnDefinitionNode';
+    },
+    create(column, dataType) {
+        return freeze({
+            kind: 'ColumnDefinitionNode',
+            column: ColumnNode.create(column),
+            dataType,
+        });
+    },
+    cloneWithFrontModifier(node, modifier) {
+        return freeze({
+            ...node,
+            frontModifiers: node.frontModifiers
+                ? freeze([...node.frontModifiers, modifier])
+                : [modifier],
+        });
+    },
+    cloneWithEndModifier(node, modifier) {
+        return freeze({
+            ...node,
+            endModifiers: node.endModifiers
+                ? freeze([...node.endModifiers, modifier])
+                : [modifier],
+        });
+    },
+    cloneWith(node, props) {
+        return freeze({
+            ...node,
+            ...props,
+        });
+    },
+});
+
+/// <reference types="./drop-column-node.d.ts" />
+/**
+ * @internal
+ */
+const DropColumnNode = freeze({
+    is(node) {
+        return node.kind === 'DropColumnNode';
+    },
+    create(column) {
+        return freeze({
+            kind: 'DropColumnNode',
+            column: ColumnNode.create(column),
+        });
+    },
+});
+
+/// <reference types="./rename-column-node.d.ts" />
+/**
+ * @internal
+ */
+const RenameColumnNode = freeze({
+    is(node) {
+        return node.kind === 'RenameColumnNode';
+    },
+    create(column, newColumn) {
+        return freeze({
+            kind: 'RenameColumnNode',
+            column: ColumnNode.create(column),
+            renameTo: ColumnNode.create(newColumn),
+        });
+    },
+});
+
+/// <reference types="./check-constraint-node.d.ts" />
+/**
+ * @internal
+ */
+const CheckConstraintNode = freeze({
+    is(node) {
+        return node.kind === 'CheckConstraintNode';
+    },
+    create(expression, constraintName) {
+        return freeze({
+            kind: 'CheckConstraintNode',
+            expression,
+            name: constraintName ? IdentifierNode.create(constraintName) : undefined,
+        });
+    },
+});
+
+/// <reference types="./references-node.d.ts" />
+const ON_MODIFY_FOREIGN_ACTIONS = [
+    'no action',
+    'restrict',
+    'cascade',
+    'set null',
+    'set default',
+];
+/**
+ * @internal
+ */
+const ReferencesNode = freeze({
+    is(node) {
+        return node.kind === 'ReferencesNode';
+    },
+    create(table, columns) {
+        return freeze({
+            kind: 'ReferencesNode',
+            table,
+            columns: freeze([...columns]),
+        });
+    },
+    cloneWithOnDelete(references, onDelete) {
+        return freeze({
+            ...references,
+            onDelete,
+        });
+    },
+    cloneWithOnUpdate(references, onUpdate) {
+        return freeze({
+            ...references,
+            onUpdate,
+        });
+    },
+});
+
+/// <reference types="./default-value-parser.d.ts" />
+function parseDefaultValueExpression(value) {
+    return isOperationNodeSource(value)
+        ? value.toOperationNode()
+        : ValueNode.createImmediate(value);
+}
+
+/// <reference types="./generated-node.d.ts" />
+/**
+ * @internal
+ */
+const GeneratedNode = freeze({
+    is(node) {
+        return node.kind === 'GeneratedNode';
+    },
+    create(params) {
+        return freeze({
+            kind: 'GeneratedNode',
+            ...params,
+        });
+    },
+    createWithExpression(expression) {
+        return freeze({
+            kind: 'GeneratedNode',
+            always: true,
+            expression,
+        });
+    },
+    cloneWith(node, params) {
+        return freeze({
+            ...node,
+            ...params,
+        });
+    },
+});
+
+/// <reference types="./default-value-node.d.ts" />
+/**
+ * @internal
+ */
+const DefaultValueNode = freeze({
+    is(node) {
+        return node.kind === 'DefaultValueNode';
+    },
+    create(defaultValue) {
+        return freeze({
+            kind: 'DefaultValueNode',
+            defaultValue,
+        });
+    },
+});
+
+/// <reference types="./on-modify-action-parser.d.ts" />
+function parseOnModifyForeignAction(action) {
+    if (ON_MODIFY_FOREIGN_ACTIONS.includes(action)) {
+        return action;
+    }
+    throw new Error(`invalid OnModifyForeignAction ${action}`);
+}
+
+/// <reference types="./column-definition-builder.d.ts" />
+class ColumnDefinitionBuilder {
+    #node;
+    constructor(node) {
+        this.#node = node;
+    }
+    /**
+     * Adds `auto_increment` or `autoincrement` to the column definition
+     * depending on the dialect.
+     *
+     * Some dialects like PostgreSQL don't support this. On PostgreSQL
+     * you can use the `serial` or `bigserial` data type instead.
+     */
+    autoIncrement() {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, { autoIncrement: true }));
+    }
+    /**
+     * Makes the column an identity column.
+     *
+     * This only works on some dialects like MS SQL Server (MSSQL).
+     *
+     * For PostgreSQL's `generated always as identity` use {@link generatedAlwaysAsIdentity}.
+     */
+    identity() {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, { identity: true }));
+    }
+    /**
+     * Makes the column the primary key.
+     *
+     * If you want to specify a composite primary key use the
+     * {@link CreateTableBuilder.addPrimaryKeyConstraint} method.
+     */
+    primaryKey() {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, { primaryKey: true }));
+    }
+    /**
+     * Adds a foreign key constraint for the column.
+     *
+     * If your database engine doesn't support foreign key constraints in the
+     * column definition (like MySQL 5) you need to call the table level
+     * {@link CreateTableBuilder.addForeignKeyConstraint} method instead.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * col.references('person.id')
+     * ```
+     */
+    references(ref) {
+        const references = parseStringReference(ref);
+        if (!references.table || SelectAllNode.is(references.column)) {
+            throw new Error(`invalid call references('${ref}'). The reference must have format table.column or schema.table.column`);
+        }
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, {
+            references: ReferencesNode.create(references.table, [
+                references.column,
+            ]),
+        }));
+    }
+    /**
+     * Adds an `on delete` constraint for the foreign key column.
+     *
+     * If your database engine doesn't support foreign key constraints in the
+     * column definition (like MySQL 5) you need to call the table level
+     * {@link CreateTableBuilder.addForeignKeyConstraint} method instead.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * col.references('person.id').onDelete('cascade')
+     * ```
+     */
+    onDelete(onDelete) {
+        if (!this.#node.references) {
+            throw new Error('on delete constraint can only be added for foreign keys');
+        }
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, {
+            references: ReferencesNode.cloneWithOnDelete(this.#node.references, parseOnModifyForeignAction(onDelete)),
+        }));
+    }
+    /**
+     * Adds an `on update` constraint for the foreign key column.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * col.references('person.id').onUpdate('cascade')
+     * ```
+     */
+    onUpdate(onUpdate) {
+        if (!this.#node.references) {
+            throw new Error('on update constraint can only be added for foreign keys');
+        }
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, {
+            references: ReferencesNode.cloneWithOnUpdate(this.#node.references, parseOnModifyForeignAction(onUpdate)),
+        }));
+    }
+    /**
+     * Adds a unique constraint for the column.
+     */
+    unique() {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, { unique: true }));
+    }
+    /**
+     * Adds a `not null` constraint for the column.
+     */
+    notNull() {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, { notNull: true }));
+    }
+    /**
+     * Adds a `unsigned` modifier for the column.
+     *
+     * This only works on some dialects like MySQL.
+     */
+    unsigned() {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, { unsigned: true }));
+    }
+    /**
+     * Adds a default value constraint for the column.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.schema
+     *   .createTable('pet')
+     *   .addColumn('number_of_legs', 'integer', (col) => col.defaultTo(4))
+     *   .execute()
+     * ```
+     *
+     * Values passed to `defaultTo` are interpreted as value literals by default. You can define
+     * an arbitrary SQL expression using the {@link sql} template tag:
+     *
+     * ```ts
+     * import { sql } from 'kysely'
+     *
+     * db.schema
+     *   .createTable('pet')
+     *   .addColumn(
+     *     'number_of_legs',
+     *     'integer',
+     *     (col) => col.defaultTo(sql`any SQL here`)
+     *   )
+     *   .execute()
+     * ```
+     */
+    defaultTo(value) {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, {
+            defaultTo: DefaultValueNode.create(parseDefaultValueExpression(value)),
+        }));
+    }
+    /**
+     * Adds a check constraint for the column.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * import { sql } from 'kysely'
+     *
+     * db.schema
+     *   .createTable('pet')
+     *   .addColumn('number_of_legs', 'integer', (col) =>
+     *     col.check(sql`number_of_legs < 5`)
+     *   )
+     *   .execute()
+     * ```
+     */
+    check(expression) {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, {
+            check: CheckConstraintNode.create(expression.toOperationNode()),
+        }));
+    }
+    /**
+     * Makes the column a generated column using a `generated always as` statement.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * import { sql } from 'kysely'
+     *
+     * db.schema
+     *   .createTable('person')
+     *   .addColumn('full_name', 'varchar(255)',
+     *     (col) => col.generatedAlwaysAs(sql`concat(first_name, ' ', last_name)`)
+     *   )
+     *   .execute()
+     * ```
+     */
+    generatedAlwaysAs(expression) {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, {
+            generated: GeneratedNode.createWithExpression(expression.toOperationNode()),
+        }));
+    }
+    /**
+     * Adds the `generated always as identity` specifier.
+     *
+     * This only works on some dialects like PostgreSQL.
+     *
+     * For MS SQL Server (MSSQL)'s identity column use {@link identity}.
+     */
+    generatedAlwaysAsIdentity() {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, {
+            generated: GeneratedNode.create({ identity: true, always: true }),
+        }));
+    }
+    /**
+     * Adds the `generated by default as identity` specifier on supported dialects.
+     */
+    generatedByDefaultAsIdentity() {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, {
+            generated: GeneratedNode.create({ identity: true, byDefault: true }),
+        }));
+    }
+    /**
+     * Makes a generated column stored instead of virtual. This method can only
+     * be used with {@link generatedAlwaysAs}
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.schema
+     *   .createTable('person')
+     *   .addColumn('full_name', 'varchar(255)', (col) => col
+     *     .generatedAlwaysAs("concat(first_name, ' ', last_name)")
+     *     .stored()
+     *   )
+     *   .execute()
+     * ```
+     */
+    stored() {
+        if (!this.#node.generated) {
+            throw new Error('stored() can only be called after generatedAlwaysAs');
+        }
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, {
+            generated: GeneratedNode.cloneWith(this.#node.generated, {
+                stored: true,
+            }),
+        }));
+    }
+    /**
+     * This can be used to add any additional SQL right after the column's data type.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.schema.createTable('person')
+     *  .addColumn('id', 'integer', col => col.primaryKey())
+     *  .addColumn('first_name', 'varchar(36)', col => col.modifyFront(sql`collate utf8mb4_general_ci`).notNull())
+     *  .execute()
+     * ```
+     *
+     * The generated SQL (MySQL):
+     *
+     * ```sql
+     * create table `person` (
+     *   `id` integer primary key,
+     *   `first_name` varchar(36) collate utf8mb4_general_ci not null
+     * )
+     * ```
+     */
+    modifyFront(modifier) {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWithFrontModifier(this.#node, modifier.toOperationNode()));
+    }
+    /**
+     * Adds `nulls not distinct` specifier.
+     * Should be used with `unique` constraint.
+     *
+     * This only works on some dialects like PostgreSQL.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.schema.createTable('person')
+     *  .addColumn('id', 'integer', col => col.primaryKey())
+     *  .addColumn('first_name', 'varchar(30)', col => col.unique().nullsNotDistinct())
+     *  .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * create table "person" (
+     *   "id" integer primary key,
+     *   "first_name" varchar(30) unique nulls not distinct
+     * )
+     * ```
+     */
+    nullsNotDistinct() {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, { nullsNotDistinct: true }));
+    }
+    /**
+     * Adds `if not exists` specifier.
+     * This only works for PostgreSQL.
+     */
+    ifNotExists() {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWith(this.#node, { ifNotExists: true }));
+    }
+    /**
+     * This can be used to add any additional SQL to the end of the column definition.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.schema.createTable('person')
+     *  .addColumn('id', 'integer', col => col.primaryKey())
+     *  .addColumn('age', 'integer', col => col.unsigned().notNull().modifyEnd(sql`comment ${sql.lit('it is not polite to ask a woman her age')}`))
+     *  .execute()
+     * ```
+     *
+     * The generated SQL (MySQL):
+     *
+     * ```sql
+     * create table `person` (
+     *   `id` integer primary key,
+     *   `age` integer unsigned not null comment 'it is not polite to ask a woman her age'
+     * )
+     * ```
+     */
+    modifyEnd(modifier) {
+        return new ColumnDefinitionBuilder(ColumnDefinitionNode.cloneWithEndModifier(this.#node, modifier.toOperationNode()));
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#node;
+    }
+}
+preventAwait(ColumnDefinitionBuilder, "don't await ColumnDefinitionBuilder instances directly.");
+
+/// <reference types="./modify-column-node.d.ts" />
+/**
+ * @internal
+ */
+const ModifyColumnNode = freeze({
+    is(node) {
+        return node.kind === 'ModifyColumnNode';
+    },
+    create(column) {
+        return freeze({
+            kind: 'ModifyColumnNode',
+            column,
+        });
+    },
+});
+
+/// <reference types="./foreign-key-constraint-node.d.ts" />
+/**
+ * @internal
+ */
+const ForeignKeyConstraintNode = freeze({
+    is(node) {
+        return node.kind === 'ForeignKeyConstraintNode';
+    },
+    create(sourceColumns, targetTable, targetColumns, constraintName) {
+        return freeze({
+            kind: 'ForeignKeyConstraintNode',
+            columns: sourceColumns,
+            references: ReferencesNode.create(targetTable, targetColumns),
+            name: constraintName ? IdentifierNode.create(constraintName) : undefined,
+        });
+    },
+    cloneWith(node, props) {
+        return freeze({
+            ...node,
+            ...props,
+        });
+    },
+});
+
+/// <reference types="./foreign-key-constraint-builder.d.ts" />
+class ForeignKeyConstraintBuilder {
+    #node;
+    constructor(node) {
+        this.#node = node;
+    }
+    onDelete(onDelete) {
+        return new ForeignKeyConstraintBuilder(ForeignKeyConstraintNode.cloneWith(this.#node, {
+            onDelete: parseOnModifyForeignAction(onDelete),
+        }));
+    }
+    onUpdate(onUpdate) {
+        return new ForeignKeyConstraintBuilder(ForeignKeyConstraintNode.cloneWith(this.#node, {
+            onUpdate: parseOnModifyForeignAction(onUpdate),
+        }));
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#node;
+    }
+}
+preventAwait(ForeignKeyConstraintBuilder, "don't await ForeignKeyConstraintBuilder instances directly.");
+
+/// <reference types="./add-constraint-node.d.ts" />
+/**
+ * @internal
+ */
+const AddConstraintNode = freeze({
+    is(node) {
+        return node.kind === 'AddConstraintNode';
+    },
+    create(constraint) {
+        return freeze({
+            kind: 'AddConstraintNode',
+            constraint,
+        });
+    },
+});
+
+/// <reference types="./unique-constraint-node.d.ts" />
+/**
+ * @internal
+ */
+const UniqueConstraintNode = freeze({
+    is(node) {
+        return node.kind === 'UniqueConstraintNode';
+    },
+    create(columns, constraintName, nullsNotDistinct) {
+        return freeze({
+            kind: 'UniqueConstraintNode',
+            columns: freeze(columns.map(ColumnNode.create)),
+            name: constraintName ? IdentifierNode.create(constraintName) : undefined,
+            nullsNotDistinct,
+        });
+    },
+    cloneWith(node, props) {
+        return freeze({
+            ...node,
+            ...props,
+        });
+    },
+});
+
+/// <reference types="./drop-constraint-node.d.ts" />
+/**
+ * @internal
+ */
+const DropConstraintNode = freeze({
+    is(node) {
+        return node.kind === 'DropConstraintNode';
+    },
+    create(constraintName) {
+        return freeze({
+            kind: 'DropConstraintNode',
+            constraintName: IdentifierNode.create(constraintName),
+        });
+    },
+    cloneWith(dropConstraint, props) {
+        return freeze({
+            ...dropConstraint,
+            ...props,
+        });
+    },
+});
+
+/// <reference types="./alter-column-node.d.ts" />
+/**
+ * @internal
+ */
+const AlterColumnNode = freeze({
+    is(node) {
+        return node.kind === 'AlterColumnNode';
+    },
+    create(column, prop, value) {
+        return freeze({
+            kind: 'AlterColumnNode',
+            column: ColumnNode.create(column),
+            [prop]: value,
+        });
+    },
+});
+
+/// <reference types="./alter-column-builder.d.ts" />
+class AlterColumnBuilder {
+    #column;
+    constructor(column) {
+        this.#column = column;
+    }
+    setDataType(dataType) {
+        return new AlteredColumnBuilder(AlterColumnNode.create(this.#column, 'dataType', parseDataTypeExpression(dataType)));
+    }
+    setDefault(value) {
+        return new AlteredColumnBuilder(AlterColumnNode.create(this.#column, 'setDefault', parseDefaultValueExpression(value)));
+    }
+    dropDefault() {
+        return new AlteredColumnBuilder(AlterColumnNode.create(this.#column, 'dropDefault', true));
+    }
+    setNotNull() {
+        return new AlteredColumnBuilder(AlterColumnNode.create(this.#column, 'setNotNull', true));
+    }
+    dropNotNull() {
+        return new AlteredColumnBuilder(AlterColumnNode.create(this.#column, 'dropNotNull', true));
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+}
+preventAwait(AlterColumnBuilder, "don't await AlterColumnBuilder instances");
+/**
+ * Allows us to force consumers to do exactly one alteration to a column.
+ *
+ * Basically, deny the following:
+ *
+ * ```ts
+ * db.schema.alterTable('person').alterColumn('age', (ac) => ac)
+ * ```
+ *
+ * ```ts
+ * db.schema.alterTable('person').alterColumn('age', (ac) => ac.dropNotNull().setNotNull())
+ * ```
+ *
+ * Which would now throw a compilation error, instead of a runtime error.
+ */
+class AlteredColumnBuilder {
+    #alterColumnNode;
+    constructor(alterColumnNode) {
+        this.#alterColumnNode = alterColumnNode;
+    }
+    toOperationNode() {
+        return this.#alterColumnNode;
+    }
+}
+preventAwait(AlteredColumnBuilder, "don't await AlteredColumnBuilder instances");
+
+/// <reference types="./alter-table-executor.d.ts" />
+class AlterTableExecutor {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(AlterTableExecutor, "don't await AlterTableExecutor instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./alter-table-add-foreign-key-constraint-builder.d.ts" />
+class AlterTableAddForeignKeyConstraintBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    onDelete(onDelete) {
+        return new AlterTableAddForeignKeyConstraintBuilder({
+            ...this.#props,
+            constraintBuilder: this.#props.constraintBuilder.onDelete(onDelete),
+        });
+    }
+    onUpdate(onUpdate) {
+        return new AlterTableAddForeignKeyConstraintBuilder({
+            ...this.#props,
+            constraintBuilder: this.#props.constraintBuilder.onUpdate(onUpdate),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(AlterTableNode.cloneWithTableProps(this.#props.node, {
+            addConstraint: AddConstraintNode.create(this.#props.constraintBuilder.toOperationNode()),
+        }), this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(AlterTableAddForeignKeyConstraintBuilder, "don't await AlterTableAddForeignKeyConstraintBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./alter-table-drop-constraint-builder.d.ts" />
+class AlterTableDropConstraintBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    ifExists() {
+        return new AlterTableDropConstraintBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                dropConstraint: DropConstraintNode.cloneWith(this.#props.node.dropConstraint, {
+                    ifExists: true,
+                }),
+            }),
+        });
+    }
+    cascade() {
+        return new AlterTableDropConstraintBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                dropConstraint: DropConstraintNode.cloneWith(this.#props.node.dropConstraint, {
+                    modifier: 'cascade',
+                }),
+            }),
+        });
+    }
+    restrict() {
+        return new AlterTableDropConstraintBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                dropConstraint: DropConstraintNode.cloneWith(this.#props.node.dropConstraint, {
+                    modifier: 'restrict',
+                }),
+            }),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(AlterTableDropConstraintBuilder, "don't await AlterTableDropConstraintBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./primary-constraint-node.d.ts" />
+/**
+ * @internal
+ */
+const PrimaryConstraintNode = freeze({
+    is(node) {
+        return node.kind === 'PrimaryKeyConstraintNode';
+    },
+    create(columns, constraintName) {
+        return freeze({
+            kind: 'PrimaryKeyConstraintNode',
+            columns: freeze(columns.map(ColumnNode.create)),
+            name: constraintName ? IdentifierNode.create(constraintName) : undefined,
+        });
+    },
+});
+
+/// <reference types="./add-index-node.d.ts" />
+/**
+ * @internal
+ */
+const AddIndexNode = freeze({
+    is(node) {
+        return node.kind === 'AddIndexNode';
+    },
+    create(name) {
+        return freeze({
+            kind: 'AddIndexNode',
+            name: IdentifierNode.create(name),
+        });
+    },
+    cloneWith(node, props) {
+        return freeze({
+            ...node,
+            ...props,
+        });
+    },
+    cloneWithColumns(node, columns) {
+        return freeze({
+            ...node,
+            columns: [...(node.columns || []), ...columns],
+        });
+    },
+});
+
+/// <reference types="./alter-table-add-index-builder.d.ts" />
+class AlterTableAddIndexBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /**
+     * Makes the index unique.
+     */
+    unique() {
+        return new AlterTableAddIndexBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                addIndex: AddIndexNode.cloneWith(this.#props.node.addIndex, {
+                    unique: true,
+                }),
+            }),
+        });
+    }
+    /**
+     * Adds a column to the index.
+     *
+     * Also see {@link columns} for adding multiple columns at once or {@link expression}
+     * for specifying an arbitrary expression.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *         .alterTable('person')
+     *         .createIndex('person_first_name_and_age_index')
+     *         .column('first_name')
+     *         .column('age desc')
+     *         .execute()
+     * ```
+     *
+     * The generated SQL (MySQL):
+     *
+     * ```sql
+     * alter table `person` add index `person_first_name_and_age_index` (`first_name`, `age` desc)
+     * ```
+     */
+    column(column) {
+        return new AlterTableAddIndexBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                addIndex: AddIndexNode.cloneWithColumns(this.#props.node.addIndex, [
+                    parseOrderedColumnName(column),
+                ]),
+            }),
+        });
+    }
+    /**
+     * Specifies a list of columns for the index.
+     *
+     * Also see {@link column} for adding a single column or {@link expression} for
+     * specifying an arbitrary expression.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *         .alterTable('person')
+     *         .addIndex('person_first_name_and_age_index')
+     *         .columns(['first_name', 'age desc'])
+     *         .execute()
+     * ```
+     *
+     * The generated SQL (MySQL):
+     *
+     * ```sql
+     * alter table `person` add index `person_first_name_and_age_index` (`first_name`, `age` desc)
+     * ```
+     */
+    columns(columns) {
+        return new AlterTableAddIndexBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                addIndex: AddIndexNode.cloneWithColumns(this.#props.node.addIndex, columns.map(parseOrderedColumnName)),
+            }),
+        });
+    }
+    /**
+     * Specifies an arbitrary expression for the index.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * import { sql } from 'kysely'
+     *
+     * await db.schema
+     *   .alterTable('person')
+     *   .addIndex('person_first_name_index')
+     *   .expression(sql<boolean>`(first_name < 'Sami')`)
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (MySQL):
+     *
+     * ```sql
+     * alter table `person` add index `person_first_name_index` ((first_name < 'Sami'))
+     * ```
+     */
+    expression(expression) {
+        return new AlterTableAddIndexBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                addIndex: AddIndexNode.cloneWithColumns(this.#props.node.addIndex, [
+                    expression.toOperationNode(),
+                ]),
+            }),
+        });
+    }
+    using(indexType) {
+        return new AlterTableAddIndexBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                addIndex: AddIndexNode.cloneWith(this.#props.node.addIndex, {
+                    using: RawNode.createWithSql(indexType),
+                }),
+            }),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(AlterTableAddIndexBuilder, "don't await AlterTableAddIndexBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./unique-constraint-builder.d.ts" />
+class UniqueConstraintNodeBuilder {
+    #node;
+    constructor(node) {
+        this.#node = node;
+    }
+    toOperationNode() {
+        return this.#node;
+    }
+    /**
+     * Adds `nulls not distinct` to the unique constraint definition
+     *
+     * Supported by PostgreSQL dialect only
+     */
+    nullsNotDistinct() {
+        return new UniqueConstraintNodeBuilder(UniqueConstraintNode.cloneWith(this.#node, { nullsNotDistinct: true }));
+    }
+}
+preventAwait(UniqueConstraintNodeBuilder, "don't await UniqueConstraintNodeBuilder instances directly.");
+
+/// <reference types="./alter-table-builder.d.ts" />
+/**
+ * This builder can be used to create a `alter table` query.
+ */
+class AlterTableBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    renameTo(newTableName) {
+        return new AlterTableExecutor({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                renameTo: parseTable(newTableName),
+            }),
+        });
+    }
+    setSchema(newSchema) {
+        return new AlterTableExecutor({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                setSchema: IdentifierNode.create(newSchema),
+            }),
+        });
+    }
+    alterColumn(column, alteration) {
+        const builder = alteration(new AlterColumnBuilder(column));
+        return new AlterTableColumnAlteringBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithColumnAlteration(this.#props.node, builder.toOperationNode()),
+        });
+    }
+    dropColumn(column) {
+        return new AlterTableColumnAlteringBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithColumnAlteration(this.#props.node, DropColumnNode.create(column)),
+        });
+    }
+    renameColumn(column, newColumn) {
+        return new AlterTableColumnAlteringBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithColumnAlteration(this.#props.node, RenameColumnNode.create(column, newColumn)),
+        });
+    }
+    addColumn(columnName, dataType, build = noop) {
+        const builder = build(new ColumnDefinitionBuilder(ColumnDefinitionNode.create(columnName, parseDataTypeExpression(dataType))));
+        return new AlterTableColumnAlteringBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithColumnAlteration(this.#props.node, AddColumnNode.create(builder.toOperationNode())),
+        });
+    }
+    modifyColumn(columnName, dataType, build = noop) {
+        const builder = build(new ColumnDefinitionBuilder(ColumnDefinitionNode.create(columnName, parseDataTypeExpression(dataType))));
+        return new AlterTableColumnAlteringBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithColumnAlteration(this.#props.node, ModifyColumnNode.create(builder.toOperationNode())),
+        });
+    }
+    /**
+     * See {@link CreateTableBuilder.addUniqueConstraint}
+     */
+    addUniqueConstraint(constraintName, columns, build = noop) {
+        const uniqueConstraintBuilder = build(new UniqueConstraintNodeBuilder(UniqueConstraintNode.create(columns, constraintName)));
+        return new AlterTableExecutor({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                addConstraint: AddConstraintNode.create(uniqueConstraintBuilder.toOperationNode()),
+            }),
+        });
+    }
+    /**
+     * See {@link CreateTableBuilder.addCheckConstraint}
+     */
+    addCheckConstraint(constraintName, checkExpression) {
+        return new AlterTableExecutor({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                addConstraint: AddConstraintNode.create(CheckConstraintNode.create(checkExpression.toOperationNode(), constraintName)),
+            }),
+        });
+    }
+    /**
+     * See {@link CreateTableBuilder.addForeignKeyConstraint}
+     *
+     * Unlike {@link CreateTableBuilder.addForeignKeyConstraint} this method returns
+     * the constraint builder and doesn't take a callback as the last argument. This
+     * is because you can only add one column per `ALTER TABLE` query.
+     */
+    addForeignKeyConstraint(constraintName, columns, targetTable, targetColumns) {
+        return new AlterTableAddForeignKeyConstraintBuilder({
+            ...this.#props,
+            constraintBuilder: new ForeignKeyConstraintBuilder(ForeignKeyConstraintNode.create(columns.map(ColumnNode.create), parseTable(targetTable), targetColumns.map(ColumnNode.create), constraintName)),
+        });
+    }
+    /**
+     * See {@link CreateTableBuilder.addPrimaryKeyConstraint}
+     */
+    addPrimaryKeyConstraint(constraintName, columns) {
+        return new AlterTableExecutor({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                addConstraint: AddConstraintNode.create(PrimaryConstraintNode.create(columns, constraintName)),
+            }),
+        });
+    }
+    dropConstraint(constraintName) {
+        return new AlterTableDropConstraintBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                dropConstraint: DropConstraintNode.create(constraintName),
+            }),
+        });
+    }
+    /**
+     * This can be used to add index to table.
+     *
+     *  ### Examples
+     *
+     * ```ts
+     * db.schema.alterTable('person')
+     *   .addIndex('person_email_index')
+     *   .column('email')
+     *   .unique()
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (MySQL):
+     *
+     * ```sql
+     * alter table `person` add unique index `person_email_index` (`email`)
+     * ```
+     */
+    addIndex(indexName) {
+        return new AlterTableAddIndexBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                addIndex: AddIndexNode.create(indexName),
+            }),
+        });
+    }
+    /**
+     * This can be used to drop index from table.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.schema.alterTable('person')
+     *   .dropIndex('person_email_index')
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (MySQL):
+     *
+     * ```sql
+     * alter table `person` drop index `test_first_name_index`
+     * ```
+     */
+    dropIndex(indexName) {
+        return new AlterTableExecutor({
+            ...this.#props,
+            node: AlterTableNode.cloneWithTableProps(this.#props.node, {
+                dropIndex: DropIndexNode.create(indexName),
+            }),
+        });
+    }
+    /**
+     * Calls the given function passing `this` as the only argument.
+     *
+     * See {@link CreateTableBuilder.$call}
+     */
+    $call(func) {
+        return func(this);
+    }
+}
+preventAwait(AlterTableBuilder, "don't await AlterTableBuilder instances");
+class AlterTableColumnAlteringBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    alterColumn(column, alteration) {
+        const builder = alteration(new AlterColumnBuilder(column));
+        return new AlterTableColumnAlteringBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithColumnAlteration(this.#props.node, builder.toOperationNode()),
+        });
+    }
+    dropColumn(column) {
+        return new AlterTableColumnAlteringBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithColumnAlteration(this.#props.node, DropColumnNode.create(column)),
+        });
+    }
+    renameColumn(column, newColumn) {
+        return new AlterTableColumnAlteringBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithColumnAlteration(this.#props.node, RenameColumnNode.create(column, newColumn)),
+        });
+    }
+    addColumn(columnName, dataType, build = noop) {
+        const builder = build(new ColumnDefinitionBuilder(ColumnDefinitionNode.create(columnName, parseDataTypeExpression(dataType))));
+        return new AlterTableColumnAlteringBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithColumnAlteration(this.#props.node, AddColumnNode.create(builder.toOperationNode())),
+        });
+    }
+    modifyColumn(columnName, dataType, build = noop) {
+        const builder = build(new ColumnDefinitionBuilder(ColumnDefinitionNode.create(columnName, parseDataTypeExpression(dataType))));
+        return new AlterTableColumnAlteringBuilder({
+            ...this.#props,
+            node: AlterTableNode.cloneWithColumnAlteration(this.#props.node, ModifyColumnNode.create(builder.toOperationNode())),
+        });
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(AlterTableColumnAlteringBuilder, "don't await AlterTableColumnAlteringBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./immediate-value-transformer.d.ts" />
+/**
+ * Transforms all ValueNodes to immediate.
+ *
+ * WARNING! This should never be part of the public API. Users should never use this.
+ * This is an internal helper.
+ *
+ * @internal
+ */
+class ImmediateValueTransformer extends OperationNodeTransformer {
+    transformValue(node) {
+        return {
+            ...super.transformValue(node),
+            immediate: true,
+        };
+    }
+}
+
+/// <reference types="./create-index-builder.d.ts" />
+class CreateIndexBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /**
+     * Adds the "if not exists" modifier.
+     *
+     * If the index already exists, no error is thrown if this method has been called.
+     */
+    ifNotExists() {
+        return new CreateIndexBuilder({
+            ...this.#props,
+            node: CreateIndexNode.cloneWith(this.#props.node, {
+                ifNotExists: true,
+            }),
+        });
+    }
+    /**
+     * Makes the index unique.
+     */
+    unique() {
+        return new CreateIndexBuilder({
+            ...this.#props,
+            node: CreateIndexNode.cloneWith(this.#props.node, {
+                unique: true,
+            }),
+        });
+    }
+    /**
+     * Adds `nulls not distinct` specifier to index.
+     * This only works on some dialects like PostgreSQL.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.schema.createIndex('person_first_name_index')
+     *  .on('person')
+     *  .column('first_name')
+     *  .nullsNotDistinct()
+     *  .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * create index "person_first_name_index"
+     * on "test" ("first_name")
+     * nulls not distinct;
+     * ```
+     */
+    nullsNotDistinct() {
+        return new CreateIndexBuilder({
+            ...this.#props,
+            node: CreateIndexNode.cloneWith(this.#props.node, {
+                nullsNotDistinct: true,
+            }),
+        });
+    }
+    /**
+     * Specifies the table for the index.
+     */
+    on(table) {
+        return new CreateIndexBuilder({
+            ...this.#props,
+            node: CreateIndexNode.cloneWith(this.#props.node, {
+                table: parseTable(table),
+            }),
+        });
+    }
+    /**
+     * Adds a column to the index.
+     *
+     * Also see {@link columns} for adding multiple columns at once or {@link expression}
+     * for specifying an arbitrary expression.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *         .createIndex('person_first_name_and_age_index')
+     *         .on('person')
+     *         .column('first_name')
+     *         .column('age desc')
+     *         .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * create index "person_first_name_and_age_index" on "person" ("first_name", "age" desc)
+     * ```
+     */
+    column(column) {
+        return new CreateIndexBuilder({
+            ...this.#props,
+            node: CreateIndexNode.cloneWithColumns(this.#props.node, [
+                parseOrderedColumnName(column),
+            ]),
+        });
+    }
+    /**
+     * Specifies a list of columns for the index.
+     *
+     * Also see {@link column} for adding a single column or {@link expression} for
+     * specifying an arbitrary expression.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *         .createIndex('person_first_name_and_age_index')
+     *         .on('person')
+     *         .columns(['first_name', 'age desc'])
+     *         .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * create index "person_first_name_and_age_index" on "person" ("first_name", "age" desc)
+     * ```
+     */
+    columns(columns) {
+        return new CreateIndexBuilder({
+            ...this.#props,
+            node: CreateIndexNode.cloneWithColumns(this.#props.node, columns.map(parseOrderedColumnName)),
+        });
+    }
+    /**
+     * Specifies an arbitrary expression for the index.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * import { sql } from 'kysely'
+     *
+     * await db.schema
+     *   .createIndex('person_first_name_index')
+     *   .on('person')
+     *   .expression(sql`first_name COLLATE "fi_FI"`)
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * create index "person_first_name_index" on "person" (first_name COLLATE "fi_FI")
+     * ```
+     */
+    expression(expression) {
+        return new CreateIndexBuilder({
+            ...this.#props,
+            node: CreateIndexNode.cloneWithColumns(this.#props.node, [
+                expression.toOperationNode(),
+            ]),
+        });
+    }
+    using(indexType) {
+        return new CreateIndexBuilder({
+            ...this.#props,
+            node: CreateIndexNode.cloneWith(this.#props.node, {
+                using: RawNode.createWithSql(indexType),
+            }),
+        });
+    }
+    where(...args) {
+        const transformer = new ImmediateValueTransformer();
+        return new CreateIndexBuilder({
+            ...this.#props,
+            node: QueryNode.cloneWithWhere(this.#props.node, transformer.transformNode(parseValueBinaryOperationOrExpression(args))),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(CreateIndexBuilder, "don't await CreateIndexBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./create-schema-builder.d.ts" />
+class CreateSchemaBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    ifNotExists() {
+        return new CreateSchemaBuilder({
+            ...this.#props,
+            node: CreateSchemaNode.cloneWith(this.#props.node, { ifNotExists: true }),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(CreateSchemaBuilder, "don't await CreateSchemaBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./on-commit-action-parse.d.ts" />
+function parseOnCommitAction(action) {
+    if (ON_COMMIT_ACTIONS.includes(action)) {
+        return action;
+    }
+    throw new Error(`invalid OnCommitAction ${action}`);
+}
+
+/// <reference types="./create-table-builder.d.ts" />
+/**
+ * This builder can be used to create a `create table` query.
+ */
+class CreateTableBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /**
+     * Adds the "temporary" modifier.
+     *
+     * Use this to create a temporary table.
+     */
+    temporary() {
+        return new CreateTableBuilder({
+            ...this.#props,
+            node: CreateTableNode.cloneWith(this.#props.node, {
+                temporary: true,
+            }),
+        });
+    }
+    /**
+     * Adds an "on commit" statement.
+     *
+     * This can be used in conjunction with temporary tables on supported databases
+     * like PostgreSQL.
+     */
+    onCommit(onCommit) {
+        return new CreateTableBuilder({
+            ...this.#props,
+            node: CreateTableNode.cloneWith(this.#props.node, {
+                onCommit: parseOnCommitAction(onCommit),
+            }),
+        });
+    }
+    /**
+     * Adds the "if not exists" modifier.
+     *
+     * If the table already exists, no error is thrown if this method has been called.
+     */
+    ifNotExists() {
+        return new CreateTableBuilder({
+            ...this.#props,
+            node: CreateTableNode.cloneWith(this.#props.node, {
+                ifNotExists: true,
+            }),
+        });
+    }
+    /**
+     * Adds a column to the table.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * import { sql } from 'kysely'
+     *
+     * await db.schema
+     *   .createTable('person')
+     *   .addColumn('id', 'integer', (col) => col.autoIncrement().primaryKey()),
+     *   .addColumn('first_name', 'varchar(50)', (col) => col.notNull())
+     *   .addColumn('last_name', 'varchar(255)')
+     *   .addColumn('bank_balance', 'numeric(8, 2)')
+     *   // You can specify any data type using the `sql` tag if the types
+     *   // don't include it.
+     *   .addColumn('data', sql`any_type_here`)
+     *   .addColumn('parent_id', 'integer', (col) =>
+     *     col.references('person.id').onDelete('cascade'))
+     *   )
+     * ```
+     *
+     * With this method, it's once again good to remember that Kysely just builds the
+     * query and doesn't provide the same API for all databases. For example, some
+     * databases like older MySQL don't support the `references` statement in the
+     * column definition. Instead foreign key constraints need to be defined in the
+     * `create table` query. See the next example:
+     *
+     * ```ts
+     *   .addColumn('parent_id', 'integer')
+     *   .addForeignKeyConstraint(
+     *     'person_parent_id_fk', ['parent_id'], 'person', ['id'],
+     *     (cb) => cb.onDelete('cascade')
+     *   )
+     * ```
+     *
+     * Another good example is that PostgreSQL doesn't support the `auto_increment`
+     * keyword and you need to define an autoincrementing column for example using
+     * `serial`:
+     *
+     * ```ts
+     * await db.schema
+     *   .createTable('person')
+     *   .addColumn('id', 'serial', (col) => col.primaryKey()),
+     * ```
+     */
+    addColumn(columnName, dataType, build = noop) {
+        const columnBuilder = build(new ColumnDefinitionBuilder(ColumnDefinitionNode.create(columnName, parseDataTypeExpression(dataType))));
+        return new CreateTableBuilder({
+            ...this.#props,
+            node: CreateTableNode.cloneWithColumn(this.#props.node, columnBuilder.toOperationNode()),
+        });
+    }
+    /**
+     * Adds a primary key constraint for one or more columns.
+     *
+     * The constraint name can be anything you want, but it must be unique
+     * across the whole database.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * addPrimaryKeyConstraint('primary_key', ['first_name', 'last_name'])
+     * ```
+     */
+    addPrimaryKeyConstraint(constraintName, columns) {
+        return new CreateTableBuilder({
+            ...this.#props,
+            node: CreateTableNode.cloneWithConstraint(this.#props.node, PrimaryConstraintNode.create(columns, constraintName)),
+        });
+    }
+    /**
+     * Adds a unique constraint for one or more columns.
+     *
+     * The constraint name can be anything you want, but it must be unique
+     * across the whole database.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * addUniqueConstraint('first_name_last_name_unique', ['first_name', 'last_name'])
+     * ```
+     *
+     * In dialects such as PostgreSQL you can specify `nulls not distinct` as follows:
+     * ```ts
+     * addUniqueConstraint('first_name_last_name_unique', ['first_name', 'last_name'], (builder) => builder.nullsNotDistinct())
+     * ```
+     */
+    addUniqueConstraint(constraintName, columns, build = noop) {
+        const uniqueConstraintBuilder = build(new UniqueConstraintNodeBuilder(UniqueConstraintNode.create(columns, constraintName)));
+        return new CreateTableBuilder({
+            ...this.#props,
+            node: CreateTableNode.cloneWithConstraint(this.#props.node, uniqueConstraintBuilder.toOperationNode()),
+        });
+    }
+    /**
+     * Adds a check constraint.
+     *
+     * The constraint name can be anything you want, but it must be unique
+     * across the whole database.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * import { sql } from 'kysely'
+     *
+     * addCheckConstraint('check_legs', sql`number_of_legs < 5`)
+     * ```
+     */
+    addCheckConstraint(constraintName, checkExpression) {
+        return new CreateTableBuilder({
+            ...this.#props,
+            node: CreateTableNode.cloneWithConstraint(this.#props.node, CheckConstraintNode.create(checkExpression.toOperationNode(), constraintName)),
+        });
+    }
+    /**
+     * Adds a foreign key constraint.
+     *
+     * The constraint name can be anything you want, but it must be unique
+     * across the whole database.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * addForeignKeyConstraint(
+     *   'owner_id_foreign',
+     *   ['owner_id'],
+     *   'person',
+     *   ['id'],
+     * )
+     * ```
+     *
+     * Add constraint for multiple columns:
+     *
+     * ```ts
+     * addForeignKeyConstraint(
+     *   'owner_id_foreign',
+     *   ['owner_id1', 'owner_id2'],
+     *   'person',
+     *   ['id1', 'id2'],
+     *   (cb) => cb.onDelete('cascade')
+     * )
+     * ```
+     */
+    addForeignKeyConstraint(constraintName, columns, targetTable, targetColumns, build = noop) {
+        const builder = build(new ForeignKeyConstraintBuilder(ForeignKeyConstraintNode.create(columns.map(ColumnNode.create), parseTable(targetTable), targetColumns.map(ColumnNode.create), constraintName)));
+        return new CreateTableBuilder({
+            ...this.#props,
+            node: CreateTableNode.cloneWithConstraint(this.#props.node, builder.toOperationNode()),
+        });
+    }
+    /**
+     * This can be used to add any additional SQL to the front of the query __after__ the `create` keyword.
+     *
+     * Also see {@link temporary}.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.schema.createTable('person')
+     *   .modifyFront(sql`global temporary`)
+     *   .addColumn('id', 'integer', col => col.primaryKey())
+     *   .addColumn('first_name', 'varchar(64)', col => col.notNull())
+     *   .addColumn('last_name', 'varchar(64), col => col.notNull())
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (Postgres):
+     *
+     * ```sql
+     * create global temporary table "person" (
+     *   "id" integer primary key,
+     *   "first_name" varchar(64) not null,
+     *   "last_name" varchar(64) not null
+     * )
+     * ```
+     */
+    modifyFront(modifier) {
+        return new CreateTableBuilder({
+            ...this.#props,
+            node: CreateTableNode.cloneWithFrontModifier(this.#props.node, modifier.toOperationNode()),
+        });
+    }
+    /**
+     * This can be used to add any additional SQL to the end of the query.
+     *
+     * Also see {@link onCommit}.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.schema.createTable('person')
+     *   .addColumn('id', 'integer', col => col => primaryKey())
+     *   .addColumn('first_name', 'varchar(64)', col => col.notNull())
+     *   .addColumn('last_name', 'varchar(64), col => col.notNull())
+     *   .modifyEnd(sql`collate utf8_unicode_ci`)
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (MySQL):
+     *
+     * ```sql
+     * create table `person` (
+     *   `id` integer primary key,
+     *   `first_name` varchar(64) not null,
+     *   `last_name` varchar(64) not null
+     * ) collate utf8_unicode_ci
+     * ```
+     */
+    modifyEnd(modifier) {
+        return new CreateTableBuilder({
+            ...this.#props,
+            node: CreateTableNode.cloneWithEndModifier(this.#props.node, modifier.toOperationNode()),
+        });
+    }
+    /**
+     * Allows to create table from `select` query.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.schema.createTable('copy')
+     *   .temporary()
+     *   .as(db.selectFrom('person').select(['first_name', 'last_name']))
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * create temporary table "copy" as
+     * select "first_name", "last_name" from "person"
+     * ```
+     */
+    as(expression) {
+        return new CreateTableBuilder({
+            ...this.#props,
+            node: CreateTableNode.cloneWith(this.#props.node, {
+                selectQuery: parseExpression(expression),
+            }),
+        });
+    }
+    /**
+     * Calls the given function passing `this` as the only argument.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.schema
+     *   .createTable('test')
+     *   .$call((builder) => builder.addColumn('id', 'integer'))
+     *   .execute()
+     * ```
+     *
+     * ```ts
+     * const addDefaultColumns = <T extends string, C extends string = never>(
+     *   builder: CreateTableBuilder<T, C>
+     * ) => {
+     *   return builder
+     *     .addColumn('id', 'integer', (col) => col.notNull())
+     *     .addColumn('created_at', 'date', (col) =>
+     *       col.notNull().defaultTo(sql`now()`)
+     *     )
+     *     .addColumn('updated_at', 'date', (col) =>
+     *       col.notNull().defaultTo(sql`now()`)
+     *     )
+     * }
+     *
+     * db.schema
+     *   .createTable('test')
+     *   .$call(addDefaultColumns)
+     *   .execute()
+     * ```
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(CreateTableBuilder, "don't await CreateTableBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./drop-index-builder.d.ts" />
+class DropIndexBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /**
+     * Specifies the table the index was created for. This is not needed
+     * in all dialects.
+     */
+    on(table) {
+        return new DropIndexBuilder({
+            ...this.#props,
+            node: DropIndexNode.cloneWith(this.#props.node, {
+                table: parseTable(table),
+            }),
+        });
+    }
+    ifExists() {
+        return new DropIndexBuilder({
+            ...this.#props,
+            node: DropIndexNode.cloneWith(this.#props.node, {
+                ifExists: true,
+            }),
+        });
+    }
+    cascade() {
+        return new DropIndexBuilder({
+            ...this.#props,
+            node: DropIndexNode.cloneWith(this.#props.node, {
+                cascade: true,
+            }),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(DropIndexBuilder, "don't await DropIndexBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./drop-schema-builder.d.ts" />
+class DropSchemaBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    ifExists() {
+        return new DropSchemaBuilder({
+            ...this.#props,
+            node: DropSchemaNode.cloneWith(this.#props.node, {
+                ifExists: true,
+            }),
+        });
+    }
+    cascade() {
+        return new DropSchemaBuilder({
+            ...this.#props,
+            node: DropSchemaNode.cloneWith(this.#props.node, {
+                cascade: true,
+            }),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(DropSchemaBuilder, "don't await DropSchemaBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./drop-table-builder.d.ts" />
+class DropTableBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    ifExists() {
+        return new DropTableBuilder({
+            ...this.#props,
+            node: DropTableNode.cloneWith(this.#props.node, {
+                ifExists: true,
+            }),
+        });
+    }
+    cascade() {
+        return new DropTableBuilder({
+            ...this.#props,
+            node: DropTableNode.cloneWith(this.#props.node, {
+                cascade: true,
+            }),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(DropTableBuilder, "don't await DropTableBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./create-view-node.d.ts" />
+/**
+ * @internal
+ */
+const CreateViewNode = freeze({
+    is(node) {
+        return node.kind === 'CreateViewNode';
+    },
+    create(name) {
+        return freeze({
+            kind: 'CreateViewNode',
+            name: SchemableIdentifierNode.create(name),
+        });
+    },
+    cloneWith(createView, params) {
+        return freeze({
+            ...createView,
+            ...params,
+        });
+    },
+});
+
+/// <reference types="./immediate-value-plugin.d.ts" />
+/**
+ * Transforms all ValueNodes to immediate.
+ *
+ * WARNING! This should never be part of the public API. Users should never use this.
+ * This is an internal helper.
+ *
+ * @internal
+ */
+class ImmediateValuePlugin {
+    #transformer = new ImmediateValueTransformer();
+    transformQuery(args) {
+        return this.#transformer.transformNode(args.node);
+    }
+    transformResult(args) {
+        return Promise.resolve(args.result);
+    }
+}
+
+/// <reference types="./create-view-builder.d.ts" />
+class CreateViewBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    /**
+     * Adds the "temporary" modifier.
+     *
+     * Use this to create a temporary view.
+     */
+    temporary() {
+        return new CreateViewBuilder({
+            ...this.#props,
+            node: CreateViewNode.cloneWith(this.#props.node, {
+                temporary: true,
+            }),
+        });
+    }
+    materialized() {
+        return new CreateViewBuilder({
+            ...this.#props,
+            node: CreateViewNode.cloneWith(this.#props.node, {
+                materialized: true,
+            }),
+        });
+    }
+    /**
+     * Only implemented on some dialects like SQLite. On most dialects, use {@link orReplace}.
+     */
+    ifNotExists() {
+        return new CreateViewBuilder({
+            ...this.#props,
+            node: CreateViewNode.cloneWith(this.#props.node, {
+                ifNotExists: true,
+            }),
+        });
+    }
+    orReplace() {
+        return new CreateViewBuilder({
+            ...this.#props,
+            node: CreateViewNode.cloneWith(this.#props.node, {
+                orReplace: true,
+            }),
+        });
+    }
+    columns(columns) {
+        return new CreateViewBuilder({
+            ...this.#props,
+            node: CreateViewNode.cloneWith(this.#props.node, {
+                columns: columns.map(parseColumnName),
+            }),
+        });
+    }
+    /**
+     * Sets the select query or a `values` statement that creates the view.
+     *
+     * WARNING!
+     * Some dialects don't support parameterized queries in DDL statements and therefore
+     * the query or raw {@link sql } expression passed here is interpolated into a single
+     * string opening an SQL injection vulnerability. DO NOT pass unchecked user input
+     * into the query or raw expression passed to this method!
+     */
+    as(query) {
+        const queryNode = query
+            .withPlugin(new ImmediateValuePlugin())
+            .toOperationNode();
+        return new CreateViewBuilder({
+            ...this.#props,
+            node: CreateViewNode.cloneWith(this.#props.node, {
+                as: queryNode,
+            }),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(CreateViewBuilder, "don't await CreateViewBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./drop-view-node.d.ts" />
+/**
+ * @internal
+ */
+const DropViewNode = freeze({
+    is(node) {
+        return node.kind === 'DropViewNode';
+    },
+    create(name) {
+        return freeze({
+            kind: 'DropViewNode',
+            name: SchemableIdentifierNode.create(name),
+        });
+    },
+    cloneWith(dropView, params) {
+        return freeze({
+            ...dropView,
+            ...params,
+        });
+    },
+});
+
+/// <reference types="./drop-view-builder.d.ts" />
+class DropViewBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    materialized() {
+        return new DropViewBuilder({
+            ...this.#props,
+            node: DropViewNode.cloneWith(this.#props.node, {
+                materialized: true,
+            }),
+        });
+    }
+    ifExists() {
+        return new DropViewBuilder({
+            ...this.#props,
+            node: DropViewNode.cloneWith(this.#props.node, {
+                ifExists: true,
+            }),
+        });
+    }
+    cascade() {
+        return new DropViewBuilder({
+            ...this.#props,
+            node: DropViewNode.cloneWith(this.#props.node, {
+                cascade: true,
+            }),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(DropViewBuilder, "don't await DropViewBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./create-type-node.d.ts" />
+/**
+ * @internal
+ */
+const CreateTypeNode = freeze({
+    is(node) {
+        return node.kind === 'CreateTypeNode';
+    },
+    create(name) {
+        return freeze({
+            kind: 'CreateTypeNode',
+            name,
+        });
+    },
+    cloneWithEnum(createType, values) {
+        return freeze({
+            ...createType,
+            enum: ValueListNode.create(values.map((value) => ValueNode.createImmediate(value))),
+        });
+    },
+});
+
+/// <reference types="./create-type-builder.d.ts" />
+class CreateTypeBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    /**
+     * Creates an anum type.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * db.schema.createType('species').asEnum(['cat', 'dog', 'frog'])
+     * ```
+     */
+    asEnum(values) {
+        return new CreateTypeBuilder({
+            ...this.#props,
+            node: CreateTypeNode.cloneWithEnum(this.#props.node, values),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(CreateTypeBuilder, "don't await CreateTypeBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./drop-type-node.d.ts" />
+/**
+ * @internal
+ */
+const DropTypeNode = freeze({
+    is(node) {
+        return node.kind === 'DropTypeNode';
+    },
+    create(name) {
+        return freeze({
+            kind: 'DropTypeNode',
+            name,
+        });
+    },
+    cloneWith(dropType, params) {
+        return freeze({
+            ...dropType,
+            ...params,
+        });
+    },
+});
+
+/// <reference types="./drop-type-builder.d.ts" />
+class DropTypeBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    ifExists() {
+        return new DropTypeBuilder({
+            ...this.#props,
+            node: DropTypeNode.cloneWith(this.#props.node, {
+                ifExists: true,
+            }),
+        });
+    }
+    /**
+     * Simply calls the provided function passing `this` as the only argument. `$call` returns
+     * what the provided function returns.
+     */
+    $call(func) {
+        return func(this);
+    }
+    toOperationNode() {
+        return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
+    }
+    compile() {
+        return this.#props.executor.compileQuery(this.toOperationNode(), this.#props.queryId);
+    }
+    async execute() {
+        await this.#props.executor.executeQuery(this.compile(), this.#props.queryId);
+    }
+}
+preventAwait(DropTypeBuilder, "don't await DropTypeBuilder instances directly. To execute the query you need to call `execute`");
+
+/// <reference types="./identifier-parser.d.ts" />
+function parseSchemableIdentifier(id) {
+    const SCHEMA_SEPARATOR = '.';
+    if (id.includes(SCHEMA_SEPARATOR)) {
+        const parts = id.split(SCHEMA_SEPARATOR).map(trim);
+        if (parts.length === 2) {
+            return SchemableIdentifierNode.createWithSchema(parts[0], parts[1]);
+        }
+        else {
+            throw new Error(`invalid schemable identifier ${id}`);
+        }
+    }
+    else {
+        return SchemableIdentifierNode.create(id);
+    }
+}
+function trim(str) {
+    return str.trim();
+}
+
+/// <reference types="./schema.d.ts" />
+/**
+ * Provides methods for building database schema.
+ */
+class SchemaModule {
+    #executor;
+    constructor(executor) {
+        this.#executor = executor;
+    }
+    /**
+     * Create a new table.
+     *
+     * ### Examples
+     *
+     * This example creates a new table with columns `id`, `first_name`,
+     * `last_name` and `gender`:
+     *
+     * ```ts
+     * await db.schema
+     *   .createTable('person')
+     *   .addColumn('id', 'integer', col => col.primaryKey().autoIncrement())
+     *   .addColumn('first_name', 'varchar', col => col.notNull())
+     *   .addColumn('last_name', 'varchar', col => col.notNull())
+     *   .addColumn('gender', 'varchar')
+     *   .execute()
+     * ```
+     *
+     * This example creates a table with a foreign key. Not all database
+     * engines support column-level foreign key constraint definitions.
+     * For example if you are using MySQL 5.X see the next example after
+     * this one.
+     *
+     * ```ts
+     * await db.schema
+     *   .createTable('pet')
+     *   .addColumn('id', 'integer', col => col.primaryKey().autoIncrement())
+     *   .addColumn('owner_id', 'integer', col => col
+     *     .references('person.id')
+     *     .onDelete('cascade')
+     *   )
+     *   .execute()
+     * ```
+     *
+     * This example adds a foreign key constraint for a columns just
+     * like the previous example, but using a table-level statement.
+     * On MySQL 5.X you need to define foreign key constraints like
+     * this:
+     *
+     * ```ts
+     * await db.schema
+     *   .createTable('pet')
+     *   .addColumn('id', 'integer', col => col.primaryKey().autoIncrement())
+     *   .addColumn('owner_id', 'integer')
+     *   .addForeignKeyConstraint(
+     *     'pet_owner_id_foreign', ['owner_id'], 'person', ['id'],
+     *     (constraint) => constraint.onDelete('cascade')
+     *   )
+     *   .execute()
+     * ```
+     */
+    createTable(table) {
+        return new CreateTableBuilder({
+            queryId: createQueryId(),
+            executor: this.#executor,
+            node: CreateTableNode.create(parseTable(table)),
+        });
+    }
+    /**
+     * Drop a table.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *   .dropTable('person')
+     *   .execute()
+     * ```
+     */
+    dropTable(table) {
+        return new DropTableBuilder({
+            queryId: createQueryId(),
+            executor: this.#executor,
+            node: DropTableNode.create(parseTable(table)),
+        });
+    }
+    /**
+     * Create a new index.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *   .createIndex('person_full_name_unique_index')
+     *   .on('person')
+     *   .columns(['first_name', 'last_name'])
+     *   .execute()
+     * ```
+     */
+    createIndex(indexName) {
+        return new CreateIndexBuilder({
+            queryId: createQueryId(),
+            executor: this.#executor,
+            node: CreateIndexNode.create(indexName),
+        });
+    }
+    /**
+     * Drop an index.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *   .dropIndex('person_full_name_unique_index')
+     *   .execute()
+     * ```
+     */
+    dropIndex(indexName) {
+        return new DropIndexBuilder({
+            queryId: createQueryId(),
+            executor: this.#executor,
+            node: DropIndexNode.create(indexName),
+        });
+    }
+    /**
+     * Create a new schema.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *   .createSchema('some_schema')
+     *   .execute()
+     * ```
+     */
+    createSchema(schema) {
+        return new CreateSchemaBuilder({
+            queryId: createQueryId(),
+            executor: this.#executor,
+            node: CreateSchemaNode.create(schema),
+        });
+    }
+    /**
+     * Drop a schema.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *   .dropSchema('some_schema')
+     *   .execute()
+     * ```
+     */
+    dropSchema(schema) {
+        return new DropSchemaBuilder({
+            queryId: createQueryId(),
+            executor: this.#executor,
+            node: DropSchemaNode.create(schema),
+        });
+    }
+    /**
+     * Alter a table.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *   .alterTable('person')
+     *   .alterColumn('first_name', (ac) => ac.setDataType('text'))
+     *   .execute()
+     * ```
+     */
+    alterTable(table) {
+        return new AlterTableBuilder({
+            queryId: createQueryId(),
+            executor: this.#executor,
+            node: AlterTableNode.create(parseTable(table)),
+        });
+    }
+    /**
+     * Create a new view.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *   .createView('dogs')
+     *   .orReplace()
+     *   .as(db.selectFrom('pet').selectAll().where('species', '=', 'dog'))
+     *   .execute()
+     * ```
+     */
+    createView(viewName) {
+        return new CreateViewBuilder({
+            queryId: createQueryId(),
+            executor: this.#executor,
+            node: CreateViewNode.create(viewName),
+        });
+    }
+    /**
+     * Drop a view.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *   .dropView('dogs')
+     *   .ifExists()
+     *   .execute()
+     * ```
+     */
+    dropView(viewName) {
+        return new DropViewBuilder({
+            queryId: createQueryId(),
+            executor: this.#executor,
+            node: DropViewNode.create(viewName),
+        });
+    }
+    /**
+     * Create a new type.
+     *
+     * Only some dialects like PostgreSQL have user-defined types.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *   .createType('species')
+     *   .asEnum(['dog', 'cat', 'frog'])
+     *   .execute()
+     * ```
+     */
+    createType(typeName) {
+        return new CreateTypeBuilder({
+            queryId: createQueryId(),
+            executor: this.#executor,
+            node: CreateTypeNode.create(parseSchemableIdentifier(typeName)),
+        });
+    }
+    /**
+     * Drop a type.
+     *
+     * Only some dialects like PostgreSQL have user-defined types.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db.schema
+     *   .dropType('species')
+     *   .ifExists()
+     *   .execute()
+     * ```
+     */
+    dropType(typeName) {
+        return new DropTypeBuilder({
+            queryId: createQueryId(),
+            executor: this.#executor,
+            node: DropTypeNode.create(parseSchemableIdentifier(typeName)),
+        });
+    }
+    /**
+     * Returns a copy of this schema module with the given plugin installed.
+     */
+    withPlugin(plugin) {
+        return new SchemaModule(this.#executor.withPlugin(plugin));
+    }
+    /**
+     * Returns a copy of this schema module  without any plugins.
+     */
+    withoutPlugins() {
+        return new SchemaModule(this.#executor.withoutPlugins());
+    }
+    /**
+     * See {@link QueryCreator.withSchema}
+     */
+    withSchema(schema) {
+        return new SchemaModule(this.#executor.withPluginAtFront(new WithSchemaPlugin(schema)));
+    }
+}
+
+/// <reference types="./dynamic.d.ts" />
+class DynamicModule {
+    /**
+     * Creates a dynamic reference to a column that is not know at compile time.
+     *
+     * Kysely is built in a way that by default you can't refer to tables or columns
+     * that are not actually visible in the current query and context. This is all
+     * done by TypeScript at compile time, which means that you need to know the
+     * columns and tables at compile time. This is not always the case of course.
+     *
+     * This method is meant to be used in those cases where the column names
+     * come from the user input or are not otherwise known at compile time.
+     *
+     * WARNING! Unlike values, column names are not escaped by the database engine
+     * or Kysely and if you pass in unchecked column names using this method, you
+     * create an SQL injection vulnerability. Always __always__ validate the user
+     * input before passing it to this method.
+     *
+     * There are couple of examples below for some use cases, but you can pass
+     * `ref` to other methods as well. If the types allow you to pass a `ref`
+     * value to some place, it should work.
+     *
+     * ### Examples
+     *
+     * Filter by a column not know at compile time:
+     *
+     * ```ts
+     * async function someQuery(filterColumn: string, filterValue: string) {
+     *   const { ref } = db.dynamic
+     *
+     *   return await db
+     *     .selectFrom('person')
+     *     .selectAll()
+     *     .where(ref(filterColumn), '=', filterValue)
+     *     .execute()
+     * }
+     *
+     * someQuery('first_name', 'Arnold')
+     * someQuery('person.last_name', 'Aniston')
+     * ```
+     *
+     * Order by a column not know at compile time:
+     *
+     * ```ts
+     * async function someQuery(orderBy: string) {
+     *   const { ref } = db.dynamic
+     *
+     *   return await db
+     *     .selectFrom('person')
+     *     .select('person.first_name as fn')
+     *     .orderBy(ref(orderBy))
+     *     .execute()
+     * }
+     *
+     * someQuery('fn')
+     * ```
+     *
+     * In this example we add selections dynamically:
+     *
+     * ```ts
+     * const { ref } = db.dynamic
+     *
+     * // Some column name provided by the user. Value not known at compile time.
+     * const columnFromUserInput = req.query.select;
+     *
+     * // A type that lists all possible values `columnFromUserInput` can have.
+     * // You can use `keyof Person` if any column of an interface is allowed.
+     * type PossibleColumns = 'last_name' | 'first_name' | 'birth_date'
+     *
+     * const [person] = await db.selectFrom('person')
+     *   .select([
+     *     ref<PossibleColumns>(columnFromUserInput),
+     *     'id'
+     *   ])
+     *   .execute()
+     *
+     * // The resulting type contains all `PossibleColumns` as optional fields
+     * // because we cannot know which field was actually selected before
+     * // running the code.
+     * const lastName: string | undefined = person.last_name
+     * const firstName: string | undefined = person.first_name
+     * const birthDate: string | undefined = person.birth_date
+     *
+     * // The result type also contains the compile time selection `id`.
+     * person.id
+     * ```
+     */
+    ref(reference) {
+        return new DynamicReferenceBuilder(reference);
+    }
+}
+
+/// <reference types="./default-connection-provider.d.ts" />
+class DefaultConnectionProvider {
+    #driver;
+    constructor(driver) {
+        this.#driver = driver;
+    }
+    async provideConnection(consumer) {
+        const connection = await this.#driver.acquireConnection();
+        try {
+            return await consumer(connection);
+        }
+        finally {
+            await this.#driver.releaseConnection(connection);
+        }
+    }
+}
+
+/// <reference types="./default-query-executor.d.ts" />
+class DefaultQueryExecutor extends QueryExecutorBase {
+    #compiler;
+    #adapter;
+    #connectionProvider;
+    constructor(compiler, adapter, connectionProvider, plugins = []) {
+        super(plugins);
+        this.#compiler = compiler;
+        this.#adapter = adapter;
+        this.#connectionProvider = connectionProvider;
+    }
+    get adapter() {
+        return this.#adapter;
+    }
+    compileQuery(node) {
+        return this.#compiler.compileQuery(node);
+    }
+    provideConnection(consumer) {
+        return this.#connectionProvider.provideConnection(consumer);
+    }
+    withPlugins(plugins) {
+        return new DefaultQueryExecutor(this.#compiler, this.#adapter, this.#connectionProvider, [...this.plugins, ...plugins]);
+    }
+    withPlugin(plugin) {
+        return new DefaultQueryExecutor(this.#compiler, this.#adapter, this.#connectionProvider, [...this.plugins, plugin]);
+    }
+    withPluginAtFront(plugin) {
+        return new DefaultQueryExecutor(this.#compiler, this.#adapter, this.#connectionProvider, [plugin, ...this.plugins]);
+    }
+    withConnectionProvider(connectionProvider) {
+        return new DefaultQueryExecutor(this.#compiler, this.#adapter, connectionProvider, [...this.plugins]);
+    }
+    withoutPlugins() {
+        return new DefaultQueryExecutor(this.#compiler, this.#adapter, this.#connectionProvider, []);
+    }
+}
+
+/// <reference types="./performance-now.d.ts" />
+function performanceNow() {
+    if (typeof performance !== 'undefined' && isFunction(performance.now)) {
+        return performance.now();
+    }
+    else {
+        return Date.now();
+    }
+}
+
+/// <reference types="./runtime-driver.d.ts" />
+/**
+ * A small wrapper around {@link Driver} that makes sure the driver is
+ * initialized before it is used, only initialized and destroyed
+ * once etc.
+ */
+class RuntimeDriver {
+    #driver;
+    #log;
+    #initPromise;
+    #initDone;
+    #destroyPromise;
+    #connections = new WeakSet();
+    constructor(driver, log) {
+        this.#initDone = false;
+        this.#driver = driver;
+        this.#log = log;
+    }
+    async init() {
+        if (this.#destroyPromise) {
+            throw new Error('driver has already been destroyed');
+        }
+        if (!this.#initPromise) {
+            this.#initPromise = this.#driver
+                .init()
+                .then(() => {
+                this.#initDone = true;
+            })
+                .catch((err) => {
+                this.#initPromise = undefined;
+                return Promise.reject(err);
+            });
+        }
+        await this.#initPromise;
+    }
+    async acquireConnection() {
+        if (this.#destroyPromise) {
+            throw new Error('driver has already been destroyed');
+        }
+        if (!this.#initDone) {
+            await this.init();
+        }
+        const connection = await this.#driver.acquireConnection();
+        if (!this.#connections.has(connection)) {
+            if (this.#needsLogging()) {
+                this.#addLogging(connection);
+            }
+            this.#connections.add(connection);
+        }
+        return connection;
+    }
+    async releaseConnection(connection) {
+        await this.#driver.releaseConnection(connection);
+    }
+    beginTransaction(connection, settings) {
+        return this.#driver.beginTransaction(connection, settings);
+    }
+    commitTransaction(connection) {
+        return this.#driver.commitTransaction(connection);
+    }
+    rollbackTransaction(connection) {
+        return this.#driver.rollbackTransaction(connection);
+    }
+    async destroy() {
+        if (!this.#initPromise) {
+            return;
+        }
+        await this.#initPromise;
+        if (!this.#destroyPromise) {
+            this.#destroyPromise = this.#driver.destroy().catch((err) => {
+                this.#destroyPromise = undefined;
+                return Promise.reject(err);
+            });
+        }
+        await this.#destroyPromise;
+    }
+    #needsLogging() {
+        return (this.#log.isLevelEnabled('query') || this.#log.isLevelEnabled('error'));
+    }
+    // This method monkey patches the database connection's executeQuery method
+    // by adding logging code around it. Monkey patching is not pretty, but it's
+    // the best option in this case.
+    #addLogging(connection) {
+        const executeQuery = connection.executeQuery;
+        connection.executeQuery = async (compiledQuery) => {
+            let caughtError;
+            const startTime = performanceNow();
+            try {
+                return await executeQuery.call(connection, compiledQuery);
+            }
+            catch (error) {
+                caughtError = error;
+                await this.#logError(error, compiledQuery, startTime);
+                throw error;
+            }
+            finally {
+                if (!caughtError) {
+                    await this.#logQuery(compiledQuery, startTime);
+                }
+            }
+        };
+    }
+    async #logError(error, compiledQuery, startTime) {
+        await this.#log.error(() => ({
+            level: 'error',
+            error,
+            query: compiledQuery,
+            queryDurationMillis: this.#calculateDurationMillis(startTime),
+        }));
+    }
+    async #logQuery(compiledQuery, startTime) {
+        await this.#log.query(() => ({
+            level: 'query',
+            query: compiledQuery,
+            queryDurationMillis: this.#calculateDurationMillis(startTime),
+        }));
+    }
+    #calculateDurationMillis(startTime) {
+        return performanceNow() - startTime;
+    }
+}
+
+/// <reference types="./single-connection-provider.d.ts" />
+const ignoreError = () => { };
+class SingleConnectionProvider {
+    #connection;
+    #runningPromise;
+    constructor(connection) {
+        this.#connection = connection;
+    }
+    async provideConnection(consumer) {
+        while (this.#runningPromise) {
+            await this.#runningPromise.catch(ignoreError);
+        }
+        // `#runningPromise` must be set to undefined before it's
+        // resolved or rejected. Otherwise the while loop above
+        // will misbehave.
+        this.#runningPromise = this.#run(consumer).finally(() => {
+            this.#runningPromise = undefined;
+        });
+        return this.#runningPromise;
+    }
+    // Run the runner in an async function to make sure it doesn't
+    // throw synchronous errors.
+    async #run(runner) {
+        return await runner(this.#connection);
+    }
+}
+
+/// <reference types="./driver.d.ts" />
+const TRANSACTION_ISOLATION_LEVELS = [
+    'read uncommitted',
+    'read committed',
+    'repeatable read',
+    'serializable',
+    'snapshot',
+];
+
+/// <reference types="./log.d.ts" />
+freeze(['query', 'error']);
+class Log {
+    #levels;
+    #logger;
+    constructor(config) {
+        if (isFunction(config)) {
+            this.#logger = config;
+            this.#levels = freeze({
+                query: true,
+                error: true,
+            });
+        }
+        else {
+            this.#logger = defaultLogger;
+            this.#levels = freeze({
+                query: config.includes('query'),
+                error: config.includes('error'),
+            });
+        }
+    }
+    isLevelEnabled(level) {
+        return this.#levels[level];
+    }
+    async query(getEvent) {
+        if (this.#levels.query) {
+            await this.#logger(getEvent());
+        }
+    }
+    async error(getEvent) {
+        if (this.#levels.error) {
+            await this.#logger(getEvent());
+        }
+    }
+}
+function defaultLogger(event) {
+    if (event.level === 'query') {
+        console.log(`kysely:query: ${event.query.sql}`);
+        console.log(`kysely:query: duration: ${event.queryDurationMillis.toFixed(1)}ms`);
+    }
+    else if (event.level === 'error') {
+        if (event.error instanceof Error) {
+            console.error(`kysely:error: ${event.error.stack ?? event.error.message}`);
+        }
+        else {
+            console.error(`kysely:error: ${JSON.stringify({
+                error: event.error,
+                query: event.query.sql,
+                queryDurationMillis: event.queryDurationMillis,
+            })}`);
+        }
+    }
+}
+
+/// <reference types="./compilable.d.ts" />
+function isCompilable(value) {
+    return isObject(value) && isFunction(value.compile);
+}
+
+/// <reference types="./kysely.d.ts" />
+/**
+ * The main Kysely class.
+ *
+ * You should create one instance of `Kysely` per database using the {@link Kysely}
+ * constructor. Each `Kysely` instance maintains its own connection pool.
+ *
+ * ### Examples
+ *
+ * This example assumes your database has tables `person` and `pet`:
+ *
+ * ```ts
+ * import { Kysely, Generated, PostgresDialect } from 'kysely'
+ *
+ * interface PersonTable {
+ *   id: Generated<number>
+ *   first_name: string
+ *   last_name: string
+ * }
+ *
+ * interface PetTable {
+ *   id: Generated<number>
+ *   owner_id: number
+ *   name: string
+ *   species: 'cat' | 'dog'
+ * }
+ *
+ * interface Database {
+ *   person: PersonTable,
+ *   pet: PetTable
+ * }
+ *
+ * const db = new Kysely<Database>({
+ *   dialect: new PostgresDialect({
+ *     host: 'localhost',
+ *     database: 'kysely_test',
+ *   })
+ * })
+ * ```
+ *
+ * @typeParam DB - The database interface type. Keys of this type must be table names
+ *    in the database and values must be interfaces that describe the rows in those
+ *    tables. See the examples above.
+ */
+class Kysely extends QueryCreator {
+    #props;
+    constructor(args) {
+        let superProps;
+        let props;
+        if (isKyselyProps(args)) {
+            superProps = { executor: args.executor };
+            props = { ...args };
+        }
+        else {
+            const dialect = args.dialect;
+            const driver = dialect.createDriver();
+            const compiler = dialect.createQueryCompiler();
+            const adapter = dialect.createAdapter();
+            const log = new Log(args.log ?? []);
+            const runtimeDriver = new RuntimeDriver(driver, log);
+            const connectionProvider = new DefaultConnectionProvider(runtimeDriver);
+            const executor = new DefaultQueryExecutor(compiler, adapter, connectionProvider, args.plugins ?? []);
+            superProps = { executor };
+            props = {
+                config: args,
+                executor,
+                dialect,
+                driver: runtimeDriver,
+            };
+        }
+        super(superProps);
+        this.#props = freeze(props);
+    }
+    /**
+     * Returns the {@link SchemaModule} module for building database schema.
+     */
+    get schema() {
+        return new SchemaModule(this.#props.executor);
+    }
+    /**
+     * Returns a the {@link DynamicModule} module.
+     *
+     * The {@link DynamicModule} module can be used to bypass strict typing and
+     * passing in dynamic values for the queries.
+     */
+    get dynamic() {
+        return new DynamicModule();
+    }
+    /**
+     * Returns a {@link DatabaseIntrospector | database introspector}.
+     */
+    get introspection() {
+        return this.#props.dialect.createIntrospector(this.withoutPlugins());
+    }
+    case(value) {
+        return new CaseBuilder({
+            node: CaseNode.create(isUndefined(value) ? undefined : parseExpression(value)),
+        });
+    }
+    /**
+     * Returns a {@link FunctionModule} that can be used to write type safe function
+     * calls.
+     *
+     * ```ts
+     * await db.selectFrom('person')
+     *   .innerJoin('pet', 'pet.owner_id', 'person.id')
+     *   .select((eb) => [
+     *     'person.id',
+     *     eb.fn.count('pet.id').as('pet_count')
+     *   ])
+     *   .groupBy('person.id')
+     *   .having((eb) => eb.fn.count('pet.id'), '>', 10)
+     *   .execute()
+     * ```
+     *
+     * The generated SQL (PostgreSQL):
+     *
+     * ```sql
+     * select "person"."id", count("pet"."id") as "pet_count"
+     * from "person"
+     * inner join "pet" on "pet"."owner_id" = "person"."id"
+     * group by "person"."id"
+     * having count("pet"."id") > $1
+     * ```
+     */
+    get fn() {
+        return createFunctionModule();
+    }
+    /**
+     * Creates a {@link TransactionBuilder} that can be used to run queries inside a transaction.
+     *
+     * The returned {@link TransactionBuilder} can be used to configure the transaction. The
+     * {@link TransactionBuilder.execute} method can then be called to run the transaction.
+     * {@link TransactionBuilder.execute} takes a function that is run inside the
+     * transaction. If the function throws, the transaction is rolled back. Otherwise
+     * the transaction is committed.
+     *
+     * The callback function passed to the {@link TransactionBuilder.execute | execute}
+     * method gets the transaction object as its only argument. The transaction is
+     * of type {@link Transaction} which inherits {@link Kysely}. Any query
+     * started through the transaction object is executed inside the transaction.
+     *
+     * ### Examples
+     *
+     * <!-- siteExample("transactions", "Simple transaction", 10) -->
+     *
+     * This example inserts two rows in a transaction. If an error is thrown inside
+     * the callback passed to the `execute` method, the transaction is rolled back.
+     * Otherwise it's committed.
+     *
+     * ```ts
+     * const catto = await db.transaction().execute(async (trx) => {
+     *   const jennifer = await trx.insertInto('person')
+     *     .values({
+     *       first_name: 'Jennifer',
+     *       last_name: 'Aniston',
+     *       age: 40,
+     *     })
+     *     .returning('id')
+     *     .executeTakeFirstOrThrow()
+     *
+     *   return await trx.insertInto('pet')
+     *     .values({
+     *       owner_id: jennifer.id,
+     *       name: 'Catto',
+     *       species: 'cat',
+     *       is_favorite: false,
+     *     })
+     *     .returningAll()
+     *     .executeTakeFirst()
+     * })
+     * ```
+     *
+     * Setting the isolation level:
+     *
+     * ```ts
+     * await db
+     *   .transaction()
+     *   .setIsolationLevel('serializable')
+     *   .execute(async (trx) => {
+     *     await doStuff(trx)
+     *   })
+     * ```
+     */
+    transaction() {
+        return new TransactionBuilder({ ...this.#props });
+    }
+    /**
+     * Provides a kysely instance bound to a single database connection.
+     *
+     * ### Examples
+     *
+     * ```ts
+     * await db
+     *   .connection()
+     *   .execute(async (db) => {
+     *     // `db` is an instance of `Kysely` that's bound to a single
+     *     // database connection. All queries executed through `db` use
+     *     // the same connection.
+     *     await doStuff(db)
+     *   })
+     * ```
+     */
+    connection() {
+        return new ConnectionBuilder({ ...this.#props });
+    }
+    /**
+     * Returns a copy of this Kysely instance with the given plugin installed.
+     */
+    withPlugin(plugin) {
+        return new Kysely({
+            ...this.#props,
+            executor: this.#props.executor.withPlugin(plugin),
+        });
+    }
+    /**
+     * Returns a copy of this Kysely instance without any plugins.
+     */
+    withoutPlugins() {
+        return new Kysely({
+            ...this.#props,
+            executor: this.#props.executor.withoutPlugins(),
+        });
+    }
+    /**
+     * @override
+     */
+    withSchema(schema) {
+        return new Kysely({
+            ...this.#props,
+            executor: this.#props.executor.withPluginAtFront(new WithSchemaPlugin(schema)),
+        });
+    }
+    /**
+     * Returns a copy of this Kysely instance with tables added to its
+     * database type.
+     *
+     * This method only modifies the types and doesn't affect any of the
+     * executed queries in any way.
+     *
+     * ### Examples
+     *
+     * The following example adds and uses a temporary table:
+     *
+     * @example
+     * ```ts
+     * await db.schema
+     *   .createTable('temp_table')
+     *   .temporary()
+     *   .addColumn('some_column', 'integer')
+     *   .execute()
+     *
+     * const tempDb = db.withTables<{
+     *   temp_table: {
+     *     some_column: number
+     *   }
+     * }>()
+     *
+     * await tempDb
+     *   .insertInto('temp_table')
+     *   .values({ some_column: 100 })
+     *   .execute()
+     * ```
+     */
+    withTables() {
+        return new Kysely({ ...this.#props });
+    }
+    /**
+     * Releases all resources and disconnects from the database.
+     *
+     * You need to call this when you are done using the `Kysely` instance.
+     */
+    async destroy() {
+        await this.#props.driver.destroy();
+    }
+    /**
+     * Returns true if this `Kysely` instance is a transaction.
+     *
+     * You can also use `db instanceof Transaction`.
+     */
+    get isTransaction() {
+        return false;
+    }
+    /**
+     * @internal
+     * @private
+     */
+    getExecutor() {
+        return this.#props.executor;
+    }
+    /**
+     * Executes a given compiled query or query builder.
+     *
+     * See {@link https://github.com/koskimas/kysely/blob/master/site/docs/recipes/splitting-build-compile-and-execute-code.md#execute-compiled-queries splitting build, compile and execute code recipe} for more information.
+     */
+    executeQuery(query, queryId = createQueryId()) {
+        const compiledQuery = isCompilable(query) ? query.compile() : query;
+        return this.getExecutor().executeQuery(compiledQuery, queryId);
+    }
+}
+class Transaction extends Kysely {
+    #props;
+    constructor(props) {
+        super(props);
+        this.#props = props;
+    }
+    // The return type is `true` instead of `boolean` to make Kysely<DB>
+    // unassignable to Transaction<DB> while allowing assignment the
+    // other way around.
+    get isTransaction() {
+        return true;
+    }
+    transaction() {
+        throw new Error('calling the transaction method for a Transaction is not supported');
+    }
+    connection() {
+        throw new Error('calling the connection method for a Transaction is not supported');
+    }
+    async destroy() {
+        throw new Error('calling the destroy method for a Transaction is not supported');
+    }
+    withPlugin(plugin) {
+        return new Transaction({
+            ...this.#props,
+            executor: this.#props.executor.withPlugin(plugin),
+        });
+    }
+    withoutPlugins() {
+        return new Transaction({
+            ...this.#props,
+            executor: this.#props.executor.withoutPlugins(),
+        });
+    }
+    /**
+     * @override
+     */
+    withSchema(schema) {
+        return new Transaction({
+            ...this.#props,
+            executor: this.#props.executor.withPluginAtFront(new WithSchemaPlugin(schema)),
+        });
+    }
+    withTables() {
+        return new Transaction({ ...this.#props });
+    }
+}
+function isKyselyProps(obj) {
+    return (isObject(obj) &&
+        isObject(obj.config) &&
+        isObject(obj.driver) &&
+        isObject(obj.executor) &&
+        isObject(obj.dialect));
+}
+class ConnectionBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    async execute(callback) {
+        return this.#props.executor.provideConnection(async (connection) => {
+            const executor = this.#props.executor.withConnectionProvider(new SingleConnectionProvider(connection));
+            const db = new Kysely({
+                ...this.#props,
+                executor,
+            });
+            return await callback(db);
+        });
+    }
+}
+preventAwait(ConnectionBuilder, "don't await ConnectionBuilder instances directly. To execute the query you need to call the `execute` method");
+class TransactionBuilder {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    setIsolationLevel(isolationLevel) {
+        return new TransactionBuilder({
+            ...this.#props,
+            isolationLevel,
+        });
+    }
+    async execute(callback) {
+        const { isolationLevel, ...kyselyProps } = this.#props;
+        const settings = { isolationLevel };
+        validateTransactionSettings(settings);
+        return this.#props.executor.provideConnection(async (connection) => {
+            const executor = this.#props.executor.withConnectionProvider(new SingleConnectionProvider(connection));
+            const transaction = new Transaction({
+                ...kyselyProps,
+                executor,
+            });
+            try {
+                await this.#props.driver.beginTransaction(connection, settings);
+                const result = await callback(transaction);
+                await this.#props.driver.commitTransaction(connection);
+                return result;
+            }
+            catch (error) {
+                await this.#props.driver.rollbackTransaction(connection);
+                throw error;
+            }
+        });
+    }
+}
+preventAwait(TransactionBuilder, "don't await TransactionBuilder instances directly. To execute the transaction you need to call the `execute` method");
+function validateTransactionSettings(settings) {
+    if (settings.isolationLevel &&
+        !TRANSACTION_ISOLATION_LEVELS.includes(settings.isolationLevel)) {
+        throw new Error(`invalid transaction isolation level ${settings.isolationLevel}`);
+    }
+}
+
+/// <reference types="./raw-builder.d.ts" />
+class RawBuilderImpl {
+    #props;
+    constructor(props) {
+        this.#props = freeze(props);
+    }
+    get expressionType() {
+        return undefined;
+    }
+    get isRawBuilder() {
+        return true;
+    }
+    as(alias) {
+        return new AliasedRawBuilderImpl(this, alias);
+    }
+    $castTo() {
+        return new RawBuilderImpl({ ...this.#props });
+    }
+    $notNull() {
+        return new RawBuilderImpl(this.#props);
+    }
+    withPlugin(plugin) {
+        return new RawBuilderImpl({
+            ...this.#props,
+            plugins: this.#props.plugins !== undefined
+                ? freeze([...this.#props.plugins, plugin])
+                : freeze([plugin]),
+        });
+    }
+    toOperationNode() {
+        return this.#toOperationNode(this.#getExecutor());
+    }
+    compile(executorProvider) {
+        return this.#compile(this.#getExecutor(executorProvider));
+    }
+    async execute(executorProvider) {
+        const executor = this.#getExecutor(executorProvider);
+        return executor.executeQuery(this.#compile(executor), this.#props.queryId);
+    }
+    #getExecutor(executorProvider) {
+        const executor = executorProvider !== undefined
+            ? executorProvider.getExecutor()
+            : NOOP_QUERY_EXECUTOR;
+        return this.#props.plugins !== undefined
+            ? executor.withPlugins(this.#props.plugins)
+            : executor;
+    }
+    #toOperationNode(executor) {
+        return executor.transformQuery(this.#props.rawNode, this.#props.queryId);
+    }
+    #compile(executor) {
+        return executor.compileQuery(this.#toOperationNode(executor), this.#props.queryId);
+    }
+}
+function createRawBuilder(props) {
+    return new RawBuilderImpl(props);
+}
+preventAwait(RawBuilderImpl, "don't await RawBuilder instances directly. To execute the query you need to call `execute`");
+class AliasedRawBuilderImpl {
+    #rawBuilder;
+    #alias;
+    constructor(rawBuilder, alias) {
+        this.#rawBuilder = rawBuilder;
+        this.#alias = alias;
+    }
+    get expression() {
+        return this.#rawBuilder;
+    }
+    get alias() {
+        return this.#alias;
+    }
+    get rawBuilder() {
+        return this.#rawBuilder;
+    }
+    toOperationNode() {
+        return AliasNode.create(this.#rawBuilder.toOperationNode(), isOperationNodeSource(this.#alias)
+            ? this.#alias.toOperationNode()
+            : IdentifierNode.create(this.#alias));
+    }
+}
+preventAwait(AliasedRawBuilderImpl, "don't await AliasedRawBuilder instances directly. AliasedRawBuilder should never be executed directly since it's always a part of another query.");
+
+/// <reference types="./sql.d.ts" />
+const sql = Object.assign((sqlFragments, ...parameters) => {
+    return createRawBuilder({
+        queryId: createQueryId(),
+        rawNode: RawNode.create(sqlFragments, parameters?.map(parseParameter) ?? []),
+    });
+}, {
+    ref(columnReference) {
+        return createRawBuilder({
+            queryId: createQueryId(),
+            rawNode: RawNode.createWithChild(parseStringReference(columnReference)),
+        });
+    },
+    val(value) {
+        return createRawBuilder({
+            queryId: createQueryId(),
+            rawNode: RawNode.createWithChild(parseValueExpression(value)),
+        });
+    },
+    value(value) {
+        return this.val(value);
+    },
+    table(tableReference) {
+        return createRawBuilder({
+            queryId: createQueryId(),
+            rawNode: RawNode.createWithChild(parseTable(tableReference)),
+        });
+    },
+    id(...ids) {
+        const fragments = new Array(ids.length + 1).fill('.');
+        fragments[0] = '';
+        fragments[fragments.length - 1] = '';
+        return createRawBuilder({
+            queryId: createQueryId(),
+            rawNode: RawNode.create(fragments, ids.map(IdentifierNode.create)),
+        });
+    },
+    lit(value) {
+        return createRawBuilder({
+            queryId: createQueryId(),
+            rawNode: RawNode.createWithChild(ValueNode.createImmediate(value)),
+        });
+    },
+    literal(value) {
+        return this.lit(value);
+    },
+    raw(sql) {
+        return createRawBuilder({
+            queryId: createQueryId(),
+            rawNode: RawNode.createWithSql(sql),
+        });
+    },
+    join(array, separator = sql `, `) {
+        const nodes = new Array(2 * array.length - 1);
+        const sep = separator.toOperationNode();
+        for (let i = 0; i < array.length; ++i) {
+            nodes[2 * i] = parseParameter(array[i]);
+            if (i !== array.length - 1) {
+                nodes[2 * i + 1] = sep;
+            }
+        }
+        return createRawBuilder({
+            queryId: createQueryId(),
+            rawNode: RawNode.createWithChildren(nodes),
+        });
+    },
+});
+function parseParameter(param) {
+    if (isOperationNodeSource(param)) {
+        return param.toOperationNode();
+    }
+    return parseValueExpression(param);
+}
+
+/// <reference types="./operation-node-visitor.d.ts" />
+class OperationNodeVisitor {
+    nodeStack = [];
+    get parentNode() {
+        return this.nodeStack[this.nodeStack.length - 2];
+    }
+    #visitors = freeze({
+        AliasNode: this.visitAlias.bind(this),
+        ColumnNode: this.visitColumn.bind(this),
+        IdentifierNode: this.visitIdentifier.bind(this),
+        SchemableIdentifierNode: this.visitSchemableIdentifier.bind(this),
+        RawNode: this.visitRaw.bind(this),
+        ReferenceNode: this.visitReference.bind(this),
+        SelectQueryNode: this.visitSelectQuery.bind(this),
+        SelectionNode: this.visitSelection.bind(this),
+        TableNode: this.visitTable.bind(this),
+        FromNode: this.visitFrom.bind(this),
+        SelectAllNode: this.visitSelectAll.bind(this),
+        AndNode: this.visitAnd.bind(this),
+        OrNode: this.visitOr.bind(this),
+        ValueNode: this.visitValue.bind(this),
+        ValueListNode: this.visitValueList.bind(this),
+        PrimitiveValueListNode: this.visitPrimitiveValueList.bind(this),
+        ParensNode: this.visitParens.bind(this),
+        JoinNode: this.visitJoin.bind(this),
+        OperatorNode: this.visitOperator.bind(this),
+        WhereNode: this.visitWhere.bind(this),
+        InsertQueryNode: this.visitInsertQuery.bind(this),
+        DeleteQueryNode: this.visitDeleteQuery.bind(this),
+        ReturningNode: this.visitReturning.bind(this),
+        CreateTableNode: this.visitCreateTable.bind(this),
+        AddColumnNode: this.visitAddColumn.bind(this),
+        ColumnDefinitionNode: this.visitColumnDefinition.bind(this),
+        DropTableNode: this.visitDropTable.bind(this),
+        DataTypeNode: this.visitDataType.bind(this),
+        OrderByNode: this.visitOrderBy.bind(this),
+        OrderByItemNode: this.visitOrderByItem.bind(this),
+        GroupByNode: this.visitGroupBy.bind(this),
+        GroupByItemNode: this.visitGroupByItem.bind(this),
+        UpdateQueryNode: this.visitUpdateQuery.bind(this),
+        ColumnUpdateNode: this.visitColumnUpdate.bind(this),
+        LimitNode: this.visitLimit.bind(this),
+        OffsetNode: this.visitOffset.bind(this),
+        OnConflictNode: this.visitOnConflict.bind(this),
+        OnDuplicateKeyNode: this.visitOnDuplicateKey.bind(this),
+        CreateIndexNode: this.visitCreateIndex.bind(this),
+        DropIndexNode: this.visitDropIndex.bind(this),
+        ListNode: this.visitList.bind(this),
+        PrimaryKeyConstraintNode: this.visitPrimaryKeyConstraint.bind(this),
+        UniqueConstraintNode: this.visitUniqueConstraint.bind(this),
+        ReferencesNode: this.visitReferences.bind(this),
+        CheckConstraintNode: this.visitCheckConstraint.bind(this),
+        WithNode: this.visitWith.bind(this),
+        CommonTableExpressionNode: this.visitCommonTableExpression.bind(this),
+        CommonTableExpressionNameNode: this.visitCommonTableExpressionName.bind(this),
+        HavingNode: this.visitHaving.bind(this),
+        CreateSchemaNode: this.visitCreateSchema.bind(this),
+        DropSchemaNode: this.visitDropSchema.bind(this),
+        AlterTableNode: this.visitAlterTable.bind(this),
+        DropColumnNode: this.visitDropColumn.bind(this),
+        RenameColumnNode: this.visitRenameColumn.bind(this),
+        AlterColumnNode: this.visitAlterColumn.bind(this),
+        ModifyColumnNode: this.visitModifyColumn.bind(this),
+        AddConstraintNode: this.visitAddConstraint.bind(this),
+        DropConstraintNode: this.visitDropConstraint.bind(this),
+        ForeignKeyConstraintNode: this.visitForeignKeyConstraint.bind(this),
+        CreateViewNode: this.visitCreateView.bind(this),
+        DropViewNode: this.visitDropView.bind(this),
+        GeneratedNode: this.visitGenerated.bind(this),
+        DefaultValueNode: this.visitDefaultValue.bind(this),
+        OnNode: this.visitOn.bind(this),
+        ValuesNode: this.visitValues.bind(this),
+        SelectModifierNode: this.visitSelectModifier.bind(this),
+        CreateTypeNode: this.visitCreateType.bind(this),
+        DropTypeNode: this.visitDropType.bind(this),
+        ExplainNode: this.visitExplain.bind(this),
+        DefaultInsertValueNode: this.visitDefaultInsertValue.bind(this),
+        AggregateFunctionNode: this.visitAggregateFunction.bind(this),
+        OverNode: this.visitOver.bind(this),
+        PartitionByNode: this.visitPartitionBy.bind(this),
+        PartitionByItemNode: this.visitPartitionByItem.bind(this),
+        SetOperationNode: this.visitSetOperation.bind(this),
+        BinaryOperationNode: this.visitBinaryOperation.bind(this),
+        UnaryOperationNode: this.visitUnaryOperation.bind(this),
+        UsingNode: this.visitUsing.bind(this),
+        FunctionNode: this.visitFunction.bind(this),
+        CaseNode: this.visitCase.bind(this),
+        WhenNode: this.visitWhen.bind(this),
+        JSONReferenceNode: this.visitJSONReference.bind(this),
+        JSONPathNode: this.visitJSONPath.bind(this),
+        JSONPathLegNode: this.visitJSONPathLeg.bind(this),
+        JSONOperatorChainNode: this.visitJSONOperatorChain.bind(this),
+        TupleNode: this.visitTuple.bind(this),
+        MergeQueryNode: this.visitMergeQuery.bind(this),
+        MatchedNode: this.visitMatched.bind(this),
+        AddIndexNode: this.visitAddIndex.bind(this),
+        CastNode: this.visitCast.bind(this),
+        FetchNode: this.visitFetch.bind(this),
+        TopNode: this.visitTop.bind(this),
+        OutputNode: this.visitOutput.bind(this),
+    });
+    visitNode = (node) => {
+        this.nodeStack.push(node);
+        this.#visitors[node.kind](node);
+        this.nodeStack.pop();
+    };
+}
+
+/// <reference types="./default-query-compiler.d.ts" />
+class DefaultQueryCompiler extends OperationNodeVisitor {
+    #sql = '';
+    #parameters = [];
+    get numParameters() {
+        return this.#parameters.length;
+    }
+    compileQuery(node) {
+        this.#sql = '';
+        this.#parameters = [];
+        this.nodeStack.splice(0, this.nodeStack.length);
+        this.visitNode(node);
+        return freeze({
+            query: node,
+            sql: this.getSql(),
+            parameters: [...this.#parameters],
+        });
+    }
+    getSql() {
+        return this.#sql;
+    }
+    visitSelectQuery(node) {
+        const wrapInParens = this.parentNode !== undefined &&
+            !ParensNode.is(this.parentNode) &&
+            !InsertQueryNode.is(this.parentNode) &&
+            !CreateTableNode.is(this.parentNode) &&
+            !CreateViewNode.is(this.parentNode) &&
+            !SetOperationNode.is(this.parentNode);
+        if (this.parentNode === undefined && node.explain) {
+            this.visitNode(node.explain);
+            this.append(' ');
+        }
+        if (wrapInParens) {
+            this.append('(');
+        }
+        if (node.with) {
+            this.visitNode(node.with);
+            this.append(' ');
+        }
+        this.append('select');
+        if (node.distinctOn) {
+            this.append(' ');
+            this.compileDistinctOn(node.distinctOn);
+        }
+        if (node.frontModifiers?.length) {
+            this.append(' ');
+            this.compileList(node.frontModifiers, ' ');
+        }
+        if (node.top) {
+            this.append(' ');
+            this.visitNode(node.top);
+        }
+        if (node.selections) {
+            this.append(' ');
+            this.compileList(node.selections);
+        }
+        if (node.from) {
+            this.append(' ');
+            this.visitNode(node.from);
+        }
+        if (node.joins) {
+            this.append(' ');
+            this.compileList(node.joins, ' ');
+        }
+        if (node.where) {
+            this.append(' ');
+            this.visitNode(node.where);
+        }
+        if (node.groupBy) {
+            this.append(' ');
+            this.visitNode(node.groupBy);
+        }
+        if (node.having) {
+            this.append(' ');
+            this.visitNode(node.having);
+        }
+        if (node.setOperations) {
+            this.append(' ');
+            this.compileList(node.setOperations, ' ');
+        }
+        if (node.orderBy) {
+            this.append(' ');
+            this.visitNode(node.orderBy);
+        }
+        if (node.limit) {
+            this.append(' ');
+            this.visitNode(node.limit);
+        }
+        if (node.offset) {
+            this.append(' ');
+            this.visitNode(node.offset);
+        }
+        if (node.fetch) {
+            this.append(' ');
+            this.visitNode(node.fetch);
+        }
+        if (node.endModifiers?.length) {
+            this.append(' ');
+            this.compileList(this.sortSelectModifiers([...node.endModifiers]), ' ');
+        }
+        if (wrapInParens) {
+            this.append(')');
+        }
+    }
+    visitFrom(node) {
+        this.append('from ');
+        this.compileList(node.froms);
+    }
+    visitSelection(node) {
+        this.visitNode(node.selection);
+    }
+    visitColumn(node) {
+        this.visitNode(node.column);
+    }
+    compileDistinctOn(expressions) {
+        this.append('distinct on (');
+        this.compileList(expressions);
+        this.append(')');
+    }
+    compileList(nodes, separator = ', ') {
+        const lastIndex = nodes.length - 1;
+        for (let i = 0; i <= lastIndex; i++) {
+            this.visitNode(nodes[i]);
+            if (i < lastIndex) {
+                this.append(separator);
+            }
+        }
+    }
+    visitWhere(node) {
+        this.append('where ');
+        this.visitNode(node.where);
+    }
+    visitHaving(node) {
+        this.append('having ');
+        this.visitNode(node.having);
+    }
+    visitInsertQuery(node) {
+        const rootQueryNode = this.nodeStack.find(QueryNode.is);
+        const isSubQuery = rootQueryNode !== node;
+        if (!isSubQuery && node.explain) {
+            this.visitNode(node.explain);
+            this.append(' ');
+        }
+        if (isSubQuery && !MergeQueryNode.is(rootQueryNode)) {
+            this.append('(');
+        }
+        if (node.with) {
+            this.visitNode(node.with);
+            this.append(' ');
+        }
+        this.append(node.replace ? 'replace' : 'insert');
+        if (node.ignore) {
+            this.append(' ignore');
+        }
+        if (node.top) {
+            this.append(' ');
+            this.visitNode(node.top);
+        }
+        if (node.into) {
+            this.append(' into ');
+            this.visitNode(node.into);
+        }
+        if (node.columns) {
+            this.append(' (');
+            this.compileList(node.columns);
+            this.append(')');
+        }
+        if (node.output) {
+            this.append(' ');
+            this.visitNode(node.output);
+        }
+        if (node.values) {
+            this.append(' ');
+            this.visitNode(node.values);
+        }
+        if (node.defaultValues) {
+            this.append(' ');
+            this.append('default values');
+        }
+        if (node.onConflict) {
+            this.append(' ');
+            this.visitNode(node.onConflict);
+        }
+        if (node.onDuplicateKey) {
+            this.append(' ');
+            this.visitNode(node.onDuplicateKey);
+        }
+        if (node.returning) {
+            this.append(' ');
+            this.visitNode(node.returning);
+        }
+        if (isSubQuery && !MergeQueryNode.is(rootQueryNode)) {
+            this.append(')');
+        }
+    }
+    visitValues(node) {
+        this.append('values ');
+        this.compileList(node.values);
+    }
+    visitDeleteQuery(node) {
+        const isSubQuery = this.nodeStack.find(QueryNode.is) !== node;
+        if (!isSubQuery && node.explain) {
+            this.visitNode(node.explain);
+            this.append(' ');
+        }
+        if (isSubQuery) {
+            this.append('(');
+        }
+        if (node.with) {
+            this.visitNode(node.with);
+            this.append(' ');
+        }
+        this.append('delete ');
+        if (node.top) {
+            this.visitNode(node.top);
+            this.append(' ');
+        }
+        this.visitNode(node.from);
+        if (node.output) {
+            this.append(' ');
+            this.visitNode(node.output);
+        }
+        if (node.using) {
+            this.append(' ');
+            this.visitNode(node.using);
+        }
+        if (node.joins) {
+            this.append(' ');
+            this.compileList(node.joins, ' ');
+        }
+        if (node.where) {
+            this.append(' ');
+            this.visitNode(node.where);
+        }
+        if (node.orderBy) {
+            this.append(' ');
+            this.visitNode(node.orderBy);
+        }
+        if (node.limit) {
+            this.append(' ');
+            this.visitNode(node.limit);
+        }
+        if (node.returning) {
+            this.append(' ');
+            this.visitNode(node.returning);
+        }
+        if (isSubQuery) {
+            this.append(')');
+        }
+    }
+    visitReturning(node) {
+        this.append('returning ');
+        this.compileList(node.selections);
+    }
+    visitAlias(node) {
+        this.visitNode(node.node);
+        this.append(' as ');
+        this.visitNode(node.alias);
+    }
+    visitReference(node) {
+        if (node.table) {
+            this.visitNode(node.table);
+            this.append('.');
+        }
+        this.visitNode(node.column);
+    }
+    visitSelectAll(_) {
+        this.append('*');
+    }
+    visitIdentifier(node) {
+        this.append(this.getLeftIdentifierWrapper());
+        this.compileUnwrappedIdentifier(node);
+        this.append(this.getRightIdentifierWrapper());
+    }
+    compileUnwrappedIdentifier(node) {
+        if (!isString(node.name)) {
+            throw new Error('a non-string identifier was passed to compileUnwrappedIdentifier.');
+        }
+        this.append(this.sanitizeIdentifier(node.name));
+    }
+    visitAnd(node) {
+        this.visitNode(node.left);
+        this.append(' and ');
+        this.visitNode(node.right);
+    }
+    visitOr(node) {
+        this.visitNode(node.left);
+        this.append(' or ');
+        this.visitNode(node.right);
+    }
+    visitValue(node) {
+        if (node.immediate) {
+            this.appendImmediateValue(node.value);
+        }
+        else {
+            this.appendValue(node.value);
+        }
+    }
+    visitValueList(node) {
+        this.append('(');
+        this.compileList(node.values);
+        this.append(')');
+    }
+    visitTuple(node) {
+        this.append('(');
+        this.compileList(node.values);
+        this.append(')');
+    }
+    visitPrimitiveValueList(node) {
+        this.append('(');
+        const { values } = node;
+        for (let i = 0; i < values.length; ++i) {
+            this.appendValue(values[i]);
+            if (i !== values.length - 1) {
+                this.append(', ');
+            }
+        }
+        this.append(')');
+    }
+    visitParens(node) {
+        this.append('(');
+        this.visitNode(node.node);
+        this.append(')');
+    }
+    visitJoin(node) {
+        this.append(JOIN_TYPE_SQL[node.joinType]);
+        this.append(' ');
+        this.visitNode(node.table);
+        if (node.on) {
+            this.append(' ');
+            this.visitNode(node.on);
+        }
+    }
+    visitOn(node) {
+        this.append('on ');
+        this.visitNode(node.on);
+    }
+    visitRaw(node) {
+        const { sqlFragments, parameters: params } = node;
+        for (let i = 0; i < sqlFragments.length; ++i) {
+            this.append(sqlFragments[i]);
+            if (params.length > i) {
+                this.visitNode(params[i]);
+            }
+        }
+    }
+    visitOperator(node) {
+        this.append(node.operator);
+    }
+    visitTable(node) {
+        this.visitNode(node.table);
+    }
+    visitSchemableIdentifier(node) {
+        if (node.schema) {
+            this.visitNode(node.schema);
+            this.append('.');
+        }
+        this.visitNode(node.identifier);
+    }
+    visitCreateTable(node) {
+        this.append('create ');
+        if (node.frontModifiers && node.frontModifiers.length > 0) {
+            this.compileList(node.frontModifiers, ' ');
+            this.append(' ');
+        }
+        if (node.temporary) {
+            this.append('temporary ');
+        }
+        this.append('table ');
+        if (node.ifNotExists) {
+            this.append('if not exists ');
+        }
+        this.visitNode(node.table);
+        if (node.selectQuery) {
+            this.append(' as ');
+            this.visitNode(node.selectQuery);
+        }
+        else {
+            this.append(' (');
+            this.compileList([...node.columns, ...(node.constraints ?? [])]);
+            this.append(')');
+            if (node.onCommit) {
+                this.append(' on commit ');
+                this.append(node.onCommit);
+            }
+            if (node.endModifiers && node.endModifiers.length > 0) {
+                this.append(' ');
+                this.compileList(node.endModifiers, ' ');
+            }
+        }
+    }
+    visitColumnDefinition(node) {
+        if (node.ifNotExists) {
+            this.append('if not exists ');
+        }
+        this.visitNode(node.column);
+        this.append(' ');
+        this.visitNode(node.dataType);
+        if (node.unsigned) {
+            this.append(' unsigned');
+        }
+        if (node.frontModifiers && node.frontModifiers.length > 0) {
+            this.append(' ');
+            this.compileList(node.frontModifiers, ' ');
+        }
+        if (node.generated) {
+            this.append(' ');
+            this.visitNode(node.generated);
+        }
+        if (node.identity) {
+            this.append(' identity');
+        }
+        if (node.defaultTo) {
+            this.append(' ');
+            this.visitNode(node.defaultTo);
+        }
+        if (node.notNull) {
+            this.append(' not null');
+        }
+        if (node.unique) {
+            this.append(' unique');
+        }
+        if (node.nullsNotDistinct) {
+            this.append(' nulls not distinct');
+        }
+        if (node.primaryKey) {
+            this.append(' primary key');
+        }
+        if (node.autoIncrement) {
+            this.append(' ');
+            this.append(this.getAutoIncrement());
+        }
+        if (node.references) {
+            this.append(' ');
+            this.visitNode(node.references);
+        }
+        if (node.check) {
+            this.append(' ');
+            this.visitNode(node.check);
+        }
+        if (node.endModifiers && node.endModifiers.length > 0) {
+            this.append(' ');
+            this.compileList(node.endModifiers, ' ');
+        }
+    }
+    getAutoIncrement() {
+        return 'auto_increment';
+    }
+    visitReferences(node) {
+        this.append('references ');
+        this.visitNode(node.table);
+        this.append(' (');
+        this.compileList(node.columns);
+        this.append(')');
+        if (node.onDelete) {
+            this.append(' on delete ');
+            this.append(node.onDelete);
+        }
+        if (node.onUpdate) {
+            this.append(' on update ');
+            this.append(node.onUpdate);
+        }
+    }
+    visitDropTable(node) {
+        this.append('drop table ');
+        if (node.ifExists) {
+            this.append('if exists ');
+        }
+        this.visitNode(node.table);
+        if (node.cascade) {
+            this.append(' cascade');
+        }
+    }
+    visitDataType(node) {
+        this.append(node.dataType);
+    }
+    visitOrderBy(node) {
+        this.append('order by ');
+        this.compileList(node.items);
+    }
+    visitOrderByItem(node) {
+        this.visitNode(node.orderBy);
+        if (node.direction) {
+            this.append(' ');
+            this.visitNode(node.direction);
+        }
+    }
+    visitGroupBy(node) {
+        this.append('group by ');
+        this.compileList(node.items);
+    }
+    visitGroupByItem(node) {
+        this.visitNode(node.groupBy);
+    }
+    visitUpdateQuery(node) {
+        const rootQueryNode = this.nodeStack.find(QueryNode.is);
+        const isSubQuery = rootQueryNode !== node;
+        if (!isSubQuery && node.explain) {
+            this.visitNode(node.explain);
+            this.append(' ');
+        }
+        if (isSubQuery && !MergeQueryNode.is(rootQueryNode)) {
+            this.append('(');
+        }
+        if (node.with) {
+            this.visitNode(node.with);
+            this.append(' ');
+        }
+        this.append('update ');
+        if (node.top) {
+            this.visitNode(node.top);
+            this.append(' ');
+        }
+        if (node.table) {
+            this.visitNode(node.table);
+            this.append(' ');
+        }
+        this.append('set ');
+        if (node.updates) {
+            this.compileList(node.updates);
+        }
+        if (node.output) {
+            this.append(' ');
+            this.visitNode(node.output);
+        }
+        if (node.from) {
+            this.append(' ');
+            this.visitNode(node.from);
+        }
+        if (node.joins) {
+            this.append(' ');
+            this.compileList(node.joins, ' ');
+        }
+        if (node.where) {
+            this.append(' ');
+            this.visitNode(node.where);
+        }
+        if (node.limit) {
+            this.append(' ');
+            this.visitNode(node.limit);
+        }
+        if (node.returning) {
+            this.append(' ');
+            this.visitNode(node.returning);
+        }
+        if (isSubQuery && !MergeQueryNode.is(rootQueryNode)) {
+            this.append(')');
+        }
+    }
+    visitColumnUpdate(node) {
+        this.visitNode(node.column);
+        this.append(' = ');
+        this.visitNode(node.value);
+    }
+    visitLimit(node) {
+        this.append('limit ');
+        this.visitNode(node.limit);
+    }
+    visitOffset(node) {
+        this.append('offset ');
+        this.visitNode(node.offset);
+    }
+    visitOnConflict(node) {
+        this.append('on conflict');
+        if (node.columns) {
+            this.append(' (');
+            this.compileList(node.columns);
+            this.append(')');
+        }
+        else if (node.constraint) {
+            this.append(' on constraint ');
+            this.visitNode(node.constraint);
+        }
+        else if (node.indexExpression) {
+            this.append(' (');
+            this.visitNode(node.indexExpression);
+            this.append(')');
+        }
+        if (node.indexWhere) {
+            this.append(' ');
+            this.visitNode(node.indexWhere);
+        }
+        if (node.doNothing === true) {
+            this.append(' do nothing');
+        }
+        else if (node.updates) {
+            this.append(' do update set ');
+            this.compileList(node.updates);
+            if (node.updateWhere) {
+                this.append(' ');
+                this.visitNode(node.updateWhere);
+            }
+        }
+    }
+    visitOnDuplicateKey(node) {
+        this.append('on duplicate key update ');
+        this.compileList(node.updates);
+    }
+    visitCreateIndex(node) {
+        this.append('create ');
+        if (node.unique) {
+            this.append('unique ');
+        }
+        this.append('index ');
+        if (node.ifNotExists) {
+            this.append('if not exists ');
+        }
+        this.visitNode(node.name);
+        if (node.table) {
+            this.append(' on ');
+            this.visitNode(node.table);
+        }
+        if (node.using) {
+            this.append(' using ');
+            this.visitNode(node.using);
+        }
+        if (node.columns) {
+            this.append(' (');
+            this.compileList(node.columns);
+            this.append(')');
+        }
+        if (node.nullsNotDistinct) {
+            this.append(' nulls not distinct');
+        }
+        if (node.where) {
+            this.append(' ');
+            this.visitNode(node.where);
+        }
+    }
+    visitDropIndex(node) {
+        this.append('drop index ');
+        if (node.ifExists) {
+            this.append('if exists ');
+        }
+        this.visitNode(node.name);
+        if (node.table) {
+            this.append(' on ');
+            this.visitNode(node.table);
+        }
+        if (node.cascade) {
+            this.append(' cascade');
+        }
+    }
+    visitCreateSchema(node) {
+        this.append('create schema ');
+        if (node.ifNotExists) {
+            this.append('if not exists ');
+        }
+        this.visitNode(node.schema);
+    }
+    visitDropSchema(node) {
+        this.append('drop schema ');
+        if (node.ifExists) {
+            this.append('if exists ');
+        }
+        this.visitNode(node.schema);
+        if (node.cascade) {
+            this.append(' cascade');
+        }
+    }
+    visitPrimaryKeyConstraint(node) {
+        if (node.name) {
+            this.append('constraint ');
+            this.visitNode(node.name);
+            this.append(' ');
+        }
+        this.append('primary key (');
+        this.compileList(node.columns);
+        this.append(')');
+    }
+    visitUniqueConstraint(node) {
+        if (node.name) {
+            this.append('constraint ');
+            this.visitNode(node.name);
+            this.append(' ');
+        }
+        this.append('unique');
+        if (node.nullsNotDistinct) {
+            this.append(' nulls not distinct');
+        }
+        this.append(' (');
+        this.compileList(node.columns);
+        this.append(')');
+    }
+    visitCheckConstraint(node) {
+        if (node.name) {
+            this.append('constraint ');
+            this.visitNode(node.name);
+            this.append(' ');
+        }
+        this.append('check (');
+        this.visitNode(node.expression);
+        this.append(')');
+    }
+    visitForeignKeyConstraint(node) {
+        if (node.name) {
+            this.append('constraint ');
+            this.visitNode(node.name);
+            this.append(' ');
+        }
+        this.append('foreign key (');
+        this.compileList(node.columns);
+        this.append(') ');
+        this.visitNode(node.references);
+        if (node.onDelete) {
+            this.append(' on delete ');
+            this.append(node.onDelete);
+        }
+        if (node.onUpdate) {
+            this.append(' on update ');
+            this.append(node.onUpdate);
+        }
+    }
+    visitList(node) {
+        this.compileList(node.items);
+    }
+    visitWith(node) {
+        this.append('with ');
+        if (node.recursive) {
+            this.append('recursive ');
+        }
+        this.compileList(node.expressions);
+    }
+    visitCommonTableExpression(node) {
+        this.visitNode(node.name);
+        this.append(' as ');
+        if (isBoolean(node.materialized)) {
+            if (!node.materialized) {
+                this.append('not ');
+            }
+            this.append('materialized ');
+        }
+        this.visitNode(node.expression);
+    }
+    visitCommonTableExpressionName(node) {
+        this.visitNode(node.table);
+        if (node.columns) {
+            this.append('(');
+            this.compileList(node.columns);
+            this.append(')');
+        }
+    }
+    visitAlterTable(node) {
+        this.append('alter table ');
+        this.visitNode(node.table);
+        this.append(' ');
+        if (node.renameTo) {
+            this.append('rename to ');
+            this.visitNode(node.renameTo);
+        }
+        if (node.setSchema) {
+            this.append('set schema ');
+            this.visitNode(node.setSchema);
+        }
+        if (node.addConstraint) {
+            this.visitNode(node.addConstraint);
+        }
+        if (node.dropConstraint) {
+            this.visitNode(node.dropConstraint);
+        }
+        if (node.columnAlterations) {
+            this.compileColumnAlterations(node.columnAlterations);
+        }
+        if (node.addIndex) {
+            this.visitNode(node.addIndex);
+        }
+        if (node.dropIndex) {
+            this.visitNode(node.dropIndex);
+        }
+    }
+    visitAddColumn(node) {
+        this.append('add column ');
+        this.visitNode(node.column);
+    }
+    visitRenameColumn(node) {
+        this.append('rename column ');
+        this.visitNode(node.column);
+        this.append(' to ');
+        this.visitNode(node.renameTo);
+    }
+    visitDropColumn(node) {
+        this.append('drop column ');
+        this.visitNode(node.column);
+    }
+    visitAlterColumn(node) {
+        this.append('alter column ');
+        this.visitNode(node.column);
+        this.append(' ');
+        if (node.dataType) {
+            if (this.announcesNewColumnDataType()) {
+                this.append('type ');
+            }
+            this.visitNode(node.dataType);
+            if (node.dataTypeExpression) {
+                this.append('using ');
+                this.visitNode(node.dataTypeExpression);
+            }
+        }
+        if (node.setDefault) {
+            this.append('set default ');
+            this.visitNode(node.setDefault);
+        }
+        if (node.dropDefault) {
+            this.append('drop default');
+        }
+        if (node.setNotNull) {
+            this.append('set not null');
+        }
+        if (node.dropNotNull) {
+            this.append('drop not null');
+        }
+    }
+    visitModifyColumn(node) {
+        this.append('modify column ');
+        this.visitNode(node.column);
+    }
+    visitAddConstraint(node) {
+        this.append('add ');
+        this.visitNode(node.constraint);
+    }
+    visitDropConstraint(node) {
+        this.append('drop constraint ');
+        if (node.ifExists) {
+            this.append('if exists ');
+        }
+        this.visitNode(node.constraintName);
+        if (node.modifier === 'cascade') {
+            this.append(' cascade');
+        }
+        else if (node.modifier === 'restrict') {
+            this.append(' restrict');
+        }
+    }
+    visitSetOperation(node) {
+        this.append(node.operator);
+        this.append(' ');
+        if (node.all) {
+            this.append('all ');
+        }
+        this.visitNode(node.expression);
+    }
+    visitCreateView(node) {
+        this.append('create ');
+        if (node.orReplace) {
+            this.append('or replace ');
+        }
+        if (node.materialized) {
+            this.append('materialized ');
+        }
+        if (node.temporary) {
+            this.append('temporary ');
+        }
+        this.append('view ');
+        if (node.ifNotExists) {
+            this.append('if not exists ');
+        }
+        this.visitNode(node.name);
+        this.append(' ');
+        if (node.columns) {
+            this.append('(');
+            this.compileList(node.columns);
+            this.append(') ');
+        }
+        if (node.as) {
+            this.append('as ');
+            this.visitNode(node.as);
+        }
+    }
+    visitDropView(node) {
+        this.append('drop ');
+        if (node.materialized) {
+            this.append('materialized ');
+        }
+        this.append('view ');
+        if (node.ifExists) {
+            this.append('if exists ');
+        }
+        this.visitNode(node.name);
+        if (node.cascade) {
+            this.append(' cascade');
+        }
+    }
+    visitGenerated(node) {
+        this.append('generated ');
+        if (node.always) {
+            this.append('always ');
+        }
+        if (node.byDefault) {
+            this.append('by default ');
+        }
+        this.append('as ');
+        if (node.identity) {
+            this.append('identity');
+        }
+        if (node.expression) {
+            this.append('(');
+            this.visitNode(node.expression);
+            this.append(')');
+        }
+        if (node.stored) {
+            this.append(' stored');
+        }
+    }
+    visitDefaultValue(node) {
+        this.append('default ');
+        this.visitNode(node.defaultValue);
+    }
+    visitSelectModifier(node) {
+        if (node.rawModifier) {
+            this.visitNode(node.rawModifier);
+        }
+        else {
+            this.append(SELECT_MODIFIER_SQL[node.modifier]);
+        }
+        if (node.of) {
+            this.append(' of ');
+            this.compileList(node.of, ', ');
+        }
+    }
+    visitCreateType(node) {
+        this.append('create type ');
+        this.visitNode(node.name);
+        if (node.enum) {
+            this.append(' as enum ');
+            this.visitNode(node.enum);
+        }
+    }
+    visitDropType(node) {
+        this.append('drop type ');
+        if (node.ifExists) {
+            this.append('if exists ');
+        }
+        this.visitNode(node.name);
+    }
+    visitExplain(node) {
+        this.append('explain');
+        if (node.options || node.format) {
+            this.append(' ');
+            this.append(this.getLeftExplainOptionsWrapper());
+            if (node.options) {
+                this.visitNode(node.options);
+                if (node.format) {
+                    this.append(this.getExplainOptionsDelimiter());
+                }
+            }
+            if (node.format) {
+                this.append('format');
+                this.append(this.getExplainOptionAssignment());
+                this.append(node.format);
+            }
+            this.append(this.getRightExplainOptionsWrapper());
+        }
+    }
+    visitDefaultInsertValue(_) {
+        this.append('default');
+    }
+    visitAggregateFunction(node) {
+        this.append(node.func);
+        this.append('(');
+        if (node.distinct) {
+            this.append('distinct ');
+        }
+        this.compileList(node.aggregated);
+        this.append(')');
+        if (node.filter) {
+            this.append(' filter(');
+            this.visitNode(node.filter);
+            this.append(')');
+        }
+        if (node.over) {
+            this.append(' ');
+            this.visitNode(node.over);
+        }
+    }
+    visitOver(node) {
+        this.append('over(');
+        if (node.partitionBy) {
+            this.visitNode(node.partitionBy);
+            if (node.orderBy) {
+                this.append(' ');
+            }
+        }
+        if (node.orderBy) {
+            this.visitNode(node.orderBy);
+        }
+        this.append(')');
+    }
+    visitPartitionBy(node) {
+        this.append('partition by ');
+        this.compileList(node.items);
+    }
+    visitPartitionByItem(node) {
+        this.visitNode(node.partitionBy);
+    }
+    visitBinaryOperation(node) {
+        this.visitNode(node.leftOperand);
+        this.append(' ');
+        this.visitNode(node.operator);
+        this.append(' ');
+        this.visitNode(node.rightOperand);
+    }
+    visitUnaryOperation(node) {
+        this.visitNode(node.operator);
+        if (!this.isMinusOperator(node.operator)) {
+            this.append(' ');
+        }
+        this.visitNode(node.operand);
+    }
+    isMinusOperator(node) {
+        return OperatorNode.is(node) && node.operator === '-';
+    }
+    visitUsing(node) {
+        this.append('using ');
+        this.compileList(node.tables);
+    }
+    visitFunction(node) {
+        this.append(node.func);
+        this.append('(');
+        this.compileList(node.arguments);
+        this.append(')');
+    }
+    visitCase(node) {
+        this.append('case');
+        if (node.value) {
+            this.append(' ');
+            this.visitNode(node.value);
+        }
+        if (node.when) {
+            this.append(' ');
+            this.compileList(node.when, ' ');
+        }
+        if (node.else) {
+            this.append(' else ');
+            this.visitNode(node.else);
+        }
+        this.append(' end');
+        if (node.isStatement) {
+            this.append(' case');
+        }
+    }
+    visitWhen(node) {
+        this.append('when ');
+        this.visitNode(node.condition);
+        if (node.result) {
+            this.append(' then ');
+            this.visitNode(node.result);
+        }
+    }
+    visitJSONReference(node) {
+        this.visitNode(node.reference);
+        this.visitNode(node.traversal);
+    }
+    visitJSONPath(node) {
+        if (node.inOperator) {
+            this.visitNode(node.inOperator);
+        }
+        this.append("'$");
+        for (const pathLeg of node.pathLegs) {
+            this.visitNode(pathLeg);
+        }
+        this.append("'");
+    }
+    visitJSONPathLeg(node) {
+        const isArrayLocation = node.type === 'ArrayLocation';
+        this.append(isArrayLocation ? '[' : '.');
+        this.append(String(node.value));
+        if (isArrayLocation) {
+            this.append(']');
+        }
+    }
+    visitJSONOperatorChain(node) {
+        for (let i = 0, len = node.values.length; i < len; i++) {
+            if (i === len - 1) {
+                this.visitNode(node.operator);
+            }
+            else {
+                this.append('->');
+            }
+            this.visitNode(node.values[i]);
+        }
+    }
+    visitMergeQuery(node) {
+        if (node.with) {
+            this.visitNode(node.with);
+            this.append(' ');
+        }
+        this.append('merge ');
+        if (node.top) {
+            this.visitNode(node.top);
+            this.append(' ');
+        }
+        this.append('into ');
+        this.visitNode(node.into);
+        if (node.using) {
+            this.append(' ');
+            this.visitNode(node.using);
+        }
+        if (node.whens) {
+            this.append(' ');
+            this.compileList(node.whens, ' ');
+        }
+        if (node.output) {
+            this.append(' ');
+            this.visitNode(node.output);
+        }
+    }
+    visitMatched(node) {
+        if (node.not) {
+            this.append('not ');
+        }
+        this.append('matched');
+        if (node.bySource) {
+            this.append(' by source');
+        }
+    }
+    visitAddIndex(node) {
+        this.append('add ');
+        if (node.unique) {
+            this.append('unique ');
+        }
+        this.append('index ');
+        this.visitNode(node.name);
+        if (node.columns) {
+            this.append(' (');
+            this.compileList(node.columns);
+            this.append(')');
+        }
+        if (node.using) {
+            this.append(' using ');
+            this.visitNode(node.using);
+        }
+    }
+    visitCast(node) {
+        this.append('cast(');
+        this.visitNode(node.expression);
+        this.append(' as ');
+        this.visitNode(node.dataType);
+        this.append(')');
+    }
+    visitFetch(node) {
+        this.append('fetch next ');
+        this.visitNode(node.rowCount);
+        this.append(` rows ${node.modifier}`);
+    }
+    visitOutput(node) {
+        this.append('output ');
+        this.compileList(node.selections);
+    }
+    visitTop(node) {
+        this.append(`top(${node.expression})`);
+        if (node.modifiers) {
+            this.append(` ${node.modifiers}`);
+        }
+    }
+    append(str) {
+        this.#sql += str;
+    }
+    appendValue(parameter) {
+        this.addParameter(parameter);
+        this.append(this.getCurrentParameterPlaceholder());
+    }
+    getLeftIdentifierWrapper() {
+        return '"';
+    }
+    getRightIdentifierWrapper() {
+        return '"';
+    }
+    getCurrentParameterPlaceholder() {
+        return '$' + this.numParameters;
+    }
+    getLeftExplainOptionsWrapper() {
+        return '(';
+    }
+    getExplainOptionAssignment() {
+        return ' ';
+    }
+    getExplainOptionsDelimiter() {
+        return ', ';
+    }
+    getRightExplainOptionsWrapper() {
+        return ')';
+    }
+    sanitizeIdentifier(identifier) {
+        const leftWrap = this.getLeftIdentifierWrapper();
+        const rightWrap = this.getRightIdentifierWrapper();
+        let sanitized = '';
+        for (const c of identifier) {
+            sanitized += c;
+            if (c === leftWrap) {
+                sanitized += leftWrap;
+            }
+            else if (c === rightWrap) {
+                sanitized += rightWrap;
+            }
+        }
+        return sanitized;
+    }
+    addParameter(parameter) {
+        this.#parameters.push(parameter);
+    }
+    appendImmediateValue(value) {
+        if (isString(value)) {
+            this.append(`'${value}'`);
+        }
+        else if (isNumber(value) || isBoolean(value)) {
+            this.append(value.toString());
+        }
+        else if (isNull(value)) {
+            this.append('null');
+        }
+        else if (isDate(value)) {
+            this.appendImmediateValue(value.toISOString());
+        }
+        else if (isBigInt(value)) {
+            this.appendImmediateValue(value.toString());
+        }
+        else {
+            throw new Error(`invalid immediate value ${value}`);
+        }
+    }
+    sortSelectModifiers(arr) {
+        arr.sort((left, right) => left.modifier && right.modifier
+            ? SELECT_MODIFIER_PRIORITY[left.modifier] -
+                SELECT_MODIFIER_PRIORITY[right.modifier]
+            : 1);
+        return freeze(arr);
+    }
+    compileColumnAlterations(columnAlterations) {
+        this.compileList(columnAlterations);
+    }
+    /**
+     * controls whether the dialect adds a "type" keyword before a column's new data
+     * type in an ALTER TABLE statement.
+     */
+    announcesNewColumnDataType() {
+        return true;
+    }
+}
+const SELECT_MODIFIER_SQL = freeze({
+    ForKeyShare: 'for key share',
+    ForNoKeyUpdate: 'for no key update',
+    ForUpdate: 'for update',
+    ForShare: 'for share',
+    NoWait: 'nowait',
+    SkipLocked: 'skip locked',
+    Distinct: 'distinct',
+});
+const SELECT_MODIFIER_PRIORITY = freeze({
+    ForKeyShare: 1,
+    ForNoKeyUpdate: 1,
+    ForUpdate: 1,
+    ForShare: 1,
+    NoWait: 2,
+    SkipLocked: 2,
+    Distinct: 0,
+});
+const JOIN_TYPE_SQL = freeze({
+    InnerJoin: 'inner join',
+    LeftJoin: 'left join',
+    RightJoin: 'right join',
+    FullJoin: 'full join',
+    LateralInnerJoin: 'inner join lateral',
+    LateralLeftJoin: 'left join lateral',
+    Using: 'using',
+});
+
+/// <reference types="./compiled-query.d.ts" />
+const CompiledQuery = freeze({
+    raw(sql, parameters = []) {
+        return freeze({
+            sql,
+            query: RawNode.createWithSql(sql),
+            parameters: freeze(parameters),
+        });
+    },
+});
+
+/// <reference types="./dummy-driver.d.ts" />
+/**
+ * A driver that does absolutely nothing.
+ *
+ * You can use this to create Kysely instances solely for building queries
+ *
+ * ### Examples
+ *
+ * This example creates a Kysely instance for building postgres queries:
+ *
+ * ```ts
+ * const db = new Kysely<Database>({
+ *   dialect: {
+ *     createAdapter() {
+ *       return new PostgresAdapter()
+ *     },
+ *     createDriver() {
+ *       return new DummyDriver()
+ *     },
+ *     createIntrospector(db: Kysely<any>) {
+ *       return new PostgresIntrospector(db)
+ *     },
+ *     createQueryCompiler() {
+ *       return new PostgresQueryCompiler()
+ *     },
+ *   },
+ * })
+ * ```
+ *
+ * You can use it to build a query and compile it to SQL but trying to
+ * execute the query will throw an error.
+ *
+ * ```ts
+ * const { sql } = db.selectFrom('person').selectAll().compile()
+ * console.log(sql) // select * from "person"
+ * ```
+ */
+class DummyDriver {
+    async init() {
+        // Nothing to do here.
+    }
+    async acquireConnection() {
+        return new DummyConnection();
+    }
+    async beginTransaction() {
+        // Nothing to do here.
+    }
+    async commitTransaction() {
+        // Nothing to do here.
+    }
+    async rollbackTransaction() {
+        // Nothing to do here.
+    }
+    async releaseConnection() {
+        // Nothing to do here.
+    }
+    async destroy() {
+        // Nothing to do here.
+    }
+}
+class DummyConnection {
+    async executeQuery() {
+        return {
+            rows: [],
+        };
+    }
+    async *streamQuery() {
+        // Nothing to do here.
+    }
+}
+
+/// <reference types="./dialect-adapter-base.d.ts" />
+/**
+ * A basic implementation of `DialectAdapter` with sensible default values.
+ * Third-party dialects can extend this instead of implementing the `DialectAdapter`
+ * interface from scratch. That way all new settings will get default values when
+ * they are added and there will be less breaking changes.
+ */
+class DialectAdapterBase {
+    get supportsCreateIfNotExists() {
+        return true;
+    }
+    get supportsTransactionalDdl() {
+        return false;
+    }
+    get supportsReturning() {
+        return false;
+    }
+    get supportsOutput() {
+        return false;
+    }
+}
+
+/// <reference types="./migrator.d.ts" />
+const DEFAULT_MIGRATION_TABLE = 'kysely_migration';
+const DEFAULT_MIGRATION_LOCK_TABLE = 'kysely_migration_lock';
+freeze({ __noMigrations__: true });
+
+/// <reference types="./postgres-query-compiler.d.ts" />
+const ID_WRAP_REGEX = /"/g;
+class PostgresQueryCompiler extends DefaultQueryCompiler {
+    sanitizeIdentifier(identifier) {
+        return identifier.replace(ID_WRAP_REGEX, '""');
+    }
+}
+
+/// <reference types="./postgres-introspector.d.ts" />
+class PostgresIntrospector {
+    #db;
+    constructor(db) {
+        this.#db = db;
+    }
+    async getSchemas() {
+        let rawSchemas = await this.#db
+            .selectFrom('pg_catalog.pg_namespace')
+            .select('nspname')
+            .$castTo()
+            .execute();
+        return rawSchemas.map((it) => ({ name: it.nspname }));
+    }
+    async getTables(options = { withInternalKyselyTables: false }) {
+        let query = this.#db
+            // column
+            .selectFrom('pg_catalog.pg_attribute as a')
+            // table
+            .innerJoin('pg_catalog.pg_class as c', 'a.attrelid', 'c.oid')
+            // table schema
+            .innerJoin('pg_catalog.pg_namespace as ns', 'c.relnamespace', 'ns.oid')
+            // column data type
+            .innerJoin('pg_catalog.pg_type as typ', 'a.atttypid', 'typ.oid')
+            // column data type schema
+            .innerJoin('pg_catalog.pg_namespace as dtns', 'typ.typnamespace', 'dtns.oid')
+            .select([
+            'a.attname as column',
+            'a.attnotnull as not_null',
+            'a.atthasdef as has_default',
+            'c.relname as table',
+            'c.relkind as table_type',
+            'ns.nspname as schema',
+            'typ.typname as type',
+            'dtns.nspname as type_schema',
+            sql `col_description(a.attrelid, a.attnum)`.as('column_description'),
+            // Detect if the column is auto incrementing by finding the sequence
+            // that is created for `serial` and `bigserial` columns.
+            this.#db
+                .selectFrom('pg_class')
+                .select(sql `true`.as('auto_incrementing'))
+                // Make sure the sequence is in the same schema as the table.
+                .whereRef('relnamespace', '=', 'c.relnamespace')
+                .where('relkind', '=', 'S')
+                .where('relname', '=', sql `c.relname || '_' || a.attname || '_seq'`)
+                .as('auto_incrementing'),
+        ])
+            // r == normal table
+            .where((eb) => eb.or([eb('c.relkind', '=', 'r'), eb('c.relkind', '=', 'v'), eb('c.relkind', '=', 'p')]))
+            .where('ns.nspname', '!~', '^pg_')
+            .where('ns.nspname', '!=', 'information_schema')
+            // No system columns
+            .where('a.attnum', '>=', 0)
+            .where('a.attisdropped', '!=', true)
+            .orderBy('ns.nspname')
+            .orderBy('c.relname')
+            .orderBy('a.attnum')
+            .$castTo();
+        if (!options.withInternalKyselyTables) {
+            query = query
+                .where('c.relname', '!=', DEFAULT_MIGRATION_TABLE)
+                .where('c.relname', '!=', DEFAULT_MIGRATION_LOCK_TABLE);
+        }
+        const rawColumns = await query.execute();
+        return this.#parseTableMetadata(rawColumns);
+    }
+    async getMetadata(options) {
+        return {
+            tables: await this.getTables(options),
+        };
+    }
+    #parseTableMetadata(columns) {
+        return columns.reduce((tables, it) => {
+            let table = tables.find((tbl) => tbl.name === it.table && tbl.schema === it.schema);
+            if (!table) {
+                table = freeze({
+                    name: it.table,
+                    isView: it.table_type === 'v',
+                    schema: it.schema,
+                    columns: [],
+                });
+                tables.push(table);
+            }
+            table.columns.push(freeze({
+                name: it.column,
+                dataType: it.type,
+                dataTypeSchema: it.type_schema,
+                isNullable: !it.not_null,
+                isAutoIncrementing: !!it.auto_incrementing,
+                hasDefaultValue: it.has_default,
+                comment: it.column_description ?? undefined,
+            }));
+            return tables;
+        }, []);
+    }
+}
+
+/// <reference types="./postgres-adapter.d.ts" />
+// Random id for our transaction lock.
+const LOCK_ID = BigInt('3853314791062309107');
+class PostgresAdapter extends DialectAdapterBase {
+    get supportsTransactionalDdl() {
+        return true;
+    }
+    get supportsReturning() {
+        return true;
+    }
+    async acquireMigrationLock(db, _opt) {
+        // Acquire a transaction level advisory lock.
+        await sql `select pg_advisory_xact_lock(${sql.lit(LOCK_ID)})`.execute(db);
+    }
+    async releaseMigrationLock(_db, _opt) {
+        // Nothing to do here. `pg_advisory_xact_lock` is automatically released at the
+        // end of the transaction and since `supportsTransactionalDdl` true, we know
+        // the `db` instance passed to acquireMigrationLock is actually a transaction.
+    }
+}
+
+/// <reference types="./stack-trace-utils.d.ts" />
+function extendStackTrace(err, stackError) {
+    if (isStackHolder(err) && stackError.stack) {
+        // Remove the first line that just says `Error`.
+        const stackExtension = stackError.stack.split('\n').slice(1).join('\n');
+        err.stack += `\n${stackExtension}`;
+        return err;
+    }
+    return err;
+}
+function isStackHolder(obj) {
+    return isObject(obj) && isString(obj.stack);
+}
+
+/// <reference types="./postgres-driver.d.ts" />
+const PRIVATE_RELEASE_METHOD = Symbol();
+class PostgresDriver {
+    #config;
+    #connections = new WeakMap();
+    #pool;
+    constructor(config) {
+        this.#config = freeze({ ...config });
+    }
+    async init() {
+        this.#pool = isFunction(this.#config.pool)
+            ? await this.#config.pool()
+            : this.#config.pool;
+    }
+    async acquireConnection() {
+        const client = await this.#pool.connect();
+        let connection = this.#connections.get(client);
+        if (!connection) {
+            connection = new PostgresConnection(client, {
+                cursor: this.#config.cursor ?? null,
+            });
+            this.#connections.set(client, connection);
+            // The driver must take care of calling `onCreateConnection` when a new
+            // connection is created. The `pg` module doesn't provide an async hook
+            // for the connection creation. We need to call the method explicitly.
+            if (this.#config.onCreateConnection) {
+                await this.#config.onCreateConnection(connection);
+            }
+        }
+        return connection;
+    }
+    async beginTransaction(connection, settings) {
+        if (settings.isolationLevel) {
+            await connection.executeQuery(CompiledQuery.raw(`start transaction isolation level ${settings.isolationLevel}`));
+        }
+        else {
+            await connection.executeQuery(CompiledQuery.raw('begin'));
+        }
+    }
+    async commitTransaction(connection) {
+        await connection.executeQuery(CompiledQuery.raw('commit'));
+    }
+    async rollbackTransaction(connection) {
+        await connection.executeQuery(CompiledQuery.raw('rollback'));
+    }
+    async releaseConnection(connection) {
+        connection[PRIVATE_RELEASE_METHOD]();
+    }
+    async destroy() {
+        if (this.#pool) {
+            const pool = this.#pool;
+            this.#pool = undefined;
+            await pool.end();
+        }
+    }
+}
+class PostgresConnection {
+    #client;
+    #options;
+    constructor(client, options) {
+        this.#client = client;
+        this.#options = options;
+    }
+    async executeQuery(compiledQuery) {
+        try {
+            const result = await this.#client.query(compiledQuery.sql, [
+                ...compiledQuery.parameters,
+            ]);
+            if (result.command === 'INSERT' ||
+                result.command === 'UPDATE' ||
+                result.command === 'DELETE' ||
+                result.command === 'MERGE') {
+                const numAffectedRows = BigInt(result.rowCount);
+                return {
+                    // TODO: remove.
+                    numUpdatedOrDeletedRows: numAffectedRows,
+                    numAffectedRows,
+                    rows: result.rows ?? [],
+                };
+            }
+            return {
+                rows: result.rows ?? [],
+            };
+        }
+        catch (err) {
+            throw extendStackTrace(err, new Error());
+        }
+    }
+    async *streamQuery(compiledQuery, chunkSize) {
+        if (!this.#options.cursor) {
+            throw new Error("'cursor' is not present in your postgres dialect config. It's required to make streaming work in postgres.");
+        }
+        if (!Number.isInteger(chunkSize) || chunkSize <= 0) {
+            throw new Error('chunkSize must be a positive integer');
+        }
+        const cursor = this.#client.query(new this.#options.cursor(compiledQuery.sql, compiledQuery.parameters.slice()));
+        try {
+            while (true) {
+                const rows = await cursor.read(chunkSize);
+                if (rows.length === 0) {
+                    break;
+                }
+                yield {
+                    rows,
+                };
+            }
+        }
+        finally {
+            await cursor.close();
+        }
+    }
+    [PRIVATE_RELEASE_METHOD]() {
+        this.#client.release();
+    }
+}
+
+/// <reference types="./postgres-dialect.d.ts" />
+/**
+ * PostgreSQL dialect that uses the [pg](https://node-postgres.com/) library.
+ *
+ * The constructor takes an instance of {@link PostgresDialectConfig}.
+ *
+ * ```ts
+ * import { Pool } from 'pg'
+ *
+ * new PostgresDialect({
+ *   pool: new Pool({
+ *     database: 'some_db',
+ *     host: 'localhost',
+ *   })
+ * })
+ * ```
+ *
+ * If you want the pool to only be created once it's first used, `pool`
+ * can be a function:
+ *
+ * ```ts
+ * import { Pool } from 'pg'
+ *
+ * new PostgresDialect({
+ *   pool: async () => new Pool({
+ *     database: 'some_db',
+ *     host: 'localhost',
+ *   })
+ * })
+ * ```
+ */
+class PostgresDialect {
+    #config;
+    constructor(config) {
+        this.#config = config;
+    }
+    createDriver() {
+        return new PostgresDriver(this.#config);
+    }
+    createQueryCompiler() {
+        return new PostgresQueryCompiler();
+    }
+    createAdapter() {
+        return new PostgresAdapter();
+    }
+    createIntrospector(db) {
+        return new PostgresIntrospector(db);
+    }
+}
 
 class QueryAlias {
     name;
@@ -106,27 +13555,6 @@ class BinaryOperatorExpression extends Expression {
         return sql `${this.args[0].compile(ctx)} ${sql.raw(this.operator)} ${this.args[1].compile(ctx)}`;
     }
 }
-
-const dialect = new PostgresDialect({
-    pool: new Pool({
-        host: "localhost",
-        user: "postgres",
-        port: 1234,
-        max: 10,
-        database: "test",
-        types: {
-            getTypeParser: (_oid, format) => {
-                if (format === "binary") {
-                    throw new Error("Binary format not supported");
-                }
-                return (v) => v;
-            },
-        },
-    }),
-});
-const db$1 = new Kysely({
-    dialect,
-});
 
 const Sentinel = class Sentinel {
     static typeString() {
@@ -419,18 +13847,23 @@ class Any extends PgAny {
     static parse(v) {
         return v;
     }
-    then(resolve, reject) {
-        const expr = this.toExpression();
-        const kexpr = db$1.selectNoFrom(expr.compile(Context.new()).as("val"));
-        kexpr
-            .executeTakeFirst()
-            ?.then((result) => resolve((result?.val != null
-            ? this.getClass().parse(result.val)
-            : result?.val)))
-            .catch((err) => {
-            console.error("Error executing query:", kexpr.compile(), err);
-            reject(err);
-        });
+    execute(db) {
+        const self = this;
+        return {
+            then(resolve, reject) {
+                const expr = self.toExpression();
+                const kexpr = db.selectNoFrom(expr.compile(Context.new()).as("val"));
+                kexpr
+                    .executeTakeFirst()
+                    ?.then((result) => resolve((result?.val != null
+                    ? self.getClass().parse(result.val)
+                    : result?.val)))
+                    .catch((err) => {
+                    console.error("Error executing query:", kexpr.compile(), err);
+                    reject(err);
+                });
+            },
+        };
     }
     getClass() {
         return this.constructor;
@@ -1027,21 +14460,18 @@ class bit$1 extends Any {
     }
 }
 
-// Adapted from `node-pg-types` (https://github.com/brianc/node-pg-types/blob/master/lib/textParsers.js)
-function parseBool(value) {
-    return (value === "TRUE" ||
-        value === "t" ||
-        value === "true" ||
-        value === "y" ||
-        value === "yes" ||
-        value === "on" ||
-        value === "1");
-}
-range.parse;
-
 const typeMap = {
     bool: {
-        parse: parseBool,
+        parse: (value) => {
+            // from node-pg-types
+            return (value === "TRUE" ||
+                value === "t" ||
+                value === "true" ||
+                value === "y" ||
+                value === "yes" ||
+                value === "on" ||
+                value === "1");
+        },
         serialize: (value) => (value ? "true" : "false"),
         serializeFromTypes: ["boolean"],
     },
@@ -8822,6 +22252,119 @@ class PgArray extends Any {
     }
 }
 
+function getDefaultExportFromCjs (x) {
+	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
+}
+
+var postgresArray = {};
+
+var hasRequiredPostgresArray;
+
+function requirePostgresArray () {
+	if (hasRequiredPostgresArray) return postgresArray;
+	hasRequiredPostgresArray = 1;
+
+	postgresArray.parse = function (source, transform) {
+	  return new ArrayParser(source, transform).parse()
+	};
+
+	class ArrayParser {
+	  constructor (source, transform) {
+	    this.source = source;
+	    this.transform = transform || identity;
+	    this.position = 0;
+	    this.entries = [];
+	    this.recorded = [];
+	    this.dimension = 0;
+	  }
+
+	  isEof () {
+	    return this.position >= this.source.length
+	  }
+
+	  nextCharacter () {
+	    var character = this.source[this.position++];
+	    if (character === '\\') {
+	      return {
+	        value: this.source[this.position++],
+	        escaped: true
+	      }
+	    }
+	    return {
+	      value: character,
+	      escaped: false
+	    }
+	  }
+
+	  record (character) {
+	    this.recorded.push(character);
+	  }
+
+	  newEntry (includeEmpty) {
+	    var entry;
+	    if (this.recorded.length > 0 || includeEmpty) {
+	      entry = this.recorded.join('');
+	      if (entry === 'NULL' && !includeEmpty) {
+	        entry = null;
+	      }
+	      if (entry !== null) entry = this.transform(entry);
+	      this.entries.push(entry);
+	      this.recorded = [];
+	    }
+	  }
+
+	  consumeDimensions () {
+	    if (this.source[0] === '[') {
+	      while (!this.isEof()) {
+	        var char = this.nextCharacter();
+	        if (char.value === '=') break
+	      }
+	    }
+	  }
+
+	  parse (nested) {
+	    var character, parser, quote;
+	    this.consumeDimensions();
+	    while (!this.isEof()) {
+	      character = this.nextCharacter();
+	      if (character.value === '{' && !quote) {
+	        this.dimension++;
+	        if (this.dimension > 1) {
+	          parser = new ArrayParser(this.source.substr(this.position - 1), this.transform);
+	          this.entries.push(parser.parse(true));
+	          this.position += parser.position - 2;
+	        }
+	      } else if (character.value === '}' && !quote) {
+	        this.dimension--;
+	        if (!this.dimension) {
+	          this.newEntry();
+	          if (nested) return this.entries
+	        }
+	      } else if (character.value === '"' && !character.escaped) {
+	        if (quote) this.newEntry(true);
+	        quote = !quote;
+	      } else if (character.value === ',' && !quote) {
+	        this.newEntry();
+	      } else {
+	        this.record(character.value);
+	      }
+	    }
+	    if (this.dimension !== 0) {
+	      throw new Error('array dimension not balanced')
+	    }
+	    return this.entries
+	  }
+	}
+
+	function identity (value) {
+	  return value
+	}
+	return postgresArray;
+}
+
+var postgresArrayExports = requirePostgresArray();
+var array = /*@__PURE__*/getDefaultExportFromCjs(postgresArrayExports);
+
 let Array$1 = class Array extends PgArray {
     static of(subtype) {
         return class ArrayImpl extends Array {
@@ -8972,6 +22515,15 @@ const row = (row, expression) => {
     ]))).new(expression);
 };
 
+const dummyDb = new Kysely({
+    dialect: {
+        createAdapter: () => new PostgresAdapter(),
+        createDriver: () => new DummyDriver(),
+        createIntrospector: (db) => new PostgresIntrospector(db),
+        createQueryCompiler: () => new PostgresQueryCompiler(),
+    },
+});
+
 const isScalar = (value) => {
     return value instanceof Any;
 };
@@ -9062,15 +22614,13 @@ class Setof extends Expression {
     fromAlias;
     joinAliases;
     query;
-    db;
     fromRow;
-    constructor(rawFromExpr, fromAlias, joinAliases, query, db, fromRow) {
+    constructor(rawFromExpr, fromAlias, joinAliases, query, fromRow) {
         super();
         this.rawFromExpr = rawFromExpr;
         this.fromAlias = fromAlias;
         this.joinAliases = joinAliases;
         this.query = query;
-        this.db = db;
         this.fromRow = fromRow;
     }
     static of(fromRow) {
@@ -9079,7 +22629,7 @@ class Setof extends Expression {
                 const alias = new QueryAlias("values");
                 return new Setof(fromExpr, alias, {}, {
                     from: aliasRowLike(alias, fromRow),
-                }, db$1, fromRow);
+                }, fromRow);
             }
         };
     }
@@ -9100,7 +22650,7 @@ class Setof extends Expression {
         return new Setof(this.rawFromExpr, this.fromAlias, this.joinAliases, {
             ...this.query,
             select: maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
-        }, this.db, this.fromRow);
+        }, this.fromRow);
     }
     where(fn) {
         return new Setof(this.rawFromExpr, this.fromAlias, this.joinAliases, {
@@ -9109,13 +22659,13 @@ class Setof extends Expression {
                 ...(this.query.wheres ?? []),
                 maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
             ],
-        }, this.db, this.fromRow);
+        }, this.fromRow);
     }
     groupBy(fn) {
         return new Setof(this.rawFromExpr, this.fromAlias, this.joinAliases, {
             ...this.query,
             groupBy: [...(this.query.groupBy ?? []), ...fn(this.query.from)],
-        }, this.db, this.fromRow);
+        }, this.fromRow);
     }
     joinTables() {
         return Object.fromEntries(Object.entries({ ...this.query.joins }).map(([key, value]) => [
@@ -9142,7 +22692,7 @@ class Setof extends Expression {
                     row,
                 },
             },
-        }, this.db, this.fromRow);
+        }, this.fromRow);
     }
     subquery() {
         const alias = new QueryAlias("subquery");
@@ -9151,7 +22701,7 @@ class Setof extends Expression {
             from: isScalar(res)
                 ? aliasScalar(alias, res)
                 : aliasRowLike(alias, res),
-        }, this.db, res);
+        }, res);
     }
     tableColumnAlias() {
         const keys = Object.keys(this.query.from)
@@ -9189,10 +22739,10 @@ class Setof extends Expression {
         return sql `(${select} ${from} ${where} ${joins} ${groupBy})`;
     }
     debug() {
-        console.log("debug", this.compile(Context.new()).compile(this.db));
+        console.log("debug", this.compile(Context.new()).compile(dummyDb));
         return this;
     }
-    async execute(db = this.db) {
+    async execute(db) {
         const kexpr = db.executeQuery(this.compile(Context.new()).compile(db));
         const resultRowLike = this.query.select
             ? this.query.select
@@ -9245,15 +22795,13 @@ class Table extends Setof {
     fromAlias;
     joinAliases;
     query;
-    db;
     fromRow;
-    constructor(rawFromExpr, fromAlias, joinAliases, query, db, fromRow) {
-        super(rawFromExpr, fromAlias, joinAliases, query, db, fromRow);
+    constructor(rawFromExpr, fromAlias, joinAliases, query, fromRow) {
+        super(rawFromExpr, fromAlias, joinAliases, query, fromRow);
         this.rawFromExpr = rawFromExpr;
         this.fromAlias = fromAlias;
         this.joinAliases = joinAliases;
         this.query = query;
-        this.db = db;
         this.fromRow = fromRow;
     }
     static of(fromRow) {
@@ -9262,7 +22810,7 @@ class Table extends Setof {
                 const alias = new QueryAlias(fromExpr.table);
                 return new Table(fromExpr, alias, {}, {
                     from: aliasRowLike(alias, fromRow),
-                }, db$1, fromRow);
+                }, fromRow);
             }
         };
     }
@@ -9311,7 +22859,7 @@ class UpdateBuilder {
                 const { wheres: _fromWheres, ...rest } = from?.query ?? {};
                 const fromWithoutWheres = from &&
                     "from" in rest &&
-                    new Setof(from.rawFromExpr, from.fromAlias, from.joinAliases, rest, from.db, from.fromRow);
+                    new Setof(from.rawFromExpr, from.fromAlias, from.joinAliases, rest, from.fromRow);
                 const set = setCb(asAlias, ...(builder.arg.from && from ? from.toSelectArgs() : []));
                 const ctx = Context.new().withAliases([
                     alias,
@@ -15048,7 +28596,7 @@ function xpathExists(...args) {
     return sqlFunction("xpath_exists", [{ args: [(default_1$1), (xml$1)], ret: (default_1$8), isOperator: false }, { args: [(default_1$1), (xml$1), Array$1.of((default_1$1))], ret: (default_1$8), isOperator: false }], args);
 }
 
-const db = database({
+database({
     person: {
         firstName: (default_1$1),
         lastName: (default_1$1),
@@ -15072,6 +28620,145 @@ const db = database({
         is_locked: (default_1$4),
     },
 });
+
+// src/dialect.ts
+
+// src/connection.ts
+var PGliteConnection = class {
+  client;
+  constructor(client) {
+    this.client = client;
+  }
+  async executeQuery(compiledQuery) {
+    const result = await this.client.query(compiledQuery.sql, [
+      ...compiledQuery.parameters
+    ]);
+    if (result.affectedRows) {
+      const numAffectedRows = BigInt(result.affectedRows);
+      return {
+        numAffectedRows,
+        rows: result.rows
+      };
+    }
+    return {
+      rows: result.rows
+    };
+  }
+  async *streamQuery(_compiledQuery, _chunkSize) {
+    throw new Error("PGLite Driver does not support streaming");
+  }
+};
+
+// src/dialect.ts
+var PGliteDialect = class {
+  constructor(pgLite) {
+    this.pgLite = pgLite;
+  }
+  createAdapter() {
+    return new PostgresAdapter();
+  }
+  createDriver() {
+    return new PGliteDriver(this.pgLite);
+  }
+  createQueryCompiler() {
+    return new PostgresQueryCompiler();
+  }
+  createIntrospector(db) {
+    return new PostgresIntrospector(db);
+  }
+};
+var PGliteDriver = class {
+  client;
+  /**
+   * Currently used connection.
+   * If another acquireConnection() is called the request is queued till this connection has been released.
+   */
+  connection;
+  queue = [];
+  constructor(pgLite) {
+    this.client = pgLite;
+  }
+  async init() {
+  }
+  // Serialize access to the connection, i.e. promise is only resolved when the last connection was released.
+  async acquireConnection() {
+    if (this.client === void 0) {
+      throw new Error("PGLite not initialized");
+    }
+    if (this.connection !== void 0) {
+      return new Promise((resolve) => {
+        this.queue.push(resolve);
+      });
+    }
+    this.connection = new PGliteConnection(this.client);
+    return this.connection;
+  }
+  async releaseConnection(connection) {
+    if (connection !== this.connection) {
+      throw new Error("Invalid connection");
+    }
+    const removed = this.queue.splice(0, 1);
+    const next = removed[0];
+    if (next === void 0) {
+      this.connection = void 0;
+      return;
+    }
+    next(this.connection);
+  }
+  async beginTransaction(conn, settings) {
+    if (settings.isolationLevel) {
+      await conn.executeQuery(
+        CompiledQuery.raw(
+          `start transaction isolation level ${settings.isolationLevel}`
+        )
+      );
+    } else {
+      await conn.executeQuery(CompiledQuery.raw("begin"));
+    }
+  }
+  async commitTransaction(conn) {
+    await conn.executeQuery(CompiledQuery.raw("commit"));
+  }
+  async rollbackTransaction(conn) {
+    await conn.executeQuery(CompiledQuery.raw("rollback"));
+  }
+  async destroy() {
+    this.client = void 0;
+  }
+};
+
+const db = async (dbConfig) => {
+    if (dbConfig.type === "pg") {
+        const { PoolClass, config } = dbConfig;
+        return new Kysely({
+            dialect: new PostgresDialect({
+                pool: new PoolClass({
+                    ...config,
+                    types: {
+                        getTypeParser: (_oid, format) => {
+                            if (format === "binary") {
+                                throw new Error("Binary format not supported");
+                            }
+                            return (v) => v;
+                        },
+                    },
+                }),
+            }),
+        });
+    }
+    if (dbConfig.type === "pglite") {
+        const { PGliteClass, options } = dbConfig;
+        return new Kysely({
+            dialect: new PGliteDialect(await PGliteClass.create({
+                ...options,
+                parsers: Object.fromEntries(Array(2000).keys().map((value) => {
+                    return [value, (x) => x];
+                })),
+            })),
+        });
+    }
+    throw new Error("Invalid database configuration");
+};
 
 export { aclitem as Aclitem, Any, anyenum as Anyenum, anymultirange as Anymultirange, anynonarray as Anynonarray, anyrange as Anyrange, Array$1 as Array, BinaryOperatorExpression, bit$1 as Bit, default_1$8 as Bool, box$1 as Box, bpchar$1 as Bpchar, bytea as Bytea, char$1 as Char, cid as Cid, cidr$1 as Cidr, circle$1 as Circle, ColumnAliasExpression, Context, date$1 as Date, datemultirange$1 as Datemultirange, daterange$1 as Daterange, Expression, default_1$7 as Float4, default_1$6 as Float8, FunctionExpression, Generated, inet as Inet, default_1$5 as Int2, int2vector as Int2Vector, default_1$4 as Int4, int4multirange as Int4Multirange, int4range as Int4Range, default_1$3 as Int8, int8multirange as Int8Multirange, int8range as Int8Range, interval$1 as Interval, json as Json, jsonb as Jsonb, jsonpath as Jsonpath, language_handler as LanguageHandler, line$1 as Line, LiteralExpression, LiteralUnknownExpression, lseg$1 as Lseg, macaddr$1 as Macaddr, macaddr8$1 as Macaddr8, money$1 as Money, name$1 as Name, default_1$2 as Numeric, nummultirange$1 as Nummultirange, numrange$1 as Numrange, oid$1 as Oid, oidvector as Oidvector, path$1 as Path, pg_ddl_command as PgDdlCommand, pg_lsn as PgLsn, pg_mcv_list as PgMcvList, pg_node_tree as PgNodeTree, pg_snapshot as PgSnapshot, point$1 as Point, polygon$1 as Polygon, QueryAlias, RawTableReferenceExpression, Record, refcursor as Refcursor, regclass$1 as Regclass, regcollation as Regcollation, regconfig as Regconfig, regdictionary as Regdictionary, regnamespace as Regnamespace, regoper as Regoper, regoperator as Regoperator, regproc as Regproc, regprocedure as Regprocedure, regrole as Regrole, regtype as Regtype, SelectableExpression, SelectableFunctionExpression, Setof, SubqueryExpression, TableReferenceExpression, default_1$1 as Text, tid as Tid, time$1 as Time, timestamp$1 as Timestamp, timestamptz$1 as Timestamptz, timetz$1 as Timetz, trigger as Trigger, tsmultirange$1 as Tsmultirange, tsquery as Tsquery, tsrange$1 as Tsrange, tstzmultirange$1 as Tstzmultirange, tstzrange$1 as Tstzrange, tsvector as Tsvector, txid_snapshot as TxidSnapshot, uuid as Uuid, ValuesExpression, varbit$1 as Varbit, varchar$1 as Varchar, _void as Void, xid$1 as Xid, xid8 as Xid8, xml$1 as Xml, abbrev, abs, aclcontains, acldefault, aclexplode, aclinsert, aclitemeq, aclremove, acos, acosd, acosh, age, aliasRowLike, aliasScalar, amvalidate, anyValue, anyValueTransfn, anytextcat, area, arrayAgg, arrayAppend, arrayCat, arrayDims, arrayEq, arrayFill, arrayGe, arrayGt, arrayLarger, arrayLe, arrayLength, arrayLower, arrayLt, arrayNdims, arrayNe, arrayPosition, arrayPositions, arrayPrepend, arrayRemove, arrayReplace, arraySample, arrayShuffle, arraySmaller, arrayToJson, arrayToString, arrayToTsvector, arrayUpper, arraycontained, arraycontains, arrayoverlap, ascii, asind, asinh, atan, atan2, atan2D, atand, atanh, avg, binaryUpgradeAddSubRelState, binaryUpgradeCreateEmptyExtension, binaryUpgradeLogicalSlotHasCaughtUp, binaryUpgradeReploriginAdvance, binaryUpgradeSetMissingValue, binaryUpgradeSetNextArrayPgTypeOid, binaryUpgradeSetNextHeapPgClassOid, binaryUpgradeSetNextHeapRelfilenode, binaryUpgradeSetNextIndexPgClassOid, binaryUpgradeSetNextIndexRelfilenode, binaryUpgradeSetNextMultirangeArrayPgTypeOid, binaryUpgradeSetNextMultirangePgTypeOid, binaryUpgradeSetNextPgAuthidOid, binaryUpgradeSetNextPgEnumOid, binaryUpgradeSetNextPgTablespaceOid, binaryUpgradeSetNextPgTypeOid, binaryUpgradeSetNextToastPgClassOid, binaryUpgradeSetNextToastRelfilenode, binaryUpgradeSetRecordInitPrivs, bit, bitAnd, bitCount, bitLength, bitOr, bitXor, bitand, bitcat, bitcmp, biteq, bitge, bitgt, bitle, bitlt, bitne, bitnot, bitor, bitshiftleft, bitshiftright, bitxor, bool, boolAnd, boolOr, boolandStatefunc, booleq, boolge, boolgt, boolle, boollt, boolne, boolorStatefunc, boundBox, box, boxAbove, boxAboveEq, boxAdd, boxBelow, boxBelowEq, boxCenter, boxContainPt, boxContained, boxDistance, boxDiv, boxEq, boxGe, boxGt, boxIntersect, boxLe, boxLeft, boxLt, boxMul, boxOverabove, boxOverbelow, boxOverlap, boxOverleft, boxOverright, boxRight, boxSame, boxSub, bpchar, bpcharLarger, bpcharPatternGe, bpcharPatternGt, bpcharPatternLe, bpcharPatternLt, bpcharSmaller, bpcharcmp, bpchareq, bpcharge, bpchargt, bpchariclike, bpcharicnlike, bpcharicregexeq, bpcharicregexne, bpcharle, bpcharlike, bpcharlt, bpcharne, bpcharnlike, bpcharregexeq, bpcharregexne, brinDesummarizeRange, brinSummarizeNewValues, brinSummarizeRange, broadcast, btarraycmp, btboolcmp, btbpcharPatternCmp, btcharcmp, btequalimage, btfloat48Cmp, btfloat4Cmp, btfloat84Cmp, btfloat8Cmp, btint24Cmp, btint28Cmp, btint2Cmp, btint42Cmp, btint48Cmp, btint4Cmp, btint82Cmp, btint84Cmp, btint8Cmp, btnamecmp, btnametextcmp, btoidcmp, btoidvectorcmp, btrecordcmp, btrecordimagecmp, btrim, bttextPatternCmp, bttextcmp, bttextnamecmp, bttidcmp, btvarstrequalimage, byteacat, byteacmp, byteaeq, byteage, byteagt, byteale, bytealike, bytealt, byteane, byteanlike, cardinality, cashCmp, cashDivCash, cashDivFlt4, cashDivFlt8, cashDivInt2, cashDivInt4, cashDivInt8, cashEq, cashGe, cashGt, cashLe, cashLt, cashMi, cashMulFlt4, cashMulFlt8, cashMulInt2, cashMulInt4, cashMulInt8, cashNe, cashPl, cashWords, cashlarger, cashsmaller, cbrt, ceil, ceiling, center, char, charLength, characterLength, chareq, charge, chargt, charle, charlt, charne, chr, cideq, cidr, circle, circleAbove, circleAddPt, circleBelow, circleCenter, circleContainPt, circleContained, circleDistance, circleDivPt, circleEq, circleGe, circleGt, circleLe, circleLeft, circleLt, circleMulPt, circleNe, circleOverabove, circleOverbelow, circleOverlap, circleOverleft, circleOverright, circleRight, circleSame, circleSubPt, clockTimestamp, closeLs, closeLseg, closePb, closePl, closePs, closeSb, colDescription, concat, concatWs, convert, convertFrom, convertTo, corr, cos, cosd, cosh, cot, cotd, count, covarPop, covarSamp, cumeDist, currentDatabase, currentQuery, currentSchema, currentSchemas, currentSetting, currentUser, currtid2, currval, cursorToXml, cursorToXmlschema, database, databaseToXml, databaseToXmlAndXmlschema, databaseToXmlschema, date, dateAdd, dateCmp, dateCmpTimestamp, dateCmpTimestamptz, dateEq, dateEqTimestamp, dateEqTimestamptz, dateGe, dateGeTimestamp, dateGeTimestamptz, dateGt, dateGtTimestamp, dateGtTimestamptz, dateLarger, dateLe, dateLeTimestamp, dateLeTimestamptz, dateLt, dateLtTimestamp, dateLtTimestamptz, dateMi, dateMiInterval, dateMii, dateNe, dateNeTimestamp, dateNeTimestamptz, datePart, datePlInterval, datePli, dateSmaller, dateSubtract, dateTrunc, datemultirange, daterange, daterangeCanonical, daterangeSubdiff, datetimePl, datetimetzPl, db, dcbrt, decode, degrees, denseRank, dexp, diagonal, diameter, distBp, distBs, distCpoint, distCpoly, distLp, distLs, distPathp, distPb, distPc, distPl, distPolyc, distPolyp, distPpath, distPpoly, distPs, distSb, distSl, distSp, div, dlog1, dlog10, dpow, dround, dsqrt, dtrunc, elemContainedByMultirange, elemContainedByRange, encode, enumCmp, enumEq, enumFirst, enumGe, enumGt, enumLarger, enumLast, enumLe, enumLt, enumNe, enumRange, enumSmaller, erf, erfc, every, exp, extract, factorial, family, firstValue, float4, float48Div, float48Eq, float48Ge, float48Gt, float48Le, float48Lt, float48Mi, float48Mul, float48Ne, float48Pl, float4Abs, float4Accum, float4Div, float4Eq, float4Ge, float4Gt, float4Larger, float4Le, float4Lt, float4Mi, float4Mul, float4Ne, float4Pl, float4Smaller, float4Um, float4Up, float8, float84Div, float84Eq, float84Ge, float84Gt, float84Le, float84Lt, float84Mi, float84Mul, float84Ne, float84Pl, float8Abs, float8Accum, float8Avg, float8Combine, float8Corr, float8CovarPop, float8CovarSamp, float8Div, float8Eq, float8Ge, float8Gt, float8Larger, float8Le, float8Lt, float8Mi, float8Mul, float8Ne, float8Pl, float8RegrAccum, float8RegrAvgx, float8RegrAvgy, float8RegrCombine, float8RegrIntercept, float8RegrR2, float8RegrSlope, float8RegrSxx, float8RegrSxy, float8RegrSyy, float8Smaller, float8StddevPop, float8StddevSamp, float8Um, float8Up, float8VarPop, float8VarSamp, floor, flt4MulCash, flt8MulCash, fmgrCValidator, fmgrInternalValidator, fmgrSqlValidator, format, formatType, gcd, genRandomUuid, generateSeries, generateSubscripts, getBit, getByte, getCurrentTsConfig, getdatabaseencoding, getpgusername, ginCleanPendingList, ginCmpTslexeme, ginCompareJsonb, hasAnyColumnPrivilege, hasColumnPrivilege, hasDatabasePrivilege, hasForeignDataWrapperPrivilege, hasFunctionPrivilege, hasLanguagePrivilege, hasParameterPrivilege, hasSchemaPrivilege, hasSequencePrivilege, hasServerPrivilege, hasTablePrivilege, hasTablespacePrivilege, hasTypePrivilege, hashAclitem, hashAclitemExtended, hashArray, hashArrayExtended, hashMultirange, hashMultirangeExtended, hashNumeric, hashNumericExtended, hashRange, hashRangeExtended, hashRecord, hashRecordExtended, hashbpchar, hashbpcharextended, hashchar, hashcharextended, hashenum, hashenumextended, hashfloat4, hashfloat4Extended, hashfloat8, hashfloat8Extended, hashinet, hashinetextended, hashint2, hashint2Extended, hashint4, hashint4Extended, hashint8, hashint8Extended, hashmacaddr, hashmacaddr8, hashmacaddr8Extended, hashmacaddrextended, hashname, hashnameextended, hashoid, hashoidextended, hashoidvector, hashoidvectorextended, hashtext, hashtextextended, hashtid, hashtidextended, height, host, hostmask, icuUnicodeVersion, inRange, inetClientAddr, inetClientPort, inetMerge, inetSameFamily, inetServerAddr, inetServerPort, inetand, inetmi, inetmiInt8, inetnot, inetor, inetpl, initcap, int2, int24Div, int24Eq, int24Ge, int24Gt, int24Le, int24Lt, int24Mi, int24Mul, int24Ne, int24Pl, int28Div, int28Eq, int28Ge, int28Gt, int28Le, int28Lt, int28Mi, int28Mul, int28Ne, int28Pl, int2Abs, int2And, int2AvgAccum, int2AvgAccumInv, int2Div, int2Eq, int2Ge, int2Gt, int2Int4Sum, int2Larger, int2Le, int2Lt, int2Mi, int2Mod, int2Mul, int2MulCash, int2Ne, int2Not, int2Or, int2Pl, int2Shl, int2Shr, int2Smaller, int2Sum, int2Um, int2Up, int2Xor, int4, int42Div, int42Eq, int42Ge, int42Gt, int42Le, int42Lt, int42Mi, int42Mul, int42Ne, int42Pl, int48Div, int48Eq, int48Ge, int48Gt, int48Le, int48Lt, int48Mi, int48Mul, int48Ne, int48Pl, int4Abs, int4And, int4AvgAccum, int4AvgAccumInv, int4AvgCombine, int4Div, int4Eq, int4Ge, int4Gt, int4Inc, int4Larger, int4Le, int4Lt, int4Mi, int4Mod, int4Mul, int4MulCash, int4Multirange, int4Ne, int4Not, int4Or, int4Pl, int4Range, int4RangeCanonical, int4RangeSubdiff, int4Shl, int4Shr, int4Smaller, int4Sum, int4Um, int4Up, int4Xor, int8, int82Div, int82Eq, int82Ge, int82Gt, int82Le, int82Lt, int82Mi, int82Mul, int82Ne, int82Pl, int84Div, int84Eq, int84Ge, int84Gt, int84Le, int84Lt, int84Mi, int84Mul, int84Ne, int84Pl, int8Abs, int8And, int8Avg, int8Dec, int8DecAny, int8Div, int8Eq, int8Ge, int8Gt, int8Inc, int8IncAny, int8IncFloat8Float8, int8Larger, int8Le, int8Lt, int8Mi, int8Mod, int8Mul, int8MulCash, int8Multirange, int8Ne, int8Not, int8Or, int8Pl, int8PlInet, int8Range, int8RangeCanonical, int8RangeSubdiff, int8Shl, int8Shr, int8Smaller, int8Sum, int8Um, int8Up, int8Xor, integerPlDate, interLb, interSb, interSl, interval, intervalCmp, intervalDiv, intervalEq, intervalGe, intervalGt, intervalHash, intervalHashExtended, intervalLarger, intervalLe, intervalLt, intervalMi, intervalMul, intervalNe, intervalPl, intervalPlDate, intervalPlTime, intervalPlTimestamp, intervalPlTimestamptz, intervalPlTimetz, intervalSmaller, intervalUm, isNormalized, isScalar, isScalarRelaxed, isclosed, isempty, isfinite, ishorizontal, isopen, isparallel, isperp, isvertical, jsonAgg, jsonAggStrict, jsonArrayElement, jsonArrayElementText, jsonArrayElements, jsonArrayElementsText, jsonArrayLength, jsonBuildArray, jsonBuildObject, jsonEach, jsonEachText, jsonExtractPath, jsonExtractPathText, jsonObject, jsonObjectAgg, jsonObjectAggStrict, jsonObjectAggUnique, jsonObjectAggUniqueStrict, jsonObjectField, jsonObjectFieldText, jsonObjectKeys, jsonPopulateRecord, jsonPopulateRecordset, jsonStripNulls, jsonToRecord, jsonToRecordset, jsonToTsvector, jsonTypeof, jsonbAgg, jsonbAggStrict, jsonbArrayElement, jsonbArrayElementText, jsonbArrayElements, jsonbArrayElementsText, jsonbArrayLength, jsonbBuildArray, jsonbBuildObject, jsonbCmp, jsonbConcat, jsonbContained, jsonbContains, jsonbDelete, jsonbDeletePath, jsonbEach, jsonbEachText, jsonbEq, jsonbExists, jsonbExistsAll, jsonbExistsAny, jsonbExtractPath, jsonbExtractPathText, jsonbGe, jsonbGt, jsonbHash, jsonbHashExtended, jsonbInsert, jsonbLe, jsonbLt, jsonbNe, jsonbObject, jsonbObjectAgg, jsonbObjectAggStrict, jsonbObjectAggUnique, jsonbObjectAggUniqueStrict, jsonbObjectField, jsonbObjectFieldText, jsonbObjectKeys, jsonbPathExists, jsonbPathExistsOpr, jsonbPathExistsTz, jsonbPathMatch, jsonbPathMatchOpr, jsonbPathMatchTz, jsonbPathQuery, jsonbPathQueryArray, jsonbPathQueryArrayTz, jsonbPathQueryFirst, jsonbPathQueryFirstTz, jsonbPathQueryTz, jsonbPopulateRecord, jsonbPopulateRecordValid, jsonbPopulateRecordset, jsonbPretty, jsonbSet, jsonbSetLax, jsonbStripNulls, jsonbToRecord, jsonbToRecordset, jsonbToTsvector, jsonbTypeof, justifyDays, justifyHours, justifyInterval, lag, lastValue, lastval, lcm, lead, left, length, like, likeEscape, line, lineDistance, lineEq, lineHorizontal, lineInterpt, lineIntersect, lineParallel, linePerp, lineVertical, ln, loClose, loCreat, loCreate, loExport, loFromBytea, loGet, loImport, loLseek, loLseek64, loOpen, loPut, loTell, loTell64, loTruncate, loTruncate64, loUnlink, log, log10, loread, lower, lowerInc, lowerInf, lowrite, lpad, lseg, lsegCenter, lsegDistance, lsegEq, lsegGe, lsegGt, lsegHorizontal, lsegInterpt, lsegIntersect, lsegLe, lsegLength, lsegLt, lsegNe, lsegParallel, lsegPerp, lsegVertical, ltrim, macaddr, macaddr8, macaddr8And, macaddr8Cmp, macaddr8Eq, macaddr8Ge, macaddr8Gt, macaddr8Le, macaddr8Lt, macaddr8Ne, macaddr8Not, macaddr8Or, macaddr8Set7Bit, macaddrAnd, macaddrCmp, macaddrEq, macaddrGe, macaddrGt, macaddrLe, macaddrLt, macaddrNe, macaddrNot, macaddrOr, makeDate, makeInterval, makeTime, makeTimestamp, makeTimestamptz, makeaclitem, masklen, max, md5, minScale, mod, mode, money, mulDInterval, multirange, multirangeAdjacentMultirange, multirangeAdjacentRange, multirangeAfterMultirange, multirangeAfterRange, multirangeBeforeMultirange, multirangeBeforeRange, multirangeCmp, multirangeContainedByMultirange, multirangeContainedByRange, multirangeContainsElem, multirangeContainsMultirange, multirangeContainsRange, multirangeEq, multirangeGe, multirangeGt, multirangeIntersect, multirangeIntersectAggTransfn, multirangeLe, multirangeLt, multirangeMinus, multirangeNe, multirangeOverlapsMultirange, multirangeOverlapsRange, multirangeOverleftMultirange, multirangeOverleftRange, multirangeOverrightMultirange, multirangeOverrightRange, multirangeUnion, mxidAge, name, nameconcatoid, nameeq, nameeqtext, namege, namegetext, namegt, namegttext, nameiclike, nameicnlike, nameicregexeq, nameicregexne, namele, nameletext, namelike, namelt, namelttext, namene, namenetext, namenlike, nameregexeq, nameregexne, netmask, network, networkCmp, networkEq, networkGe, networkGt, networkLarger, networkLe, networkLt, networkNe, networkOverlap, networkSmaller, networkSub, networkSubeq, networkSup, networkSupeq, nextval, normalize, notlike, now, npoints, nthValue, ntile, numNonnulls, numNulls, numeric, numericAbs, numericAdd, numericCmp, numericDiv, numericDivTrunc, numericEq, numericExp, numericGe, numericGt, numericInc, numericLarger, numericLe, numericLn, numericLog, numericLt, numericMod, numericMul, numericNe, numericPlPgLsn, numericPower, numericSmaller, numericSqrt, numericSub, numericUminus, numericUplus, nummultirange, numnode, numrange, numrangeSubdiff, objDescription, octetLength, oid, oideq, oidge, oidgt, oidlarger, oidle, oidlt, oidne, oidsmaller, oidvectoreq, oidvectorge, oidvectorgt, oidvectorle, oidvectorlt, oidvectorne, oidvectortypes, onPb, onPl, onPpath, onPs, onSb, onSl, overlaps, overlay, parseIdent, path, pathAdd, pathAddPt, pathContainPt, pathDistance, pathDivPt, pathInter, pathLength, pathMulPt, pathNEq, pathNGe, pathNGt, pathNLe, pathNLt, pathNpoints, pathSubPt, pclose, percentRank, percentileCont, percentileDisc, pgAdvisoryLock, pgAdvisoryLockShared, pgAdvisoryUnlock, pgAdvisoryUnlockAll, pgAdvisoryUnlockShared, pgAdvisoryXactLock, pgAdvisoryXactLockShared, pgAvailableExtensionVersions, pgAvailableExtensions, pgAvailableWalSummaries, pgBackendPid, pgBackupStart, pgBackupStop, pgBasetype, pgBlockingPids, pgCancelBackend, pgCharToEncoding, pgClientEncoding, pgCollationActualVersion, pgCollationFor, pgCollationIsVisible, pgColumnCompression, pgColumnIsUpdatable, pgColumnSize, pgColumnToastChunkId, pgConfLoadTime, pgConfig, pgControlCheckpoint, pgControlInit, pgControlRecovery, pgControlSystem, pgConversionIsVisible, pgCopyLogicalReplicationSlot, pgCopyPhysicalReplicationSlot, pgCreateLogicalReplicationSlot, pgCreatePhysicalReplicationSlot, pgCreateRestorePoint, pgCurrentLogfile, pgCurrentSnapshot, pgCurrentWalFlushLsn, pgCurrentWalInsertLsn, pgCurrentWalLsn, pgCurrentXactId, pgCurrentXactIdIfAssigned, pgCursor, pgDatabaseCollationActualVersion, pgDatabaseSize, pgDescribeObject, pgDropReplicationSlot, pgEncodingMaxLength, pgEncodingToChar, pgEventTriggerDdlCommands, pgEventTriggerDroppedObjects, pgEventTriggerTableRewriteOid, pgEventTriggerTableRewriteReason, pgExportSnapshot, pgExtensionConfigDump, pgExtensionUpdatePaths, pgFilenodeRelation, pgFunctionIsVisible, pgGetBackendMemoryContexts, pgGetCatalogForeignKeys, pgGetConstraintdef, pgGetExpr, pgGetFunctionArgDefault, pgGetFunctionArguments, pgGetFunctionIdentityArguments, pgGetFunctionResult, pgGetFunctionSqlbody, pgGetFunctiondef, pgGetIndexdef, pgGetKeywords, pgGetMultixactMembers, pgGetObjectAddress, pgGetPartitionConstraintdef, pgGetPartkeydef, pgGetPublicationTables, pgGetReplicaIdentityIndex, pgGetReplicationSlots, pgGetRuledef, pgGetSerialSequence, pgGetShmemAllocations, pgGetStatisticsobjdef, pgGetStatisticsobjdefColumns, pgGetStatisticsobjdefExpressions, pgGetTriggerdef, pgGetUserbyid, pgGetViewdef, pgGetWaitEvents, pgGetWalReplayPauseState, pgGetWalResourceManagers, pgGetWalSummarizerState, pgHasRole, pgHbaFileRules, pgIdentFileMappings, pgIdentifyObject, pgIdentifyObjectAsAddress, pgImportSystemCollations, pgIndexColumnHasProperty, pgIndexHasProperty, pgIndexamHasProperty, pgIndexamProgressPhasename, pgIndexesSize, pgInputErrorInfo, pgInputIsValid, pgIsInRecovery, pgIsOtherTempSchema, pgIsWalReplayPaused, pgIsolationTestSessionIsBlocked, pgJitAvailable, pgLastCommittedXact, pgLastWalReceiveLsn, pgLastWalReplayLsn, pgLastXactReplayTimestamp, pgListeningChannels, pgLockStatus, pgLogBackendMemoryContexts, pgLogStandbySnapshot, pgLogicalEmitMessage, pgLogicalSlotGetBinaryChanges, pgLogicalSlotGetChanges, pgLogicalSlotPeekBinaryChanges, pgLogicalSlotPeekChanges, pgLsArchiveStatusdir, pgLsDir, pgLsLogdir, pgLsLogicalmapdir, pgLsLogicalsnapdir, pgLsReplslotdir, pgLsTmpdir, pgLsWaldir, pgLsn, pgLsnCmp, pgLsnEq, pgLsnGe, pgLsnGt, pgLsnHash, pgLsnHashExtended, pgLsnLarger, pgLsnLe, pgLsnLt, pgLsnMi, pgLsnMii, pgLsnNe, pgLsnPli, pgLsnSmaller, pgMcvListItems, pgMyTempSchema, pgNextoid, pgNotificationQueueUsage, pgNotify, pgOpclassIsVisible, pgOperatorIsVisible, pgOpfamilyIsVisible, pgOptionsToTable, pgPartitionAncestors, pgPartitionRoot, pgPartitionTree, pgPostmasterStartTime, pgPreparedStatement, pgPreparedXact, pgPromote, pgReadBinaryFile, pgReadFile, pgRelationFilenode, pgRelationFilepath, pgRelationIsPublishable, pgRelationIsUpdatable, pgRelationSize, pgReloadConf, pgReplicationOriginAdvance, pgReplicationOriginCreate, pgReplicationOriginDrop, pgReplicationOriginOid, pgReplicationOriginProgress, pgReplicationOriginSessionIsSetup, pgReplicationOriginSessionProgress, pgReplicationOriginSessionReset, pgReplicationOriginSessionSetup, pgReplicationOriginXactReset, pgReplicationOriginXactSetup, pgReplicationSlotAdvance, pgRotateLogfile, pgSafeSnapshotBlockingPids, pgSequenceLastValue, pgSequenceParameters, pgSettingsGetFlags, pgShowAllFileSettings, pgShowAllSettings, pgShowReplicationOriginStatus, pgSizeBytes, pgSizePretty, pgSleep, pgSleepFor, pgSleepUntil, pgSnapshotXip, pgSnapshotXmax, pgSplitWalfileName, pgStatClearSnapshot, pgStatFile, pgStatForceNextFlush, pgStatGetActivity, pgStatGetAnalyzeCount, pgStatGetArchiver, pgStatGetAutoanalyzeCount, pgStatGetAutovacuumCount, pgStatGetBackendActivity, pgStatGetBackendActivityStart, pgStatGetBackendClientAddr, pgStatGetBackendClientPort, pgStatGetBackendDbid, pgStatGetBackendIdset, pgStatGetBackendPid, pgStatGetBackendStart, pgStatGetBackendSubxact, pgStatGetBackendUserid, pgStatGetBackendWaitEvent, pgStatGetBackendWaitEventType, pgStatGetBackendXactStart, pgStatGetBgwriterBufWrittenClean, pgStatGetBgwriterMaxwrittenClean, pgStatGetBgwriterStatResetTime, pgStatGetBlocksFetched, pgStatGetBlocksHit, pgStatGetBufAlloc, pgStatGetCheckpointerBuffersWritten, pgStatGetCheckpointerNumRequested, pgStatGetCheckpointerNumTimed, pgStatGetCheckpointerRestartpointsPerformed, pgStatGetCheckpointerRestartpointsRequested, pgStatGetCheckpointerRestartpointsTimed, pgStatGetCheckpointerStatResetTime, pgStatGetCheckpointerSyncTime, pgStatGetCheckpointerWriteTime, pgStatGetDbActiveTime, pgStatGetDbBlkReadTime, pgStatGetDbBlkWriteTime, pgStatGetDbBlocksFetched, pgStatGetDbBlocksHit, pgStatGetDbChecksumFailures, pgStatGetDbChecksumLastFailure, pgStatGetDbConflictAll, pgStatGetDbConflictLock, pgStatGetDbConflictLogicalslot, pgStatGetDbConflictSnapshot, pgStatGetDbConflictStartupDeadlock, pgStatGetDbConflictTablespace, pgStatGetDbDeadlocks, pgStatGetDbIdleInTransactionTime, pgStatGetDbNumbackends, pgStatGetDbSessionTime, pgStatGetDbSessions, pgStatGetDbSessionsAbandoned, pgStatGetDbSessionsFatal, pgStatGetDbSessionsKilled, pgStatGetDbStatResetTime, pgStatGetDbTempBytes, pgStatGetDbTempFiles, pgStatGetDbTuplesDeleted, pgStatGetDbTuplesFetched, pgStatGetDbTuplesInserted, pgStatGetDbTuplesReturned, pgStatGetDbTuplesUpdated, pgStatGetDbXactCommit, pgStatGetDbXactRollback, pgStatGetDeadTuples, pgStatGetFunctionCalls, pgStatGetFunctionSelfTime, pgStatGetFunctionTotalTime, pgStatGetInsSinceVacuum, pgStatGetIo, pgStatGetLastAnalyzeTime, pgStatGetLastAutoanalyzeTime, pgStatGetLastAutovacuumTime, pgStatGetLastVacuumTime, pgStatGetLastscan, pgStatGetLiveTuples, pgStatGetModSinceAnalyze, pgStatGetNumscans, pgStatGetProgressInfo, pgStatGetRecoveryPrefetch, pgStatGetReplicationSlot, pgStatGetSlru, pgStatGetSnapshotTimestamp, pgStatGetSubscription, pgStatGetSubscriptionStats, pgStatGetTuplesDeleted, pgStatGetTuplesFetched, pgStatGetTuplesHotUpdated, pgStatGetTuplesInserted, pgStatGetTuplesNewpageUpdated, pgStatGetTuplesReturned, pgStatGetTuplesUpdated, pgStatGetVacuumCount, pgStatGetWal, pgStatGetWalReceiver, pgStatGetWalSenders, pgStatGetXactBlocksFetched, pgStatGetXactBlocksHit, pgStatGetXactFunctionCalls, pgStatGetXactFunctionSelfTime, pgStatGetXactFunctionTotalTime, pgStatGetXactNumscans, pgStatGetXactTuplesDeleted, pgStatGetXactTuplesFetched, pgStatGetXactTuplesHotUpdated, pgStatGetXactTuplesInserted, pgStatGetXactTuplesNewpageUpdated, pgStatGetXactTuplesReturned, pgStatGetXactTuplesUpdated, pgStatHaveStats, pgStatReset, pgStatResetReplicationSlot, pgStatResetShared, pgStatResetSingleFunctionCounters, pgStatResetSingleTableCounters, pgStatResetSlru, pgStatResetSubscriptionStats, pgStatisticsObjIsVisible, pgStopMakingPinnedObjects, pgSwitchWal, pgSyncReplicationSlots, pgTableIsVisible, pgTableSize, pgTablespaceDatabases, pgTablespaceLocation, pgTablespaceSize, pgTerminateBackend, pgTimezoneAbbrevs, pgTimezoneNames, pgTotalRelationSize, pgTriggerDepth, pgTryAdvisoryLock, pgTryAdvisoryLockShared, pgTryAdvisoryXactLock, pgTryAdvisoryXactLockShared, pgTsConfigIsVisible, pgTsDictIsVisible, pgTsParserIsVisible, pgTsTemplateIsVisible, pgTypeIsVisible, pgTypeof, pgVisibleInSnapshot, pgWalLsnDiff, pgWalReplayPause, pgWalReplayResume, pgWalSummaryContents, pgWalfileName, pgWalfileNameOffset, pgXactCommitTimestamp, pgXactStatus, phrasetoTsquery, pi, plaintoTsquery, plpgsqlCallHandler, plpgsqlValidator, point, pointAbove, pointAdd, pointBelow, pointDistance, pointDiv, pointEq, pointHoriz, pointLeft, pointMul, pointNe, pointRight, pointSub, pointVert, polyAbove, polyBelow, polyCenter, polyContainPt, polyContained, polyDistance, polyLeft, polyNpoints, polyOverabove, polyOverbelow, polyOverlap, polyOverleft, polyOverright, polyRight, polySame, polygon, popen, position, postgresqlFdwValidator, pow, power, ptContainedCircle, ptContainedPoly, queryToXml, queryToXmlAndXmlschema, queryToXmlschema, querytree, quoteIdent, quoteLiteral, quoteNullable, radians, radius, random, randomNormal, rangeAdjacent, rangeAdjacentMultirange, rangeAfter, rangeAfterMultirange, rangeAgg, rangeBefore, rangeBeforeMultirange, rangeCmp, rangeContainedBy, rangeContainedByMultirange, rangeContains, rangeContainsElem, rangeContainsMultirange, rangeEq, rangeGe, rangeGt, rangeIntersect, rangeIntersectAgg, rangeIntersectAggTransfn, rangeLe, rangeLt, rangeMerge, rangeMinus, rangeNe, rangeOverlaps, rangeOverlapsMultirange, rangeOverleft, rangeOverleftMultirange, rangeOverright, rangeOverrightMultirange, rangeUnion, rank, recordEq, recordGe, recordGt, recordImageEq, recordImageGe, recordImageGt, recordImageLe, recordImageLt, recordImageNe, recordLe, recordLt, recordNe, regclass, regexpCount, regexpInstr, regexpLike, regexpMatch, regexpMatches, regexpReplace, regexpSplitToArray, regexpSplitToTable, regexpSubstr, regrAvgx, regrAvgy, regrCount, regrIntercept, regrR2, regrSlope, regrSxx, regrSxy, regrSyy, repeat, replace, resultType, reverse, riFKeyCascadeDel, riFKeyCascadeUpd, riFKeyCheckIns, riFKeyCheckUpd, riFKeyNoactionDel, riFKeyNoactionUpd, riFKeyRestrictDel, riFKeyRestrictUpd, riFKeySetdefaultDel, riFKeySetdefaultUpd, riFKeySetnullDel, riFKeySetnullUpd, right, round, rowNumber, rowSecurityActive, rowToJson, rpad, rtrim, satisfiesHashPartition, scale, schemaToXml, schemaToXmlAndXmlschema, schemaToXmlschema, sessionUser, setBit, setByte, setConfig, setMasklen, setseed, setval, setweight, sha224, sha256, sha384, sha512, shobjDescription, sign, similarEscape, similarToEscape, sind, sinh, slope, spgPolyQuadCompress, splitPart, sqlFunction, sqrt, startsWith, statementTimestamp, stddev, stddevPop, stddevSamp, stringAgg, stringToArray, stringToTable, strip, strpos, substr, substring, sum, suppressRedundantUpdatesTrigger, systemUser, tableToXml, tableToXmlAndXmlschema, tableToXmlschema, tan, tand, tanh, text, textGe, textGt, textLarger, textLe, textLt, textPatternGe, textPatternGt, textPatternLe, textPatternLt, textSmaller, textanycat, textcat, texteq, texteqname, textgename, textgtname, texticlike, texticnlike, texticregexeq, texticregexne, textlen, textlename, textlike, textltname, textne, textnename, textnlike, textregexeq, textregexne, tideq, tidge, tidgt, tidlarger, tidle, tidlt, tidne, tidsmaller, time, timeCmp, timeEq, timeGe, timeGt, timeHash, timeHashExtended, timeLarger, timeLe, timeLt, timeMiInterval, timeMiTime, timeNe, timePlInterval, timeSmaller, timedatePl, timeofday, timestamp, timestampCmp, timestampCmpDate, timestampCmpTimestamptz, timestampEq, timestampEqDate, timestampEqTimestamptz, timestampGe, timestampGeDate, timestampGeTimestamptz, timestampGt, timestampGtDate, timestampGtTimestamptz, timestampHash, timestampHashExtended, timestampLarger, timestampLe, timestampLeDate, timestampLeTimestamptz, timestampLt, timestampLtDate, timestampLtTimestamptz, timestampMi, timestampMiInterval, timestampNe, timestampNeDate, timestampNeTimestamptz, timestampPlInterval, timestampSmaller, timestamptz, timestamptzCmp, timestamptzCmpDate, timestamptzCmpTimestamp, timestamptzEq, timestamptzEqDate, timestamptzEqTimestamp, timestamptzGe, timestamptzGeDate, timestamptzGeTimestamp, timestamptzGt, timestamptzGtDate, timestamptzGtTimestamp, timestamptzLarger, timestamptzLe, timestamptzLeDate, timestamptzLeTimestamp, timestamptzLt, timestamptzLtDate, timestamptzLtTimestamp, timestamptzMi, timestamptzMiInterval, timestamptzNe, timestamptzNeDate, timestamptzNeTimestamp, timestamptzPlInterval, timestamptzSmaller, timetz, timetzCmp, timetzEq, timetzGe, timetzGt, timetzHash, timetzHashExtended, timetzLarger, timetzLe, timetzLt, timetzMiInterval, timetzNe, timetzPlInterval, timetzSmaller, timetzdatePl, timezone, toAscii, toChar, toDate, toHex, toJson, toJsonb, toNumber, toOct, toRegclass, toRegcollation, toRegnamespace, toRegoper, toRegoperator, toRegproc, toRegprocedure, toRegrole, toRegtype, toRegtypemod, toTimestamp, toTsquery, toTsvector, transactionTimestamp, translate, trimArray, trimScale, trunc, tsDebug, tsDelete, tsFilter, tsHeadline, tsLexize, tsMatchQv, tsMatchTq, tsMatchTt, tsMatchVq, tsParse, tsRank, tsRankCd, tsRewrite, tsStat, tsTokenType, tsmultirange, tsqMcontained, tsqMcontains, tsqueryAnd, tsqueryCmp, tsqueryEq, tsqueryGe, tsqueryGt, tsqueryLe, tsqueryLt, tsqueryNe, tsqueryNot, tsqueryOr, tsqueryPhrase, tsrange, tsrangeSubdiff, tstzmultirange, tstzrange, tstzrangeSubdiff, tsvectorCmp, tsvectorConcat, tsvectorEq, tsvectorGe, tsvectorGt, tsvectorLe, tsvectorLt, tsvectorNe, tsvectorToArray, tsvectorUpdateTrigger, tsvectorUpdateTriggerColumn, txidCurrent, txidCurrentIfAssigned, txidCurrentSnapshot, txidSnapshotXip, txidSnapshotXmax, txidStatus, txidVisibleInSnapshot, unicodeAssigned, unicodeVersion, uniqueKeyRecheck, unistr, unnest, upper, upperInc, upperInf, uuidCmp, uuidEq, uuidExtractTimestamp, uuidExtractVersion, uuidGe, uuidGt, uuidHash, uuidHashExtended, uuidLe, uuidLt, uuidNe, values, varPop, varSamp, varbit, varbitcmp, varbiteq, varbitge, varbitgt, varbitle, varbitlt, varbitne, varchar, variance, version, websearchToTsquery, width, widthBucket, xid, xid8Cmp, xid8Eq, xid8Ge, xid8Gt, xid8Larger, xid8Le, xid8Lt, xid8Ne, xid8Smaller, xideq, xideqint4, xidneq, xidneqint4, xml, xmlIsWellFormed, xmlIsWellFormedContent, xmlIsWellFormedDocument, xmlagg, xmlcomment, xmlconcat2, xmlexists, xmltext, xmlvalidate, xpath, xpathExists };
 //# sourceMappingURL=typegres.js.map

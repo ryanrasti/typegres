@@ -1,13 +1,14 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useRef } from 'react'
-import dynamic from 'next/dynamic'
-import { Play, Database, FileCode, Terminal } from 'lucide-react'
-import { PGlite } from '@electric-sql/pglite'
-import type * as Monaco from 'monaco-editor'
+import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
+import { Play, Database, FileCode, Terminal } from "lucide-react";
+import { PGlite } from "@electric-sql/pglite";
+import type * as Monaco from "monaco-editor";
+import { TypegresPlayground } from "@/components/TypegresPlayground";
 
 // Dynamically import Monaco Editor to avoid SSR issues
-const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false })
+const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
 const defaultCode = `import { db, sql } from 'typegres'
 import type { Database } from 'typegres'
@@ -39,22 +40,22 @@ const userStats = await db
   .orderBy('post_count', 'desc')
   .execute()
 
-console.log('User statistics:', userStats)`
+console.log('User statistics:', userStats)`;
 
 export default function PlaygroundPage() {
-  const [code, setCode] = useState(defaultCode)
-  const [output, setOutput] = useState('')
-  const [sqlOutput, setSqlOutput] = useState('')
-  const [activeTab, setActiveTab] = useState<'output' | 'sql'>('output')
-  const [isLoading, setIsLoading] = useState(false)
-  const [db, setDb] = useState<PGlite | null>(null)
-  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor>()
+  const [code, setCode] = useState(defaultCode);
+  const [output, setOutput] = useState("");
+  const [sqlOutput, setSqlOutput] = useState("");
+  const [activeTab, setActiveTab] = useState<"output" | "sql">("output");
+  const [isLoading, setIsLoading] = useState(false);
+  const [db, setDb] = useState<PGlite | null>(null);
+  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor>();
 
   // Initialize PGLite
   useEffect(() => {
     const initDb = async () => {
       try {
-        const pglite = new PGlite()
+        const pglite = new PGlite();
         await pglite.exec(`
           CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -89,38 +90,48 @@ export default function PlaygroundPage() {
             (2, 'Query Optimization Tips', 'Here are some tips...', false, 45),
             (4, 'Modern Web Development', 'The web has evolved...', true, 312)
           ON CONFLICT DO NOTHING;
-        `)
-        setDb(pglite)
+        `);
+        setDb(pglite);
       } catch (error) {
-        console.error('Failed to initialize database:', error)
+        console.error("Failed to initialize database:", error);
       }
-    }
+    };
 
-    initDb()
-  }, [])
+    initDb();
+  }, []);
 
   const executeCode = async () => {
-    if (!db) return
-    
-    setIsLoading(true)
-    setActiveTab('output')
-    
+    if (!db) return;
+
+    setIsLoading(true);
+    setActiveTab("output");
+
     try {
       // Parse the TypeScript code to extract SQL-like operations
       // This is a simulation - in reality, Typegres would compile to SQL
-      const sqlQueries: string[] = []
-      const outputs: string[] = []
-      
+      const sqlQueries: string[] = [];
+      const outputs: string[] = [];
+
       // Extract query patterns from the code
-      if (code.includes('selectFrom(\'users\')') && code.includes('where(\'active\'')) {
+      if (
+        code.includes("selectFrom('users')") &&
+        code.includes("where('active'")
+      ) {
         const result = await db.exec(
           "SELECT id, name, email FROM users WHERE active = true"
-        )
-        sqlQueries.push("SELECT id, name, email FROM users WHERE active = true")
-        outputs.push(`Active users: ${JSON.stringify(result[0]?.rows || [], null, 2)}`)
+        );
+        sqlQueries.push(
+          "SELECT id, name, email FROM users WHERE active = true"
+        );
+        outputs.push(
+          `Active users: ${JSON.stringify(result[0]?.rows || [], null, 2)}`
+        );
       }
-      
-      if (code.includes('leftJoin(\'posts\'') && code.includes('COUNT(posts.id)')) {
+
+      if (
+        code.includes("leftJoin('posts'") &&
+        code.includes("COUNT(posts.id)")
+      ) {
         const result = await db.exec(`
           SELECT 
             users.id,
@@ -132,7 +143,7 @@ export default function PlaygroundPage() {
           GROUP BY users.id, users.name
           HAVING COUNT(posts.id) > 0
           ORDER BY post_count DESC
-        `)
+        `);
         sqlQueries.push(`SELECT 
   users.id,
   users.name,
@@ -142,24 +153,27 @@ FROM users
 LEFT JOIN posts ON posts.user_id = users.id
 GROUP BY users.id, users.name
 HAVING COUNT(posts.id) > 0
-ORDER BY post_count DESC`)
-        outputs.push(`User statistics: ${JSON.stringify(result[0]?.rows || [], null, 2)}`)
+ORDER BY post_count DESC`);
+        outputs.push(
+          `User statistics: ${JSON.stringify(result[0]?.rows || [], null, 2)}`
+        );
       }
-      
+
       // Show the TypeScript code output
-      setOutput(outputs.join('\\n\\n') || 'No queries detected in the code')
-      
+      setOutput(outputs.join("\\n\\n") || "No queries detected in the code");
+
       // Show the generated SQL
-      setSqlOutput(sqlQueries.length > 0 
-        ? `-- Generated SQL from Typegres code:\\n\\n${sqlQueries.join(';\\n\\n')};`
-        : '-- No SQL queries generated')
-      
+      setSqlOutput(
+        sqlQueries.length > 0
+          ? `-- Generated SQL from Typegres code:\\n\\n${sqlQueries.join(";\\n\\n")};`
+          : "-- No SQL queries generated"
+      );
     } catch (error: any) {
-      setOutput(`Error: ${error.message}`)
+      setOutput(`Error: ${error.message}`);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-typegres-dark text-typegres-dark dark:text-white">
@@ -169,9 +183,15 @@ ORDER BY post_count DESC`)
             <div className="flex items-center gap-8">
               <a href="/" className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <img src="/typegres_icon.svg" alt="Typegres" className="h-8 w-auto" />
+                  <img
+                    src="/typegres_icon.svg"
+                    alt="Typegres"
+                    className="h-8 w-auto"
+                  />
                   <span className="text-2xl font-bold">
-                    <span className="text-typegres-dark dark:text-white">type</span>
+                    <span className="text-typegres-dark dark:text-white">
+                      type
+                    </span>
                     <span className="text-typegres-blue">gres</span>
                   </span>
                 </div>
@@ -184,7 +204,7 @@ ORDER BY post_count DESC`)
               className="flex items-center gap-2 px-4 py-2 bg-typegres-blue text-white rounded-lg font-medium hover:shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Play className="w-4 h-4" />
-              {isLoading ? 'Running...' : 'Run Code'}
+              {isLoading ? "Running..." : "Run Code"}
             </button>
           </div>
         </div>
@@ -198,19 +218,7 @@ ORDER BY post_count DESC`)
             <span className="text-sm font-medium">TypeScript Code</span>
           </div>
           <div className="h-[calc(100%-48px)]">
-            <Editor
-              defaultLanguage="typescript"
-              value={code}
-              onChange={(value) => setCode(value || '')}
-              theme="vs-dark"
-              options={{
-                minimap: { enabled: false },
-                fontSize: 14,
-                lineHeight: 20,
-                tabSize: 2,
-                automaticLayout: true,
-              }}
-            />
+            <TypegresPlayground />
           </div>
         </div>
 
@@ -219,22 +227,22 @@ ORDER BY post_count DESC`)
           <div className="h-12 border-b border-gray-200 dark:border-gray-800 flex items-center bg-gray-50 dark:bg-gray-900">
             <button
               className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${
-                activeTab === 'output'
-                  ? 'text-typegres-blue border-b-2 border-typegres-blue'
-                  : 'text-gray-600 dark:text-gray-400'
+                activeTab === "output"
+                  ? "text-typegres-blue border-b-2 border-typegres-blue"
+                  : "text-gray-600 dark:text-gray-400"
               }`}
-              onClick={() => setActiveTab('output')}
+              onClick={() => setActiveTab("output")}
             >
               <Terminal className="w-4 h-4" />
               Output
             </button>
             <button
               className={`px-4 py-2 text-sm font-medium flex items-center gap-2 ${
-                activeTab === 'sql'
-                  ? 'text-typegres-blue border-b-2 border-typegres-blue'
-                  : 'text-gray-600 dark:text-gray-400'
+                activeTab === "sql"
+                  ? "text-typegres-blue border-b-2 border-typegres-blue"
+                  : "text-gray-600 dark:text-gray-400"
               }`}
-              onClick={() => setActiveTab('sql')}
+              onClick={() => setActiveTab("sql")}
             >
               <Database className="w-4 h-4" />
               Generated SQL
@@ -245,12 +253,12 @@ ORDER BY post_count DESC`)
               <div className="text-yellow-400">Initializing database...</div>
             ) : (
               <pre className="whitespace-pre-wrap text-sm">
-                {activeTab === 'output' ? output : sqlOutput}
+                {activeTab === "output" ? output : sqlOutput}
               </pre>
             )}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
