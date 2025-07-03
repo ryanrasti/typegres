@@ -21,6 +21,7 @@ export type FunctionDefinition = {
   retset_oids: number[];
   is_agg: boolean;
   operator_name: string | null;
+  is_reserved?: boolean;
 };
 
 const allowAutoboxing = (definitions: FunctionDefinition[]) => {
@@ -49,7 +50,7 @@ const functionDefinitionToTyped = (
         .join(", ")}], ret: ${asType(ret, {
         runtime: true,
         set: defn,
-      })}, isOperator: ${defn.operator_name === name}}`;
+      })}, isOperator: ${defn.operator_name === name}, isReserved: ${defn.is_reserved || false}}`;
 
       return hasRecord
         ? `({R}) => (${rawTyped})`
@@ -296,32 +297,36 @@ const main = async () => {
     const hasParser = type in typeMap;
 
     if (type === "array") {
-      await output.write(`import Any from '../../types/any';\n`);
+      await output.write(`import { default as AnyBase } from '../../types/any';\n`);
       await output.write(`\n`);
 
+      const className = pgNameToIdent(type, true);
       await output.write(
-        `export default class<N extends number, T extends Any> extends Any<NonNullable<T["resultType"]>[], N> {\n`,
+        `export class ${className}<N extends number, T extends AnyBase> extends AnyBase<NonNullable<T["resultType"]>[], N> {\n`,
       );
     } else if (type === "record") {
-      await output.write(`import Any from '../../types/any';\n`);
-      await output.write(`import Anynonarray from '../../types/any';\n`);
+      await output.write(`import { default as AnyBase } from '../../types/any';\n`);
+      await output.write(`import { default as AnynonarrayBase } from '../../types/any';\n`);
       await output.write(`\n`);
 
+      const className = pgNameToIdent(type, true);
       await output.write(
-        `export default class<N extends number, R extends { [K in string]: Any<unknown, 0 | 1> }> extends Anynonarray<{ [K in keyof R]: R[K]["resultType"]}, N> {\n`,
+        `export class ${className}<N extends number, R extends { [K in string]: AnyBase<unknown, 0 | 1> }> extends AnynonarrayBase<{ [K in keyof R]: R[K]["resultType"]}, N> {\n`,
       );
     } else if (type === "any") {
-      await output.write(`import type Any from '../../types/any';\n`);
-      await output.write(`export default class {\n`);
+      await output.write(`import type { default as AnyBase } from '../../types/any';\n`);
+      const className = pgNameToIdent(type, true);
+      await output.write(`export class ${className} {\n`);
     } else if (type === "anyrange" || type === "anymultirange") {
-      await output.write(`import Anynonarray from '../../types/any';\n`);
-      await output.write(`import type Any from '../../types/any';\n`);
+      await output.write(`import { default as AnynonarrayBase } from '../../types/any';\n`);
+      await output.write(`import type { default as AnyBase } from '../../types/any';\n`);
       await output.write(`\n`);
+      const className = pgNameToIdent(type, true);
       await output.write(
-        `export default class<N extends number, T extends Any> extends Anynonarray<unknown, N> {\n`,
+        `export class ${className}<N extends number, T extends AnyBase> extends AnynonarrayBase<unknown, N> {\n`,
       );
     } else {
-      await output.write(`import Anynonarray from '../../types/any';\n`);
+      await output.write(`import { default as AnynonarrayBase } from '../../types/any';\n`);
       if (hasParser) {
         await output.write(
           `import { typeMap } from '../../types/serialization';\n`,
@@ -352,8 +357,9 @@ const main = async () => {
         );
       }
 
+      const className = pgNameToIdent(type, true);
       await output.write(
-        `export default class<N extends number> extends Anynonarray<Parsed, N> {\n`,
+        `export class ${className}<N extends number> extends AnynonarrayBase<Parsed, N> {\n`,
       );
 
       if (isInstantiatable) {
@@ -482,7 +488,7 @@ const main = async () => {
           await output.write(
             `    ${pgNameToIdent(rawName)}${
               isThisGeneric
-                ? `<T extends ${type === "any" ? "Any" : "this"}>`
+                ? `<T extends ${type === "any" ? "AnyBase" : "this"}>`
                 : hasGeneric
                   ? "<T extends Types.Any>"
                   : hasRecordGeneric
@@ -524,7 +530,7 @@ const main = async () => {
       continue;
     }
     await output2.write(
-      `export { default as ${pgNameToIdent(type, true)} } from './${type}';\n`,
+      `export { ${pgNameToIdent(type, true)} } from './${type}';\n`,
     );
   }
 };

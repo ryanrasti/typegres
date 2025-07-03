@@ -1,5 +1,5 @@
 import Any, { UseSubtype } from "./any";
-import { default as PgArray } from "../gen/types/array";
+import { Array as PgArray } from "../gen/types/array";
 import array from "postgres-array";
 import { Expression } from "../expression";
 

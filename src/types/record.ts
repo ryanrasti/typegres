@@ -1,5 +1,5 @@
 import Any, { Schema, UseSubtype } from "./any";
-import { default as PgRecord } from "../gen/types/record";
+import { Record as PgRecord } from "../gen/types/record";
 import { Expression, LiteralExpression } from "../expression";
 import array from "postgres-array";
 import { RawBuilder, sql } from "kysely";
