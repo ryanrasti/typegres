@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { sql } from "kysely";
+import { Kysely, sql } from "kysely";
 import { Pool } from "pg";
-import { db } from "./db";
+import { db, Typegres } from "./db";
+import { SeedDatabase } from "./test/seeds";
 
 export const testDb = await db({
   type: "pg",
@@ -13,7 +14,7 @@ export const testDb = await db({
     password: "postgres",
     database: "test",
   }
-});
+}) as unknown as Kysely<SeedDatabase> & Typegres;
 
 describe("App", () => {
   it("run a select query", async () => {

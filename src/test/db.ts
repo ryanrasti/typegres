@@ -25,7 +25,7 @@ class ExpectedRollbackException extends Error {
 }
 
 export const withDb = async (
-  db: Kysely<{}>,
+  db: Kysely<SeedDatabase>,
   fn: (db: Transaction<any>) => Promise<void>,
 ): Promise<void> => {
   try {
