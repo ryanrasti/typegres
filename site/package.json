@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "npm run build:docs && next build",
+    "build:deps": "cd .. && npm run build:bundle && cp ./dist/typegres.d.ts ./site/public/typegres.d.ts && cp ./dist/typegres.js ./site/public/typegres.js",
+    "build": "npm run build:deps && npm run build:docs && next build",
     "build:docs": "typedoc && rm -rf public/api/media || true",
     "start": "next start",
     "lint": "next lint",
@@ -22,8 +23,7 @@
     "prism-react-renderer": "^2.4.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "terser": "^5.43.1",
-    "typegres": "0.0.1"
+    "terser": "^5.43.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

@@ -108,15 +108,6 @@
                 buildInputs = [ pkgs.nodejs ];
                 src = bootstrapped;
                 buildPhase = ''
-                  # Build typegres library with bundled dependencies
-                  export PATH=$PWD/node_modules/.bin:$PATH
-                  npm run build:bundle
-                  
-                  # Copy bundled files to site public directory
-                  mkdir -p ./site/public
-                  cp ./dist/typegres.bundle.js ./site/public/
-                  cp ./dist/typegres.bundle.d.ts ./site/public/
-                  
                   # Build site
                   cd ./site
                   export PATH=$PWD/node_modules/.bin:$PATH

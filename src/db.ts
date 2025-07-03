@@ -1,14 +1,14 @@
 import type { Pool, PoolConfig } from "pg";
 import { Kysely, PostgresDialect } from "kysely";
 import { PGliteDialect } from "kysely-pglite-dialect";
-import type { PGlite, PGliteOptions } from "@electric-sql/pglite";
+import { PGlite, PGliteOptions } from "@electric-sql/pglite";
 
 // For PoC piggybacking on Kysely:
 export type Typegres = Kysely<{}>;
 
 export type DatabaseConfig =
   | { type: "pg"; PoolClass: typeof Pool; config?: PoolConfig }
-  | { type: "pglite"; PGliteClass: typeof PGlite; options?: PGliteOptions };
+  | { type: "pglite"; PGliteClass?: typeof PGlite; options?: PGliteOptions };
 
 export const db = async (dbConfig: DatabaseConfig): Promise<Typegres> => {
   if (dbConfig.type === "pg") {
@@ -33,7 +33,7 @@ export const db = async (dbConfig: DatabaseConfig): Promise<Typegres> => {
     const { PGliteClass, options } = dbConfig;
     return new Kysely<{}>({
       dialect: new PGliteDialect(
-        await PGliteClass.create({
+        await (PGliteClass ?? PGlite).create({
           ...options,
           parsers: Object.fromEntries(
             Array(2000).keys().map((value) => {

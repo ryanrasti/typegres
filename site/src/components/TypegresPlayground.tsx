@@ -25,18 +25,14 @@ interface TypegresPlaygroundProps {
 
 export function TypegresPlayground({
   initialCode = `import { db, Int4 } from 'typegres'
-import { PGlite } from '@electric-sql/pglite'
 
-const dbR = await db({
-  type: 'pglite',
-  PGliteClass: PGlite,
-});
+const dbR = await db({ type: 'pglite' });
 
 const result = await Int4.new(2).int4Pl(2).execute(dbR)
 
 console.log(result)
 `,
-  height = "400px",
+  height = "800px",
 }: TypegresPlaygroundProps) {
   const [code, setCode] = useState(initialCode);
   const [output, setOutput] = useState<{ sql?: string; error?: string }>({});
@@ -65,6 +61,7 @@ console.log(result)
     try {
       // Load the typegres bundle if not already loaded
       if (!window.typegres) {
+        await import('@electric-sql/pglite');
         try {
           const typegresModule = await import('../../public/typegres');
           window.typegres = typegresModule;
@@ -75,17 +72,6 @@ console.log(result)
           throw new Error('Failed to load typegres bundle');
         }
       }
-      if (!window.pglite) {
-        try {
-          const pgliteModule = await import('@electric-sql/pglite');
-          window.pglite = pgliteModule;
-          
-          console.log('PGlite loaded:', window.pglite);
-        } catch (error) {
-          console.error('Failed to load PGlite:', error);
-          throw new Error('Failed to load PGlite');
-        }
-      }
 
       // Transform the TypeScript code and replace imports
       const jsCode = await transformCodeWithEsbuild(code);
@@ -94,9 +80,6 @@ console.log(result)
       const transformedCode = jsCode.replace(
         /import\s*\{([^}]+)\}\s*from\s*['"]typegres['"]/g,
         'const {$1} = typegres'
-      ).replace(
-        /import\s*\{([^}]+)\}\s*from\s*['"]@electric-sql\/pglite['"]/g,
-        'const {$1} = pglite'
       );
 
       console.log("Transformed code:", transformedCode);

@@ -13,7 +13,7 @@ export default [
     },
     // External Node.js built-ins and packages that depend on them
     external: [
-      'pg', 'pglite'
+      'pg', '@electric-sql/pglite'
     ],
     plugins: [
       resolve({
@@ -36,7 +36,7 @@ export default [
       format: 'es'
     },
     external: [
-      'kysely', 'pg', 'pglite'
+      'kysely', 'pg', '@electric-sql/pglite'
     ],
     plugins: [
       dts({

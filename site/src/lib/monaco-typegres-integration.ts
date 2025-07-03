@@ -13,8 +13,8 @@ async function initializeEsbuild() {
 }
 
 export async function setupMonacoWithTypegres(
-  monaco: typeof import("monaco-editor")) {
-
+  monaco: typeof import("monaco-editor")
+) {
   // Initialize esbuild
   await initializeEsbuild();
 
@@ -27,33 +27,50 @@ export async function setupMonacoWithTypegres(
     allowJs: false,
     lib: ["es2020", "dom", "esnext.asynciterable"],
     strict: true,
+    strictNullChecks: true,
+    strictFunctionTypes: true,
+    strictBindCallApply: true,
+    strictPropertyInitialization: true,
+    noImplicitAny: true,
+    noImplicitThis: true,
+    alwaysStrict: true,
     esModuleInterop: true,
     allowSyntheticDefaultImports: true,
     noEmit: true,
-    skipLibCheck: true,
+    skipLibCheck: false,
     forceConsistentCasingInFileNames: true,
     jsx: monaco.languages.typescript.JsxEmit.None,
+    typeRoots: ["node_modules/@types"],
+    types: ["node"],
   });
 
-  // Set diagnostic options
+  // Set diagnostic options - enable all checks
   monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: false,
     noSyntaxValidation: false,
     noSuggestionDiagnostics: false,
+    diagnosticCodesToIgnore: [],
   });
 
   // Load the bundled typegres types
-  const typesResponse = await fetch('/typegres.d.ts');
-  const typesContent = `declare module 'typegres' {
-    ${await typesResponse.text()}
-  }`;
-  
-  console.log('Loading typegres types, first 500 chars:', typesContent.substring(0, 500));
-  
-  // Add the types as extra lib
+  const typesResponse = await fetch("/typegres.d.ts");
+  const rawTypes = await typesResponse.text();
+
+  // Create a proper module declaration that includes all the types
+  const typegresModule = `
+declare module 'typegres' {
+${rawTypes}
+}`;
+
+  // Add the module declaration to Monaco
   monaco.languages.typescript.typescriptDefaults.addExtraLib(
-    typesContent,
-    'file:///node_modules/@types/typegres/index.d.ts'
+    typegresModule,
+    "file:///node_modules/typegres/index.d.ts"
+  );
+
+  console.log(
+    "Loading typegres types, first 1000 chars:",
+    typegresModule.substring(0, 1000)
   );
 
   // Enable type acquisition

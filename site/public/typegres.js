@@ -1,3 +1,5 @@
+import { PGlite } from '@electric-sql/pglite';
+
 /// <reference types="./object-utils.d.ts" />
 function isUndefined(obj) {
     return typeof obj === 'undefined' || obj === undefined;
@@ -28749,7 +28751,7 @@ const db = async (dbConfig) => {
     if (dbConfig.type === "pglite") {
         const { PGliteClass, options } = dbConfig;
         return new Kysely({
-            dialect: new PGliteDialect(await PGliteClass.create({
+            dialect: new PGliteDialect(await (PGliteClass ?? PGlite).create({
                 ...options,
                 parsers: Object.fromEntries(Array(2000).keys().map((value) => {
                     return [value, (x) => x];
