@@ -42,41 +42,18 @@ export async function setupMonacoWithTypegres(
     noSuggestionDiagnostics: false,
   });
 
-  const files = [
-    'typegres.d.ts',
-    'typegres.js',
-    'package.json',
-  ]
-
-  for (const file of files) {
-    const response = await fetch(`/${file}`);
-    const content = await response.text();
-    const uri = `file:///node_modules/typegres/${file}`
-    monaco.languages.typescript.typescriptDefaults.addExtraLib(
-      content,
-      uri
-    );
-    if (file === 'package.json') {
-      monaco.editor.createModel(content, undefined, monaco.Uri.parse(uri));
-    }
-  }
-
-  // Create a package.json for the playground:
-  const packageJson = {
-    name: "typegres-playground",
-    version: "1.0.0",
-    description: "Typegres Playground",
-    scripts: {
-      start: "node typegres.js",
-    },
-    dependencies: {
-      typegres: "0.0.1",
-    },
-  };
-  monaco.editor.createModel(
-    JSON.stringify(packageJson, null, 2),
-    "json",
-    monaco.Uri.parse("file:///package.json")
+  // Load the bundled typegres types
+  const typesResponse = await fetch('/typegres.d.ts');
+  const typesContent = `declare module 'typegres' {
+    ${await typesResponse.text()}
+  }`;
+  
+  console.log('Loading typegres types, first 500 chars:', typesContent.substring(0, 500));
+  
+  // Add the types as extra lib
+  monaco.languages.typescript.typescriptDefaults.addExtraLib(
+    typesContent,
+    'file:///node_modules/@types/typegres/index.d.ts'
   );
 
   // Enable type acquisition
