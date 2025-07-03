@@ -34,7 +34,24 @@ console.log(result)
 `,
   height = "800px",
 }: TypegresPlaygroundProps) {
-  const [code, setCode] = useState(initialCode);
+  const [code, setCode] = useState("");
+  useEffect(() => {
+    fetch("/demo.ts")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch initial code: ${response.statusText}`
+          );
+        }
+        return response.text();
+      })
+      .then((text) => setCode(text))
+      .catch((error) => {
+        console.error("Error fetching initial code:", error);
+      });
+    setCode(initialCode);
+  }, [initialCode]);
+
   const [output, setOutput] = useState<{ sql?: string; error?: string }>({});
   const [typesLoaded, setTypesLoaded] = useState(false);
   const monacoRef = useRef<any>(null);
@@ -61,31 +78,33 @@ console.log(result)
     try {
       // Load the typegres bundle if not already loaded
       if (!window.typegres) {
-        await import('@electric-sql/pglite');
+        await import("@electric-sql/pglite");
         try {
-          const typegresModule = await import('../../public/typegres');
+          const typegresModule = await import("../../public/typegres");
           window.typegres = typegresModule;
-          
-          console.log('Typegres bundle loaded:', window.typegres);
+
+          console.log("Typegres bundle loaded:", window.typegres);
         } catch (error) {
-          console.error('Failed to load typegres bundle:', error);
-          throw new Error('Failed to load typegres bundle');
+          console.error("Failed to load typegres bundle:", error);
+          throw new Error("Failed to load typegres bundle");
         }
       }
 
       // Transform the TypeScript code and replace imports
       const jsCode = await transformCodeWithEsbuild(code);
-      
+
       // Replace import statements with destructuring from the typegres parameter
       const transformedCode = jsCode.replace(
         /import\s*\{([^}]+)\}\s*from\s*['"]typegres['"]/g,
-        'const {$1} = typegres'
+        "const {$1} = typegres"
       );
 
       console.log("Transformed code:", transformedCode);
 
       // Create an async function that executes the transformed code
-      const executeCode = new Function('typegres', `
+      const executeCode = new Function(
+        "typegres",
+        `
         return (async () => {
           ${transformedCode}
           
@@ -98,11 +117,12 @@ console.log(result)
           }
           return null;
         })();
-      `);
+      `
+      );
 
       // Execute the code with typegres
       const compiledResult = await executeCode(window.typegres);
-      
+
       if (compiledResult && compiledResult.sql) {
         setOutput({
           sql: `-- Generated SQL:\n${compiledResult.sql}\n\n-- Parameters:\n${JSON.stringify(compiledResult.parameters, null, 2)}`,

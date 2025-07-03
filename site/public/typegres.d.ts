@@ -169,7 +169,7 @@ type DatabaseConfig = {
     PGliteClass?: typeof PGlite;
     options?: PGliteOptions;
 };
-declare const db: (dbConfig: DatabaseConfig) => Promise<Typegres>;
+declare const typegres: (dbConfig: DatabaseConfig) => Promise<Typegres>;
 
 type ClassType$1<T> = {
     typeString(): string | undefined;
@@ -11281,13 +11281,11 @@ declare class Setof<Q extends Query> extends Expression {
                 wheres: undefined;
                 groupBy: undefined;
             } & {
-                joins: {
-                    [as]: {
-                        table: Setof<J_1>;
-                        on: export_default$1g<0 | 1> | export_default$1g<1>;
-                        row: RowLike;
-                    };
-                };
+                joins: { [a in A]: {
+                    table: Setof<J>;
+                    on: export_default$1g<0 | 1>;
+                    row: RowLike;
+                }; };
             }>;
             subquery(): Setof<{
                 from: ResultType<{
@@ -11381,13 +11379,11 @@ declare class Setof<Q extends Query> extends Expression {
                     wheres: undefined;
                     groupBy: undefined;
                 } & {
-                    joins: {
-                        [as]: {
-                            table: Setof<J_1>;
-                            on: export_default$1g<0 | 1> | export_default$1g<1>;
-                            row: RowLike;
-                        };
-                    };
+                    joins: { [a in A]: {
+                        table: Setof<J>;
+                        on: export_default$1g<0 | 1>;
+                        row: RowLike;
+                    }; };
                 }>;
                 subquery(): Setof<{
                     from: RowLike;
@@ -11478,13 +11474,11 @@ declare class Setof<Q extends Query> extends Expression {
                 wheres: undefined;
                 groupBy: undefined;
             } & {
-                joins: {
-                    [as]: {
-                        table: Setof<J_1>;
-                        on: export_default$1g<0 | 1> | export_default$1g<1>;
-                        row: RowLike;
-                    };
-                };
+                joins: { [a in A]: {
+                    table: Setof<J>;
+                    on: export_default$1g<0 | 1>;
+                    row: RowLike;
+                }; };
             }>;
             subquery(): Setof<{
                 from: RowLike;
@@ -11567,13 +11561,11 @@ declare class Setof<Q extends Query> extends Expression {
                     wheres: undefined;
                     groupBy: undefined;
                 } & {
-                    joins: {
-                        [as]: {
-                            table: Setof<J_1>;
-                            on: export_default$1g<0 | 1> | export_default$1g<1>;
-                            row: RowLike;
-                        };
-                    };
+                    joins: { [a in A]: {
+                        table: Setof<J>;
+                        on: export_default$1g<0 | 1>;
+                        row: RowLike;
+                    }; };
                 }>;
                 subquery(): Setof<{
                     from: ResultType<{
@@ -11614,7 +11606,7 @@ declare class Setof<Q extends Query> extends Expression {
         select: MaybePrimitiveToSqlType<S>;
     }>;
     where(fn: (...from: SelectArgs<Q>) => export_default$1g<0 | 1> | boolean): Setof<Q & {
-        wheres: [export_default$1g<0 | 1>, ...export_default$1g<0 | 1>[], export_default$1g<0 | 1> | export_default$1g<1>] | [export_default$1g<0 | 1> | export_default$1g<1>];
+        wheres: [export_default$1g<0 | 1>, ...export_default$1g<0 | 1>[], export_default$1g<1> | export_default$1g<0 | 1>] | [export_default$1g<1> | export_default$1g<0 | 1>];
     }>;
     groupBy<G extends Any<unknown, 0 | 1>[]>(fn: (from: Q["from"]) => G): Setof<Q & {
         groupBy: [...(Q["groupBy"] extends unknown[] ? Q["groupBy"] : []), ...G];
@@ -11623,13 +11615,11 @@ declare class Setof<Q extends Query> extends Expression {
     join<J extends Query, A extends string>(j: Setof<J>, as: A, on: (from: Q["from"], js: JoinTables<Q> & {
         [a in A]: ResultType<J>;
     }) => export_default$1g<0 | 1> | boolean): Setof<Q & {
-        joins: Q["joins"] & {
-            [as]: {
-                table: Setof<J>;
-                on: export_default$1g<0 | 1> | export_default$1g<1>;
-                row: RowLike;
-            };
-        };
+        joins: Q["joins"] & { [a in A]: {
+            table: Setof<J>;
+            on: export_default$1g<0 | 1>;
+            row: RowLike;
+        }; };
     }>;
     subquery(): Setof<{
         from: ResultType<Q>;
@@ -11783,13 +11773,11 @@ declare class Table<Q extends Query> extends Setof<Q> {
                 wheres: undefined;
                 groupBy: undefined;
             } & {
-                joins: {
-                    [as]: {
-                        table: Setof<J_1>;
-                        on: export_default$1g<0 | 1> | export_default$1g<1>;
-                        row: RowLike;
-                    };
-                };
+                joins: { [a in A]: {
+                    table: Setof<J>;
+                    on: export_default$1g<0 | 1>;
+                    row: RowLike;
+                }; };
             }>;
             subquery(): Setof<{
                 from: ResultType<{
@@ -11858,13 +11846,11 @@ declare class Table<Q extends Query> extends Setof<Q> {
                     wheres: undefined;
                     groupBy: undefined;
                 } & {
-                    joins: {
-                        [as]: {
-                            table: Setof<J_1>;
-                            on: export_default$1g<0 | 1> | export_default$1g<1>;
-                            row: RowLike;
-                        };
-                    };
+                    joins: { [a in A]: {
+                        table: Setof<J>;
+                        on: export_default$1g<0 | 1>;
+                        row: RowLike;
+                    }; };
                 }>;
                 subquery(): Setof<{
                     from: RowLike;
@@ -11922,13 +11908,11 @@ declare class Table<Q extends Query> extends Setof<Q> {
                         wheres: undefined;
                         groupBy: undefined;
                     } & {
-                        joins: {
-                            [as]: {
-                                table: Setof<J_1>;
-                                on: export_default$1g<0 | 1> | export_default$1g<1>;
-                                row: RowLike;
-                            };
-                        };
+                        joins: { [a in A]: {
+                            table: Setof<J>;
+                            on: export_default$1g<0 | 1>;
+                            row: RowLike;
+                        }; };
                     }>;
                     subquery(): Setof<{
                         from: ResultType<{
@@ -15372,5 +15356,660 @@ declare function xpath(a0: export_default$l<0 | 1>, a1: export_default$1<0 | 1>,
 declare function xpathExists(a0: export_default$l<0 | 1>, a1: export_default$1<0 | 1>): export_default$1g<0 | 1>;
 declare function xpathExists(a0: export_default$l<0 | 1>, a1: export_default$1<0 | 1>, a2: Array<0 | 1, export_default$l<0 | 1>>): export_default$1g<0 | 1>;
 
-export { export_default$1m as Aclitem, Any, export_default$1l as Anyenum, export_default$1k as Anymultirange, export_default$1j as Anynonarray, export_default$1i as Anyrange, Array, BinaryOperatorExpression, export_default$1h as Bit, export_default$1g as Bool, export_default$1f as Box, export_default$1e as Bpchar, export_default$1d as Bytea, export_default$1c as Char, export_default$1b as Cid, export_default$1a as Cidr, export_default$19 as Circle, ColumnAliasExpression, Context, export_default$18 as Date, export_default$17 as Datemultirange, export_default$16 as Daterange, Expression, export_default$15 as Float4, export_default$14 as Float8, FunctionExpression, Generated, export_default$13 as Inet, export_default$12 as Int2, export_default$11 as Int2Vector, export_default$10 as Int4, export_default$$ as Int4Multirange, export_default$_ as Int4Range, export_default$Z as Int8, export_default$Y as Int8Multirange, export_default$X as Int8Range, export_default$W as Interval, export_default$V as Json, export_default$U as Jsonb, export_default$T as Jsonpath, export_default$S as LanguageHandler, export_default$R as Line, LiteralExpression, LiteralUnknownExpression, export_default$Q as Lseg, export_default$P as Macaddr, export_default$O as Macaddr8, export_default$N as Money, export_default$M as Name, export_default$L as Numeric, export_default$K as Nummultirange, export_default$J as Numrange, export_default$I as Oid, export_default$H as Oidvector, export_default$G as Path, export_default$F as PgDdlCommand, export_default$E as PgLsn, export_default$D as PgMcvList, export_default$C as PgNodeTree, export_default$B as PgSnapshot, export_default$A as Point, export_default$z as Polygon, QueryAlias, RawTableReferenceExpression, Record$1 as Record, export_default$x as Refcursor, export_default$w as Regclass, export_default$v as Regcollation, export_default$u as Regconfig, export_default$t as Regdictionary, export_default$s as Regnamespace, export_default$r as Regoper, export_default$q as Regoperator, export_default$p as Regproc, export_default$o as Regprocedure, export_default$n as Regrole, export_default$m as Regtype, SelectableExpression, SelectableFunctionExpression, Setof, SubqueryExpression, TableReferenceExpression, export_default$l as Text, export_default$k as Tid, export_default$j as Time, export_default$i as Timestamp, export_default$h as Timestamptz, export_default$g as Timetz, export_default$f as Trigger, export_default$e as Tsmultirange, export_default$d as Tsquery, export_default$c as Tsrange, export_default$b as Tstzmultirange, export_default$a as Tstzrange, export_default$9 as Tsvector, export_default$8 as TxidSnapshot, export_default$7 as Uuid, ValuesExpression, export_default$6 as Varbit, export_default$5 as Varchar, export_default$4 as Void, export_default$3 as Xid, export_default$2 as Xid8, export_default$1 as Xml, abbrev, abs, aclcontains, acldefault, aclexplode, aclinsert, aclitemeq, aclremove, acos, acosd, acosh, age, aliasRowLike, aliasScalar, amvalidate, anyValue, anyValueTransfn, anytextcat, area, arrayAgg, arrayAppend, arrayCat, arrayDims, arrayEq, arrayFill, arrayGe, arrayGt, arrayLarger, arrayLe, arrayLength, arrayLower, arrayLt, arrayNdims, arrayNe, arrayPosition, arrayPositions, arrayPrepend, arrayRemove, arrayReplace, arraySample, arrayShuffle, arraySmaller, arrayToJson, arrayToString, arrayToTsvector, arrayUpper, arraycontained, arraycontains, arrayoverlap, ascii, asind, asinh, atan, atan2, atan2D, atand, atanh, avg, binaryUpgradeAddSubRelState, binaryUpgradeCreateEmptyExtension, binaryUpgradeLogicalSlotHasCaughtUp, binaryUpgradeReploriginAdvance, binaryUpgradeSetMissingValue, binaryUpgradeSetNextArrayPgTypeOid, binaryUpgradeSetNextHeapPgClassOid, binaryUpgradeSetNextHeapRelfilenode, binaryUpgradeSetNextIndexPgClassOid, binaryUpgradeSetNextIndexRelfilenode, binaryUpgradeSetNextMultirangeArrayPgTypeOid, binaryUpgradeSetNextMultirangePgTypeOid, binaryUpgradeSetNextPgAuthidOid, binaryUpgradeSetNextPgEnumOid, binaryUpgradeSetNextPgTablespaceOid, binaryUpgradeSetNextPgTypeOid, binaryUpgradeSetNextToastPgClassOid, binaryUpgradeSetNextToastRelfilenode, binaryUpgradeSetRecordInitPrivs, bit, bitAnd, bitCount, bitLength, bitOr, bitXor, bitand, bitcat, bitcmp, biteq, bitge, bitgt, bitle, bitlt, bitne, bitnot, bitor, bitshiftleft, bitshiftright, bitxor, bool, boolAnd, boolOr, boolandStatefunc, booleq, boolge, boolgt, boolle, boollt, boolne, boolorStatefunc, boundBox, box, boxAbove, boxAboveEq, boxAdd, boxBelow, boxBelowEq, boxCenter, boxContainPt, boxContained, boxDistance, boxDiv, boxEq, boxGe, boxGt, boxIntersect, boxLe, boxLeft, boxLt, boxMul, boxOverabove, boxOverbelow, boxOverlap, boxOverleft, boxOverright, boxRight, boxSame, boxSub, bpchar, bpcharLarger, bpcharPatternGe, bpcharPatternGt, bpcharPatternLe, bpcharPatternLt, bpcharSmaller, bpcharcmp, bpchareq, bpcharge, bpchargt, bpchariclike, bpcharicnlike, bpcharicregexeq, bpcharicregexne, bpcharle, bpcharlike, bpcharlt, bpcharne, bpcharnlike, bpcharregexeq, bpcharregexne, brinDesummarizeRange, brinSummarizeNewValues, brinSummarizeRange, broadcast, btarraycmp, btboolcmp, btbpcharPatternCmp, btcharcmp, btequalimage, btfloat48Cmp, btfloat4Cmp, btfloat84Cmp, btfloat8Cmp, btint24Cmp, btint28Cmp, btint2Cmp, btint42Cmp, btint48Cmp, btint4Cmp, btint82Cmp, btint84Cmp, btint8Cmp, btnamecmp, btnametextcmp, btoidcmp, btoidvectorcmp, btrecordcmp, btrecordimagecmp, btrim, bttextPatternCmp, bttextcmp, bttextnamecmp, bttidcmp, btvarstrequalimage, byteacat, byteacmp, byteaeq, byteage, byteagt, byteale, bytealike, bytealt, byteane, byteanlike, cardinality, cashCmp, cashDivCash, cashDivFlt4, cashDivFlt8, cashDivInt2, cashDivInt4, cashDivInt8, cashEq, cashGe, cashGt, cashLe, cashLt, cashMi, cashMulFlt4, cashMulFlt8, cashMulInt2, cashMulInt4, cashMulInt8, cashNe, cashPl, cashWords, cashlarger, cashsmaller, cbrt, ceil, ceiling, center, char, charLength, characterLength, chareq, charge, chargt, charle, charlt, charne, chr, cideq, cidr, circle, circleAbove, circleAddPt, circleBelow, circleCenter, circleContainPt, circleContained, circleDistance, circleDivPt, circleEq, circleGe, circleGt, circleLe, circleLeft, circleLt, circleMulPt, circleNe, circleOverabove, circleOverbelow, circleOverlap, circleOverleft, circleOverright, circleRight, circleSame, circleSubPt, clockTimestamp, closeLs, closeLseg, closePb, closePl, closePs, closeSb, colDescription, concat, concatWs, convert, convertFrom, convertTo, corr, cos, cosd, cosh, cot, cotd, count, covarPop, covarSamp, cumeDist, currentDatabase, currentQuery, currentSchema, currentSchemas, currentSetting, currentUser, currtid2, currval, cursorToXml, cursorToXmlschema, database, databaseToXml, databaseToXmlAndXmlschema, databaseToXmlschema, date, dateAdd, dateCmp, dateCmpTimestamp, dateCmpTimestamptz, dateEq, dateEqTimestamp, dateEqTimestamptz, dateGe, dateGeTimestamp, dateGeTimestamptz, dateGt, dateGtTimestamp, dateGtTimestamptz, dateLarger, dateLe, dateLeTimestamp, dateLeTimestamptz, dateLt, dateLtTimestamp, dateLtTimestamptz, dateMi, dateMiInterval, dateMii, dateNe, dateNeTimestamp, dateNeTimestamptz, datePart, datePlInterval, datePli, dateSmaller, dateSubtract, dateTrunc, datemultirange, daterange, daterangeCanonical, daterangeSubdiff, datetimePl, datetimetzPl, db, dcbrt, decode, degrees, denseRank, dexp, diagonal, diameter, distBp, distBs, distCpoint, distCpoly, distLp, distLs, distPathp, distPb, distPc, distPl, distPolyc, distPolyp, distPpath, distPpoly, distPs, distSb, distSl, distSp, div, dlog1, dlog10, dpow, dround, dsqrt, dtrunc, elemContainedByMultirange, elemContainedByRange, encode, enumCmp, enumEq, enumFirst, enumGe, enumGt, enumLarger, enumLast, enumLe, enumLt, enumNe, enumRange, enumSmaller, erf, erfc, every, exp, extract, factorial, family, firstValue, float4, float48Div, float48Eq, float48Ge, float48Gt, float48Le, float48Lt, float48Mi, float48Mul, float48Ne, float48Pl, float4Abs, float4Accum, float4Div, float4Eq, float4Ge, float4Gt, float4Larger, float4Le, float4Lt, float4Mi, float4Mul, float4Ne, float4Pl, float4Smaller, float4Um, float4Up, float8, float84Div, float84Eq, float84Ge, float84Gt, float84Le, float84Lt, float84Mi, float84Mul, float84Ne, float84Pl, float8Abs, float8Accum, float8Avg, float8Combine, float8Corr, float8CovarPop, float8CovarSamp, float8Div, float8Eq, float8Ge, float8Gt, float8Larger, float8Le, float8Lt, float8Mi, float8Mul, float8Ne, float8Pl, float8RegrAccum, float8RegrAvgx, float8RegrAvgy, float8RegrCombine, float8RegrIntercept, float8RegrR2, float8RegrSlope, float8RegrSxx, float8RegrSxy, float8RegrSyy, float8Smaller, float8StddevPop, float8StddevSamp, float8Um, float8Up, float8VarPop, float8VarSamp, floor, flt4MulCash, flt8MulCash, fmgrCValidator, fmgrInternalValidator, fmgrSqlValidator, format, formatType, gcd, genRandomUuid, generateSeries, generateSubscripts, getBit, getByte, getCurrentTsConfig, getdatabaseencoding, getpgusername, ginCleanPendingList, ginCmpTslexeme, ginCompareJsonb, hasAnyColumnPrivilege, hasColumnPrivilege, hasDatabasePrivilege, hasForeignDataWrapperPrivilege, hasFunctionPrivilege, hasLanguagePrivilege, hasParameterPrivilege, hasSchemaPrivilege, hasSequencePrivilege, hasServerPrivilege, hasTablePrivilege, hasTablespacePrivilege, hasTypePrivilege, hashAclitem, hashAclitemExtended, hashArray, hashArrayExtended, hashMultirange, hashMultirangeExtended, hashNumeric, hashNumericExtended, hashRange, hashRangeExtended, hashRecord, hashRecordExtended, hashbpchar, hashbpcharextended, hashchar, hashcharextended, hashenum, hashenumextended, hashfloat4, hashfloat4Extended, hashfloat8, hashfloat8Extended, hashinet, hashinetextended, hashint2, hashint2Extended, hashint4, hashint4Extended, hashint8, hashint8Extended, hashmacaddr, hashmacaddr8, hashmacaddr8Extended, hashmacaddrextended, hashname, hashnameextended, hashoid, hashoidextended, hashoidvector, hashoidvectorextended, hashtext, hashtextextended, hashtid, hashtidextended, height, host, hostmask, icuUnicodeVersion, inRange, inetClientAddr, inetClientPort, inetMerge, inetSameFamily, inetServerAddr, inetServerPort, inetand, inetmi, inetmiInt8, inetnot, inetor, inetpl, initcap, int2, int24Div, int24Eq, int24Ge, int24Gt, int24Le, int24Lt, int24Mi, int24Mul, int24Ne, int24Pl, int28Div, int28Eq, int28Ge, int28Gt, int28Le, int28Lt, int28Mi, int28Mul, int28Ne, int28Pl, int2Abs, int2And, int2AvgAccum, int2AvgAccumInv, int2Div, int2Eq, int2Ge, int2Gt, int2Int4Sum, int2Larger, int2Le, int2Lt, int2Mi, int2Mod, int2Mul, int2MulCash, int2Ne, int2Not, int2Or, int2Pl, int2Shl, int2Shr, int2Smaller, int2Sum, int2Um, int2Up, int2Xor, int4, int42Div, int42Eq, int42Ge, int42Gt, int42Le, int42Lt, int42Mi, int42Mul, int42Ne, int42Pl, int48Div, int48Eq, int48Ge, int48Gt, int48Le, int48Lt, int48Mi, int48Mul, int48Ne, int48Pl, int4Abs, int4And, int4AvgAccum, int4AvgAccumInv, int4AvgCombine, int4Div, int4Eq, int4Ge, int4Gt, int4Inc, int4Larger, int4Le, int4Lt, int4Mi, int4Mod, int4Mul, int4MulCash, int4Multirange, int4Ne, int4Not, int4Or, int4Pl, int4Range, int4RangeCanonical, int4RangeSubdiff, int4Shl, int4Shr, int4Smaller, int4Sum, int4Um, int4Up, int4Xor, int8, int82Div, int82Eq, int82Ge, int82Gt, int82Le, int82Lt, int82Mi, int82Mul, int82Ne, int82Pl, int84Div, int84Eq, int84Ge, int84Gt, int84Le, int84Lt, int84Mi, int84Mul, int84Ne, int84Pl, int8Abs, int8And, int8Avg, int8Dec, int8DecAny, int8Div, int8Eq, int8Ge, int8Gt, int8Inc, int8IncAny, int8IncFloat8Float8, int8Larger, int8Le, int8Lt, int8Mi, int8Mod, int8Mul, int8MulCash, int8Multirange, int8Ne, int8Not, int8Or, int8Pl, int8PlInet, int8Range, int8RangeCanonical, int8RangeSubdiff, int8Shl, int8Shr, int8Smaller, int8Sum, int8Um, int8Up, int8Xor, integerPlDate, interLb, interSb, interSl, interval, intervalCmp, intervalDiv, intervalEq, intervalGe, intervalGt, intervalHash, intervalHashExtended, intervalLarger, intervalLe, intervalLt, intervalMi, intervalMul, intervalNe, intervalPl, intervalPlDate, intervalPlTime, intervalPlTimestamp, intervalPlTimestamptz, intervalPlTimetz, intervalSmaller, intervalUm, isNormalized, isScalar, isScalarRelaxed, isclosed, isempty, isfinite, ishorizontal, isopen, isparallel, isperp, isvertical, jsonAgg, jsonAggStrict, jsonArrayElement, jsonArrayElementText, jsonArrayElements, jsonArrayElementsText, jsonArrayLength, jsonBuildArray, jsonBuildObject, jsonEach, jsonEachText, jsonExtractPath, jsonExtractPathText, jsonObject, jsonObjectAgg, jsonObjectAggStrict, jsonObjectAggUnique, jsonObjectAggUniqueStrict, jsonObjectField, jsonObjectFieldText, jsonObjectKeys, jsonPopulateRecord, jsonPopulateRecordset, jsonStripNulls, jsonToRecord, jsonToRecordset, jsonToTsvector, jsonTypeof, jsonbAgg, jsonbAggStrict, jsonbArrayElement, jsonbArrayElementText, jsonbArrayElements, jsonbArrayElementsText, jsonbArrayLength, jsonbBuildArray, jsonbBuildObject, jsonbCmp, jsonbConcat, jsonbContained, jsonbContains, jsonbDelete, jsonbDeletePath, jsonbEach, jsonbEachText, jsonbEq, jsonbExists, jsonbExistsAll, jsonbExistsAny, jsonbExtractPath, jsonbExtractPathText, jsonbGe, jsonbGt, jsonbHash, jsonbHashExtended, jsonbInsert, jsonbLe, jsonbLt, jsonbNe, jsonbObject, jsonbObjectAgg, jsonbObjectAggStrict, jsonbObjectAggUnique, jsonbObjectAggUniqueStrict, jsonbObjectField, jsonbObjectFieldText, jsonbObjectKeys, jsonbPathExists, jsonbPathExistsOpr, jsonbPathExistsTz, jsonbPathMatch, jsonbPathMatchOpr, jsonbPathMatchTz, jsonbPathQuery, jsonbPathQueryArray, jsonbPathQueryArrayTz, jsonbPathQueryFirst, jsonbPathQueryFirstTz, jsonbPathQueryTz, jsonbPopulateRecord, jsonbPopulateRecordValid, jsonbPopulateRecordset, jsonbPretty, jsonbSet, jsonbSetLax, jsonbStripNulls, jsonbToRecord, jsonbToRecordset, jsonbToTsvector, jsonbTypeof, justifyDays, justifyHours, justifyInterval, lag, lastValue, lastval, lcm, lead, left, length, like, likeEscape, line, lineDistance, lineEq, lineHorizontal, lineInterpt, lineIntersect, lineParallel, linePerp, lineVertical, ln, loClose, loCreat, loCreate, loExport, loFromBytea, loGet, loImport, loLseek, loLseek64, loOpen, loPut, loTell, loTell64, loTruncate, loTruncate64, loUnlink, log, log10, loread, lower, lowerInc, lowerInf, lowrite, lpad, lseg, lsegCenter, lsegDistance, lsegEq, lsegGe, lsegGt, lsegHorizontal, lsegInterpt, lsegIntersect, lsegLe, lsegLength, lsegLt, lsegNe, lsegParallel, lsegPerp, lsegVertical, ltrim, macaddr, macaddr8, macaddr8And, macaddr8Cmp, macaddr8Eq, macaddr8Ge, macaddr8Gt, macaddr8Le, macaddr8Lt, macaddr8Ne, macaddr8Not, macaddr8Or, macaddr8Set7Bit, macaddrAnd, macaddrCmp, macaddrEq, macaddrGe, macaddrGt, macaddrLe, macaddrLt, macaddrNe, macaddrNot, macaddrOr, makeDate, makeInterval, makeTime, makeTimestamp, makeTimestamptz, makeaclitem, masklen, max, md5, minScale, mod, mode, money, mulDInterval, multirange, multirangeAdjacentMultirange, multirangeAdjacentRange, multirangeAfterMultirange, multirangeAfterRange, multirangeBeforeMultirange, multirangeBeforeRange, multirangeCmp, multirangeContainedByMultirange, multirangeContainedByRange, multirangeContainsElem, multirangeContainsMultirange, multirangeContainsRange, multirangeEq, multirangeGe, multirangeGt, multirangeIntersect, multirangeIntersectAggTransfn, multirangeLe, multirangeLt, multirangeMinus, multirangeNe, multirangeOverlapsMultirange, multirangeOverlapsRange, multirangeOverleftMultirange, multirangeOverleftRange, multirangeOverrightMultirange, multirangeOverrightRange, multirangeUnion, mxidAge, name, nameconcatoid, nameeq, nameeqtext, namege, namegetext, namegt, namegttext, nameiclike, nameicnlike, nameicregexeq, nameicregexne, namele, nameletext, namelike, namelt, namelttext, namene, namenetext, namenlike, nameregexeq, nameregexne, netmask, network, networkCmp, networkEq, networkGe, networkGt, networkLarger, networkLe, networkLt, networkNe, networkOverlap, networkSmaller, networkSub, networkSubeq, networkSup, networkSupeq, nextval, normalize, notlike, now, npoints, nthValue, ntile, numNonnulls, numNulls, numeric, numericAbs, numericAdd, numericCmp, numericDiv, numericDivTrunc, numericEq, numericExp, numericGe, numericGt, numericInc, numericLarger, numericLe, numericLn, numericLog, numericLt, numericMod, numericMul, numericNe, numericPlPgLsn, numericPower, numericSmaller, numericSqrt, numericSub, numericUminus, numericUplus, nummultirange, numnode, numrange, numrangeSubdiff, objDescription, octetLength, oid, oideq, oidge, oidgt, oidlarger, oidle, oidlt, oidne, oidsmaller, oidvectoreq, oidvectorge, oidvectorgt, oidvectorle, oidvectorlt, oidvectorne, oidvectortypes, onPb, onPl, onPpath, onPs, onSb, onSl, overlaps, overlay, parseIdent, path, pathAdd, pathAddPt, pathContainPt, pathDistance, pathDivPt, pathInter, pathLength, pathMulPt, pathNEq, pathNGe, pathNGt, pathNLe, pathNLt, pathNpoints, pathSubPt, pclose, percentRank, percentileCont, percentileDisc, pgAdvisoryLock, pgAdvisoryLockShared, pgAdvisoryUnlock, pgAdvisoryUnlockAll, pgAdvisoryUnlockShared, pgAdvisoryXactLock, pgAdvisoryXactLockShared, pgAvailableExtensionVersions, pgAvailableExtensions, pgAvailableWalSummaries, pgBackendPid, pgBackupStart, pgBackupStop, pgBasetype, pgBlockingPids, pgCancelBackend, pgCharToEncoding, pgClientEncoding, pgCollationActualVersion, pgCollationFor, pgCollationIsVisible, pgColumnCompression, pgColumnIsUpdatable, pgColumnSize, pgColumnToastChunkId, pgConfLoadTime, pgConfig, pgControlCheckpoint, pgControlInit, pgControlRecovery, pgControlSystem, pgConversionIsVisible, pgCopyLogicalReplicationSlot, pgCopyPhysicalReplicationSlot, pgCreateLogicalReplicationSlot, pgCreatePhysicalReplicationSlot, pgCreateRestorePoint, pgCurrentLogfile, pgCurrentSnapshot, pgCurrentWalFlushLsn, pgCurrentWalInsertLsn, pgCurrentWalLsn, pgCurrentXactId, pgCurrentXactIdIfAssigned, pgCursor, pgDatabaseCollationActualVersion, pgDatabaseSize, pgDescribeObject, pgDropReplicationSlot, pgEncodingMaxLength, pgEncodingToChar, pgEventTriggerDdlCommands, pgEventTriggerDroppedObjects, pgEventTriggerTableRewriteOid, pgEventTriggerTableRewriteReason, pgExportSnapshot, pgExtensionConfigDump, pgExtensionUpdatePaths, pgFilenodeRelation, pgFunctionIsVisible, pgGetBackendMemoryContexts, pgGetCatalogForeignKeys, pgGetConstraintdef, pgGetExpr, pgGetFunctionArgDefault, pgGetFunctionArguments, pgGetFunctionIdentityArguments, pgGetFunctionResult, pgGetFunctionSqlbody, pgGetFunctiondef, pgGetIndexdef, pgGetKeywords, pgGetMultixactMembers, pgGetObjectAddress, pgGetPartitionConstraintdef, pgGetPartkeydef, pgGetPublicationTables, pgGetReplicaIdentityIndex, pgGetReplicationSlots, pgGetRuledef, pgGetSerialSequence, pgGetShmemAllocations, pgGetStatisticsobjdef, pgGetStatisticsobjdefColumns, pgGetStatisticsobjdefExpressions, pgGetTriggerdef, pgGetUserbyid, pgGetViewdef, pgGetWaitEvents, pgGetWalReplayPauseState, pgGetWalResourceManagers, pgGetWalSummarizerState, pgHasRole, pgHbaFileRules, pgIdentFileMappings, pgIdentifyObject, pgIdentifyObjectAsAddress, pgImportSystemCollations, pgIndexColumnHasProperty, pgIndexHasProperty, pgIndexamHasProperty, pgIndexamProgressPhasename, pgIndexesSize, pgInputErrorInfo, pgInputIsValid, pgIsInRecovery, pgIsOtherTempSchema, pgIsWalReplayPaused, pgIsolationTestSessionIsBlocked, pgJitAvailable, pgLastCommittedXact, pgLastWalReceiveLsn, pgLastWalReplayLsn, pgLastXactReplayTimestamp, pgListeningChannels, pgLockStatus, pgLogBackendMemoryContexts, pgLogStandbySnapshot, pgLogicalEmitMessage, pgLogicalSlotGetBinaryChanges, pgLogicalSlotGetChanges, pgLogicalSlotPeekBinaryChanges, pgLogicalSlotPeekChanges, pgLsArchiveStatusdir, pgLsDir, pgLsLogdir, pgLsLogicalmapdir, pgLsLogicalsnapdir, pgLsReplslotdir, pgLsTmpdir, pgLsWaldir, pgLsn, pgLsnCmp, pgLsnEq, pgLsnGe, pgLsnGt, pgLsnHash, pgLsnHashExtended, pgLsnLarger, pgLsnLe, pgLsnLt, pgLsnMi, pgLsnMii, pgLsnNe, pgLsnPli, pgLsnSmaller, pgMcvListItems, pgMyTempSchema, pgNextoid, pgNotificationQueueUsage, pgNotify, pgOpclassIsVisible, pgOperatorIsVisible, pgOpfamilyIsVisible, pgOptionsToTable, pgPartitionAncestors, pgPartitionRoot, pgPartitionTree, pgPostmasterStartTime, pgPreparedStatement, pgPreparedXact, pgPromote, pgReadBinaryFile, pgReadFile, pgRelationFilenode, pgRelationFilepath, pgRelationIsPublishable, pgRelationIsUpdatable, pgRelationSize, pgReloadConf, pgReplicationOriginAdvance, pgReplicationOriginCreate, pgReplicationOriginDrop, pgReplicationOriginOid, pgReplicationOriginProgress, pgReplicationOriginSessionIsSetup, pgReplicationOriginSessionProgress, pgReplicationOriginSessionReset, pgReplicationOriginSessionSetup, pgReplicationOriginXactReset, pgReplicationOriginXactSetup, pgReplicationSlotAdvance, pgRotateLogfile, pgSafeSnapshotBlockingPids, pgSequenceLastValue, pgSequenceParameters, pgSettingsGetFlags, pgShowAllFileSettings, pgShowAllSettings, pgShowReplicationOriginStatus, pgSizeBytes, pgSizePretty, pgSleep, pgSleepFor, pgSleepUntil, pgSnapshotXip, pgSnapshotXmax, pgSplitWalfileName, pgStatClearSnapshot, pgStatFile, pgStatForceNextFlush, pgStatGetActivity, pgStatGetAnalyzeCount, pgStatGetArchiver, pgStatGetAutoanalyzeCount, pgStatGetAutovacuumCount, pgStatGetBackendActivity, pgStatGetBackendActivityStart, pgStatGetBackendClientAddr, pgStatGetBackendClientPort, pgStatGetBackendDbid, pgStatGetBackendIdset, pgStatGetBackendPid, pgStatGetBackendStart, pgStatGetBackendSubxact, pgStatGetBackendUserid, pgStatGetBackendWaitEvent, pgStatGetBackendWaitEventType, pgStatGetBackendXactStart, pgStatGetBgwriterBufWrittenClean, pgStatGetBgwriterMaxwrittenClean, pgStatGetBgwriterStatResetTime, pgStatGetBlocksFetched, pgStatGetBlocksHit, pgStatGetBufAlloc, pgStatGetCheckpointerBuffersWritten, pgStatGetCheckpointerNumRequested, pgStatGetCheckpointerNumTimed, pgStatGetCheckpointerRestartpointsPerformed, pgStatGetCheckpointerRestartpointsRequested, pgStatGetCheckpointerRestartpointsTimed, pgStatGetCheckpointerStatResetTime, pgStatGetCheckpointerSyncTime, pgStatGetCheckpointerWriteTime, pgStatGetDbActiveTime, pgStatGetDbBlkReadTime, pgStatGetDbBlkWriteTime, pgStatGetDbBlocksFetched, pgStatGetDbBlocksHit, pgStatGetDbChecksumFailures, pgStatGetDbChecksumLastFailure, pgStatGetDbConflictAll, pgStatGetDbConflictLock, pgStatGetDbConflictLogicalslot, pgStatGetDbConflictSnapshot, pgStatGetDbConflictStartupDeadlock, pgStatGetDbConflictTablespace, pgStatGetDbDeadlocks, pgStatGetDbIdleInTransactionTime, pgStatGetDbNumbackends, pgStatGetDbSessionTime, pgStatGetDbSessions, pgStatGetDbSessionsAbandoned, pgStatGetDbSessionsFatal, pgStatGetDbSessionsKilled, pgStatGetDbStatResetTime, pgStatGetDbTempBytes, pgStatGetDbTempFiles, pgStatGetDbTuplesDeleted, pgStatGetDbTuplesFetched, pgStatGetDbTuplesInserted, pgStatGetDbTuplesReturned, pgStatGetDbTuplesUpdated, pgStatGetDbXactCommit, pgStatGetDbXactRollback, pgStatGetDeadTuples, pgStatGetFunctionCalls, pgStatGetFunctionSelfTime, pgStatGetFunctionTotalTime, pgStatGetInsSinceVacuum, pgStatGetIo, pgStatGetLastAnalyzeTime, pgStatGetLastAutoanalyzeTime, pgStatGetLastAutovacuumTime, pgStatGetLastVacuumTime, pgStatGetLastscan, pgStatGetLiveTuples, pgStatGetModSinceAnalyze, pgStatGetNumscans, pgStatGetProgressInfo, pgStatGetRecoveryPrefetch, pgStatGetReplicationSlot, pgStatGetSlru, pgStatGetSnapshotTimestamp, pgStatGetSubscription, pgStatGetSubscriptionStats, pgStatGetTuplesDeleted, pgStatGetTuplesFetched, pgStatGetTuplesHotUpdated, pgStatGetTuplesInserted, pgStatGetTuplesNewpageUpdated, pgStatGetTuplesReturned, pgStatGetTuplesUpdated, pgStatGetVacuumCount, pgStatGetWal, pgStatGetWalReceiver, pgStatGetWalSenders, pgStatGetXactBlocksFetched, pgStatGetXactBlocksHit, pgStatGetXactFunctionCalls, pgStatGetXactFunctionSelfTime, pgStatGetXactFunctionTotalTime, pgStatGetXactNumscans, pgStatGetXactTuplesDeleted, pgStatGetXactTuplesFetched, pgStatGetXactTuplesHotUpdated, pgStatGetXactTuplesInserted, pgStatGetXactTuplesNewpageUpdated, pgStatGetXactTuplesReturned, pgStatGetXactTuplesUpdated, pgStatHaveStats, pgStatReset, pgStatResetReplicationSlot, pgStatResetShared, pgStatResetSingleFunctionCounters, pgStatResetSingleTableCounters, pgStatResetSlru, pgStatResetSubscriptionStats, pgStatisticsObjIsVisible, pgStopMakingPinnedObjects, pgSwitchWal, pgSyncReplicationSlots, pgTableIsVisible, pgTableSize, pgTablespaceDatabases, pgTablespaceLocation, pgTablespaceSize, pgTerminateBackend, pgTimezoneAbbrevs, pgTimezoneNames, pgTotalRelationSize, pgTriggerDepth, pgTryAdvisoryLock, pgTryAdvisoryLockShared, pgTryAdvisoryXactLock, pgTryAdvisoryXactLockShared, pgTsConfigIsVisible, pgTsDictIsVisible, pgTsParserIsVisible, pgTsTemplateIsVisible, pgTypeIsVisible, pgTypeof, pgVisibleInSnapshot, pgWalLsnDiff, pgWalReplayPause, pgWalReplayResume, pgWalSummaryContents, pgWalfileName, pgWalfileNameOffset, pgXactCommitTimestamp, pgXactStatus, phrasetoTsquery, pi, plaintoTsquery, plpgsqlCallHandler, plpgsqlValidator, point, pointAbove, pointAdd, pointBelow, pointDistance, pointDiv, pointEq, pointHoriz, pointLeft, pointMul, pointNe, pointRight, pointSub, pointVert, polyAbove, polyBelow, polyCenter, polyContainPt, polyContained, polyDistance, polyLeft, polyNpoints, polyOverabove, polyOverbelow, polyOverlap, polyOverleft, polyOverright, polyRight, polySame, polygon, popen, position, postgresqlFdwValidator, pow, power, ptContainedCircle, ptContainedPoly, queryToXml, queryToXmlAndXmlschema, queryToXmlschema, querytree, quoteIdent, quoteLiteral, quoteNullable, radians, radius, random, randomNormal, rangeAdjacent, rangeAdjacentMultirange, rangeAfter, rangeAfterMultirange, rangeAgg, rangeBefore, rangeBeforeMultirange, rangeCmp, rangeContainedBy, rangeContainedByMultirange, rangeContains, rangeContainsElem, rangeContainsMultirange, rangeEq, rangeGe, rangeGt, rangeIntersect, rangeIntersectAgg, rangeIntersectAggTransfn, rangeLe, rangeLt, rangeMerge, rangeMinus, rangeNe, rangeOverlaps, rangeOverlapsMultirange, rangeOverleft, rangeOverleftMultirange, rangeOverright, rangeOverrightMultirange, rangeUnion, rank, recordEq, recordGe, recordGt, recordImageEq, recordImageGe, recordImageGt, recordImageLe, recordImageLt, recordImageNe, recordLe, recordLt, recordNe, regclass, regexpCount, regexpInstr, regexpLike, regexpMatch, regexpMatches, regexpReplace, regexpSplitToArray, regexpSplitToTable, regexpSubstr, regrAvgx, regrAvgy, regrCount, regrIntercept, regrR2, regrSlope, regrSxx, regrSxy, regrSyy, repeat, replace, resultType, reverse, riFKeyCascadeDel, riFKeyCascadeUpd, riFKeyCheckIns, riFKeyCheckUpd, riFKeyNoactionDel, riFKeyNoactionUpd, riFKeyRestrictDel, riFKeyRestrictUpd, riFKeySetdefaultDel, riFKeySetdefaultUpd, riFKeySetnullDel, riFKeySetnullUpd, right, round, rowNumber, rowSecurityActive, rowToJson, rpad, rtrim, satisfiesHashPartition, scale, schemaToXml, schemaToXmlAndXmlschema, schemaToXmlschema, sessionUser, setBit, setByte, setConfig, setMasklen, setseed, setval, setweight, sha224, sha256, sha384, sha512, shobjDescription, sign, similarEscape, similarToEscape, sind, sinh, slope, spgPolyQuadCompress, splitPart, sqlFunction, sqrt, startsWith, statementTimestamp, stddev, stddevPop, stddevSamp, stringAgg, stringToArray, stringToTable, strip, strpos, substr, substring, sum, suppressRedundantUpdatesTrigger, systemUser, tableToXml, tableToXmlAndXmlschema, tableToXmlschema, tan, tand, tanh, text, textGe, textGt, textLarger, textLe, textLt, textPatternGe, textPatternGt, textPatternLe, textPatternLt, textSmaller, textanycat, textcat, texteq, texteqname, textgename, textgtname, texticlike, texticnlike, texticregexeq, texticregexne, textlen, textlename, textlike, textltname, textne, textnename, textnlike, textregexeq, textregexne, tideq, tidge, tidgt, tidlarger, tidle, tidlt, tidne, tidsmaller, time, timeCmp, timeEq, timeGe, timeGt, timeHash, timeHashExtended, timeLarger, timeLe, timeLt, timeMiInterval, timeMiTime, timeNe, timePlInterval, timeSmaller, timedatePl, timeofday, timestamp, timestampCmp, timestampCmpDate, timestampCmpTimestamptz, timestampEq, timestampEqDate, timestampEqTimestamptz, timestampGe, timestampGeDate, timestampGeTimestamptz, timestampGt, timestampGtDate, timestampGtTimestamptz, timestampHash, timestampHashExtended, timestampLarger, timestampLe, timestampLeDate, timestampLeTimestamptz, timestampLt, timestampLtDate, timestampLtTimestamptz, timestampMi, timestampMiInterval, timestampNe, timestampNeDate, timestampNeTimestamptz, timestampPlInterval, timestampSmaller, timestamptz, timestamptzCmp, timestamptzCmpDate, timestamptzCmpTimestamp, timestamptzEq, timestamptzEqDate, timestamptzEqTimestamp, timestamptzGe, timestamptzGeDate, timestamptzGeTimestamp, timestamptzGt, timestamptzGtDate, timestamptzGtTimestamp, timestamptzLarger, timestamptzLe, timestamptzLeDate, timestamptzLeTimestamp, timestamptzLt, timestamptzLtDate, timestamptzLtTimestamp, timestamptzMi, timestamptzMiInterval, timestamptzNe, timestamptzNeDate, timestamptzNeTimestamp, timestamptzPlInterval, timestamptzSmaller, timetz, timetzCmp, timetzEq, timetzGe, timetzGt, timetzHash, timetzHashExtended, timetzLarger, timetzLe, timetzLt, timetzMiInterval, timetzNe, timetzPlInterval, timetzSmaller, timetzdatePl, timezone, toAscii, toChar, toDate, toHex, toJson, toJsonb, toNumber, toOct, toRegclass, toRegcollation, toRegnamespace, toRegoper, toRegoperator, toRegproc, toRegprocedure, toRegrole, toRegtype, toRegtypemod, toTimestamp, toTsquery, toTsvector, transactionTimestamp, translate, trimArray, trimScale, trunc, tsDebug, tsDelete, tsFilter, tsHeadline, tsLexize, tsMatchQv, tsMatchTq, tsMatchTt, tsMatchVq, tsParse, tsRank, tsRankCd, tsRewrite, tsStat, tsTokenType, tsmultirange, tsqMcontained, tsqMcontains, tsqueryAnd, tsqueryCmp, tsqueryEq, tsqueryGe, tsqueryGt, tsqueryLe, tsqueryLt, tsqueryNe, tsqueryNot, tsqueryOr, tsqueryPhrase, tsrange, tsrangeSubdiff, tstzmultirange, tstzrange, tstzrangeSubdiff, tsvectorCmp, tsvectorConcat, tsvectorEq, tsvectorGe, tsvectorGt, tsvectorLe, tsvectorLt, tsvectorNe, tsvectorToArray, tsvectorUpdateTrigger, tsvectorUpdateTriggerColumn, txidCurrent, txidCurrentIfAssigned, txidCurrentSnapshot, txidSnapshotXip, txidSnapshotXmax, txidStatus, txidVisibleInSnapshot, unicodeAssigned, unicodeVersion, uniqueKeyRecheck, unistr, unnest, upper, upperInc, upperInf, uuidCmp, uuidEq, uuidExtractTimestamp, uuidExtractVersion, uuidGe, uuidGt, uuidHash, uuidHashExtended, uuidLe, uuidLt, uuidNe, values, varPop, varSamp, varbit, varbitcmp, varbiteq, varbitge, varbitgt, varbitle, varbitlt, varbitne, varchar, variance, version, websearchToTsquery, width, widthBucket, xid, xid8Cmp, xid8Eq, xid8Ge, xid8Gt, xid8Larger, xid8Le, xid8Lt, xid8Ne, xid8Smaller, xideq, xideqint4, xidneq, xidneqint4, xml, xmlIsWellFormed, xmlIsWellFormedContent, xmlIsWellFormedDocument, xmlagg, xmlcomment, xmlconcat2, xmlexists, xmltext, xmlvalidate, xpath, xpathExists };
+declare const db: {
+    person: {
+        rawFromExpr: RawTableReferenceExpression;
+        fromAlias: QueryAlias;
+        joinAliases: Record<string, QueryAlias>;
+        query: {
+            from: {
+                firstName: export_default$l<1>;
+                lastName: export_default$l<0>;
+                gender: export_default$l<1>;
+                id: export_default$10<1>;
+                createdAt: export_default$i<1>;
+            };
+        };
+        fromRow: RowLike;
+        insert<Q2 extends {
+            from: RowLike;
+            select: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T extends RowLike ? { [key in keyof T as (RowLike & ResultType<Q2>)[key] extends typeof Generated ? never : key]: (RowLike & ResultType<Q2>)[key]; } : never : never;
+        } | {
+            from: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T_1 extends RowLike ? { [key_1 in keyof T_1 as (RowLike & ResultType<Q2>)[key_1] extends typeof Generated ? never : key_1]: (RowLike & ResultType<Q2>)[key_1]; } : never : never;
+        }>(expr: Setof<Q2>): {
+            execute: (db: kysely.Kysely<any>) => Promise<{
+                firstName: string;
+                lastName: null;
+                gender: string;
+                id: number;
+                createdAt: string;
+            }[]>;
+        };
+        update<A extends {
+            where: (t: {
+                firstName: export_default$l<1>;
+                lastName: export_default$l<0>;
+                gender: export_default$l<1>;
+                id: export_default$10<1>;
+                createdAt: export_default$i<1>;
+            }) => export_default$1g<0 | 1>;
+            from?: ((t: {
+                firstName: export_default$l<1>;
+                lastName: export_default$l<0>;
+                gender: export_default$l<1>;
+                id: export_default$10<1>;
+                createdAt: export_default$i<1>;
+            }) => Setof<Query>) | undefined;
+        }>(arg: A): {
+            table: /*elided*/ any;
+            arg: A;
+            set(setCb: (t: {
+                firstName: export_default$l<1>;
+                lastName: export_default$l<0>;
+                gender: export_default$l<1>;
+                id: export_default$10<1>;
+                createdAt: export_default$i<1>;
+            }, ...f: A["from"] extends (t: {
+                firstName: export_default$l<1>;
+                lastName: export_default$l<0>;
+                gender: export_default$l<1>;
+                id: export_default$10<1>;
+                createdAt: export_default$i<1>;
+            }) => infer R ? R extends Setof<Query> ? SelectArgs<R["query"]> : [] : []) => Partial<{
+                firstName: export_default$l<1>;
+                lastName: export_default$l<0>;
+                gender: export_default$l<1>;
+                id: export_default$10<1>;
+                createdAt: export_default$i<1>;
+            }>): {
+                execute(db: kysely.Kysely<any>): Promise<{
+                    firstName: string;
+                    lastName: null;
+                    gender: string;
+                    id: number;
+                    createdAt: string;
+                }[]>;
+            };
+        };
+        toSelectArgs(): [Record$1<1, {
+            firstName: export_default$l<1>;
+            lastName: export_default$l<0>;
+            gender: export_default$l<1>;
+            id: export_default$10<1>;
+            createdAt: export_default$i<1>;
+        }> & {
+            firstName: export_default$l<1>;
+            lastName: export_default$l<0>;
+            gender: export_default$l<1>;
+            id: export_default$10<1>;
+            createdAt: export_default$i<1>;
+        }, {}];
+        select<S extends RowLikeRelaxed | ScalarRelaxed>(fn: (from_0: Record$1<1, {
+            firstName: export_default$l<1>;
+            lastName: export_default$l<0>;
+            gender: export_default$l<1>;
+            id: export_default$10<1>;
+            createdAt: export_default$i<1>;
+        }> & {
+            firstName: export_default$l<1>;
+            lastName: export_default$l<0>;
+            gender: export_default$l<1>;
+            id: export_default$10<1>;
+            createdAt: export_default$i<1>;
+        }, from_1: {}) => S): Setof<{
+            from: {
+                firstName: export_default$l<1>;
+                lastName: export_default$l<0>;
+                gender: export_default$l<1>;
+                id: export_default$10<1>;
+                createdAt: export_default$i<1>;
+            };
+        } & {
+            select: MaybePrimitiveToSqlType<S>;
+        }>;
+        where(fn: (from_0: Record$1<1, {
+            firstName: export_default$l<1>;
+            lastName: export_default$l<0>;
+            gender: export_default$l<1>;
+            id: export_default$10<1>;
+            createdAt: export_default$i<1>;
+        }> & {
+            firstName: export_default$l<1>;
+            lastName: export_default$l<0>;
+            gender: export_default$l<1>;
+            id: export_default$10<1>;
+            createdAt: export_default$i<1>;
+        }, from_1: {}) => export_default$1g<0 | 1> | boolean): Setof<{
+            from: {
+                firstName: export_default$l<1>;
+                lastName: export_default$l<0>;
+                gender: export_default$l<1>;
+                id: export_default$10<1>;
+                createdAt: export_default$i<1>;
+            };
+        } & {
+            wheres: [export_default$1g<0 | 1>, ...export_default$1g<0 | 1>[], export_default$1g<1> | export_default$1g<0 | 1>] | [export_default$1g<1> | export_default$1g<0 | 1>];
+        }>;
+        groupBy<G extends Any<unknown, 0 | 1>[]>(fn: (from: {
+            firstName: export_default$l<1>;
+            lastName: export_default$l<0>;
+            gender: export_default$l<1>;
+            id: export_default$10<1>;
+            createdAt: export_default$i<1>;
+        }) => G): Setof<{
+            from: {
+                firstName: export_default$l<1>;
+                lastName: export_default$l<0>;
+                gender: export_default$l<1>;
+                id: export_default$10<1>;
+                createdAt: export_default$i<1>;
+            };
+        } & {
+            groupBy: [...G];
+        }>;
+        joinTables(): {};
+        join<J extends Query, A extends string>(j: Setof<J>, as: A, on: (from: {
+            firstName: export_default$l<1>;
+            lastName: export_default$l<0>;
+            gender: export_default$l<1>;
+            id: export_default$10<1>;
+            createdAt: export_default$i<1>;
+        }, js: {} & { [a in A]: ResultType<J>; }) => export_default$1g<0 | 1> | boolean): Setof<{
+            from: {
+                firstName: export_default$l<1>;
+                lastName: export_default$l<0>;
+                gender: export_default$l<1>;
+                id: export_default$10<1>;
+                createdAt: export_default$i<1>;
+            };
+        } & {
+            joins: { [a in A]: {
+                table: Setof<J>;
+                on: export_default$1g<0 | 1>;
+                row: RowLike;
+            }; };
+        }>;
+        subquery(): Setof<{
+            from: {
+                firstName: export_default$l<1>;
+                lastName: export_default$l<0>;
+                gender: export_default$l<1>;
+                id: export_default$10<1>;
+                createdAt: export_default$i<1>;
+            };
+        }>;
+        tableColumnAlias(): kysely.RawBuilder<unknown>;
+        compile(ctxIn: Context): kysely.RawBuilder<unknown>;
+        debug(): /*elided*/ any;
+        execute(db: kysely.Kysely<any>): Promise<{
+            firstName: string;
+            lastName: null;
+            gender: string;
+            id: number;
+            createdAt: string;
+        }[]>;
+        scalar<S extends Scalar>(this: Setof<{
+            select: S;
+            from: Query["from"];
+        }>): S;
+    };
+    kysely_migration: {
+        rawFromExpr: RawTableReferenceExpression;
+        fromAlias: QueryAlias;
+        joinAliases: Record<string, QueryAlias>;
+        query: {
+            from: {
+                name: export_default$l<1>;
+                timestamp: export_default$l<1>;
+            };
+        };
+        fromRow: RowLike;
+        insert<Q2 extends {
+            from: RowLike;
+            select: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T extends RowLike ? { [key in keyof T as (RowLike & ResultType<Q2>)[key] extends typeof Generated ? never : key]: (RowLike & ResultType<Q2>)[key]; } : never : never;
+        } | {
+            from: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T_1 extends RowLike ? { [key_1 in keyof T_1 as (RowLike & ResultType<Q2>)[key_1] extends typeof Generated ? never : key_1]: (RowLike & ResultType<Q2>)[key_1]; } : never : never;
+        }>(expr: Setof<Q2>): {
+            execute: (db: kysely.Kysely<any>) => Promise<{
+                name: string;
+                timestamp: string;
+            }[]>;
+        };
+        update<A extends {
+            where: (t: {
+                name: export_default$l<1>;
+                timestamp: export_default$l<1>;
+            }) => export_default$1g<0 | 1>;
+            from?: ((t: {
+                name: export_default$l<1>;
+                timestamp: export_default$l<1>;
+            }) => Setof<Query>) | undefined;
+        }>(arg: A): {
+            table: /*elided*/ any;
+            arg: A;
+            set(setCb: (t: {
+                name: export_default$l<1>;
+                timestamp: export_default$l<1>;
+            }, ...f: A["from"] extends (t: {
+                name: export_default$l<1>;
+                timestamp: export_default$l<1>;
+            }) => infer R ? R extends Setof<Query> ? SelectArgs<R["query"]> : [] : []) => Partial<{
+                name: export_default$l<1>;
+                timestamp: export_default$l<1>;
+            }>): {
+                execute(db: kysely.Kysely<any>): Promise<{
+                    name: string;
+                    timestamp: string;
+                }[]>;
+            };
+        };
+        toSelectArgs(): [Record$1<1, {
+            name: export_default$l<1>;
+            timestamp: export_default$l<1>;
+        }> & {
+            name: export_default$l<1>;
+            timestamp: export_default$l<1>;
+        }, {}];
+        select<S extends RowLikeRelaxed | ScalarRelaxed>(fn: (from_0: Record$1<1, {
+            name: export_default$l<1>;
+            timestamp: export_default$l<1>;
+        }> & {
+            name: export_default$l<1>;
+            timestamp: export_default$l<1>;
+        }, from_1: {}) => S): Setof<{
+            from: {
+                name: export_default$l<1>;
+                timestamp: export_default$l<1>;
+            };
+        } & {
+            select: MaybePrimitiveToSqlType<S>;
+        }>;
+        where(fn: (from_0: Record$1<1, {
+            name: export_default$l<1>;
+            timestamp: export_default$l<1>;
+        }> & {
+            name: export_default$l<1>;
+            timestamp: export_default$l<1>;
+        }, from_1: {}) => export_default$1g<0 | 1> | boolean): Setof<{
+            from: {
+                name: export_default$l<1>;
+                timestamp: export_default$l<1>;
+            };
+        } & {
+            wheres: [export_default$1g<0 | 1>, ...export_default$1g<0 | 1>[], export_default$1g<1> | export_default$1g<0 | 1>] | [export_default$1g<1> | export_default$1g<0 | 1>];
+        }>;
+        groupBy<G extends Any<unknown, 0 | 1>[]>(fn: (from: {
+            name: export_default$l<1>;
+            timestamp: export_default$l<1>;
+        }) => G): Setof<{
+            from: {
+                name: export_default$l<1>;
+                timestamp: export_default$l<1>;
+            };
+        } & {
+            groupBy: [...G];
+        }>;
+        joinTables(): {};
+        join<J extends Query, A extends string>(j: Setof<J>, as: A, on: (from: {
+            name: export_default$l<1>;
+            timestamp: export_default$l<1>;
+        }, js: {} & { [a in A]: ResultType<J>; }) => export_default$1g<0 | 1> | boolean): Setof<{
+            from: {
+                name: export_default$l<1>;
+                timestamp: export_default$l<1>;
+            };
+        } & {
+            joins: { [a in A]: {
+                table: Setof<J>;
+                on: export_default$1g<0 | 1>;
+                row: RowLike;
+            }; };
+        }>;
+        subquery(): Setof<{
+            from: {
+                name: export_default$l<1>;
+                timestamp: export_default$l<1>;
+            };
+        }>;
+        tableColumnAlias(): kysely.RawBuilder<unknown>;
+        compile(ctxIn: Context): kysely.RawBuilder<unknown>;
+        debug(): /*elided*/ any;
+        execute(db: kysely.Kysely<any>): Promise<{
+            name: string;
+            timestamp: string;
+        }[]>;
+        scalar<S extends Scalar>(this: Setof<{
+            select: S;
+            from: Query["from"];
+        }>): S;
+    };
+    pet: {
+        rawFromExpr: RawTableReferenceExpression;
+        fromAlias: QueryAlias;
+        joinAliases: Record<string, QueryAlias>;
+        query: {
+            from: {
+                name: export_default$l<1>;
+                ownerId: export_default$10<1>;
+                species: export_default$l<1>;
+                age: export_default$10<1>;
+                id: export_default$10<1>;
+            };
+        };
+        fromRow: RowLike;
+        insert<Q2 extends {
+            from: RowLike;
+            select: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T extends RowLike ? { [key in keyof T as (RowLike & ResultType<Q2>)[key] extends typeof Generated ? never : key]: (RowLike & ResultType<Q2>)[key]; } : never : never;
+        } | {
+            from: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T_1 extends RowLike ? { [key_1 in keyof T_1 as (RowLike & ResultType<Q2>)[key_1] extends typeof Generated ? never : key_1]: (RowLike & ResultType<Q2>)[key_1]; } : never : never;
+        }>(expr: Setof<Q2>): {
+            execute: (db: kysely.Kysely<any>) => Promise<{
+                name: string;
+                ownerId: number;
+                species: string;
+                age: number;
+                id: number;
+            }[]>;
+        };
+        update<A extends {
+            where: (t: {
+                name: export_default$l<1>;
+                ownerId: export_default$10<1>;
+                species: export_default$l<1>;
+                age: export_default$10<1>;
+                id: export_default$10<1>;
+            }) => export_default$1g<0 | 1>;
+            from?: ((t: {
+                name: export_default$l<1>;
+                ownerId: export_default$10<1>;
+                species: export_default$l<1>;
+                age: export_default$10<1>;
+                id: export_default$10<1>;
+            }) => Setof<Query>) | undefined;
+        }>(arg: A): {
+            table: /*elided*/ any;
+            arg: A;
+            set(setCb: (t: {
+                name: export_default$l<1>;
+                ownerId: export_default$10<1>;
+                species: export_default$l<1>;
+                age: export_default$10<1>;
+                id: export_default$10<1>;
+            }, ...f: A["from"] extends (t: {
+                name: export_default$l<1>;
+                ownerId: export_default$10<1>;
+                species: export_default$l<1>;
+                age: export_default$10<1>;
+                id: export_default$10<1>;
+            }) => infer R ? R extends Setof<Query> ? SelectArgs<R["query"]> : [] : []) => Partial<{
+                name: export_default$l<1>;
+                ownerId: export_default$10<1>;
+                species: export_default$l<1>;
+                age: export_default$10<1>;
+                id: export_default$10<1>;
+            }>): {
+                execute(db: kysely.Kysely<any>): Promise<{
+                    name: string;
+                    ownerId: number;
+                    species: string;
+                    age: number;
+                    id: number;
+                }[]>;
+            };
+        };
+        toSelectArgs(): [Record$1<1, {
+            name: export_default$l<1>;
+            ownerId: export_default$10<1>;
+            species: export_default$l<1>;
+            age: export_default$10<1>;
+            id: export_default$10<1>;
+        }> & {
+            name: export_default$l<1>;
+            ownerId: export_default$10<1>;
+            species: export_default$l<1>;
+            age: export_default$10<1>;
+            id: export_default$10<1>;
+        }, {}];
+        select<S extends RowLikeRelaxed | ScalarRelaxed>(fn: (from_0: Record$1<1, {
+            name: export_default$l<1>;
+            ownerId: export_default$10<1>;
+            species: export_default$l<1>;
+            age: export_default$10<1>;
+            id: export_default$10<1>;
+        }> & {
+            name: export_default$l<1>;
+            ownerId: export_default$10<1>;
+            species: export_default$l<1>;
+            age: export_default$10<1>;
+            id: export_default$10<1>;
+        }, from_1: {}) => S): Setof<{
+            from: {
+                name: export_default$l<1>;
+                ownerId: export_default$10<1>;
+                species: export_default$l<1>;
+                age: export_default$10<1>;
+                id: export_default$10<1>;
+            };
+        } & {
+            select: MaybePrimitiveToSqlType<S>;
+        }>;
+        where(fn: (from_0: Record$1<1, {
+            name: export_default$l<1>;
+            ownerId: export_default$10<1>;
+            species: export_default$l<1>;
+            age: export_default$10<1>;
+            id: export_default$10<1>;
+        }> & {
+            name: export_default$l<1>;
+            ownerId: export_default$10<1>;
+            species: export_default$l<1>;
+            age: export_default$10<1>;
+            id: export_default$10<1>;
+        }, from_1: {}) => export_default$1g<0 | 1> | boolean): Setof<{
+            from: {
+                name: export_default$l<1>;
+                ownerId: export_default$10<1>;
+                species: export_default$l<1>;
+                age: export_default$10<1>;
+                id: export_default$10<1>;
+            };
+        } & {
+            wheres: [export_default$1g<0 | 1>, ...export_default$1g<0 | 1>[], export_default$1g<1> | export_default$1g<0 | 1>] | [export_default$1g<1> | export_default$1g<0 | 1>];
+        }>;
+        groupBy<G extends Any<unknown, 0 | 1>[]>(fn: (from: {
+            name: export_default$l<1>;
+            ownerId: export_default$10<1>;
+            species: export_default$l<1>;
+            age: export_default$10<1>;
+            id: export_default$10<1>;
+        }) => G): Setof<{
+            from: {
+                name: export_default$l<1>;
+                ownerId: export_default$10<1>;
+                species: export_default$l<1>;
+                age: export_default$10<1>;
+                id: export_default$10<1>;
+            };
+        } & {
+            groupBy: [...G];
+        }>;
+        joinTables(): {};
+        join<J extends Query, A extends string>(j: Setof<J>, as: A, on: (from: {
+            name: export_default$l<1>;
+            ownerId: export_default$10<1>;
+            species: export_default$l<1>;
+            age: export_default$10<1>;
+            id: export_default$10<1>;
+        }, js: {} & { [a in A]: ResultType<J>; }) => export_default$1g<0 | 1> | boolean): Setof<{
+            from: {
+                name: export_default$l<1>;
+                ownerId: export_default$10<1>;
+                species: export_default$l<1>;
+                age: export_default$10<1>;
+                id: export_default$10<1>;
+            };
+        } & {
+            joins: { [a in A]: {
+                table: Setof<J>;
+                on: export_default$1g<0 | 1>;
+                row: RowLike;
+            }; };
+        }>;
+        subquery(): Setof<{
+            from: {
+                name: export_default$l<1>;
+                ownerId: export_default$10<1>;
+                species: export_default$l<1>;
+                age: export_default$10<1>;
+                id: export_default$10<1>;
+            };
+        }>;
+        tableColumnAlias(): kysely.RawBuilder<unknown>;
+        compile(ctxIn: Context): kysely.RawBuilder<unknown>;
+        debug(): /*elided*/ any;
+        execute(db: kysely.Kysely<any>): Promise<{
+            name: string;
+            ownerId: number;
+            species: string;
+            age: number;
+            id: number;
+        }[]>;
+        scalar<S extends Scalar>(this: Setof<{
+            select: S;
+            from: Query["from"];
+        }>): S;
+    };
+    kysely_migration_lock: {
+        rawFromExpr: RawTableReferenceExpression;
+        fromAlias: QueryAlias;
+        joinAliases: Record<string, QueryAlias>;
+        query: {
+            from: {
+                id: export_default$l<1>;
+                is_locked: export_default$10<1>;
+            };
+        };
+        fromRow: RowLike;
+        insert<Q2 extends {
+            from: RowLike;
+            select: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T extends RowLike ? { [key in keyof T as (RowLike & ResultType<Q2>)[key] extends typeof Generated ? never : key]: (RowLike & ResultType<Q2>)[key]; } : never : never;
+        } | {
+            from: ResultType<Q2> extends RowLike ? RowLike & ResultType<Q2> extends infer T_1 extends RowLike ? { [key_1 in keyof T_1 as (RowLike & ResultType<Q2>)[key_1] extends typeof Generated ? never : key_1]: (RowLike & ResultType<Q2>)[key_1]; } : never : never;
+        }>(expr: Setof<Q2>): {
+            execute: (db: kysely.Kysely<any>) => Promise<{
+                id: string;
+                is_locked: number;
+            }[]>;
+        };
+        update<A extends {
+            where: (t: {
+                id: export_default$l<1>;
+                is_locked: export_default$10<1>;
+            }) => export_default$1g<0 | 1>;
+            from?: ((t: {
+                id: export_default$l<1>;
+                is_locked: export_default$10<1>;
+            }) => Setof<Query>) | undefined;
+        }>(arg: A): {
+            table: /*elided*/ any;
+            arg: A;
+            set(setCb: (t: {
+                id: export_default$l<1>;
+                is_locked: export_default$10<1>;
+            }, ...f: A["from"] extends (t: {
+                id: export_default$l<1>;
+                is_locked: export_default$10<1>;
+            }) => infer R ? R extends Setof<Query> ? SelectArgs<R["query"]> : [] : []) => Partial<{
+                id: export_default$l<1>;
+                is_locked: export_default$10<1>;
+            }>): {
+                execute(db: kysely.Kysely<any>): Promise<{
+                    id: string;
+                    is_locked: number;
+                }[]>;
+            };
+        };
+        toSelectArgs(): [Record$1<1, {
+            id: export_default$l<1>;
+            is_locked: export_default$10<1>;
+        }> & {
+            id: export_default$l<1>;
+            is_locked: export_default$10<1>;
+        }, {}];
+        select<S extends RowLikeRelaxed | ScalarRelaxed>(fn: (from_0: Record$1<1, {
+            id: export_default$l<1>;
+            is_locked: export_default$10<1>;
+        }> & {
+            id: export_default$l<1>;
+            is_locked: export_default$10<1>;
+        }, from_1: {}) => S): Setof<{
+            from: {
+                id: export_default$l<1>;
+                is_locked: export_default$10<1>;
+            };
+        } & {
+            select: MaybePrimitiveToSqlType<S>;
+        }>;
+        where(fn: (from_0: Record$1<1, {
+            id: export_default$l<1>;
+            is_locked: export_default$10<1>;
+        }> & {
+            id: export_default$l<1>;
+            is_locked: export_default$10<1>;
+        }, from_1: {}) => export_default$1g<0 | 1> | boolean): Setof<{
+            from: {
+                id: export_default$l<1>;
+                is_locked: export_default$10<1>;
+            };
+        } & {
+            wheres: [export_default$1g<0 | 1>, ...export_default$1g<0 | 1>[], export_default$1g<1> | export_default$1g<0 | 1>] | [export_default$1g<1> | export_default$1g<0 | 1>];
+        }>;
+        groupBy<G extends Any<unknown, 0 | 1>[]>(fn: (from: {
+            id: export_default$l<1>;
+            is_locked: export_default$10<1>;
+        }) => G): Setof<{
+            from: {
+                id: export_default$l<1>;
+                is_locked: export_default$10<1>;
+            };
+        } & {
+            groupBy: [...G];
+        }>;
+        joinTables(): {};
+        join<J extends Query, A extends string>(j: Setof<J>, as: A, on: (from: {
+            id: export_default$l<1>;
+            is_locked: export_default$10<1>;
+        }, js: {} & { [a in A]: ResultType<J>; }) => export_default$1g<0 | 1> | boolean): Setof<{
+            from: {
+                id: export_default$l<1>;
+                is_locked: export_default$10<1>;
+            };
+        } & {
+            joins: { [a in A]: {
+                table: Setof<J>;
+                on: export_default$1g<0 | 1>;
+                row: RowLike;
+            }; };
+        }>;
+        subquery(): Setof<{
+            from: {
+                id: export_default$l<1>;
+                is_locked: export_default$10<1>;
+            };
+        }>;
+        tableColumnAlias(): kysely.RawBuilder<unknown>;
+        compile(ctxIn: Context): kysely.RawBuilder<unknown>;
+        debug(): /*elided*/ any;
+        execute(db: kysely.Kysely<any>): Promise<{
+            id: string;
+            is_locked: number;
+        }[]>;
+        scalar<S extends Scalar>(this: Setof<{
+            select: S;
+            from: Query["from"];
+        }>): S;
+    };
+};
+
+export { export_default$1m as Aclitem, Any, export_default$1l as Anyenum, export_default$1k as Anymultirange, export_default$1j as Anynonarray, export_default$1i as Anyrange, Array, BinaryOperatorExpression, export_default$1h as Bit, export_default$1g as Bool, export_default$1f as Box, export_default$1e as Bpchar, export_default$1d as Bytea, export_default$1c as Char, export_default$1b as Cid, export_default$1a as Cidr, export_default$19 as Circle, ColumnAliasExpression, Context, export_default$18 as Date, export_default$17 as Datemultirange, export_default$16 as Daterange, Expression, export_default$15 as Float4, export_default$14 as Float8, FunctionExpression, Generated, export_default$13 as Inet, export_default$12 as Int2, export_default$11 as Int2Vector, export_default$10 as Int4, export_default$$ as Int4Multirange, export_default$_ as Int4Range, export_default$Z as Int8, export_default$Y as Int8Multirange, export_default$X as Int8Range, export_default$W as Interval, export_default$V as Json, export_default$U as Jsonb, export_default$T as Jsonpath, export_default$S as LanguageHandler, export_default$R as Line, LiteralExpression, LiteralUnknownExpression, export_default$Q as Lseg, export_default$P as Macaddr, export_default$O as Macaddr8, export_default$N as Money, export_default$M as Name, export_default$L as Numeric, export_default$K as Nummultirange, export_default$J as Numrange, export_default$I as Oid, export_default$H as Oidvector, export_default$G as Path, export_default$F as PgDdlCommand, export_default$E as PgLsn, export_default$D as PgMcvList, export_default$C as PgNodeTree, export_default$B as PgSnapshot, export_default$A as Point, export_default$z as Polygon, QueryAlias, RawTableReferenceExpression, Record$1 as Record, export_default$x as Refcursor, export_default$w as Regclass, export_default$v as Regcollation, export_default$u as Regconfig, export_default$t as Regdictionary, export_default$s as Regnamespace, export_default$r as Regoper, export_default$q as Regoperator, export_default$p as Regproc, export_default$o as Regprocedure, export_default$n as Regrole, export_default$m as Regtype, SelectableExpression, SelectableFunctionExpression, Setof, SubqueryExpression, TableReferenceExpression, export_default$l as Text, export_default$k as Tid, export_default$j as Time, export_default$i as Timestamp, export_default$h as Timestamptz, export_default$g as Timetz, export_default$f as Trigger, export_default$e as Tsmultirange, export_default$d as Tsquery, export_default$c as Tsrange, export_default$b as Tstzmultirange, export_default$a as Tstzrange, export_default$9 as Tsvector, export_default$8 as TxidSnapshot, export_default$7 as Uuid, ValuesExpression, export_default$6 as Varbit, export_default$5 as Varchar, export_default$4 as Void, export_default$3 as Xid, export_default$2 as Xid8, export_default$1 as Xml, abbrev, abs, aclcontains, acldefault, aclexplode, aclinsert, aclitemeq, aclremove, acos, acosd, acosh, age, aliasRowLike, aliasScalar, amvalidate, anyValue, anyValueTransfn, anytextcat, area, arrayAgg, arrayAppend, arrayCat, arrayDims, arrayEq, arrayFill, arrayGe, arrayGt, arrayLarger, arrayLe, arrayLength, arrayLower, arrayLt, arrayNdims, arrayNe, arrayPosition, arrayPositions, arrayPrepend, arrayRemove, arrayReplace, arraySample, arrayShuffle, arraySmaller, arrayToJson, arrayToString, arrayToTsvector, arrayUpper, arraycontained, arraycontains, arrayoverlap, ascii, asind, asinh, atan, atan2, atan2D, atand, atanh, avg, binaryUpgradeAddSubRelState, binaryUpgradeCreateEmptyExtension, binaryUpgradeLogicalSlotHasCaughtUp, binaryUpgradeReploriginAdvance, binaryUpgradeSetMissingValue, binaryUpgradeSetNextArrayPgTypeOid, binaryUpgradeSetNextHeapPgClassOid, binaryUpgradeSetNextHeapRelfilenode, binaryUpgradeSetNextIndexPgClassOid, binaryUpgradeSetNextIndexRelfilenode, binaryUpgradeSetNextMultirangeArrayPgTypeOid, binaryUpgradeSetNextMultirangePgTypeOid, binaryUpgradeSetNextPgAuthidOid, binaryUpgradeSetNextPgEnumOid, binaryUpgradeSetNextPgTablespaceOid, binaryUpgradeSetNextPgTypeOid, binaryUpgradeSetNextToastPgClassOid, binaryUpgradeSetNextToastRelfilenode, binaryUpgradeSetRecordInitPrivs, bit, bitAnd, bitCount, bitLength, bitOr, bitXor, bitand, bitcat, bitcmp, biteq, bitge, bitgt, bitle, bitlt, bitne, bitnot, bitor, bitshiftleft, bitshiftright, bitxor, bool, boolAnd, boolOr, boolandStatefunc, booleq, boolge, boolgt, boolle, boollt, boolne, boolorStatefunc, boundBox, box, boxAbove, boxAboveEq, boxAdd, boxBelow, boxBelowEq, boxCenter, boxContainPt, boxContained, boxDistance, boxDiv, boxEq, boxGe, boxGt, boxIntersect, boxLe, boxLeft, boxLt, boxMul, boxOverabove, boxOverbelow, boxOverlap, boxOverleft, boxOverright, boxRight, boxSame, boxSub, bpchar, bpcharLarger, bpcharPatternGe, bpcharPatternGt, bpcharPatternLe, bpcharPatternLt, bpcharSmaller, bpcharcmp, bpchareq, bpcharge, bpchargt, bpchariclike, bpcharicnlike, bpcharicregexeq, bpcharicregexne, bpcharle, bpcharlike, bpcharlt, bpcharne, bpcharnlike, bpcharregexeq, bpcharregexne, brinDesummarizeRange, brinSummarizeNewValues, brinSummarizeRange, broadcast, btarraycmp, btboolcmp, btbpcharPatternCmp, btcharcmp, btequalimage, btfloat48Cmp, btfloat4Cmp, btfloat84Cmp, btfloat8Cmp, btint24Cmp, btint28Cmp, btint2Cmp, btint42Cmp, btint48Cmp, btint4Cmp, btint82Cmp, btint84Cmp, btint8Cmp, btnamecmp, btnametextcmp, btoidcmp, btoidvectorcmp, btrecordcmp, btrecordimagecmp, btrim, bttextPatternCmp, bttextcmp, bttextnamecmp, bttidcmp, btvarstrequalimage, byteacat, byteacmp, byteaeq, byteage, byteagt, byteale, bytealike, bytealt, byteane, byteanlike, cardinality, cashCmp, cashDivCash, cashDivFlt4, cashDivFlt8, cashDivInt2, cashDivInt4, cashDivInt8, cashEq, cashGe, cashGt, cashLe, cashLt, cashMi, cashMulFlt4, cashMulFlt8, cashMulInt2, cashMulInt4, cashMulInt8, cashNe, cashPl, cashWords, cashlarger, cashsmaller, cbrt, ceil, ceiling, center, char, charLength, characterLength, chareq, charge, chargt, charle, charlt, charne, chr, cideq, cidr, circle, circleAbove, circleAddPt, circleBelow, circleCenter, circleContainPt, circleContained, circleDistance, circleDivPt, circleEq, circleGe, circleGt, circleLe, circleLeft, circleLt, circleMulPt, circleNe, circleOverabove, circleOverbelow, circleOverlap, circleOverleft, circleOverright, circleRight, circleSame, circleSubPt, clockTimestamp, closeLs, closeLseg, closePb, closePl, closePs, closeSb, colDescription, concat, concatWs, convert, convertFrom, convertTo, corr, cos, cosd, cosh, cot, cotd, count, covarPop, covarSamp, cumeDist, currentDatabase, currentQuery, currentSchema, currentSchemas, currentSetting, currentUser, currtid2, currval, cursorToXml, cursorToXmlschema, database, databaseToXml, databaseToXmlAndXmlschema, databaseToXmlschema, date, dateAdd, dateCmp, dateCmpTimestamp, dateCmpTimestamptz, dateEq, dateEqTimestamp, dateEqTimestamptz, dateGe, dateGeTimestamp, dateGeTimestamptz, dateGt, dateGtTimestamp, dateGtTimestamptz, dateLarger, dateLe, dateLeTimestamp, dateLeTimestamptz, dateLt, dateLtTimestamp, dateLtTimestamptz, dateMi, dateMiInterval, dateMii, dateNe, dateNeTimestamp, dateNeTimestamptz, datePart, datePlInterval, datePli, dateSmaller, dateSubtract, dateTrunc, datemultirange, daterange, daterangeCanonical, daterangeSubdiff, datetimePl, datetimetzPl, db, dcbrt, decode, degrees, denseRank, dexp, diagonal, diameter, distBp, distBs, distCpoint, distCpoly, distLp, distLs, distPathp, distPb, distPc, distPl, distPolyc, distPolyp, distPpath, distPpoly, distPs, distSb, distSl, distSp, div, dlog1, dlog10, dpow, dround, dsqrt, dtrunc, elemContainedByMultirange, elemContainedByRange, encode, enumCmp, enumEq, enumFirst, enumGe, enumGt, enumLarger, enumLast, enumLe, enumLt, enumNe, enumRange, enumSmaller, erf, erfc, every, exp, extract, factorial, family, firstValue, float4, float48Div, float48Eq, float48Ge, float48Gt, float48Le, float48Lt, float48Mi, float48Mul, float48Ne, float48Pl, float4Abs, float4Accum, float4Div, float4Eq, float4Ge, float4Gt, float4Larger, float4Le, float4Lt, float4Mi, float4Mul, float4Ne, float4Pl, float4Smaller, float4Um, float4Up, float8, float84Div, float84Eq, float84Ge, float84Gt, float84Le, float84Lt, float84Mi, float84Mul, float84Ne, float84Pl, float8Abs, float8Accum, float8Avg, float8Combine, float8Corr, float8CovarPop, float8CovarSamp, float8Div, float8Eq, float8Ge, float8Gt, float8Larger, float8Le, float8Lt, float8Mi, float8Mul, float8Ne, float8Pl, float8RegrAccum, float8RegrAvgx, float8RegrAvgy, float8RegrCombine, float8RegrIntercept, float8RegrR2, float8RegrSlope, float8RegrSxx, float8RegrSxy, float8RegrSyy, float8Smaller, float8StddevPop, float8StddevSamp, float8Um, float8Up, float8VarPop, float8VarSamp, floor, flt4MulCash, flt8MulCash, fmgrCValidator, fmgrInternalValidator, fmgrSqlValidator, format, formatType, gcd, genRandomUuid, generateSeries, generateSubscripts, getBit, getByte, getCurrentTsConfig, getdatabaseencoding, getpgusername, ginCleanPendingList, ginCmpTslexeme, ginCompareJsonb, hasAnyColumnPrivilege, hasColumnPrivilege, hasDatabasePrivilege, hasForeignDataWrapperPrivilege, hasFunctionPrivilege, hasLanguagePrivilege, hasParameterPrivilege, hasSchemaPrivilege, hasSequencePrivilege, hasServerPrivilege, hasTablePrivilege, hasTablespacePrivilege, hasTypePrivilege, hashAclitem, hashAclitemExtended, hashArray, hashArrayExtended, hashMultirange, hashMultirangeExtended, hashNumeric, hashNumericExtended, hashRange, hashRangeExtended, hashRecord, hashRecordExtended, hashbpchar, hashbpcharextended, hashchar, hashcharextended, hashenum, hashenumextended, hashfloat4, hashfloat4Extended, hashfloat8, hashfloat8Extended, hashinet, hashinetextended, hashint2, hashint2Extended, hashint4, hashint4Extended, hashint8, hashint8Extended, hashmacaddr, hashmacaddr8, hashmacaddr8Extended, hashmacaddrextended, hashname, hashnameextended, hashoid, hashoidextended, hashoidvector, hashoidvectorextended, hashtext, hashtextextended, hashtid, hashtidextended, height, host, hostmask, icuUnicodeVersion, inRange, inetClientAddr, inetClientPort, inetMerge, inetSameFamily, inetServerAddr, inetServerPort, inetand, inetmi, inetmiInt8, inetnot, inetor, inetpl, initcap, int2, int24Div, int24Eq, int24Ge, int24Gt, int24Le, int24Lt, int24Mi, int24Mul, int24Ne, int24Pl, int28Div, int28Eq, int28Ge, int28Gt, int28Le, int28Lt, int28Mi, int28Mul, int28Ne, int28Pl, int2Abs, int2And, int2AvgAccum, int2AvgAccumInv, int2Div, int2Eq, int2Ge, int2Gt, int2Int4Sum, int2Larger, int2Le, int2Lt, int2Mi, int2Mod, int2Mul, int2MulCash, int2Ne, int2Not, int2Or, int2Pl, int2Shl, int2Shr, int2Smaller, int2Sum, int2Um, int2Up, int2Xor, int4, int42Div, int42Eq, int42Ge, int42Gt, int42Le, int42Lt, int42Mi, int42Mul, int42Ne, int42Pl, int48Div, int48Eq, int48Ge, int48Gt, int48Le, int48Lt, int48Mi, int48Mul, int48Ne, int48Pl, int4Abs, int4And, int4AvgAccum, int4AvgAccumInv, int4AvgCombine, int4Div, int4Eq, int4Ge, int4Gt, int4Inc, int4Larger, int4Le, int4Lt, int4Mi, int4Mod, int4Mul, int4MulCash, int4Multirange, int4Ne, int4Not, int4Or, int4Pl, int4Range, int4RangeCanonical, int4RangeSubdiff, int4Shl, int4Shr, int4Smaller, int4Sum, int4Um, int4Up, int4Xor, int8, int82Div, int82Eq, int82Ge, int82Gt, int82Le, int82Lt, int82Mi, int82Mul, int82Ne, int82Pl, int84Div, int84Eq, int84Ge, int84Gt, int84Le, int84Lt, int84Mi, int84Mul, int84Ne, int84Pl, int8Abs, int8And, int8Avg, int8Dec, int8DecAny, int8Div, int8Eq, int8Ge, int8Gt, int8Inc, int8IncAny, int8IncFloat8Float8, int8Larger, int8Le, int8Lt, int8Mi, int8Mod, int8Mul, int8MulCash, int8Multirange, int8Ne, int8Not, int8Or, int8Pl, int8PlInet, int8Range, int8RangeCanonical, int8RangeSubdiff, int8Shl, int8Shr, int8Smaller, int8Sum, int8Um, int8Up, int8Xor, integerPlDate, interLb, interSb, interSl, interval, intervalCmp, intervalDiv, intervalEq, intervalGe, intervalGt, intervalHash, intervalHashExtended, intervalLarger, intervalLe, intervalLt, intervalMi, intervalMul, intervalNe, intervalPl, intervalPlDate, intervalPlTime, intervalPlTimestamp, intervalPlTimestamptz, intervalPlTimetz, intervalSmaller, intervalUm, isNormalized, isScalar, isScalarRelaxed, isclosed, isempty, isfinite, ishorizontal, isopen, isparallel, isperp, isvertical, jsonAgg, jsonAggStrict, jsonArrayElement, jsonArrayElementText, jsonArrayElements, jsonArrayElementsText, jsonArrayLength, jsonBuildArray, jsonBuildObject, jsonEach, jsonEachText, jsonExtractPath, jsonExtractPathText, jsonObject, jsonObjectAgg, jsonObjectAggStrict, jsonObjectAggUnique, jsonObjectAggUniqueStrict, jsonObjectField, jsonObjectFieldText, jsonObjectKeys, jsonPopulateRecord, jsonPopulateRecordset, jsonStripNulls, jsonToRecord, jsonToRecordset, jsonToTsvector, jsonTypeof, jsonbAgg, jsonbAggStrict, jsonbArrayElement, jsonbArrayElementText, jsonbArrayElements, jsonbArrayElementsText, jsonbArrayLength, jsonbBuildArray, jsonbBuildObject, jsonbCmp, jsonbConcat, jsonbContained, jsonbContains, jsonbDelete, jsonbDeletePath, jsonbEach, jsonbEachText, jsonbEq, jsonbExists, jsonbExistsAll, jsonbExistsAny, jsonbExtractPath, jsonbExtractPathText, jsonbGe, jsonbGt, jsonbHash, jsonbHashExtended, jsonbInsert, jsonbLe, jsonbLt, jsonbNe, jsonbObject, jsonbObjectAgg, jsonbObjectAggStrict, jsonbObjectAggUnique, jsonbObjectAggUniqueStrict, jsonbObjectField, jsonbObjectFieldText, jsonbObjectKeys, jsonbPathExists, jsonbPathExistsOpr, jsonbPathExistsTz, jsonbPathMatch, jsonbPathMatchOpr, jsonbPathMatchTz, jsonbPathQuery, jsonbPathQueryArray, jsonbPathQueryArrayTz, jsonbPathQueryFirst, jsonbPathQueryFirstTz, jsonbPathQueryTz, jsonbPopulateRecord, jsonbPopulateRecordValid, jsonbPopulateRecordset, jsonbPretty, jsonbSet, jsonbSetLax, jsonbStripNulls, jsonbToRecord, jsonbToRecordset, jsonbToTsvector, jsonbTypeof, justifyDays, justifyHours, justifyInterval, lag, lastValue, lastval, lcm, lead, left, length, like, likeEscape, line, lineDistance, lineEq, lineHorizontal, lineInterpt, lineIntersect, lineParallel, linePerp, lineVertical, ln, loClose, loCreat, loCreate, loExport, loFromBytea, loGet, loImport, loLseek, loLseek64, loOpen, loPut, loTell, loTell64, loTruncate, loTruncate64, loUnlink, log, log10, loread, lower, lowerInc, lowerInf, lowrite, lpad, lseg, lsegCenter, lsegDistance, lsegEq, lsegGe, lsegGt, lsegHorizontal, lsegInterpt, lsegIntersect, lsegLe, lsegLength, lsegLt, lsegNe, lsegParallel, lsegPerp, lsegVertical, ltrim, macaddr, macaddr8, macaddr8And, macaddr8Cmp, macaddr8Eq, macaddr8Ge, macaddr8Gt, macaddr8Le, macaddr8Lt, macaddr8Ne, macaddr8Not, macaddr8Or, macaddr8Set7Bit, macaddrAnd, macaddrCmp, macaddrEq, macaddrGe, macaddrGt, macaddrLe, macaddrLt, macaddrNe, macaddrNot, macaddrOr, makeDate, makeInterval, makeTime, makeTimestamp, makeTimestamptz, makeaclitem, masklen, max, md5, minScale, mod, mode, money, mulDInterval, multirange, multirangeAdjacentMultirange, multirangeAdjacentRange, multirangeAfterMultirange, multirangeAfterRange, multirangeBeforeMultirange, multirangeBeforeRange, multirangeCmp, multirangeContainedByMultirange, multirangeContainedByRange, multirangeContainsElem, multirangeContainsMultirange, multirangeContainsRange, multirangeEq, multirangeGe, multirangeGt, multirangeIntersect, multirangeIntersectAggTransfn, multirangeLe, multirangeLt, multirangeMinus, multirangeNe, multirangeOverlapsMultirange, multirangeOverlapsRange, multirangeOverleftMultirange, multirangeOverleftRange, multirangeOverrightMultirange, multirangeOverrightRange, multirangeUnion, mxidAge, name, nameconcatoid, nameeq, nameeqtext, namege, namegetext, namegt, namegttext, nameiclike, nameicnlike, nameicregexeq, nameicregexne, namele, nameletext, namelike, namelt, namelttext, namene, namenetext, namenlike, nameregexeq, nameregexne, netmask, network, networkCmp, networkEq, networkGe, networkGt, networkLarger, networkLe, networkLt, networkNe, networkOverlap, networkSmaller, networkSub, networkSubeq, networkSup, networkSupeq, nextval, normalize, notlike, now, npoints, nthValue, ntile, numNonnulls, numNulls, numeric, numericAbs, numericAdd, numericCmp, numericDiv, numericDivTrunc, numericEq, numericExp, numericGe, numericGt, numericInc, numericLarger, numericLe, numericLn, numericLog, numericLt, numericMod, numericMul, numericNe, numericPlPgLsn, numericPower, numericSmaller, numericSqrt, numericSub, numericUminus, numericUplus, nummultirange, numnode, numrange, numrangeSubdiff, objDescription, octetLength, oid, oideq, oidge, oidgt, oidlarger, oidle, oidlt, oidne, oidsmaller, oidvectoreq, oidvectorge, oidvectorgt, oidvectorle, oidvectorlt, oidvectorne, oidvectortypes, onPb, onPl, onPpath, onPs, onSb, onSl, overlaps, overlay, parseIdent, path, pathAdd, pathAddPt, pathContainPt, pathDistance, pathDivPt, pathInter, pathLength, pathMulPt, pathNEq, pathNGe, pathNGt, pathNLe, pathNLt, pathNpoints, pathSubPt, pclose, percentRank, percentileCont, percentileDisc, pgAdvisoryLock, pgAdvisoryLockShared, pgAdvisoryUnlock, pgAdvisoryUnlockAll, pgAdvisoryUnlockShared, pgAdvisoryXactLock, pgAdvisoryXactLockShared, pgAvailableExtensionVersions, pgAvailableExtensions, pgAvailableWalSummaries, pgBackendPid, pgBackupStart, pgBackupStop, pgBasetype, pgBlockingPids, pgCancelBackend, pgCharToEncoding, pgClientEncoding, pgCollationActualVersion, pgCollationFor, pgCollationIsVisible, pgColumnCompression, pgColumnIsUpdatable, pgColumnSize, pgColumnToastChunkId, pgConfLoadTime, pgConfig, pgControlCheckpoint, pgControlInit, pgControlRecovery, pgControlSystem, pgConversionIsVisible, pgCopyLogicalReplicationSlot, pgCopyPhysicalReplicationSlot, pgCreateLogicalReplicationSlot, pgCreatePhysicalReplicationSlot, pgCreateRestorePoint, pgCurrentLogfile, pgCurrentSnapshot, pgCurrentWalFlushLsn, pgCurrentWalInsertLsn, pgCurrentWalLsn, pgCurrentXactId, pgCurrentXactIdIfAssigned, pgCursor, pgDatabaseCollationActualVersion, pgDatabaseSize, pgDescribeObject, pgDropReplicationSlot, pgEncodingMaxLength, pgEncodingToChar, pgEventTriggerDdlCommands, pgEventTriggerDroppedObjects, pgEventTriggerTableRewriteOid, pgEventTriggerTableRewriteReason, pgExportSnapshot, pgExtensionConfigDump, pgExtensionUpdatePaths, pgFilenodeRelation, pgFunctionIsVisible, pgGetBackendMemoryContexts, pgGetCatalogForeignKeys, pgGetConstraintdef, pgGetExpr, pgGetFunctionArgDefault, pgGetFunctionArguments, pgGetFunctionIdentityArguments, pgGetFunctionResult, pgGetFunctionSqlbody, pgGetFunctiondef, pgGetIndexdef, pgGetKeywords, pgGetMultixactMembers, pgGetObjectAddress, pgGetPartitionConstraintdef, pgGetPartkeydef, pgGetPublicationTables, pgGetReplicaIdentityIndex, pgGetReplicationSlots, pgGetRuledef, pgGetSerialSequence, pgGetShmemAllocations, pgGetStatisticsobjdef, pgGetStatisticsobjdefColumns, pgGetStatisticsobjdefExpressions, pgGetTriggerdef, pgGetUserbyid, pgGetViewdef, pgGetWaitEvents, pgGetWalReplayPauseState, pgGetWalResourceManagers, pgGetWalSummarizerState, pgHasRole, pgHbaFileRules, pgIdentFileMappings, pgIdentifyObject, pgIdentifyObjectAsAddress, pgImportSystemCollations, pgIndexColumnHasProperty, pgIndexHasProperty, pgIndexamHasProperty, pgIndexamProgressPhasename, pgIndexesSize, pgInputErrorInfo, pgInputIsValid, pgIsInRecovery, pgIsOtherTempSchema, pgIsWalReplayPaused, pgIsolationTestSessionIsBlocked, pgJitAvailable, pgLastCommittedXact, pgLastWalReceiveLsn, pgLastWalReplayLsn, pgLastXactReplayTimestamp, pgListeningChannels, pgLockStatus, pgLogBackendMemoryContexts, pgLogStandbySnapshot, pgLogicalEmitMessage, pgLogicalSlotGetBinaryChanges, pgLogicalSlotGetChanges, pgLogicalSlotPeekBinaryChanges, pgLogicalSlotPeekChanges, pgLsArchiveStatusdir, pgLsDir, pgLsLogdir, pgLsLogicalmapdir, pgLsLogicalsnapdir, pgLsReplslotdir, pgLsTmpdir, pgLsWaldir, pgLsn, pgLsnCmp, pgLsnEq, pgLsnGe, pgLsnGt, pgLsnHash, pgLsnHashExtended, pgLsnLarger, pgLsnLe, pgLsnLt, pgLsnMi, pgLsnMii, pgLsnNe, pgLsnPli, pgLsnSmaller, pgMcvListItems, pgMyTempSchema, pgNextoid, pgNotificationQueueUsage, pgNotify, pgOpclassIsVisible, pgOperatorIsVisible, pgOpfamilyIsVisible, pgOptionsToTable, pgPartitionAncestors, pgPartitionRoot, pgPartitionTree, pgPostmasterStartTime, pgPreparedStatement, pgPreparedXact, pgPromote, pgReadBinaryFile, pgReadFile, pgRelationFilenode, pgRelationFilepath, pgRelationIsPublishable, pgRelationIsUpdatable, pgRelationSize, pgReloadConf, pgReplicationOriginAdvance, pgReplicationOriginCreate, pgReplicationOriginDrop, pgReplicationOriginOid, pgReplicationOriginProgress, pgReplicationOriginSessionIsSetup, pgReplicationOriginSessionProgress, pgReplicationOriginSessionReset, pgReplicationOriginSessionSetup, pgReplicationOriginXactReset, pgReplicationOriginXactSetup, pgReplicationSlotAdvance, pgRotateLogfile, pgSafeSnapshotBlockingPids, pgSequenceLastValue, pgSequenceParameters, pgSettingsGetFlags, pgShowAllFileSettings, pgShowAllSettings, pgShowReplicationOriginStatus, pgSizeBytes, pgSizePretty, pgSleep, pgSleepFor, pgSleepUntil, pgSnapshotXip, pgSnapshotXmax, pgSplitWalfileName, pgStatClearSnapshot, pgStatFile, pgStatForceNextFlush, pgStatGetActivity, pgStatGetAnalyzeCount, pgStatGetArchiver, pgStatGetAutoanalyzeCount, pgStatGetAutovacuumCount, pgStatGetBackendActivity, pgStatGetBackendActivityStart, pgStatGetBackendClientAddr, pgStatGetBackendClientPort, pgStatGetBackendDbid, pgStatGetBackendIdset, pgStatGetBackendPid, pgStatGetBackendStart, pgStatGetBackendSubxact, pgStatGetBackendUserid, pgStatGetBackendWaitEvent, pgStatGetBackendWaitEventType, pgStatGetBackendXactStart, pgStatGetBgwriterBufWrittenClean, pgStatGetBgwriterMaxwrittenClean, pgStatGetBgwriterStatResetTime, pgStatGetBlocksFetched, pgStatGetBlocksHit, pgStatGetBufAlloc, pgStatGetCheckpointerBuffersWritten, pgStatGetCheckpointerNumRequested, pgStatGetCheckpointerNumTimed, pgStatGetCheckpointerRestartpointsPerformed, pgStatGetCheckpointerRestartpointsRequested, pgStatGetCheckpointerRestartpointsTimed, pgStatGetCheckpointerStatResetTime, pgStatGetCheckpointerSyncTime, pgStatGetCheckpointerWriteTime, pgStatGetDbActiveTime, pgStatGetDbBlkReadTime, pgStatGetDbBlkWriteTime, pgStatGetDbBlocksFetched, pgStatGetDbBlocksHit, pgStatGetDbChecksumFailures, pgStatGetDbChecksumLastFailure, pgStatGetDbConflictAll, pgStatGetDbConflictLock, pgStatGetDbConflictLogicalslot, pgStatGetDbConflictSnapshot, pgStatGetDbConflictStartupDeadlock, pgStatGetDbConflictTablespace, pgStatGetDbDeadlocks, pgStatGetDbIdleInTransactionTime, pgStatGetDbNumbackends, pgStatGetDbSessionTime, pgStatGetDbSessions, pgStatGetDbSessionsAbandoned, pgStatGetDbSessionsFatal, pgStatGetDbSessionsKilled, pgStatGetDbStatResetTime, pgStatGetDbTempBytes, pgStatGetDbTempFiles, pgStatGetDbTuplesDeleted, pgStatGetDbTuplesFetched, pgStatGetDbTuplesInserted, pgStatGetDbTuplesReturned, pgStatGetDbTuplesUpdated, pgStatGetDbXactCommit, pgStatGetDbXactRollback, pgStatGetDeadTuples, pgStatGetFunctionCalls, pgStatGetFunctionSelfTime, pgStatGetFunctionTotalTime, pgStatGetInsSinceVacuum, pgStatGetIo, pgStatGetLastAnalyzeTime, pgStatGetLastAutoanalyzeTime, pgStatGetLastAutovacuumTime, pgStatGetLastVacuumTime, pgStatGetLastscan, pgStatGetLiveTuples, pgStatGetModSinceAnalyze, pgStatGetNumscans, pgStatGetProgressInfo, pgStatGetRecoveryPrefetch, pgStatGetReplicationSlot, pgStatGetSlru, pgStatGetSnapshotTimestamp, pgStatGetSubscription, pgStatGetSubscriptionStats, pgStatGetTuplesDeleted, pgStatGetTuplesFetched, pgStatGetTuplesHotUpdated, pgStatGetTuplesInserted, pgStatGetTuplesNewpageUpdated, pgStatGetTuplesReturned, pgStatGetTuplesUpdated, pgStatGetVacuumCount, pgStatGetWal, pgStatGetWalReceiver, pgStatGetWalSenders, pgStatGetXactBlocksFetched, pgStatGetXactBlocksHit, pgStatGetXactFunctionCalls, pgStatGetXactFunctionSelfTime, pgStatGetXactFunctionTotalTime, pgStatGetXactNumscans, pgStatGetXactTuplesDeleted, pgStatGetXactTuplesFetched, pgStatGetXactTuplesHotUpdated, pgStatGetXactTuplesInserted, pgStatGetXactTuplesNewpageUpdated, pgStatGetXactTuplesReturned, pgStatGetXactTuplesUpdated, pgStatHaveStats, pgStatReset, pgStatResetReplicationSlot, pgStatResetShared, pgStatResetSingleFunctionCounters, pgStatResetSingleTableCounters, pgStatResetSlru, pgStatResetSubscriptionStats, pgStatisticsObjIsVisible, pgStopMakingPinnedObjects, pgSwitchWal, pgSyncReplicationSlots, pgTableIsVisible, pgTableSize, pgTablespaceDatabases, pgTablespaceLocation, pgTablespaceSize, pgTerminateBackend, pgTimezoneAbbrevs, pgTimezoneNames, pgTotalRelationSize, pgTriggerDepth, pgTryAdvisoryLock, pgTryAdvisoryLockShared, pgTryAdvisoryXactLock, pgTryAdvisoryXactLockShared, pgTsConfigIsVisible, pgTsDictIsVisible, pgTsParserIsVisible, pgTsTemplateIsVisible, pgTypeIsVisible, pgTypeof, pgVisibleInSnapshot, pgWalLsnDiff, pgWalReplayPause, pgWalReplayResume, pgWalSummaryContents, pgWalfileName, pgWalfileNameOffset, pgXactCommitTimestamp, pgXactStatus, phrasetoTsquery, pi, plaintoTsquery, plpgsqlCallHandler, plpgsqlValidator, point, pointAbove, pointAdd, pointBelow, pointDistance, pointDiv, pointEq, pointHoriz, pointLeft, pointMul, pointNe, pointRight, pointSub, pointVert, polyAbove, polyBelow, polyCenter, polyContainPt, polyContained, polyDistance, polyLeft, polyNpoints, polyOverabove, polyOverbelow, polyOverlap, polyOverleft, polyOverright, polyRight, polySame, polygon, popen, position, postgresqlFdwValidator, pow, power, ptContainedCircle, ptContainedPoly, queryToXml, queryToXmlAndXmlschema, queryToXmlschema, querytree, quoteIdent, quoteLiteral, quoteNullable, radians, radius, random, randomNormal, rangeAdjacent, rangeAdjacentMultirange, rangeAfter, rangeAfterMultirange, rangeAgg, rangeBefore, rangeBeforeMultirange, rangeCmp, rangeContainedBy, rangeContainedByMultirange, rangeContains, rangeContainsElem, rangeContainsMultirange, rangeEq, rangeGe, rangeGt, rangeIntersect, rangeIntersectAgg, rangeIntersectAggTransfn, rangeLe, rangeLt, rangeMerge, rangeMinus, rangeNe, rangeOverlaps, rangeOverlapsMultirange, rangeOverleft, rangeOverleftMultirange, rangeOverright, rangeOverrightMultirange, rangeUnion, rank, recordEq, recordGe, recordGt, recordImageEq, recordImageGe, recordImageGt, recordImageLe, recordImageLt, recordImageNe, recordLe, recordLt, recordNe, regclass, regexpCount, regexpInstr, regexpLike, regexpMatch, regexpMatches, regexpReplace, regexpSplitToArray, regexpSplitToTable, regexpSubstr, regrAvgx, regrAvgy, regrCount, regrIntercept, regrR2, regrSlope, regrSxx, regrSxy, regrSyy, repeat, replace, resultType, reverse, riFKeyCascadeDel, riFKeyCascadeUpd, riFKeyCheckIns, riFKeyCheckUpd, riFKeyNoactionDel, riFKeyNoactionUpd, riFKeyRestrictDel, riFKeyRestrictUpd, riFKeySetdefaultDel, riFKeySetdefaultUpd, riFKeySetnullDel, riFKeySetnullUpd, right, round, rowNumber, rowSecurityActive, rowToJson, rpad, rtrim, satisfiesHashPartition, scale, schemaToXml, schemaToXmlAndXmlschema, schemaToXmlschema, sessionUser, setBit, setByte, setConfig, setMasklen, setseed, setval, setweight, sha224, sha256, sha384, sha512, shobjDescription, sign, similarEscape, similarToEscape, sind, sinh, slope, spgPolyQuadCompress, splitPart, sqlFunction, sqrt, startsWith, statementTimestamp, stddev, stddevPop, stddevSamp, stringAgg, stringToArray, stringToTable, strip, strpos, substr, substring, sum, suppressRedundantUpdatesTrigger, systemUser, tableToXml, tableToXmlAndXmlschema, tableToXmlschema, tan, tand, tanh, text, textGe, textGt, textLarger, textLe, textLt, textPatternGe, textPatternGt, textPatternLe, textPatternLt, textSmaller, textanycat, textcat, texteq, texteqname, textgename, textgtname, texticlike, texticnlike, texticregexeq, texticregexne, textlen, textlename, textlike, textltname, textne, textnename, textnlike, textregexeq, textregexne, tideq, tidge, tidgt, tidlarger, tidle, tidlt, tidne, tidsmaller, time, timeCmp, timeEq, timeGe, timeGt, timeHash, timeHashExtended, timeLarger, timeLe, timeLt, timeMiInterval, timeMiTime, timeNe, timePlInterval, timeSmaller, timedatePl, timeofday, timestamp, timestampCmp, timestampCmpDate, timestampCmpTimestamptz, timestampEq, timestampEqDate, timestampEqTimestamptz, timestampGe, timestampGeDate, timestampGeTimestamptz, timestampGt, timestampGtDate, timestampGtTimestamptz, timestampHash, timestampHashExtended, timestampLarger, timestampLe, timestampLeDate, timestampLeTimestamptz, timestampLt, timestampLtDate, timestampLtTimestamptz, timestampMi, timestampMiInterval, timestampNe, timestampNeDate, timestampNeTimestamptz, timestampPlInterval, timestampSmaller, timestamptz, timestamptzCmp, timestamptzCmpDate, timestamptzCmpTimestamp, timestamptzEq, timestamptzEqDate, timestamptzEqTimestamp, timestamptzGe, timestamptzGeDate, timestamptzGeTimestamp, timestamptzGt, timestamptzGtDate, timestamptzGtTimestamp, timestamptzLarger, timestamptzLe, timestamptzLeDate, timestamptzLeTimestamp, timestamptzLt, timestamptzLtDate, timestamptzLtTimestamp, timestamptzMi, timestamptzMiInterval, timestamptzNe, timestamptzNeDate, timestamptzNeTimestamp, timestamptzPlInterval, timestamptzSmaller, timetz, timetzCmp, timetzEq, timetzGe, timetzGt, timetzHash, timetzHashExtended, timetzLarger, timetzLe, timetzLt, timetzMiInterval, timetzNe, timetzPlInterval, timetzSmaller, timetzdatePl, timezone, toAscii, toChar, toDate, toHex, toJson, toJsonb, toNumber, toOct, toRegclass, toRegcollation, toRegnamespace, toRegoper, toRegoperator, toRegproc, toRegprocedure, toRegrole, toRegtype, toRegtypemod, toTimestamp, toTsquery, toTsvector, transactionTimestamp, translate, trimArray, trimScale, trunc, tsDebug, tsDelete, tsFilter, tsHeadline, tsLexize, tsMatchQv, tsMatchTq, tsMatchTt, tsMatchVq, tsParse, tsRank, tsRankCd, tsRewrite, tsStat, tsTokenType, tsmultirange, tsqMcontained, tsqMcontains, tsqueryAnd, tsqueryCmp, tsqueryEq, tsqueryGe, tsqueryGt, tsqueryLe, tsqueryLt, tsqueryNe, tsqueryNot, tsqueryOr, tsqueryPhrase, tsrange, tsrangeSubdiff, tstzmultirange, tstzrange, tstzrangeSubdiff, tsvectorCmp, tsvectorConcat, tsvectorEq, tsvectorGe, tsvectorGt, tsvectorLe, tsvectorLt, tsvectorNe, tsvectorToArray, tsvectorUpdateTrigger, tsvectorUpdateTriggerColumn, txidCurrent, txidCurrentIfAssigned, txidCurrentSnapshot, txidSnapshotXip, txidSnapshotXmax, txidStatus, txidVisibleInSnapshot, typegres, unicodeAssigned, unicodeVersion, uniqueKeyRecheck, unistr, unnest, upper, upperInc, upperInf, uuidCmp, uuidEq, uuidExtractTimestamp, uuidExtractVersion, uuidGe, uuidGt, uuidHash, uuidHashExtended, uuidLe, uuidLt, uuidNe, values, varPop, varSamp, varbit, varbitcmp, varbiteq, varbitge, varbitgt, varbitle, varbitlt, varbitne, varchar, variance, version, websearchToTsquery, width, widthBucket, xid, xid8Cmp, xid8Eq, xid8Ge, xid8Gt, xid8Larger, xid8Le, xid8Lt, xid8Ne, xid8Smaller, xideq, xideqint4, xidneq, xidneqint4, xml, xmlIsWellFormed, xmlIsWellFormedContent, xmlIsWellFormedDocument, xmlagg, xmlcomment, xmlconcat2, xmlexists, xmltext, xmlvalidate, xpath, xpathExists };
 export type { Aggregate, AwaitedResultType, BindedSetof, Input, Query, ResultType, RowLike, RowLikeRelaxed, Scalar, ScalarRelaxed, SelectArgs };

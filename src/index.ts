@@ -13,4 +13,4 @@ export * from './types'
 // Re-export generated types
 export * from './gen/functions'
 export * from './gen/tables'
-export { db } from './db'
+export { typegres } from './db'
