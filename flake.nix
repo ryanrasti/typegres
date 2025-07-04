@@ -119,7 +119,7 @@
               };
 
             default = typegres;
-
+            inherit node;
           };
         }
       );
