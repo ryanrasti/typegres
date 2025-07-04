@@ -50,8 +50,13 @@ jobs:
         HASH=$(git rev-parse --short HEAD)
         export PATH="$PWD/node_modules/.bin:$PATH"
         npm version $(npm pkg get version | tr -d '"')-$HASH --no-git-tag-version
-    - name: Build package
-      run: nix build
+    - name: Setup npm auth
+      run: |
+        cat > ~/.npmrc <<EOF
+        //registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}
+        registry=https://registry.npmjs.org/
+        always-auth=true
+        EOF
     - name: Publish to NPM
       run: |
         export PATH="$PWD/node_modules/.bin:$PATH"
