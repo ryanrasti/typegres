@@ -194,7 +194,7 @@ const searchResults = await db
         <h2 className="text-2xl font-semibold mb-4">Next Steps</h2>
         <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-300">
           <li>Explore the <a href="/api/index.html" className="text-blue-400 hover:text-blue-300">API Reference</a> for detailed documentation</li>
-          <li>Try the <a href="/playground" className="text-blue-400 hover:text-blue-300">Interactive Playground</a> to experiment with queries</li>
+          <li>Try the <a href="/play" className="text-blue-400 hover:text-blue-300">Interactive Playground</a> to experiment with queries</li>
           <li>Check out advanced topics like migrations, custom types, and performance optimization</li>
         </ul>
       </section>

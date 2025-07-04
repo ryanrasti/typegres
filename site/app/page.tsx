@@ -39,7 +39,7 @@ export default function HomePage() {
           <a href="/docs" className="text-sm font-semibold text-typegres-gray dark:text-gray-300 hover:text-typegres-blue transition-colors">
             Documentation
           </a>
-          <a href="/playground" className="text-sm font-semibold text-typegres-gray dark:text-gray-300 hover:text-typegres-blue transition-colors">
+          <a href="/play" className="text-sm font-semibold text-typegres-gray dark:text-gray-300 hover:text-typegres-blue transition-colors">
             Playground
           </a>
           <a href="https://github.com/ryanrasti/typegres" className="text-sm font-semibold text-typegres-gray dark:text-gray-300 hover:text-typegres-blue transition-colors">
@@ -88,7 +88,7 @@ export default function HomePage() {
                 <ArrowRight className="w-5 h-5" />
               </a>
               <a
-                href="/playground"
+                href="/play"
                 className="inline-flex items-center gap-2 rounded-full border-2 border-typegres-blue text-typegres-blue dark:text-white px-8 py-4 text-lg font-semibold hover:bg-typegres-blue hover:text-white transition-all duration-200"
               >
                 Try it Live
