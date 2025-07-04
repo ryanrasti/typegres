@@ -29,7 +29,7 @@ export default function DocsLayout({
                   <Book className="w-4 h-4" />
                   Docs
                 </a>
-                <a href="/playground" className="text-typegres-gray dark:text-gray-300 hover:text-typegres-blue dark:hover:text-typegres-blue transition-colors flex items-center gap-2">
+                <a href="/play" className="text-typegres-gray dark:text-gray-300 hover:text-typegres-blue dark:hover:text-typegres-blue transition-colors flex items-center gap-2">
                   <Code2 className="w-4 h-4" />
                   Playground
                 </a>

@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
+import inspect from "object-inspect";
+import { format } from "sql-formatter";
 import {
   setupMonacoWithTypegres,
   transformCodeWithEsbuild,
 } from "@/lib/monaco-typegres-integration";
-import { t } from "node_modules/@electric-sql/pglite/dist/pglite-BYx2LC_F";
-import { mock } from "node:test";
 
 declare global {
   interface Window {
@@ -16,25 +16,22 @@ declare global {
   }
 }
 
+
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
 });
 
 interface TypegresPlaygroundProps {
-  initialCode?: string;
-  height?: string;
+  activeTab?: string;
+  onOutputChange?: (output: string) => void;
+  onSqlChange?: (sql: string) => void;
+  onRunCode?: (runFunction: () => Promise<void>) => void;
 }
 
 export function TypegresPlayground({
-  initialCode = `import { db, Int4 } from 'typegres'
-
-const dbR = await db({ type: 'pglite' });
-
-const result = await Int4.new(2).int4Pl(2).execute(dbR)
-
-console.log(result)
-`,
-  height = "800px",
+  onOutputChange,
+  onSqlChange,
+  onRunCode,
 }: TypegresPlaygroundProps) {
   const [code, setCode] = useState("");
   useEffect(() => {
@@ -51,10 +48,11 @@ console.log(result)
       .catch((error) => {
         console.error("Error fetching initial code:", error);
       });
-    setCode(initialCode);
-  }, [initialCode]);
+  }, []);
 
-  const [output, setOutput] = useState<{ sql?: string; error?: string }>({});
+  const [output, setOutput] = useState<string>("");
+  const [sqlOutput, setSqlOutput] = useState<string>("");
+  const [error, setError] = useState<string>("");
   const [typesLoaded, setTypesLoaded] = useState(false);
   const monacoRef = useRef<any>(null);
 
@@ -75,8 +73,33 @@ console.log(result)
 
     loadTypes();
   };
-
-  const runCode = async () => {
+  
+  // Call callbacks when output changes
+  useEffect(() => {
+    if (onOutputChange) {
+      onOutputChange(error ? `Error: ${error}` : output);
+    }
+  }, [output, error, onOutputChange]);
+  
+  useEffect(() => {
+    if (onSqlChange) {
+      onSqlChange(sqlOutput);
+    }
+  }, [sqlOutput, onSqlChange]);
+  
+  const runCode = useCallback(async () => {
+    // Clear previous outputs
+    setOutput("");
+    setSqlOutput("");
+    setError("");
+    
+    // Save the original console.log
+    const originalConsoleLog = console.log;
+    
+    // Create arrays to capture logs and SQL queries
+    const logs: any[] = [];
+    const sqlQueries: Array<{ sql: string; parameters?: any[] }> = [];
+    
     try {
       // Load the typegres bundle if not already loaded
       if (!window.typegres) {
@@ -85,8 +108,6 @@ console.log(result)
           // @ts-ignore
           const typegresModule = await import("../../public/typegres");
           window.typegres = typegresModule;
-
-          console.log("Typegres bundle loaded:", window.typegres);
         } catch (error) {
           console.error("Failed to load typegres bundle:", error);
           throw new Error("Failed to load typegres bundle");
@@ -102,11 +123,25 @@ console.log(result)
         "const {$1} = window.typegres"
       );
 
-      console.log("Transformed code:", transformedCode);
+      // Stub console.log
+      console.log = (...args: any[]) => {
+        // Call original console.log for debugging
+        originalConsoleLog(...args);
+        
+        // Check if this is a "Debugging query:" log
+        if (args[0] === "Debugging query:" && args[1] && typeof args[1] === 'object' && 'sql' in args[1]) {
+          sqlQueries.push({
+            sql: args[1].sql,
+            parameters: args[1].parameters
+          });
+        } else {
+          // Regular log
+          logs.push(args);
+        }
+      };
 
       // Create an async function that executes the transformed code
       const executeCode = new Function(
-        "console",
         `
         return (async () => {
           ${transformedCode}          
@@ -114,77 +149,98 @@ console.log(result)
       `
       );
 
-      const mockConsole = {
-        ...console,
-        log: (...args: any[]) => {
-          console.log(...args);
-          setOutput((prev) => ({
-            sql: `${prev.sql ?? ''}\n${JSON.stringify(
-              args,
-              (key, value) =>
-                typeof value === "bigint" ? Number(value) : value,
-              2
-            )}`,
-            
-          }));
-        },
-      };
-
-      // Execute the code with typegres
-      setOutput({ sql: "Running code..." });
-      executeCode(mockConsole);
+      // Execute the code
+      await executeCode();
+      
+      // Format the output with better object display using inspect
+      const formattedLogs = logs.map((logArgs, index) => {
+        const formattedArgs = logArgs.map((arg: any) => {
+          if (typeof arg === 'object' && arg !== null) {
+            // Use inspect for better object display
+            return inspect(arg, {
+              depth: 4,
+              indent: 2,
+            });
+          }
+          return String(arg);
+        });
+        
+        // Join arguments with space
+        return formattedArgs.join(' ');
+      }).join('\n\n');
+      
+      setOutput(formattedLogs);
+      
+      // Format SQL output
+      if (sqlQueries.length > 0) {
+        const formattedParts: { sql: string; params?: string }[] = sqlQueries.map((query, index) => {
+          let sql = format(query.sql, {
+            language: 'postgresql',
+            tabWidth: 2,
+            keywordCase: 'upper',
+            linesBetweenQueries: 2,
+          });
+          
+          if (sqlQueries.length > 1) {
+            sql = `-- Query ${index + 1}\n${sql}`;
+          }
+          
+          let params = undefined;
+          if (query.parameters && query.parameters.length > 0) {
+            params = inspect(query.parameters, {
+              depth: 3,
+            });
+          }
+          
+          return { sql, params };
+        });
+        
+        // Combine SQL and parameters
+        const combinedOutput = formattedParts.map(part => {
+          let result = part.sql;
+          if (part.params) {
+            result += `\n\n-- Parameters:\n/*\n${part.params}\n*/`;
+          }
+          return result;
+        }).join('\n\n' + '-'.repeat(60) + '\n\n');
+        
+        setSqlOutput(combinedOutput);
+      }
+      
     } catch (error) {
-      setOutput({
-        error: error instanceof Error ? error.message : String(error),
-      });
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      // Restore original console.log
+      console.log = originalConsoleLog;
     }
-  };
+  }, [code, onOutputChange, onSqlChange]);
+  
+  // Expose runCode function to parent
+  useEffect(() => {
+    if (onRunCode) {
+      console.log("setting onRunCode callback", runCode);
+      onRunCode(runCode);
+    }
+  }, [onRunCode, runCode]);
 
   return (
-    <div className="space-y-4">
-      <div className="border rounded-lg overflow-hidden">
-        <MonacoEditor
-          height={height}
-          defaultLanguage="typescript"
-          theme="vs-dark"
-          value={code}
-          onChange={(value) => {
-            setCode(value || "");
-          }}
-          onMount={handleEditorMount}
-          options={{
-            minimap: { enabled: false },
-            fontSize: 14,
-            lineHeight: 1.6,
-            tabSize: 2,
-            automaticLayout: true,
-            scrollBeyondLastLine: false,
-            fixedOverflowWidgets: true,
-          }}
-        />
-      </div>
-
-      <div className="flex justify-between items-center">
-        <button
-          onClick={runCode}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Run Code
-        </button>
-        {typesLoaded && (
-          <span className="text-sm text-green-500">✓ Types loaded</span>
-        )}
-      </div>
-
-      {(output.sql || output.error) && (
-        <div className="border rounded-lg p-4 bg-gray-900">
-          {output.error ? (
-            <pre className="text-red-400">{output.error}</pre>
-          ) : (
-            <pre className="text-gray-300">{output.sql}</pre>
-          )}
-        </div>
-      )}
-    </div>
+    <MonacoEditor
+      defaultLanguage="typescript"
+      theme="vs-dark"
+      value={code}
+      onChange={(value) => {
+        setCode(value || "");
+      }}
+      onMount={handleEditorMount}
+      options={{
+        minimap: { enabled: false },
+        fontSize: 14,
+        lineHeight: 1.6,
+        tabSize: 2,
+        automaticLayout: true,
+        scrollBeyondLastLine: false,
+        fixedOverflowWidgets: true,
+      }}
+    />
   );
 }

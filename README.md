@@ -136,7 +136,7 @@ nix build .#test
 
 - [Quick Start Guide](./site/pages/docs/quickstart/+Page.tsx) (coming soon)
 - [API Reference](./site) (coming soon)
-- [Interactive Playground](./site/pages/playground/+Page.tsx)
+- [Interactive Playground](./site/pages/play/+Page.tsx)
 
 ## License
 

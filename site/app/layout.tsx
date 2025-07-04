@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { UnderConstructionBanner } from '@/components/UnderConstructionBanner'
 
 export const metadata: Metadata = {
   title: 'Typegres - PostgreSQL, expressed in TypeScript',
@@ -15,7 +14,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body>
-        <UnderConstructionBanner />
         {children}
       </body>
     </html>

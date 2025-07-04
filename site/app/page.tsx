@@ -3,11 +3,14 @@
 import { motion } from 'framer-motion'
 import { ArrowRight, Code, Database, Bot, Shield, CheckCircle } from 'lucide-react'
 import { CodeBlock } from '@/components/CodeBlock'
+import { UnderConstructionBanner } from '@/components/UnderConstructionBanner'
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-white dark:bg-typegres-dark">
-      <div className="absolute inset-0 bg-dot-pattern opacity-50" />
+    <>
+      <UnderConstructionBanner />
+      <main className="min-h-screen bg-white dark:bg-typegres-dark">
+        <div className="absolute inset-0 bg-dot-pattern opacity-50" />
       
       <nav className="relative z-10 flex items-center justify-between p-6 lg:px-8">
         <div className="flex lg:flex-1">
@@ -36,7 +39,7 @@ export default function HomePage() {
           <a href="/docs" className="text-sm font-semibold text-typegres-gray dark:text-gray-300 hover:text-typegres-blue transition-colors">
             Documentation
           </a>
-          <a href="/playground" className="text-sm font-semibold text-typegres-gray dark:text-gray-300 hover:text-typegres-blue transition-colors">
+          <a href="/play" className="text-sm font-semibold text-typegres-gray dark:text-gray-300 hover:text-typegres-blue transition-colors">
             Playground
           </a>
           <a href="https://github.com/ryanrasti/typegres" className="text-sm font-semibold text-typegres-gray dark:text-gray-300 hover:text-typegres-blue transition-colors">
@@ -85,7 +88,7 @@ export default function HomePage() {
                 <ArrowRight className="w-5 h-5" />
               </a>
               <a
-                href="/playground"
+                href="/play"
                 className="inline-flex items-center gap-2 rounded-full border-2 border-typegres-blue text-typegres-blue dark:text-white px-8 py-4 text-lg font-semibold hover:bg-typegres-blue hover:text-white transition-all duration-200"
               >
                 Try it Live
@@ -182,6 +185,7 @@ const activeUsers = await db
           </motion.div>
         </div>
       </div>
-    </main>
+      </main>
+    </>
   )
 }

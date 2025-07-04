@@ -1,22 +1,44 @@
 import * as monaco from "monaco-editor";
-import { initialize, transform } from "esbuild-wasm";
 
-let esbuildInitialized = false;
+// Use a global variable to track initialization across module instances
+declare global {
+  var __esbuildModule: typeof import("esbuild-wasm") | undefined;
+  var __esbuildInitializePromise: Promise<void> | undefined;
+}
 
-async function initializeEsbuild() {
-  if (!esbuildInitialized) {
-    await initialize({
+async function getEsbuild() {
+  // If already loaded, return it
+  if (globalThis.__esbuildModule) {
+    return globalThis.__esbuildModule;
+  }
+
+  // If initialization is in progress, wait for it
+  if (globalThis.__esbuildInitializePromise) {
+    await globalThis.__esbuildInitializePromise;
+    return globalThis.__esbuildModule!;
+  }
+
+  // Start initialization
+  globalThis.__esbuildInitializePromise = (async () => {
+    const esbuild = await import("esbuild-wasm");
+    
+    // Initialize with the CDN URL (simpler than trying to serve from node_modules)
+    await esbuild.initialize({
       wasmURL: "https://unpkg.com/esbuild-wasm@0.25.5/esbuild.wasm",
     });
-    esbuildInitialized = true;
-  }
+    
+    globalThis.__esbuildModule = esbuild;
+  })();
+
+  await globalThis.__esbuildInitializePromise;
+  return globalThis.__esbuildModule!;
 }
 
 export async function setupMonacoWithTypegres(
   monaco: typeof import("monaco-editor")
 ) {
-  // Initialize esbuild
-  await initializeEsbuild();
+  // Ensure esbuild is available (but don't need to use it here)
+  await getEsbuild();
 
   // Configure TypeScript compiler options
   monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
@@ -78,10 +100,10 @@ ${rawTypes}
 }
 
 export async function transformCodeWithEsbuild(code: string): Promise<string> {
-  await initializeEsbuild();
+  const esbuild = await getEsbuild();
 
   try {
-    const result = await transform(code, {
+    const result = await esbuild.transform(code, {
       loader: "ts",
       format: "esm",
       target: "es2022", // ES2022 supports top-level await

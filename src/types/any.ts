@@ -1,5 +1,5 @@
 import { Expression, LiteralExpression } from "../expression";
-import { default as PgAny } from "../gen/types/any";
+import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
 import { Typegres } from "../db";
 

@@ -38,7 +38,7 @@ npm run preview
 - `/` - Landing page with animations and feature highlights
 - `/docs` - Documentation overview
 - `/docs/quickstart` - Quick start guide
-- `/playground` - Interactive TypeScript playground with Monaco editor
+- `/play` - Interactive TypeScript playground with Monaco editor
 - `/api` - Auto-generated API reference (after running build:docs)
 
 ## Technologies

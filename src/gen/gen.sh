@@ -7,7 +7,11 @@ cd $(dirname "$0")
 
 # Run the query and save the output to functions.json
 psql -h localhost -p 1234 -U postgres -t -A -F '' <<'SQL' | jq . > functions.json
-WITH func_info AS (
+WITH reserved_words AS (
+  SELECT word, TRUE as is_reserved
+  FROM pg_get_keywords()
+),
+func_info AS (
   SELECT
     n.nspname,
     p.proname,
@@ -38,12 +42,14 @@ WITH func_info AS (
      JOIN unnest(p.proargmodes) WITH ORDINALITY AS mode_arg(mode, ord) ON arg.ord = mode_arg.ord
      WHERE mode_arg.mode = ANY (ARRAY['o', 't', 'b'])) AS output_column_names,
     a.aggfnoid IS NOT NULL AS is_agg,
-    op.oprname AS operator_name
+    op.oprname AS operator_name,
+    COALESCE(rw.is_reserved, FALSE) AS is_reserved
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
   JOIN pg_type rt ON rt.oid = p.prorettype
   LEFT JOIN pg_aggregate a ON a.aggfnoid = p.oid
   LEFT JOIN pg_operator op ON op.oprcode = p.oid -- Joined with pg_operator
+  LEFT JOIN reserved_words rw ON UPPER(p.proname) = UPPER(rw.word)
   WHERE n.nspname = 'pg_catalog'
 ),
 grouped_funcs AS (
@@ -60,7 +66,8 @@ grouped_funcs AS (
       'retset_names', output_column_names,
       'retset_oids', output_oids,
       'is_agg', is_agg,
-      'operator_name', operator_name
+      'operator_name', operator_name,
+      'is_reserved', is_reserved
     ) ORDER BY ret_type, arg_types) AS overloads
   FROM func_info
   GROUP BY nspname, proname

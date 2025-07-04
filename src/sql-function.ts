@@ -93,11 +93,13 @@ type TypedFunctionDefinition =
       ret: typeof Any<unknown, number> | BindedSetof<any>;
       args: (typeof Any<unknown>)[];
       isOperator: boolean;
+      isReserved?: boolean;
     }
   | ((args: { T: typeof Any<unknown, number>; R: Schema }) => {
       ret: typeof Any<unknown, number> | BindedSetof<any>;
       args: (typeof Any<unknown, number>)[];
       isOperator: boolean;
+      isReserved?: boolean;
     });
 
 export const sqlFunction = (
@@ -148,6 +150,6 @@ export const sqlFunction = (
           name,
           argsAsExpressions as [Expression, Expression],
         )
-      : new FunctionExpression(name, argsAsExpressions),
+      : new FunctionExpression(name, argsAsExpressions, matchingDef.isReserved || false),
   );
 };

@@ -34,7 +34,7 @@ export class Context {
       let aliasName = alias.name;
       if (this.usedAliases.has(alias.name)) {
         for (const i of Array(100).keys()) {
-          aliasName = `${alias}_${i}`;
+          aliasName = `${alias.name}_${i}`;
           if (!this.usedAliases.has(aliasName)) {
             break;
           }
@@ -94,12 +94,14 @@ export class FunctionExpression extends Expression {
   constructor(
     public name: string,
     public args: Expression[],
+    public isReserved: boolean = false,
   ) {
     super();
   }
 
   compile(ctx: Context) {
-    return sql`${sql.ref(this.name)}(${sql.join(
+    const funcName = this.isReserved ? sql.ref(this.name) : sql.raw(this.name);
+    return sql`${funcName}(${sql.join(
       this.args.map((arg) => arg.compile(ctx)),
     )})`;
   }

@@ -420,7 +420,7 @@ export class Setof<Q extends Query> extends Expression {
   }
 
   debug() {
-    console.log("debug", this.compile(Context.new()).compile(dummyDb));
+    console.log("Debugging query:", this.compile(Context.new()).compile(dummyDb));
     return this;
   }
 
