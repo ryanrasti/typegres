@@ -1,6 +1,6 @@
 {
   "name": "typegres",
-  "version": "0.0.1-ad37fd3",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

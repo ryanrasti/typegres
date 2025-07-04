@@ -55,6 +55,6 @@ jobs:
     - name: Publish to NPM
       run: |
         export PATH="$PWD/node_modules/.bin:$PATH"
-        npm publish ./result
+        npm publish ./result/lib
       env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
