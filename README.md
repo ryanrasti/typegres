@@ -1,6 +1,6 @@
 # Typegres
 
-[![CI](https://github.com/ryanrasti/typegres/actions/workflows/main.yml/badge.svg)](https://github.com/ryanrasti/typegres/actions/workflows/main.yml) [![npm version](https://img.shields.io/npm/v/typegres.svg)](https://www.npmjs.com/package/typegres) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/ryanrasti/typegres/actions/workflows/main.yml/badge.svg)](https://github.com/ryanrasti/typegres/actions/workflows/main.yml) [![npm version](https://img.shields.io/npm/v/typegres.svg)](https://www.npmjs.com/package/typegres) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 > Type-safe Postgres in TypeScript (alpha)
 
@@ -63,8 +63,8 @@ Typegres generates TypeScript wrappers for every Postgres primitive.
 There’s no hidden DSL: the call-chain above becomes plain SQL:
 
 ```sql
-SELECT "name"::text::upper          AS "upper",
-       ("age" > 18)                 AS "adult"
+SELECT "name"::text::upper            AS "upper",
+       ("age" > 18)                   AS "adult"
 FROM (VALUES ('Alice',25),('Bob',17)) AS "users"("name","age");
 ```
 
