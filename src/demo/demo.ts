@@ -1,4 +1,4 @@
-import { typegres, Int8, Float8, Text, Jsonb, values } from "typegres";
+import { Float8, Int8, Jsonb, Text, typegres, values } from "typegres";
 
 const db = await typegres({ type: "pglite" });
 
@@ -14,6 +14,7 @@ const example1 = await pets
   .select((p, [species]) => ({
     species,
     avgAge: p.age.avg(),
+    stddev: p.age.stddevPop(),
     total: p.id.count(),
     note: species.textcat("s are great!"),
     // uncomment to see a type error:

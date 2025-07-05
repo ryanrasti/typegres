@@ -1,8 +1,6 @@
-# Typegres
+# Type-safe Postgres in TypeScript
 
 [![CI](https://github.com/ryanrasti/typegres/actions/workflows/main.yml/badge.svg)](https://github.com/ryanrasti/typegres/actions/workflows/main.yml) [![npm version](https://img.shields.io/npm/v/typegres.svg)](https://www.npmjs.com/package/typegres) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-
-> Type-safe Postgres in TypeScript (alpha)
 
 Import the full power of PostgreSQL as a TypeScript library.
 
@@ -33,7 +31,9 @@ console.log(rows);
 // Output: [{ upper: 'ALICE', isAdult: true }, { upper: 'CHARLIE', isAdult: false }]
 ```
 
-<sub>✔︎ Autocomplete for every PG function · 100 % compile-time types</sub>
+See the quickstart guide for more details: https://typegres.com/docs/quickstart/
+
+✅ Autocomplete for every PG function, 100% compile-time types
 
 ## Docs & Demo
 
@@ -41,32 +41,17 @@ console.log(rows);
 - API Reference: https://typegres.com/api/
 - Playground: https://typegres.com/play/
 
-## ⚠︎ Alpha: API will break between minor versions.
-
-This project is in active development. Documentation and features are still being built.
-
-## What is Typegres?
-
-While traditional ORMs and query builders abstract over multiple SQL dialects, Typegres goes all-in on PostgreSQL to provide the most powerful and type-safe experience possible. In a single import, you can access the full power of Postgres with complete TypeScript type safety.
+> [!WARNING]
+> Developer Preview (alpha): expect rough edges and breaking changes.
 
 ## Key Features & Design Goals
+
+While traditional ORMs and query builders abstract over multiple SQL dialects, Typegres goes all-in on PostgreSQL to provide the most powerful and type-safe experience possible. In a single import, you can access the full power of Postgres with complete TypeScript type safety.
 
 - Postgres-only – every builtin function & operator, nothing poly-glot
 - TypeScript-native – full generics, autocomplete, inference
 - Zero ORM bloat – SQL you can read
 - TypeScript safety – mistakes caught by the compiler, not production
-- Browser & Node – works with Neon, Supabase, Render, etc.
-
-## What makes Typegres different?
-
-Typegres generates TypeScript wrappers for every Postgres primitive.
-There’s no hidden DSL: the call-chain above becomes plain SQL:
-
-```sql
-SELECT "name"::text::upper            AS "upper",
-       ("age" > 18)                   AS "adult"
-FROM (VALUES ('Alice',25),('Bob',17)) AS "users"("name","age");
-```
 
 Focus on learning Postgres itself — Typegres just gives you autocomplete, type-checking, and all other benefits of TypeScript.
 
@@ -90,7 +75,7 @@ const result = await users
 - [x] Generated PG types, operators, functions
 - [x] Query-builder PoC
 - [x] Interactive playground
-- [ ] INSERT / RETURNING helpers
+- [ ] Full support for `UPDATE` / `INSERT`
 - [ ] Custom keywords (`IS NULL`, `AND`, `OR`)
 - [ ] Refined typing for advanced types (JSONB, arrays, custom enums)
 - [ ] Table generator + migrations

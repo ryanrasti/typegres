@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 type Examples = "Example 1" | "Example 2" | "Example 3";
 
@@ -16,7 +16,7 @@ describe("demo.ts examples", async () => {
     });
   await import("./demo.js");
   spyConsole.mockRestore();
-  
+
   const {
     "Example 1": example1,
     "Example 2": example2,
@@ -33,12 +33,14 @@ describe("demo.ts examples", async () => {
       {
         species: "cat",
         avgAge: 2,
+        stddev: 0,
         total: 1n,
         note: "cats are great!",
       },
       {
         species: "dog",
         avgAge: 6.5,
+        stddev: 3.5,
         total: 2n,
         note: "dogs are great!",
       },
