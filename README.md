@@ -1,8 +1,6 @@
-# Typegres
+# Type-safe Postgres in TypeScript (alpha)
 
 [![CI](https://github.com/ryanrasti/typegres/actions/workflows/main.yml/badge.svg)](https://github.com/ryanrasti/typegres/actions/workflows/main.yml) [![npm version](https://img.shields.io/npm/v/typegres.svg)](https://www.npmjs.com/package/typegres) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-
-> Type-safe Postgres in TypeScript (alpha)
 
 Import the full power of PostgreSQL as a TypeScript library.
 
@@ -33,7 +31,8 @@ console.log(rows);
 // Output: [{ upper: 'ALICE', isAdult: true }, { upper: 'CHARLIE', isAdult: false }]
 ```
 
-<sub>✔︎ Autocomplete for every PG function · 100 % compile-time types</sub>
+✅ Autocomplete for every PG function
+✅ 100% compile-time types
 
 ## Docs & Demo
 
@@ -41,9 +40,8 @@ console.log(rows);
 - API Reference: https://typegres.com/api/
 - Playground: https://typegres.com/play/
 
-## ⚠︎ Developer Preview (alpha): expect rough edges and breaking changes.
-
-This project is in active development. Documentation and features are still being built.
+> [!WARNING]  
+> Developer Preview (alpha): expect rough edges and breaking changes.
 
 ## What is Typegres?
 
@@ -55,7 +53,6 @@ While traditional ORMs and query builders abstract over multiple SQL dialects, T
 - TypeScript-native – full generics, autocomplete, inference
 - Zero ORM bloat – SQL you can read
 - TypeScript safety – mistakes caught by the compiler, not production
-- Browser & Node – works with Neon, Supabase, Render, etc.
 
 ## What makes Typegres different?
 
@@ -90,7 +87,7 @@ const result = await users
 - [x] Generated PG types, operators, functions
 - [x] Query-builder PoC
 - [x] Interactive playground
-- [ ] INSERT / RETURNING helpers
+- [ ] Full support for `UPDATE` / `INSERT`
 - [ ] Custom keywords (`IS NULL`, `AND`, `OR`)
 - [ ] Refined typing for advanced types (JSONB, arrays, custom enums)
 - [ ] Table generator + migrations
