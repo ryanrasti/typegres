@@ -1,18 +1,21 @@
-import { PocWarning } from '@/components/poc-warning'
-import { CodeBlock } from '@/components/CodeBlock'
+"use client";
+
+import { CodeBlock } from "@/components/CodeBlock";
+import { CodeEditor } from "@/components/CodeEditor";
+import { PocWarning } from "@/components/poc-warning";
 
 export default function QuickstartPage() {
   return (
     <div>
       <h1 className="text-4xl font-bold mb-8">Quick Start Guide</h1>
       <PocWarning />
-      
+
       <section className="mb-12">
         <h2 className="text-2xl font-semibold mb-4">1. Installation</h2>
         <p className="text-gray-600 dark:text-gray-300 mb-4">
           Install Typegres:
         </p>
-        <CodeBlock 
+        <CodeBlock
           language="bash"
           code={`
 npm install typegres
@@ -23,11 +26,13 @@ npm install typegres
       </section>
 
       <section className="mb-12">
-        <h2 className="text-2xl font-semibold mb-4">2. Set Up Your Database Connection</h2>
+        <h2 className="text-2xl font-semibold mb-4">
+          2. Set Up Your Database Connection
+        </h2>
         <p className="text-gray-600 dark:text-gray-300 mb-4">
           Create a database instance:
         </p>
-        <CodeBlock 
+        <CodeBlock
           code={`import { typegres } from "typegres";
 
 const db = await typegres({ type: "pglite" });
@@ -47,8 +52,13 @@ const db = await typegres({ type: "pglite" });
         <p className="text-gray-600 dark:text-gray-300 mb-4">
           Now you can write fully type-safe queries with autocompletion:
         </p>
-        <CodeBlock 
-          code={`import { typegres, Int8, Float8, Text, Jsonb, values } from "typegres";
+        <CodeEditor
+          layout="compact"
+          height="320px"
+          showLineNumbers={false}
+          initialCode={`import { typegres, Int8, Float8, Text, Jsonb, values } from "typegres";
+
+const db = await typegres({ type: "pglite" });
 
 const pets = values(
   { species: Text.new("cat"), age: Float8.new(2), id: Int8.new(1n) },
@@ -74,19 +84,27 @@ console.log("Example 1", example1);
         />
       </section>
 
-            <section className="mb-12">
-        <h2 className="text-2xl font-semibold mb-4">4. Go deeper in Postgres</h2>
+      <section className="mb-12">
+        <h2 className="text-2xl font-semibold mb-4">
+          4. Go deeper in Postgres
+        </h2>
         <p className="text-gray-600 dark:text-gray-300 mb-4">
-          Typegres supports all Postgres types and functions, so you can leverage the full power of Postgres while maintaining type safety.
+          Typegres supports all Postgres types and functions, so you can
+          leverage the full power of Postgres while maintaining type safety.
         </p>
-        <CodeBlock 
-          code={`import { typegres, Int8, Float8, Text, Jsonb, values, Array } from "typegres";
+        <CodeEditor
+          layout="compact"
+          height="340px"
+          showLineNumbers={false}
+          initialCode={`import { typegres, Int4, Bool, Text, values, Array } from "typegres";
+
+const db = await typegres({ type: "pglite" });
 
 const TextArray = Array.of(Text);
 const users = values(
   { name: Text.new("Alice Aardvark"), age: Int4.new(25), active: Bool.new(true), pets: TextArray.new('{fido}') },
   { name: Text.new("Bob Bee"), age: Int4.new(30), active: Bool.new(true), pets: TextArray.new('{fluffy, foofoo}') },
-  { name: Text.new("Charlie Child"), age: Int4.new(5), active: Bool.new(true), pets: TextArray.new('{}') }
+  { name: Text.new("Charlie Child"), age: Int4.new(5), active: Bool.new(true), pets: TextArray.new('{guppy}') }
 );
 
 const result = await users
@@ -97,6 +115,7 @@ const result = await users
     isAdult: u.age['>'](18)
   }))
   .where(u => u.active)
+  .debug()
   .execute(db)
 
 console.log("result", result);
@@ -107,10 +126,25 @@ console.log("result", result);
       <section>
         <h2 className="text-2xl font-semibold mb-4">Next Steps</h2>
         <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-300">
-          <li>Explore the <a href="/api/index.html" className="text-blue-400 hover:text-blue-300">API Reference</a> for detailed documentation</li>
-          <li>Try the <a href="/play" className="text-blue-400 hover:text-blue-300">Interactive Playground</a> to experiment with queries</li>
+          <li>
+            Explore the{" "}
+            <a
+              href="/api/index.html"
+              className="text-blue-400 hover:text-blue-300"
+            >
+              API Reference
+            </a>{" "}
+            for detailed documentation
+          </li>
+          <li>
+            Try the{" "}
+            <a href="/play" className="text-blue-400 hover:text-blue-300">
+              Interactive Playground
+            </a>{" "}
+            to experiment with queries
+          </li>
         </ul>
       </section>
     </div>
-  )
+  );
 }
