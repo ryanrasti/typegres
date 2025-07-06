@@ -1,5 +1,8 @@
+'use client'
+
 import { PocWarning } from '@/components/poc-warning'
 import { CodeBlock } from '@/components/CodeBlock'
+import { CodeEditor } from '@/components/CodeEditor'
 
 export default function QuickstartPage() {
   return (
@@ -47,8 +50,13 @@ const db = await typegres({ type: "pglite" });
         <p className="text-gray-600 dark:text-gray-300 mb-4">
           Now you can write fully type-safe queries with autocompletion:
         </p>
-        <CodeBlock 
-          code={`import { typegres, Int8, Float8, Text, Jsonb, values } from "typegres";
+        <CodeEditor 
+          layout="compact"
+          height="320px"
+          showLineNumbers={false}
+          initialCode={`import { typegres, Int8, Float8, Text, Jsonb, values } from "typegres";
+
+const db = await typegres({ type: "pglite" });
 
 const pets = values(
   { species: Text.new("cat"), age: Float8.new(2), id: Int8.new(1n) },
@@ -74,13 +82,18 @@ console.log("Example 1", example1);
         />
       </section>
 
-            <section className="mb-12">
+      <section className="mb-12">
         <h2 className="text-2xl font-semibold mb-4">4. Go deeper in Postgres</h2>
         <p className="text-gray-600 dark:text-gray-300 mb-4">
           Typegres supports all Postgres types and functions, so you can leverage the full power of Postgres while maintaining type safety.
         </p>
-        <CodeBlock 
-          code={`import { typegres, Int8, Float8, Text, Jsonb, values, Array } from "typegres";
+        <CodeEditor 
+          layout="compact"
+          height="340px"
+          showLineNumbers={false}
+          initialCode={`import { typegres, Int4, Bool, Text, values, Array } from "typegres";
+
+const db = await typegres({ type: "pglite" });
 
 const TextArray = Array.of(Text);
 const users = values(
@@ -97,6 +110,7 @@ const result = await users
     isAdult: u.age['>'](18)
   }))
   .where(u => u.active)
+  .debug()
   .execute(db)
 
 console.log("result", result);
