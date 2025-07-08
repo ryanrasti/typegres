@@ -248,7 +248,7 @@ export function CodeEditor({
                 readOnly: !editable,
                 lineNumbers: showLineNumbers ? "on" : "off",
                 folding: false,
-                lineDecorationsWidth: 0,
+                lineDecorationsWidth: 10,
                 lineNumbersMinChars: 3,
                 padding: { top: 8, bottom: 8, left: 16, right: 16 },
               }}
@@ -555,6 +555,7 @@ export function CodeEditorWithOutput({
               fixedOverflowWidgets: true,
               readOnly: !editable,
               lineNumbers: showLineNumbers ? "on" : "off",
+              lineDecorationsWidth: 10,
             }}
           />
         </div>

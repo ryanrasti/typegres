@@ -32,12 +32,12 @@ const activeSpecies = await pets
 console.log("Active species:", activeSpecies);
 
 // TypeScript knows exactly what you'll get:
-// activeSpecies: Array<{
-//   species: Text;
-//   avgAge: Float8 | null;
-//   total: Int8;
-//   note: Text;
-// }>`;
+// activeSpecies: {
+//     species: string;
+//     avgAge: number | null;
+//     total: bigint;
+//     note: string;
+// }[]`;
 
 export function LandingPageEditor() {
   return (
