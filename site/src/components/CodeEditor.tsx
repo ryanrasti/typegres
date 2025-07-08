@@ -250,7 +250,7 @@ export function CodeEditor({
                 folding: false,
                 lineDecorationsWidth: 0,
                 lineNumbersMinChars: 3,
-                padding: { top: 8, bottom: 8 },
+                padding: { top: 8, bottom: 8, left: 16, right: 16 },
               }}
             />
           </div>

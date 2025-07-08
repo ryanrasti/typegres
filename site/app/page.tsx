@@ -2,6 +2,7 @@
 
 import { CodeBlock } from "@/components/CodeBlock";
 import { UnderConstructionBanner } from "@/components/UnderConstructionBanner";
+import { LandingPageEditor } from "@/components/LandingPageEditor";
 import { motion } from "framer-motion";
 import { ArrowRight, Bot, Code, Database, Shield } from "lucide-react";
 
@@ -172,39 +173,16 @@ export default function HomePage() {
             </motion.div>
 
             <motion.div
-              className="mt-32 text-center"
+              className="mt-32"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 1, delay: 1.2 }}
             >
-              <h2 className="text-3xl font-bold text-typegres-dark dark:text-white mb-8">
+              <h2 className="text-3xl font-bold text-typegres-dark dark:text-white mb-8 text-center">
                 Write SQL that feels like TypeScript
               </h2>
               <div className="max-w-2xl mx-auto">
-                <CodeBlock
-                  language="typescript"
-                  code={`import { db } from './db'
-import { users, posts } from './schema'
-
-const activeUsers = await db
-  .select({
-    id: users.id,
-    name: users.name,
-    postCount: count(posts.id)
-  })
-  .from(users)
-  .leftJoin(posts, eq(posts.userId, users.id))
-  .where(eq(users.active, true))
-  .groupBy(users.id)
-  .having(gt(count(posts.id), 5))
-
-// TypeScript knows exactly what you'll get:
-// activeUsers: Array<{
-//   id: number;
-//   name: string;
-//   postCount: number;
-// }>`}
-                />
+                <LandingPageEditor />
               </div>
             </motion.div>
           </div>

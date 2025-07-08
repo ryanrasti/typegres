@@ -55,7 +55,7 @@ const db = await typegres({ type: "pglite" });
         <CodeEditor
           layout="compact"
           height="320px"
-          showLineNumbers={false}
+          showLineNumbers={true}
           initialCode={`import { typegres, Int8, Float8, Text, Jsonb, values } from "typegres";
 
 const db = await typegres({ type: "pglite" });
@@ -95,7 +95,7 @@ console.log("Example 1", example1);
         <CodeEditor
           layout="compact"
           height="340px"
-          showLineNumbers={false}
+          showLineNumbers={true}
           initialCode={`import { typegres, Int4, Bool, Text, values, Array } from "typegres";
 
 const db = await typegres({ type: "pglite" });
