@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: cachix/install-nix-action@v22
-      - run: nix build
+      - run: nix build .#typegres .#site
   site:
     runs-on: ubuntu-latest
     needs: tests
