@@ -94,8 +94,7 @@
                 '';
 
                 installPhase = ''
-                  mkdir -p $out
-                  cp -r ./dist $out
+                  mv ./dist $out
                 '';
               };
 

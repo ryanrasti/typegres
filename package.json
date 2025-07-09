@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "vite",
-    "build": "tsup src/index.ts --format esm,cjs --dts --out-dir dist",
+    "build": "tsup src/index.ts --format esm,cjs --dts --out-dir dist && cp package.json README.md LICENSE dist/",
     "build:bundle": "rollup -c",
     "build:tsgo": "tsgo",
     "preview": "vite preview",
