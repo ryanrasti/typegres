@@ -1,6 +1,6 @@
 {
   "name": "typegres",
-  "version": "0.0.1",
+  "version": "0.0.1-24ac3d4",
   "scripts": {
     "dev": "vite",
     "build": "tsup src/index.ts --format esm,cjs --dts --out-dir dist && cp package.json README.md LICENSE dist/",
