@@ -1,0 +1,22 @@
+{
+  "name": "typegres-examples",
+  "version": "1.0.0",
+  "description": "Examples for Typegres",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "examples": "npm run example:basic && npm run example:advanced",
+    "example:basic": "tsx basic-example.ts",
+    "example:advanced": "tsx advanced-example.ts",
+    "install:local": "npm install ../dist",
+    "install:ci": "cd .. && npm run build && cd examples && npm install ../dist"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.3.4",
+    "typegres": "file:../dist"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.7.1"
+  }
+}

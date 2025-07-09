@@ -1,11 +1,10 @@
 {
   "name": "typegres",
   "version": "0.0.1",
-  "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsgo",
-    "build:bundle": "rollup -c",
+    "build": "tsgo --outDir dist/esm && tsgo --module commonjs --outDir dist/cjs && cp package.json README.md LICENSE dist/",
+    "build:site": "rollup -c rollup.config.site.js",
     "build:tsgo": "tsgo",
     "preview": "vite preview",
     "test": "vitest run --root src/",
@@ -45,14 +44,24 @@
     "camelcase": "^8.0.0",
     "kysely": "^0.27.4",
     "kysely-pglite-dialect": "^1.1.1",
+    "postgres-array": "^3.0.2",
     "postgres-date": "^2.1.0"
   },
   "description": "PostgreSQL, expressed in TypeScript",
-  "main": "index.js",
-  "types": "dist/index.d.ts",
+  "main": "cjs/index.js",
+  "module": "esm/index.js",
+  "types": "esm/index.d.ts",
   "files": [
-    "./result/lib"
+    "cjs",
+    "esm"
   ],
+  "exports": {
+    ".": {
+      "import": "./esm/index.js",
+      "require": "./cjs/index.js",
+      "types": "./esm/index.d.ts"
+    }
+  },
   "author": "Ryan Rasti",
   "license": "MIT"
 }
