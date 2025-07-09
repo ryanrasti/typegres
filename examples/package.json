@@ -8,7 +8,8 @@
     "examples": "npm run example:basic && npm run example:advanced",
     "example:basic": "tsx basic-example.ts",
     "example:advanced": "tsx advanced-example.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "setup": "cd .. && npm run build"
   },
   "dependencies": {
     "tsafe": "^1.8.5",

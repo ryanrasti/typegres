@@ -7,6 +7,7 @@ import {
   PostgresQueryCompiler,
 } from 'kysely'
 import { SeedDatabase, testSeeds } from "./seeds";
+import { Typegres } from "../db";
 
 
 export const dummyDb = new Kysely<SeedDatabase>({
@@ -25,13 +26,13 @@ class ExpectedRollbackException extends Error {
 }
 
 export const withDb = async (
-  db: Kysely<SeedDatabase>,
-  fn: (db: Transaction<any>) => Promise<void>,
+  db: Typegres,
+  fn: (db: Typegres) => Promise<void>,
 ): Promise<void> => {
   try {
-    await db.transaction().execute(async (txn) => {
-      await testSeeds(txn);
-      throw new ExpectedRollbackException(await fn(txn));
+    await db._internal.transaction().execute(async (txn) => {
+      await testSeeds(txn as unknown as Transaction<SeedDatabase>);
+      throw new ExpectedRollbackException(await fn(Typegres._createFromKysely(txn as unknown as Transaction<{}>)));
     });
   } catch (e) {
     if (!(e instanceof ExpectedRollbackException)) {

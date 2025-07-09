@@ -1,11 +1,11 @@
 import type { Pool, PoolConfig } from "pg";
-import { Kysely, PostgresDialect } from "kysely";
+import { Kysely, PostgresDialect, Transaction } from "kysely";
 import { PGliteDialect } from "kysely-pglite-dialect";
 import { PGlite, PGliteOptions } from "@electric-sql/pglite";
 import { sql } from "kysely";
 
 export class Typegres {
-  private kysely: Kysely<{}>;
+  private kysely: Kysely<{}> | Transaction<{}>;
 
   private constructor(kysely: Kysely<{}>) {
     this.kysely = kysely;
@@ -50,6 +50,10 @@ export class Typegres {
   // Create a new Typegres instance
   static async create(dbConfig: DatabaseConfig): Promise<Typegres> {
     const kysely = await createKyselyInstance(dbConfig);
+    return new Typegres(kysely);
+  }
+
+  static _createFromKysely(kysely: Kysely<{}>): Typegres {
     return new Typegres(kysely);
   }
 }
