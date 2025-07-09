@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsup src/index.ts --format esm,cjs --dts --out-dir dist",
-    "build:site": "rollup -c rollup.config.site.js",
+    "build:bundle": "rollup -c",
     "build:tsgo": "tsgo",
     "preview": "vite preview",
     "test": "vitest run --root src/",

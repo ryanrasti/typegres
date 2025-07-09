@@ -95,7 +95,7 @@
 
                 installPhase = ''
                   mkdir -p $out
-                  cp -r ./dist $out/lib
+                  cp -r ./dist $out
                 '';
               };
 

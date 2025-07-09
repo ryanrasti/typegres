@@ -49,6 +49,8 @@ jobs:
           HASH=$(git rev-parse --short HEAD)
           export PATH="$PWD/node_modules/.bin:$PATH"
           npm version $(npm pkg get version | tr -d '"')-$HASH --no-git-tag-version
+      - name: Build with nix
+        run: nix build .#typegres --out-link dist
       - name: Publish to NPM
         run: |
           export PATH="$PWD/node_modules/.bin:$PATH"
