@@ -1,8 +1,8 @@
 // Advanced example from the README
-import { typegres } from "typegres";
+import { typegres, Typegres } from "typegres";
 import { Pool } from "pg";
 
-const createSchema = async (tg: any) => {
+const createSchema = async (tg: Typegres) => {
   // Create users table
   await tg.sql`
     CREATE TABLE IF NOT EXISTS users (

@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.4",
-    "typegres": "file:../dist"
+    "typegres": "../dist"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
