@@ -2,7 +2,6 @@ import { Expression, LiteralExpression } from "../expression";
 import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
 import { Typegres } from "../db";
-import { sql } from "kysely";
 
 export type ClassType<T> = {
   typeString(): string | undefined;
@@ -78,21 +77,21 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
         reject: (err: unknown) => void
       ): void {
         const expr = self.toExpression();
-        const kysely = (db as any)._internal;
-        const compiled = sql`SELECT ${expr.compile(Context.new())} AS val`.compile(kysely);
+        const kexpr = db._internal.selectNoFrom(
+          expr.compile(Context.new()).as("val")
+        );
         
-        kysely
-          .executeQuery(compiled)
-          .then((result: any) => {
-            const row = result.rows[0];
+        kexpr
+          .executeTakeFirst()
+          ?.then((result) =>
             resolve(
-              (row?.val != null
-                ? self.getClass().parse(row.val as string)
-                : row?.val) as unknown as any
-            );
-          })
-          .catch((err: any) => {
-            console.error("Error executing query:", compiled, err);
+              (result?.val != null
+                ? self.getClass().parse(result.val as string)
+                : result?.val) as unknown as any
+            )
+          )
+          .catch((err) => {
+            console.error("Error executing query:", kexpr.compile(), err);
             reject(err);
           });
       },

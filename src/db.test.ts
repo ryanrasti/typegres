@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { Kysely, sql } from "kysely";
+import { sql } from "kysely";
 import { Pool } from "pg";
-import { typegres, Typegres } from "./db";
-import { SeedDatabase } from "./test/seeds";
+import { typegres} from "./db";
 
 export const testDb = await typegres({
   type: "pg",
