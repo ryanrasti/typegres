@@ -1,6 +1,5 @@
 // Advanced example from the README
 import { typegres, Typegres } from "typegres";
-import { Pool } from "pg";
 
 const createSchema = async (tg: Typegres) => {
   // Create users table
@@ -31,41 +30,70 @@ const createSchema = async (tg: Typegres) => {
     ON CONFLICT DO NOTHING
   `.execute();
 
-  // Generate posts (more than 10 for Alice and Charlie)
-  const posts = [];
-  for (let i = 1; i <= 15; i++) {
-    posts.push(`(${i}, 1, 'Alice post ${i}')`);
-  }
-  for (let i = 16; i <= 20; i++) {
-    posts.push(`(${i}, 2, 'Bob post ${i - 15}')`);
-  }
-  for (let i = 21; i <= 32; i++) {
-    posts.push(`(${i}, 3, 'Charlie post ${i - 20}')`);
-  }
-
-  await tg.sql`
-    INSERT INTO posts (id, author_id, title)
-    VALUES ${tg.raw(posts.join(', '))}
-    ON CONFLICT DO NOTHING
-  `.execute();
+  // Insert some sample posts - we'll use typegres insert instead
+  // This will be done in the main function after generating the schema
 };
 
 const main = async () => {
+  // For this example, we'll use PGlite to make it easier to run
   const pg = await typegres({
-    type: "pg",
-    PoolClass: Pool,
-    config: {
-      user: "postgres", // Adjust as needed
-      host: "localhost",
-      database: "test", // Adjust as needed
-    }
+    type: "pglite", // Using PGlite for easy local execution
   });
 
   // Create schema and sample data
   await createSchema(pg);
 
-  // Import the generated tables
-  const db = await import("typegres/db");
+  // Import the generated tables and types
+  const { database, values, Text, Int4 } = await import("typegres");
+
+  // Define the database schema manually
+  const db = database({
+    users: {
+      id: Int4,
+      name: Text,
+    },
+    posts: {
+      id: Int4,
+      author_id: Int4,
+      title: Text,
+      created_at: Text, // We'll treat timestamp as text for simplicity
+    },
+  });
+
+  // Insert sample posts using typegres
+  console.log("Inserting sample posts...");
+  const postsData = [];
+  
+  // Alice's posts (15 posts)
+  for (let i = 1; i <= 15; i++) {
+    postsData.push({
+      author_id: Int4.new(1),
+      title: Text.new(`Alice post ${i}`),
+    });
+  }
+  
+  // Bob's posts (5 posts)
+  for (let i = 1; i <= 5; i++) {
+    postsData.push({
+      author_id: Int4.new(2),
+      title: Text.new(`Bob post ${i}`),
+    });
+  }
+  
+  // Charlie's posts (12 posts)
+  for (let i = 1; i <= 12; i++) {
+    postsData.push({
+      author_id: Int4.new(3),
+      title: Text.new(`Charlie post ${i}`),
+    });
+  }
+
+  // Insert all posts
+  await db.posts
+    .insert(values(...postsData))
+    .execute(pg);
+
+  console.log(`Inserted ${postsData.length} posts`);
 
   // Find all authors who have published more than 10 posts
   const prolificAuthors = await db.posts
