@@ -13,6 +13,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <script defer data-domain="typegres.com" src="https://plausible.io/js/script.js"></script>
+      </head>
       <body>
         {children}
       </body>
