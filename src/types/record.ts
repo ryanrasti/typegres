@@ -64,16 +64,18 @@ type SchemaResultType<S extends Schema> = {
 };
 
 export type RecordClass<T extends { [key in string]: Any<unknown, 0 | 1> }> = {
-  new (v: string): Record<number, T> & T;
-  ["new"](v: string): Record<1, T> & T;
-  ["new"](v: null): Record<0, T> & T;
-  ["new"](v: Expression): Record<0 | 1, T> & T;
-  prototype: Record<0 | 1, T> & T;
+  new (v: string): RecordInstance<number, T>;
+  ["new"](v: string): RecordInstance<1, T>;
+  ["new"](v: null): RecordInstance<0, T>;
+  ["new"](v: Expression): RecordInstance<0 | 1, T>;
+  prototype: RecordInstance<0 | 1, T>;
 
   typeString(): string | undefined;
   subtype(): UseSubtype | undefined;
   parse(v: string): { [key in keyof T]: T[key]["resultType"] };
 };
+
+export type RecordInstance<N extends number, T extends RowLike> = Record<N, T> & T;
 
 export default abstract class Record<
   N extends number,

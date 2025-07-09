@@ -9,9 +9,9 @@ For regular users:
 npm install
 ```
 
-For CI or local development (installs from the built dist folder):
+To try against the latest version of Typegres:
 ```bash
-npm run install:ci
+npm install typegres@latest
 ```
 
 ## Running Examples

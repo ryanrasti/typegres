@@ -6,17 +6,16 @@
   "type": "module",
   "scripts": {
     "examples": "npm run example:basic && npm run example:advanced",
-    "example:readme": "tsx readme-example.ts",
     "example:basic": "tsx basic-example.ts",
     "example:advanced": "tsx advanced-example.ts",
-    "example:query-builder": "tsx query-builder-example.ts",
-    "install:local": "npm install ../dist",
-    "install:ci": "cd .. && npm run build && cd examples && npm install ../dist"
+    "test": "vitest run"
   },
   "dependencies": {
+    "tsafe": "^1.8.5",
     "typegres": "../dist"
   },
   "devDependencies": {
-    "tsx": "^4.7.1"
+    "tsx": "^4.7.1",
+    "vitest": "^3.2.4"
   }
 }

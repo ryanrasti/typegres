@@ -1,15 +1,8 @@
 // Advanced example demonstrating joins and aggregations
-import { typegres, values, Text, Int4 } from "typegres";
+import { typegres, values, Text, Int4, Typegres } from "typegres";
 import { db, createSchema } from "./schema";
 
-const main = async () => {
-  const pg = await typegres({
-    type: "pglite", // Using PGlite for easy local execution
-  });
-
-  // Create schema and sample data
-  await createSchema(pg);
-
+const samplePosts = async (tg: Typegres) => {
   // Insert sample posts using typegres with functional style
   console.log("Inserting sample posts...");
   const postsData = [
@@ -33,9 +26,20 @@ const main = async () => {
   // Insert all posts
   await db.posts
     .insert(values(postsData[0], ...postsData.slice(1)))
-    .execute(pg);
+    .execute(tg);
 
   console.log(`Inserted ${postsData.length} posts`);
+  return postsData.length;
+};
+
+export const main = async () => {
+  const tg = await typegres({
+    type: "pglite", // Using PGlite for easy local execution
+  });
+
+  // Create schema and sample data
+  await createSchema(tg);
+  const postsCount = await samplePosts(tg);
 
   // Find all authors who have published more than 10 posts
   const prolificAuthors = await db.posts
@@ -52,25 +56,17 @@ const main = async () => {
       name: u.name,
       totalPosts: ac.postCount,
     }))
-    .execute(pg);
+    .execute(tg);
 
   console.log("Prolific authors (more than 10 posts):");
   console.log(prolificAuthors);
   // Type of prolificAuthors is { id: number; name: string; totalPosts: bigint }[]
 
-  // Show the actual post counts for verification
-  const allAuthorPostCounts = await db.posts
-    .groupBy((p) => [p.author_id] as const)
-    .select((p, [author_id]) => ({
-      author_id,
-      count: p.id.count(),
-    }))
-    .execute(pg);
-
-  console.log("\nAll author post counts:");
-  console.log(allAuthorPostCounts);
-
-  await pg.end();
+  await tg.end();
+  
+  return { postsCount, prolificAuthors };
 };
 
-main().catch(console.error);
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(console.error);
+}

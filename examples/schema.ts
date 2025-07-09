@@ -4,16 +4,16 @@ import { Typegres, Text, Int4, Bool, database } from "typegres";
 // Define the database schema
 export const db = database({
   users: {
-    id: Int4,
-    name: Text,
-    age: Int4,
-    isActive: Bool,
+    id: Int4<1>,
+    name: Text<1>,
+    age: Int4<1>,
+    isActive: Bool<1>,
   },
   posts: {
-    id: Int4,
-    author_id: Int4,
-    title: Text,
-    created_at: Text, // Treating timestamp as text for simplicity
+    id: Int4<1>,
+    author_id: Int4<1>,
+    title: Text<1>,
+    created_at: Text<1>, // Treating timestamp as text for simplicity
   },
 });
 
@@ -44,7 +44,7 @@ export const createSchema = async (tg: Typegres) => {
     INSERT INTO users (name, age, "isActive")
     VALUES 
       ('Alice', 25, true),
-      ('Bob', 20, true),
+      ('Bob', 17, true),
       ('Charlie', 30, false)
   `.execute();
 };
