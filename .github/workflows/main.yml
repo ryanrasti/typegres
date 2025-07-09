@@ -45,10 +45,8 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cachix/install-nix-action@v22
       - name: Build with nix
-        run: nix build .#typegres --out-link nix-dist
+        run: nix build .#typegres --out-link nix-dist && cp -r nix-dist/lib dist/
       - name: Publish to NPM
-        run: |
-          export PATH="$PWD/node_modules/.bin:$PATH"
-          npm publish
+        run: npm publish
         env:
           NPM_CONFIG_//registry.npmjs.org/:_authToken: ${{ secrets.NODE_AUTH_TOKEN }}

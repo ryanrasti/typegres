@@ -49,22 +49,21 @@
     "@electric-sql/pglite": "^0.2.0"
   },
   "description": "PostgreSQL, expressed in TypeScript",
-  "main": "index.js",
-  "module": "index.mjs",
-  "types": "index.d.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "files": [
-    "./dist",
-    "./nix-dist/lib"
+    "./dist"
   ],
   "exports": {
     ".": {
       "import": {
-        "types": "./index.d.mts",
-        "default": "./index.mjs"
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
       },
       "require": {
-        "types": "./index.d.ts",
-        "default": "./index.js"
+        "types": "./dist/ndex.d.ts",
+        "default": "./dist/index.js"
       }
     }
   },

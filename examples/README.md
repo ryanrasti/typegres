@@ -13,6 +13,7 @@ npm run setup
 To try against the latest version of Typegres:
 ```bash
 npm install typegres@latest
+npm install
 ```
 
 ## Running Examples
