@@ -1,10 +1,9 @@
 {
   "name": "typegres",
   "version": "0.0.1",
-  "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsgo",
+    "build": "tsup src/index.ts --format esm,cjs --dts --out-dir dist",
     "build:bundle": "rollup -c",
     "build:tsgo": "tsgo",
     "preview": "vite preview",
@@ -18,7 +17,6 @@
     "prepublishOnly": "nix build"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.3.4",
     "@rollup/plugin-alias": "^5.1.1",
     "@rollup/plugin-commonjs": "^28.0.6",
     "@rollup/plugin-node-resolve": "^16.0.1",
@@ -36,6 +34,7 @@
     "rollup-plugin-polyfill-node": "^0.13.0",
     "tsafe": "^1.8.5",
     "tslib": "^2.8.1",
+    "tsup": "^8.5.0",
     "typescript": "^5.8.2",
     "vite": "^5.3.1",
     "vitest": "^2.0.2",
@@ -45,14 +44,29 @@
     "camelcase": "^8.0.0",
     "kysely": "^0.27.4",
     "kysely-pglite-dialect": "^1.1.1",
-    "postgres-date": "^2.1.0"
+    "postgres-array": "^3.0.2",
+    "postgres-date": "^2.1.0",
+    "@electric-sql/pglite": "^0.2.0"
   },
   "description": "PostgreSQL, expressed in TypeScript",
   "main": "index.js",
-  "types": "dist/index.d.ts",
+  "module": "index.mjs",
+  "types": "index.d.ts",
   "files": [
-    "./result/lib"
+    "dist"
   ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./index.d.mts",
+        "default": "./index.mjs"
+      },
+      "require": {
+        "types": "./index.d.ts",
+        "default": "./index.js"
+      }
+    }
+  },
   "author": "Ryan Rasti",
   "license": "MIT"
 }

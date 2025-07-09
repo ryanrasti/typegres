@@ -1,0 +1,22 @@
+{
+  "name": "typegres-examples",
+  "version": "1.0.0",
+  "description": "Examples for Typegres",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "examples": "npm run example:basic && npm run example:advanced",
+    "example:basic": "tsx basic-example.ts",
+    "example:advanced": "tsx advanced-example.ts",
+    "test": "vitest run",
+    "setup": "cd .. && npm run build"
+  },
+  "dependencies": {
+    "tsafe": "^1.8.5",
+    "typegres": "../dist"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.1",
+    "vitest": "^3.2.4"
+  }
+}

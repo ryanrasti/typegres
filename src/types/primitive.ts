@@ -1,5 +1,6 @@
-import { Text, Float8, Numeric, Bool, Any, Record } from ".";
+import { Text, Float8, Numeric, Bool, Any } from ".";
 import { RowLikeRelaxed } from "../query/values";
+import { RecordInstance } from "./record";
 
 export type Primitive = string | number | boolean | bigint;
 
@@ -20,7 +21,7 @@ export type MaybePrimitiveToSqlType<
   : T extends Any
     ? T
     : T extends RowLikeRelaxed
-      ? Record<1, { [K in keyof T]: MaybePrimitiveToSqlType<T[K]> }>
+      ? RecordInstance<1, { [K in keyof T]: MaybePrimitiveToSqlType<T[K]> }> 
       : never;
 
 export const maybePrimitiveToSqlType = <

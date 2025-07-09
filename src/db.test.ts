@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { Kysely, sql } from "kysely";
+import { sql } from "kysely";
 import { Pool } from "pg";
-import { typegres, Typegres } from "./db";
-import { SeedDatabase } from "./test/seeds";
+import { typegres} from "./db";
 
 export const testDb = await typegres({
   type: "pg",
@@ -14,11 +13,11 @@ export const testDb = await typegres({
     password: "postgres",
     database: "test",
   }
-}) as unknown as Kysely<SeedDatabase> & Typegres;
+});
 
 describe("App", () => {
   it("run a select query", async () => {
-    const one = await testDb
+    const one = await testDb._internal
       .selectNoFrom([sql<number>`1`.as("val")])
       .executeTakeFirst();
     // We're not using the default pg parsing, so it's a

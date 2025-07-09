@@ -77,10 +77,10 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
         reject: (err: unknown) => void
       ): void {
         const expr = self.toExpression();
-        const kexpr = db.selectNoFrom(
+        const kexpr = db._internal.selectNoFrom(
           expr.compile(Context.new()).as("val")
         );
-
+        
         kexpr
           .executeTakeFirst()
           ?.then((result) =>

@@ -1,4 +1,4 @@
-import { Kysely, sql } from "kysely";
+import { sql } from "kysely";
 import { Any, Bool } from "../types";
 import {
   aliasRowLike,
@@ -11,6 +11,7 @@ import {
   Setof,
 } from "./values";
 import { Context, QueryAlias, SelectableExpression } from "../expression";
+import type { Typegres } from "../db";
 
 export const Generated = Symbol("Generated");
 
@@ -126,12 +127,13 @@ class Table<Q extends Query> extends Setof<Q> {
       RETURNING *
     `;
     return {
-      execute: async (db: Kysely<any>) => {
+      execute: async (tg: Typegres) => {
+        const kysely = (tg as any)._internal;
         try {
-          const res = await db.executeQuery(statement.compile(db));
+          const res = await kysely.executeQuery(statement.compile(kysely));
           return res.rows as unknown as AwaitedResultType<Q>;
         } catch (e) {
-          console.error("Error executing insert:", e, statement.compile(db));
+          console.error("Error executing insert:", e, statement.compile(kysely));
           throw e;
         }
       },
@@ -172,7 +174,8 @@ class UpdateBuilder<
   ) {
     const builder = this;
     return {
-      async execute(db: Kysely<any>) {
+      async execute(tg: Typegres) {
+        const kysely = (tg as any)._internal;
         const alias = new QueryAlias(builder.table.rawFromExpr.table);
         const asAlias = aliasRowLike(
           alias,
@@ -237,10 +240,10 @@ class UpdateBuilder<
         RETURNING ${sql.ref(builder.table.rawFromExpr.table)}.*
       `;
         try {
-          const res = await db.executeQuery(statement.compile(db));
+          const res = await kysely.executeQuery(statement.compile(kysely));
           return res.rows as unknown as AwaitedResultType<Q>;
         } catch (e) {
-          console.error("Error executing update:", e, statement.compile(db));
+          console.error("Error executing update:", e, statement.compile(kysely));
           throw e;
         }
       },

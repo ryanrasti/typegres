@@ -1,4 +1,4 @@
-# Type-safe Postgres in TypeScript
+# Typegres: PostgreSQL, expressed in TypeScript
 
 [![CI](https://github.com/ryanrasti/typegres/actions/workflows/main.yml/badge.svg)](https://github.com/ryanrasti/typegres/actions/workflows/main.yml) [![npm version](https://img.shields.io/npm/v/typegres.svg)](https://www.npmjs.com/package/typegres) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
@@ -12,22 +12,24 @@ npm install typegres
 ```
 
 ```typescript
-import { typegres, Text, Int4, values, Bool } from "typegres";
+// Import the typegres library
+import { typegres } from "typegres";
+// Import your schema definition
+import db from "./schema";
 
-const db = typegres({ type: "pglite" });
+const tg = typegres({
+  /* You db connection options */
+});
 
-const users = values(
-  { name: Text.new("Alice"), age: Int4.new(25), isActive: Bool.new(true) },
-  { name: Text.new("Bob"), age: Int4.new(30), isActive: Bool.new(false) },
-  { name: Text.new("Charlie"), age: Int4.new(17), isActive: Bool.new(true) }
-);
-
-const rows = await users
-  .select((u) => ({ upper: u.name.upper(), isAdult: u.age[">"](18) }))
+const activeUsers = await db.users
+  .select((u) => ({
+    upper: u.name.upper(),
+    isAdult: u.age[">"](18),
+  }))
   .where((u) => u.isActive)
-  .execute(db);
+  .execute(tg);
 
-console.log(rows);
+console.log(activeUsers);
 // Output: [{ upper: 'ALICE', isAdult: true }, { upper: 'CHARLIE', isAdult: false }]
 ```
 
@@ -49,37 +51,71 @@ See the quickstart guide for more details: https://typegres.com/docs/quickstart/
 While traditional ORMs and query builders abstract over multiple SQL dialects, Typegres goes all-in on PostgreSQL to provide the most powerful and type-safe experience possible. In a single import, you can access the full power of Postgres with complete TypeScript type safety.
 
 - Postgres-only – every builtin function & operator, nothing poly-glot
-- TypeScript-native – full generics, autocomplete, inference
-- Zero ORM bloat – SQL you can read
-- TypeScript safety – mistakes caught by the compiler, not production
+- TypeScript-native – full type safety, generics, autocomplete, inference
+- Zero ORM bloat – Generates the SQL you'd expect
 
 Focus on learning Postgres itself — Typegres just gives you autocomplete, type-checking, and all other benefits of TypeScript.
 
 ## Advanced example
 
 ```typescript
-const result = await users
-  .select((u) => ({
-    firstName: u.name.regexpSubstr("[A-Z][a-z]+").upper(),
-    lastName: u.name.regexpSubstr("[a-z]+$").lower(),
-    isAdult: u.age[">"](18),
+// Find all authors who have published more than 10 posts
+const prolificAuthors = await db.posts
+  .groupBy((p) => [p.author_id] as const)
+  .select((p, [author_id]) => ({
+    author_id,
+    postCount: p.id.count(),
   }))
-  .where((u) => u.isActive)
-  .execute(db);
+  .subquery() // Create a subquery from the aggregation
+  .where((ac) => ac.postCount[">"](10)) // Filter the results of the subquery
+  .join(db.users, "u", (ac, { u }) => ac.author_id["="](u.id)) // Join back to the users table
+  .select((ac, { u }) => ({
+    id: u.id,
+    name: u.name,
+    totalPosts: ac.postCount,
+  }))
+  .execute(tg);
 
-// result type: Array<{ firstName: string; lastName: string; isAdult: boolean }>
+// Type of prolificAuthors is { id: number; name: string; totalPosts: bigint }[]
 ```
 
 ## Roadmap
 
-- [x] Generated PG types, operators, functions
-- [x] Query-builder PoC
-- [x] Interactive playground
-- [ ] Full support for `UPDATE` / `INSERT`
-- [ ] Custom keywords (`IS NULL`, `AND`, `OR`)
-- [ ] Refined typing for advanced types (JSONB, arrays, custom enums)
-- [ ] Table generator + migrations
-- [ ] Inline docs & hover help
+🧪 Current Features (Developer Preview)
+
+The project is currently in an early but powerful state. The core foundation is in place:
+
+    [x] Complete Postgres API: Generated types, operators, and functions for the entire Postgres surface.
+
+    [x] Query Builder Core: A proof-of-concept query builder with SELECT, JOIN, and GROUP BY.
+
+    [x] Interactive Playground: A live, in-browser demo powered by PGlite.
+
+🚀 Road to v1.0: Production Readiness
+
+The immediate priority is building a rock-solid foundation to make Typegres stable and ready for production use. This includes:
+
+    [ ] Full query builder: Full support for aggregation, window functions, CTEs.
+
+    [ ] Full Mutation Support: Robust implementations for INSERT, UPDATE, and DELETE.
+
+    [ ] Essential Keywords: First-class support for IS NULL, AND, OR, IN, BETWEEN, etc.
+
+    [ ] Comprehensive Test Suite: Dramatically expand test coverage across all features.
+
+    [ ] Advanced Type Support: Refined typing for JSONB, arrays, and custom enums.
+
+    [ ] Inline Documentation: Add TSDoc comments for better in-editor help and discoverability.
+
+🔭 Long-Term Vision: A New Data Layer
+
+Once that stable v1.0 foundation is in place, the roadmap will focus on solving deeper, more fundamental problems and tackling the object-relational impedance mismatch.
+
+    [ ] Truly Type-Safe Migrations: Typesafe migrations without codegen.
+
+    [ ] First-Class Relations: A simple and composable API for relations that feels natural in TypeScript.
+
+    [ ] An Even More Idiomatic API: Write code that feels even more like TypeScript but produces clean, predictable SQL.
 
 ## Project Structure
 

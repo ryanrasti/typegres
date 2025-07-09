@@ -1,4 +1,4 @@
-import { Kysely, RawBuilder, sql } from "kysely";
+import { RawBuilder, sql } from "kysely";
 import { Expression, QueryAlias, SelectableExpression } from "../expression";
 import { Any, Bool, Record } from "../types";
 import { dummyDb } from "../test/db";
@@ -6,6 +6,7 @@ import { AggregateOfRow } from "../types/aggregate";
 import { Primitive, maybePrimitiveToSqlType } from "../types/primitive";
 import { row } from "../types/record";
 import { Context } from "../expression";
+import type { Typegres } from "../db";
 
 export type RowLike = {
   [key: string]: Any<unknown, 0 | 1>;
@@ -416,7 +417,7 @@ export class Setof<Q extends Query> extends Expression {
         )}`
       : sql``;
 
-    return sql`(${select} ${from} ${where} ${joins} ${groupBy})`;
+    return sql`(${select} ${from} ${joins} ${where} ${groupBy})`;
   }
 
   debug() {
@@ -424,8 +425,9 @@ export class Setof<Q extends Query> extends Expression {
     return this;
   }
 
-  async execute(db: Kysely<any>): Promise<AwaitedResultType<Q>> {
-    const kexpr = db.executeQuery(this.compile(Context.new()).compile(db));
+  async execute(tg: Typegres): Promise<AwaitedResultType<Q>> {
+    const kysely = (tg as any)._internal;
+    const kexpr = kysely.executeQuery(this.compile(Context.new()).compile(kysely));
     const resultRowLike = this.query.select
       ? this.query.select
       : this.query.from;
@@ -442,7 +444,7 @@ export class Setof<Q extends Query> extends Expression {
     } catch (err) {
       console.error(
         "Error executing query:",
-        this.compile(Context.new()).compile(db),
+        this.compile(Context.new()).compile(kysely),
         err
       );
       throw err;

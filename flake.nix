@@ -95,10 +95,7 @@
 
                 installPhase = ''
                   mkdir -p $out
-                  cp -r ./dist $out/lib
-                  cp package.json $out/lib/package.json
-                  cp README.md $out/lib/README.md
-                  cp LICENSE $out/lib/LICENSE
+                  cp -r ./dist $out
                 '';
               };
 
