@@ -94,7 +94,8 @@
                 '';
 
                 installPhase = ''
-                  mv ./dist $out
+                  mkdir $out
+                  mv ./dist $out/lib
                 '';
               };
 

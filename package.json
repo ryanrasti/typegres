@@ -1,9 +1,9 @@
 {
   "name": "typegres",
-  "version": "0.0.1-24ac3d4",
+  "version": "0.0.1",
   "scripts": {
     "dev": "vite",
-    "build": "tsup src/index.ts --format esm,cjs --dts --out-dir dist && cp package.json README.md LICENSE dist/",
+    "build": "tsup src/index.ts --format esm,cjs --dts --out-dir dist",
     "build:bundle": "rollup -c",
     "build:tsgo": "tsgo",
     "preview": "vite preview",
@@ -14,7 +14,7 @@
     "format": "prettier --write \"**/*.{ts,js,json}\"",
     "codegen": "bash ./src/gen/gen.sh && kysely --no-outdated-check migrate:up -e test && bash ./src/gen/table-gen.sh",
     "clean": "(rm ./src/gen/functions.ts; rm -r ./src/gen/types; rm ./src/gen/tables.json; rm ./src/gen/tables.ts) || true",
-    "prepublishOnly": "nix build"
+    "prepublishOnly": "npm version $(npm pkg get version | tr -d '\"')-$(git rev-parse --short HEAD) --no-git-tag-version"
   },
   "devDependencies": {
     "@rollup/plugin-alias": "^5.1.1",
@@ -53,7 +53,8 @@
   "module": "index.mjs",
   "types": "index.d.ts",
   "files": [
-    "dist"
+    "./dist",
+    "./nix-dist/lib"
   ],
   "exports": {
     ".": {
