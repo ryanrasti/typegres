@@ -6,9 +6,12 @@ import { InlineCodeExample } from "@/components/InlineCodeExample";
 import { motion } from "framer-motion";
 import { ArrowRight, Bot, Code, Database, Shield, Github } from "lucide-react";
 
+import { DarkModeToggle } from '@/components/DarkModeToggle';
+
 export default function HomePage() {
   return (
     <>
+      <DarkModeToggle />
       <main className="min-h-screen bg-white dark:bg-typegres-dark">
         <div className="absolute inset-0 bg-dot-pattern opacity-50" />
 
