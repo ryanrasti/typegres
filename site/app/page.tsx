@@ -25,9 +25,9 @@ export default function HomePage() {
                 <img
                   src="/typegres_icon.svg"
                   alt="Typegres"
-                  className="h-10 w-auto"
+                  className="h-8 sm:h-10 w-auto"
                 />
-                <span className="text-3xl font-bold">
+                <span className="text-2xl sm:text-3xl font-bold">
                   <span className="text-typegres-dark dark:text-white">
                     type
                   </span>
@@ -37,7 +37,7 @@ export default function HomePage() {
             </motion.a>
           </div>
           <motion.div
-            className="flex gap-x-6"
+            className="hidden sm:flex gap-x-6"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -169,10 +169,10 @@ export default function HomePage() {
                 <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-10 border border-gray-200 dark:border-gray-700 shadow-sm h-full">
                   <Database className="w-14 h-14 text-typegres-blue mb-6" />
                   <h3 className="text-2xl font-semibold text-typegres-dark dark:text-white mb-4">
-                    Pure Postgres
+                    Not an ORM
                   </h3>
                   <p className="text-base text-typegres-gray dark:text-gray-400 mb-4">
-                    Every Postgres function, operator, and type - directly in TypeScript.
+                    Every Postgres function exists as a TypeScript method - no abstraction layer.
                   </p>
                   <InlineCodeExample code={`await Jsonb.new('{"a":1,"b":2}')
   .jsonbEach()
@@ -192,10 +192,10 @@ export default function HomePage() {
                 <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-10 border border-gray-200 dark:border-gray-700 shadow-sm h-full">
                   <Shield className="w-14 h-14 text-typegres-blue mb-6" />
                   <h3 className="text-2xl font-semibold text-typegres-dark dark:text-white mb-4">
-                    Fully Typed
+                    Zero SQL Strings
                   </h3>
                   <p className="text-base text-typegres-gray dark:text-gray-400 mb-4">
-                    Compose complex queries with complete type inference.
+                    Write complex queries as pure TypeScript with complete type inference.
                   </p>
                   <InlineCodeExample code={`await pets
   .groupBy(p => [p.species])
@@ -217,19 +217,21 @@ export default function HomePage() {
                 <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-10 border border-gray-200 dark:border-gray-700 shadow-sm h-full">
                   <Bot className="w-14 h-14 text-typegres-blue mb-6" />
                   <h3 className="text-2xl font-semibold text-typegres-dark dark:text-white mb-4">
-                    Fast Iteration
+                    One Language
                   </h3>
                   <p className="text-base text-typegres-gray dark:text-gray-400 mb-4">
-                    Write queries with your IDE and AI assistants understanding every function.
+                    Query and transform data without context switching between SQL and code.
                   </p>
-                  <InlineCodeExample code={`// Joins with type safety
-people
-  .join(pets, "pet", (p, { pet }) =>
-    p.petId["="](pet.id))
-  .select((p, { pet }) => ({
-    personName: p.name,
-    petSpecies: pet.species
-  }))`} />
+                  <InlineCodeExample code={`db.users
+  .join(db.posts, 'p', (u, { p }) => 
+    u.id['='](p.author_id))
+  .select((u, { p }) => ({
+    username: u.email
+      .regexpReplace('@.*$', '')
+      .lower(),
+    postTitle: p.title,
+  }))
+  .where((u) => u.is_active)`} />
                 </div>
               </motion.div>
             </motion.div>

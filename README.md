@@ -6,6 +6,9 @@ Import the full power of PostgreSQL as a TypeScript library.
 
 ![Typegres Demo GIF](https://raw.githubusercontent.com/ryanrasti/typegres/main/site/public/typegres_landing_page_demo.gif)
 
+> [!WARNING]
+> **Developer Preview**: Typegres is experimental and not production-ready. The API is evolving rapidly. Try the [playground](https://typegres.com/play/) and star the repo to follow along!
+
 ## Quick Start
 
 ```bash
@@ -20,7 +23,7 @@ import { typegres } from "typegres";
 import db from "./schema";
 
 const tg = typegres({
-  /* You db connection options */
+  /* Your db connection options */
 });
 
 const activeUsers = await db.users
@@ -35,26 +38,20 @@ console.log(activeUsers);
 // Output: [{ upper: 'ALICE', isAdult: true }, { upper: 'CHARLIE', isAdult: false }]
 ```
 
-See the quickstart guide for more details: https://typegres.com/docs/quickstart/
-
-✅ Autocomplete for every PG function, 100% compile-time types
+See the [examples](https://github.com/ryanrasti/typegres/tree/main/examples) directory for complete working examples.
 
 ## Docs & Demo
 
-- Docs: https://typegres.com/docs/quickstart/
-- API Reference: https://typegres.com/api/
-- Playground: https://typegres.com/play/
-
-> [!WARNING]
-> Developer Preview (alpha): expect rough edges and breaking changes.
+- **Try it live**: https://typegres.com/play/
+- **API Reference**: https://typegres.com/api/
 
 ## Key Features & Design Goals
 
 While traditional ORMs and query builders abstract over multiple SQL dialects, Typegres goes all-in on PostgreSQL to provide the most powerful and type-safe experience possible. In a single import, you can access the full power of Postgres with complete TypeScript type safety.
 
-- Postgres-only – every builtin function & operator, nothing poly-glot
-- TypeScript-native – full type safety, generics, autocomplete, inference
-- Zero ORM bloat – Generates the SQL you'd expect
+- **Not an ORM** – Direct access to every PostgreSQL function as TypeScript methods
+- **Zero SQL strings** – Write complex queries in pure TypeScript with full type inference  
+- **One language** – No context switching between SQL and application code
 
 Focus on learning Postgres itself — Typegres just gives you autocomplete, type-checking, and all other benefits of TypeScript.
 
@@ -87,37 +84,26 @@ const prolificAuthors = await db.posts
 
 The project is currently in an early but powerful state. The core foundation is in place:
 
-    [x] Complete Postgres API: Generated types, operators, and functions for the entire Postgres surface.
-
-    [x] Query Builder Core: A proof-of-concept query builder with SELECT, JOIN, and GROUP BY.
-
-    [x] Interactive Playground: A live, in-browser demo powered by PGlite.
+- [x] Complete Postgres API: Generated types, operators, and functions for the entire Postgres surface.
+- [x] Query Builder Core: A proof-of-concept query builder with SELECT, JOIN, and GROUP BY.
+- [x] Interactive Playground: A live, in-browser demo powered by PGlite.
 
 🚀 Road to v1.0: Production Readiness
 
 The immediate priority is building a rock-solid foundation to make Typegres stable and ready for production use. This includes:
-
-    [ ] Full query builder: Full support for aggregation, window functions, CTEs.
-
-    [ ] Full Mutation Support: Robust implementations for INSERT, UPDATE, and DELETE.
-
-    [ ] Essential Keywords: First-class support for IS NULL, AND, OR, IN, BETWEEN, etc.
-
-    [ ] Comprehensive Test Suite: Dramatically expand test coverage across all features.
-
-    [ ] Advanced Type Support: Refined typing for JSONB, arrays, and custom enums.
-
-    [ ] Inline Documentation: Add TSDoc comments for better in-editor help and discoverability.
+- [ ] Full query builder: Full support for aggregation, window functions, CTEs.
+- [ ] Full Mutation Support: Robust implementations for INSERT, UPDATE, and DELETE.
+- [ ] Essential Keywords: First-class support for IS NULL, AND, OR, IN, BETWEEN, etc.
+- [ ] Comprehensive Test Suite: Dramatically expand test coverage across all features.
+- [ ] Advanced Type Support: Refined typing for JSONB, arrays, and custom enums.
+- [ ] Inline Documentation: Add TSDoc comments for better in-editor help and discoverability.
 
 🔭 Long-Term Vision: A New Data Layer
 
-Once that stable v1.0 foundation is in place, the roadmap will focus on solving deeper, more fundamental problems and tackling the object-relational impedance mismatch.
-
-    [ ] Truly Type-Safe Migrations: Typesafe migrations without codegen.
-
-    [ ] First-Class Relations: A simple and composable API for relations that feels natural in TypeScript.
-
-    [ ] An Even More Idiomatic API: Write code that feels even more like TypeScript but produces clean, predictable SQL.
+Once that stable v1.0 foundation is in place, the roadmap will focus on solving deeper, more fundamental problems that can make significant headway into resolving the object-relational impedance mismatch.
+- [ ] Truly Type-Safe Migrations: Typesafe migrations without codegen.
+- [ ] First-Class Relations: A simple and composable API for relations that feels natural in TypeScript.
+- [ ] An Even More Idiomatic API: Write code that feels even more like TypeScript but produces clean, predictable SQL.
 
 ## Project Structure
 

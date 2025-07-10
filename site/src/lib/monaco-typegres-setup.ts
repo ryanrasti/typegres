@@ -1,19 +1,8 @@
-import * as monaco from 'monaco-editor'
-import { initialize, transform } from 'esbuild-wasm'
-
-let esbuildInitialized = false
-
-async function initializeEsbuild() {
-  if (!esbuildInitialized) {
-    await initialize({
-      wasmURL: 'https://unpkg.com/esbuild-wasm@0.25.5/esbuild.wasm'
-    })
-    esbuildInitialized = true
-  }
-}
+import * as monaco from "monaco-editor";
+import { initialize, transform } from "esbuild-wasm";
 
 // Create a virtual file system with key typegres types
-export function setupMonacoTypescript(monaco: typeof import('monaco-editor')) {
+export function setupMonacoTypescript(monaco: typeof import("monaco-editor")) {
   // Configure TypeScript compiler options
   monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
     target: monaco.languages.typescript.ScriptTarget.ES2020,
@@ -21,8 +10,8 @@ export function setupMonacoTypescript(monaco: typeof import('monaco-editor')) {
     moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
     allowNonTsExtensions: true,
     allowJs: false,
-    typeRoots: ['node_modules/@types'],
-    lib: ['es2020', 'dom', 'esnext.asynciterable'],
+    typeRoots: ["node_modules/@types"],
+    lib: ["es2020", "dom", "esnext.asynciterable"],
     strict: true,
     esModuleInterop: true,
     allowSyntheticDefaultImports: true,
@@ -31,20 +20,21 @@ export function setupMonacoTypescript(monaco: typeof import('monaco-editor')) {
     forceConsistentCasingInFileNames: true,
     jsx: monaco.languages.typescript.JsxEmit.None,
     paths: {
-      'typegres': ['node_modules/typegres/index.d.ts'],
-      'kysely': ['node_modules/kysely/index.d.ts']
-    }
-  })
+      typegres: ["node_modules/typegres/index.d.ts"],
+      kysely: ["node_modules/kysely/index.d.ts"],
+    },
+  });
 
   // Set diagnostic options
   monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: false,
     noSyntaxValidation: false,
-    noSuggestionDiagnostics: false
-  })
+    noSuggestionDiagnostics: false,
+  });
 
   // Add typegres main export that combines everything
-  monaco.languages.typescript.typescriptDefaults.addExtraLib(`
+  monaco.languages.typescript.typescriptDefaults.addExtraLib(
+    `
 declare module 'typegres' {
   // Re-export from kysely
   export { Kysely, sql } from 'kysely';
@@ -71,10 +61,13 @@ declare module 'typegres' {
   // Main database instance
   export const db: Kysely<Database>;
 }
-`, 'file:///node_modules/typegres/index.d.ts');
+`,
+    "file:///node_modules/typegres/index.d.ts"
+  );
 
   // Add Kysely types (simplified but functional)
-  monaco.languages.typescript.typescriptDefaults.addExtraLib(`
+  monaco.languages.typescript.typescriptDefaults.addExtraLib(
+    `
 declare module 'kysely' {
   export interface Kysely<DB> {
     selectFrom<T extends keyof DB & string>(table: T): SelectQueryBuilder<DB, T>;
@@ -147,7 +140,9 @@ declare module 'kysely' {
 
   export const sql: Sql;
 }
-`, 'file:///node_modules/kysely/index.d.ts');
+`,
+    "file:///node_modules/kysely/index.d.ts"
+  );
 
   // Enable type acquisition
   monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);

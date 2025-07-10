@@ -9,7 +9,6 @@
         let
           pkgs = import nixpkgs {
             inherit system;
-            config.allowUnfree = true;
           };
           node = pkgs.nodejs_20;
           buildModulesSite = pkgs.runCommand "node_modules" { } ''
@@ -69,7 +68,7 @@
         in
         {
           devShells.default = pkgs.mkShell {
-            buildInputs = [ node pkgs.postgresql pkgs.jq pkgs.claude-code pkgs.nixfmt ];
+            buildInputs = [ node pkgs.postgresql pkgs.jq pkgs.nixfmt ];
           };
           formatter = pkgs.nixpkgs-fmt;
 
