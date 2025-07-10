@@ -2,14 +2,12 @@
 
 import { CodeBlock } from "@/components/CodeBlock";
 import { UnderConstructionBanner } from "@/components/UnderConstructionBanner";
-import { LandingPageEditor } from "@/components/LandingPageEditor";
 import { motion } from "framer-motion";
 import { ArrowRight, Bot, Code, Database, Shield } from "lucide-react";
 
 export default function HomePage() {
   return (
     <>
-      <UnderConstructionBanner />
       <main className="min-h-screen bg-white dark:bg-typegres-dark">
         <div className="absolute inset-0 bg-dot-pattern opacity-50" />
 
@@ -64,55 +62,81 @@ export default function HomePage() {
           </motion.div>
         </nav>
 
-        <div className="relative px-6 lg:px-8 pt-20 pb-32">
-          <div className="mx-auto max-w-3xl">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              className="text-center"
-            >
-              <h1 className="text-5xl sm:text-7xl font-bold tracking-tight text-typegres-dark dark:text-white mb-8">
-                PostgreSQL,{" "}
-                <span className="relative">
-                  <span className="gradient-text">expressed in TypeScript</span>
-                </span>
-              </h1>
+        <div className="relative px-6 lg:px-8 py-12">
+          <div className="mx-auto max-w-7xl">
+            <div className="grid lg:grid-cols-5 gap-8 items-center">
+              {/* Left side - Text and CTAs */}
+              <motion.div
+                initial={{ opacity: 0, x: -40 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.3 }}
+                className="text-center lg:text-left lg:col-span-2"
+              >
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-typegres-dark dark:text-white mb-4">
+                  PostgreSQL,
+                  <br />
+                  <span className="relative">
+                    <span className="gradient-text">expressed in TypeScript</span>
+                  </span>
+                </h1>
 
-              <motion.p
-                className="text-xl sm:text-2xl text-typegres-gray dark:text-gray-300 mb-12 leading-relaxed"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+                <motion.p
+                  className="text-lg sm:text-xl text-typegres-gray dark:text-gray-300 mb-8 leading-relaxed max-w-md mx-auto lg:mx-0"
+                  initial={{ opacity: 0, x: -40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.8, delay: 0.5 }}
+                >
+                  Import the full power of Postgres as a TypeScript library.
+                </motion.p>
+
+                <motion.div
+                  className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
+                  initial={{ opacity: 0, x: -40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.8, delay: 0.7 }}
+                >
+                  <a
+                    href="/docs/quickstart"
+                    className="inline-flex items-center gap-2 rounded-full bg-typegres-blue px-6 py-3 text-base font-semibold text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                  >
+                    Get Started
+                    <ArrowRight className="w-4 h-4" />
+                  </a>
+                  <a
+                    href="/play"
+                    className="inline-flex items-center gap-2 rounded-full border-2 border-typegres-blue text-typegres-blue dark:text-white px-6 py-3 text-base font-semibold hover:bg-typegres-blue hover:text-white transition-all duration-200"
+                  >
+                    Try it Live
+                    <Code className="w-4 h-4" />
+                  </a>
+                </motion.div>
+              </motion.div>
+
+              {/* Right side - GIF */}
+              <motion.div
+                className="relative lg:col-span-3"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.8, delay: 0.5 }}
               >
-                Import the full power of Postgres as a TypeScript library.
-              </motion.p>
-
-              <motion.div
-                className="flex flex-col sm:flex-row gap-4 justify-center"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.7 }}
-              >
-                <a
-                  href="/docs/quickstart"
-                  className="inline-flex items-center gap-2 rounded-full bg-typegres-blue px-8 py-4 text-lg font-semibold text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                >
-                  Get Started
-                  <ArrowRight className="w-5 h-5" />
-                </a>
-                <a
-                  href="/play"
-                  className="inline-flex items-center gap-2 rounded-full border-2 border-typegres-blue text-typegres-blue dark:text-white px-8 py-4 text-lg font-semibold hover:bg-typegres-blue hover:text-white transition-all duration-200"
-                >
-                  Try it Live
-                  <Code className="w-5 h-5" />
-                </a>
+                <motion.div 
+                  className="absolute -inset-4 bg-gradient-to-r from-typegres-blue/20 to-purple-500/20 rounded-2xl blur-3xl"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.3 }}
+                  transition={{ duration: 1.2, delay: 0.6 }}
+                />
+                <img
+                  src="typegres_landing_page_demo.gif"
+                  alt="Typegres Demo"
+                  className="relative rounded-xl shadow-2xl w-full h-auto"
+                  style={{ maxWidth: "900px", width: "100%" }}
+                />
               </motion.div>
-            </motion.div>
-
+            </div>
+            
+            {/* Features section */}
             <motion.div
-              className="mt-32 grid grid-cols-1 md:grid-cols-3 gap-8"
+              className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-8"
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.9 }}
@@ -170,20 +194,6 @@ export default function HomePage() {
                   </p>
                 </div>
               </motion.div>
-            </motion.div>
-
-            <motion.div
-              className="mt-32"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 1, delay: 1.2 }}
-            >
-              <h2 className="text-3xl font-bold text-typegres-dark dark:text-white mb-8 text-center">
-                Write SQL that feels like TypeScript
-              </h2>
-              <div className="max-w-2xl mx-auto">
-                <LandingPageEditor />
-              </div>
             </motion.div>
           </div>
         </div>

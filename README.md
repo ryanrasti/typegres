@@ -4,6 +4,8 @@
 
 Import the full power of PostgreSQL as a TypeScript library.
 
+![Typegres Demo GIF](https://raw.githubusercontent.com/ryanrasti/typegres/main/site/public/typegres_landing_page_demo.gif)
+
 ## Quick Start
 
 ```bash
