@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: '/typegres_logo.svg',
+        url: 'https://typegres.com/typegres_logo.svg',
         width: 512,
         height: 512,
         alt: 'Typegres - PostgreSQL, expressed in TypeScript',
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     card: 'summary',
     title: 'Typegres - PostgreSQL, expressed in TypeScript',
     description: 'Import the full power of Postgres as a TypeScript library.',
-    images: ['/typegres_logo.svg'],
+    images: ['https://typegres.com/typegres_logo.svg'],
   },
 }
 
