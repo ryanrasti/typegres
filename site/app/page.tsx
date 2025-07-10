@@ -2,8 +2,9 @@
 
 import { CodeBlock } from "@/components/CodeBlock";
 import { UnderConstructionBanner } from "@/components/UnderConstructionBanner";
+import { InlineCodeExample } from "@/components/InlineCodeExample";
 import { motion } from "framer-motion";
-import { ArrowRight, Bot, Code, Database, Shield } from "lucide-react";
+import { ArrowRight, Bot, Code, Database, Shield, Github } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -96,18 +97,18 @@ export default function HomePage() {
                   transition={{ duration: 0.8, delay: 0.7 }}
                 >
                   <a
-                    href="/docs/quickstart"
-                    className="inline-flex items-center gap-2 rounded-full bg-typegres-blue px-6 py-3 text-base font-semibold text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                  >
-                    Get Started
-                    <ArrowRight className="w-4 h-4" />
-                  </a>
-                  <a
                     href="/play"
-                    className="inline-flex items-center gap-2 rounded-full border-2 border-typegres-blue text-typegres-blue dark:text-white px-6 py-3 text-base font-semibold hover:bg-typegres-blue hover:text-white transition-all duration-200"
+                    className="inline-flex items-center gap-2 rounded-full bg-typegres-blue px-6 py-3 text-base font-semibold text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                   >
                     Try it Live
                     <Code className="w-4 h-4" />
+                  </a>
+                  <a
+                    href="https://github.com/ryanrasti/typegres"
+                    className="inline-flex items-center gap-2 rounded-full border-2 border-typegres-blue text-typegres-blue dark:text-white px-6 py-3 text-base font-semibold hover:bg-typegres-blue hover:text-white transition-all duration-200"
+                  >
+                    View on GitHub
+                    <Github className="w-4 h-4" />
                   </a>
                 </motion.div>
               </motion.div>
@@ -133,13 +134,31 @@ export default function HomePage() {
                 />
               </motion.div>
             </div>
-            
-            {/* Features section */}
+          </div>
+        </div>
+
+        {/* Features section */}
+        <section className="bg-gray-50 dark:bg-gray-900 py-24">
+          <div className="mx-auto max-w-7xl px-6 lg:px-8">
             <motion.div
-              className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-8"
-              initial={{ opacity: 0, y: 40 }}
+              className="text-center mb-16"
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.9 }}
+            >
+              <h2 className="text-3xl sm:text-4xl font-bold text-typegres-dark dark:text-white mb-4">
+                What makes Typegres different
+              </h2>
+              <p className="text-lg text-typegres-gray dark:text-gray-300 max-w-2xl mx-auto">
+                A new approach to working with SQL - currently in developer preview
+              </p>
+            </motion.div>
+
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-3 gap-8"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 1.0 }}
             >
               <motion.div
                 className="relative group"
@@ -147,15 +166,20 @@ export default function HomePage() {
                 transition={{ type: "spring", stiffness: 300 }}
               >
                 <div className="absolute inset-0 bg-typegres-blue rounded-2xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity" />
-                <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-sm">
-                  <Database className="w-12 h-12 text-typegres-blue mb-4" />
-                  <h3 className="text-xl font-semibold text-typegres-dark dark:text-white mb-2">
-                    All-in Postgres
+                <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-10 border border-gray-200 dark:border-gray-700 shadow-sm h-full">
+                  <Database className="w-14 h-14 text-typegres-blue mb-6" />
+                  <h3 className="text-2xl font-semibold text-typegres-dark dark:text-white mb-4">
+                    Pure Postgres
                   </h3>
-                  <p className="text-typegres-gray dark:text-gray-400">
-                    Spend your time going deep in Postgres, not learning a new
-                    abstraction.
+                  <p className="text-base text-typegres-gray dark:text-gray-400 mb-4">
+                    Every Postgres function, operator, and type - directly in TypeScript.
                   </p>
+                  <InlineCodeExample code={`await Jsonb.new('{"a":1,"b":2}')
+  .jsonbEach()
+  .select(({ key, value }) => ({
+    key: key.textcat("!"),
+    type: value.jsonbTypeof()
+  }))`} />
                 </div>
               </motion.div>
 
@@ -165,15 +189,22 @@ export default function HomePage() {
                 transition={{ type: "spring", stiffness: 300 }}
               >
                 <div className="absolute inset-0 bg-typegres-blue rounded-2xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity" />
-                <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-sm">
-                  <Shield className="w-12 h-12 text-typegres-blue mb-4" />
-                  <h3 className="text-xl font-semibold text-typegres-dark dark:text-white mb-2">
-                    Type-Safe by Design
+                <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-10 border border-gray-200 dark:border-gray-700 shadow-sm h-full">
+                  <Shield className="w-14 h-14 text-typegres-blue mb-6" />
+                  <h3 className="text-2xl font-semibold text-typegres-dark dark:text-white mb-4">
+                    Fully Typed
                   </h3>
-                  <p className="text-typegres-gray dark:text-gray-400">
-                    Every Postgres type, every Postgres function, with the
-                    safety of TypeScript.
+                  <p className="text-base text-typegres-gray dark:text-gray-400 mb-4">
+                    Compose complex queries with complete type inference.
                   </p>
+                  <InlineCodeExample code={`await pets
+  .groupBy(p => [p.species])
+  .select((p, [species]) => ({
+    species,
+    avgAge: p.age.avg(),
+    stddev: p.age.stddevPop(),
+    total: p.id.count()
+  }))`} />
                 </div>
               </motion.div>
 
@@ -183,20 +214,62 @@ export default function HomePage() {
                 transition={{ type: "spring", stiffness: 300 }}
               >
                 <div className="absolute inset-0 bg-typegres-blue rounded-2xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity" />
-                <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-sm">
-                  <Bot className="w-12 h-12 text-typegres-blue mb-4" />
-                  <h3 className="text-xl font-semibold text-typegres-dark dark:text-white mb-2">
-                    Iterate Fast
+                <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-10 border border-gray-200 dark:border-gray-700 shadow-sm h-full">
+                  <Bot className="w-14 h-14 text-typegres-blue mb-6" />
+                  <h3 className="text-2xl font-semibold text-typegres-dark dark:text-white mb-4">
+                    Fast Iteration
                   </h3>
-                  <p className="text-typegres-gray dark:text-gray-400">
-                    Minimize context switching and get immediate feedback for
-                    your queries.
+                  <p className="text-base text-typegres-gray dark:text-gray-400 mb-4">
+                    Write queries with your IDE and AI assistants understanding every function.
                   </p>
+                  <InlineCodeExample code={`// Joins with type safety
+people
+  .join(pets, "pet", (p, { pet }) =>
+    p.petId["="](pet.id))
+  .select((p, { pet }) => ({
+    personName: p.name,
+    petSpecies: pet.species
+  }))`} />
                 </div>
               </motion.div>
             </motion.div>
           </div>
-        </div>
+        </section>
+
+        {/* Footer CTA Section */}
+        <section className="py-24">
+          <div className="mx-auto max-w-7xl px-6 lg:px-8">
+            <motion.div
+              className="text-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 1.2 }}
+            >
+              <h2 className="text-3xl sm:text-4xl font-bold text-typegres-dark dark:text-white mb-4">
+                Ready to dive in?
+              </h2>
+              <p className="text-lg text-typegres-gray dark:text-gray-300 mb-8 max-w-2xl mx-auto">
+                Experience the power of PostgreSQL with the safety and convenience of TypeScript.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <a
+                  href="/play"
+                  className="inline-flex items-center gap-2 rounded-full bg-typegres-blue px-8 py-4 text-lg font-semibold text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                >
+                  Try it Live
+                  <Code className="w-5 h-5" />
+                </a>
+                <a
+                  href="https://github.com/ryanrasti/typegres"
+                  className="inline-flex items-center gap-2 rounded-full border-2 border-typegres-blue text-typegres-blue dark:text-white px-8 py-4 text-lg font-semibold hover:bg-typegres-blue hover:text-white transition-all duration-200"
+                >
+                  View on GitHub
+                  <Github className="w-5 h-5" />
+                </a>
+              </div>
+            </motion.div>
+          </div>
+        </section>
       </main>
     </>
   );

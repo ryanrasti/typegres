@@ -4,6 +4,10 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Typegres - PostgreSQL, expressed in TypeScript',
   description: 'Import the full power of Postgres as a TypeScript library.',
+  icons: {
+    icon: '/typegres_favicon.svg',
+    apple: '/typegres_favicon.svg',
+  },
 }
 
 export default function RootLayout({
