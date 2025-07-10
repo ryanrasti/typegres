@@ -16,6 +16,7 @@ declare global {
   interface Window {
     typegres: any;
     pglite: any;
+    cachedTg?: any; // Cache the typegres connection
   }
 }
 
@@ -97,9 +98,20 @@ export function CodeEditor({
       }
 
       const jsCode = await transformCodeWithEsbuild(code);
-      const transformedCode = jsCode.replace(
+      let transformedCode = jsCode.replace(
         /import\s*\{([^}]+)\}\s*from\s*['"]typegres['"]/g,
         "const {$1} = window.typegres"
+      );
+      
+      // Replace typegres({ type: "pglite" }) with cached instance
+      if (!window.cachedTg) {
+        window.cachedTg = await window.typegres.typegres({ type: "pglite" });
+      }
+      
+      // Replace the typegres initialization with our cached instance
+      transformedCode = transformedCode.replace(
+        /const\s+(\w+)\s*=\s*await\s+typegres\s*\(\s*\{\s*type\s*:\s*["']pglite["']\s*\}\s*\)/g,
+        'const $1 = window.cachedTg'
       );
 
       console.log = (...args: any[]) => {
@@ -410,9 +422,20 @@ export function CodeEditorWithOutput({
       }
 
       const jsCode = await transformCodeWithEsbuild(code);
-      const transformedCode = jsCode.replace(
+      let transformedCode = jsCode.replace(
         /import\s*\{([^}]+)\}\s*from\s*['"]typegres['"]/g,
         "const {$1} = window.typegres"
+      );
+      
+      // Replace typegres({ type: "pglite" }) with cached instance
+      if (!window.cachedTg) {
+        window.cachedTg = await window.typegres.typegres({ type: "pglite" });
+      }
+      
+      // Replace the typegres initialization with our cached instance
+      transformedCode = transformedCode.replace(
+        /const\s+(\w+)\s*=\s*await\s+typegres\s*\(\s*\{\s*type\s*:\s*["']pglite["']\s*\}\s*\)/g,
+        'const $1 = window.cachedTg'
       );
 
       console.log = (...args: any[]) => {

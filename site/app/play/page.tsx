@@ -21,6 +21,7 @@ declare global {
   interface Window {
     typegres: any;
     pglite: any;
+    cachedTg?: any; // Cache the typegres connection
   }
 }
 
@@ -63,9 +64,20 @@ function MobilePlayground({ initialCode }: { initialCode: string }) {
       }
 
       const jsCode = await transformCodeWithEsbuild(code);
-      const transformedCode = jsCode.replace(
+      let transformedCode = jsCode.replace(
         /import\s*\{([^}]+)\}\s*from\s*['"]typegres['"]/g,
         "const {$1} = window.typegres"
+      );
+      
+      // Replace typegres({ type: "pglite" }) with cached instance
+      if (!window.cachedTg) {
+        window.cachedTg = await window.typegres.typegres({ type: "pglite" });
+      }
+      
+      // Replace the typegres initialization with our cached instance
+      transformedCode = transformedCode.replace(
+        /const\s+(\w+)\s*=\s*await\s+typegres\s*\(\s*\{\s*type\s*:\s*["']pglite["']\s*\}\s*\)/g,
+        'const $1 = window.cachedTg'
       );
 
       console.log = (...args: any[]) => {
@@ -211,86 +223,83 @@ function MobilePlayground({ initialCode }: { initialCode: string }) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden">
-        {activeTab === 'code' && (
-          <div className="h-full flex flex-col">
-            <div className="flex-1">
-              <MonacoEditor
-                defaultLanguage="typescript"
-                theme="vs-dark"
-                value={code}
-                onChange={(value) => setCode(value || "")}
-                onMount={handleEditorMount}
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 12,
-                  lineHeight: 1.5,
-                  tabSize: 2,
-                  automaticLayout: true,
-                  scrollBeyondLastLine: false,
-                  fixedOverflowWidgets: true,
-                  lineNumbers: "off",
-                  folding: false,
-                  lineDecorationsWidth: 0,
-                  lineNumbersMinChars: 0,
-                  glyphMargin: false,
-                  renderLineHighlight: 'none',
-                  overviewRulerLanes: 0,
-                }}
-              />
-            </div>
-            <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
-              <button
-                onClick={runCode}
-                disabled={isRunning}
-                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {isRunning ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                    </svg>
-                    Running...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z"/>
-                    </svg>
-                    Run Code
-                  </>
-                )}
-              </button>
-            </div>
+      <div className="flex-1 relative overflow-hidden">
+        {/* Code tab */}
+        <div className={`absolute inset-0 h-full flex flex-col ${activeTab === 'code' ? 'visible' : 'invisible'}`}>
+          <div className="flex-1">
+            <MonacoEditor
+              defaultLanguage="typescript"
+              theme="vs-dark"
+              value={code}
+              onChange={(value) => setCode(value || "")}
+              onMount={handleEditorMount}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 12,
+                lineHeight: 1.5,
+                tabSize: 2,
+                automaticLayout: true,
+                scrollBeyondLastLine: false,
+                fixedOverflowWidgets: true,
+                lineNumbers: "off",
+                folding: false,
+                lineDecorationsWidth: 0,
+                lineNumbersMinChars: 0,
+                glyphMargin: false,
+                renderLineHighlight: 'none',
+                overviewRulerLanes: 0,
+              }}
+            />
           </div>
-        )}
-        
-        {activeTab === 'output' && (
-          <div className="h-full p-4 bg-gray-900 overflow-auto">
-            <div className="text-gray-200">
-              {error ? (
-                <pre className="text-red-400 whitespace-pre-wrap text-sm font-mono">Error: {error}</pre>
-              ) : output ? (
-                <SyntaxHighlight code={output} language="typescript" className="text-sm" />
+          <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+            <button
+              onClick={runCode}
+              disabled={isRunning}
+              className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {isRunning ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                  </svg>
+                  Running...
+                </>
               ) : (
-                <span className="text-gray-500">Run code to see output</span>
+                <>
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                  Run Code
+                </>
               )}
-            </div>
+            </button>
           </div>
-        )}
+        </div>
         
-        {activeTab === 'sql' && (
-          <div className="h-full p-4 bg-gray-900 overflow-auto">
-            <div className="text-gray-200">
-              {sqlOutput ? (
-                <SyntaxHighlight code={sqlOutput} language="sql" className="text-sm" />
-              ) : (
-                <span className="text-gray-500">No SQL queries captured</span>
-              )}
-            </div>
+        {/* Output tab */}
+        <div className={`absolute inset-0 h-full p-4 bg-gray-900 overflow-auto ${activeTab === 'output' ? 'visible' : 'invisible'}`}>
+          <div className="text-gray-200">
+            {error ? (
+              <pre className="text-red-400 whitespace-pre-wrap text-sm font-mono">Error: {error}</pre>
+            ) : output ? (
+              <SyntaxHighlight code={output} language="typescript" className="text-sm" />
+            ) : (
+              <span className="text-gray-500">Run code to see output</span>
+            )}
           </div>
-        )}
+        </div>
+        
+        {/* SQL tab */}
+        <div className={`absolute inset-0 h-full p-4 bg-gray-900 overflow-auto ${activeTab === 'sql' ? 'visible' : 'invisible'}`}>
+          <div className="text-gray-200">
+            {sqlOutput ? (
+              <SyntaxHighlight code={sqlOutput} language="sql" className="text-sm" />
+            ) : (
+              <span className="text-gray-500">No SQL queries captured</span>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
