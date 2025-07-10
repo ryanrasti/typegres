@@ -25,9 +25,9 @@ export default function HomePage() {
                 <img
                   src="/typegres_icon.svg"
                   alt="Typegres"
-                  className="h-10 w-auto"
+                  className="h-8 sm:h-10 w-auto"
                 />
-                <span className="text-3xl font-bold">
+                <span className="text-2xl sm:text-3xl font-bold">
                   <span className="text-typegres-dark dark:text-white">
                     type
                   </span>
@@ -37,7 +37,7 @@ export default function HomePage() {
             </motion.a>
           </div>
           <motion.div
-            className="flex gap-x-6"
+            className="hidden sm:flex gap-x-6"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}

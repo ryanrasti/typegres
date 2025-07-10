@@ -6,6 +6,7 @@ import inspect from "object-inspect";
 import { format } from "sql-formatter";
 import { Database, FileCode, Terminal, Play, Copy, Check } from "lucide-react";
 import { SyntaxHighlight } from "@/components/SyntaxHighlight";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   setupMonacoWithTypegres,
   transformCodeWithEsbuild,
@@ -362,6 +363,12 @@ export function CodeEditorWithOutput({
   const [isRunning, setIsRunning] = useState(false);
   const [typesLoaded, setTypesLoaded] = useState(false);
   const monacoRef = useRef<any>(null);
+  const isMobile = useIsMobile();
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('CodeEditor - isMobile:', isMobile, 'window.innerWidth:', window.innerWidth);
+  }, [isMobile]);
 
   useEffect(() => {
     if (initialCode && initialCode !== code) {
@@ -547,15 +554,20 @@ export function CodeEditorWithOutput({
             onMount={handleEditorMount}
             options={{
               minimap: { enabled: false },
-              fontSize: 14,
+              fontSize: isMobile ? 12 : 14,
               lineHeight: 1.6,
               tabSize: 2,
               automaticLayout: true,
               scrollBeyondLastLine: false,
               fixedOverflowWidgets: true,
               readOnly: !editable,
-              lineNumbers: showLineNumbers ? "on" : "off",
-              lineDecorationsWidth: 10,
+              lineNumbers: showLineNumbers && !isMobile ? "on" : "off",
+              lineDecorationsWidth: isMobile ? 0 : 10,
+              lineNumbersMinChars: isMobile ? 0 : 3,
+              glyphMargin: !isMobile,
+              folding: !isMobile,
+              renderLineHighlight: isMobile ? 'none' : 'all',
+              overviewRulerLanes: isMobile ? 0 : 3,
             }}
           />
         </div>
