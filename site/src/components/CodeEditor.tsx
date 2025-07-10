@@ -364,11 +364,6 @@ export function CodeEditorWithOutput({
   const [typesLoaded, setTypesLoaded] = useState(false);
   const monacoRef = useRef<any>(null);
   const isMobile = useIsMobile();
-  
-  // Debug logging
-  useEffect(() => {
-    console.log('CodeEditor - isMobile:', isMobile, 'window.innerWidth:', window.innerWidth);
-  }, [isMobile]);
 
   useEffect(() => {
     if (initialCode && initialCode !== code) {
