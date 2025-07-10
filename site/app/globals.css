@@ -43,7 +43,7 @@ body {
 }
 
 @keyframes shimmer {
-  0% {
+  0%, 80% {
     transform: translateX(-100%) skewX(-12deg);
   }
   100% {
@@ -52,5 +52,5 @@ body {
 }
 
 .animate-shimmer {
-  animation: shimmer 2s infinite;
+  animation: shimmer 10s infinite;
 }

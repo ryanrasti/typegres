@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { CodeEditor, CodeEditorWithOutput } from "@/components/CodeEditor";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { Github } from "lucide-react";
 
 export default function PlaygroundPage() {
   const [runCode, setRunCode] = useState<(() => Promise<void>) | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [hasRunOnce, setHasRunOnce] = useState(false);
-  const [showAttention, setShowAttention] = useState(false);
   const [initialCode, setInitialCode] = useState("");
   const isMobile = useIsMobile();
   
@@ -34,40 +34,36 @@ export default function PlaygroundPage() {
       });
   }, []);
 
-  // Periodic attention animation
-  useEffect(() => {
-    if (!hasRunOnce && runCode && !isRunning) {
-      const interval = setInterval(() => {
-        setShowAttention(true);
-        setTimeout(() => setShowAttention(false), 1000);
-      }, 4000);
-      return () => clearInterval(interval);
-    }
-  }, [hasRunOnce, runCode, isRunning]);
 
   return (
     <div className="min-h-screen bg-white dark:bg-typegres-dark text-typegres-dark dark:text-white">
       <nav className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-8">
-              <a href="/" className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <img
-                    src="/typegres_icon.svg"
-                    alt="Typegres"
-                    className="h-8 w-auto"
-                  />
-                  <span className="text-2xl font-bold">
-                    <span className="text-typegres-dark dark:text-white">
-                      type
-                    </span>
-                    <span className="text-typegres-blue">gres</span>
-                  </span>
-                </div>
-              </a>
-              <h1 className="text-lg font-medium">TypeScript Playground</h1>
-            </div>
+            <a href="/" className="flex items-center gap-2">
+              <img
+                src="/typegres_icon.svg"
+                alt="Typegres"
+                className="h-8 w-auto"
+              />
+              <span className="text-2xl font-bold">
+                <span className="text-typegres-dark dark:text-white">
+                  type
+                </span>
+                <span className="text-typegres-blue">gres</span>
+              </span>
+              <span className="text-gray-400 dark:text-gray-600 mx-2 hidden sm:inline">•</span>
+              <span className="text-gray-600 dark:text-gray-400 hidden sm:inline">Playground</span>
+            </a>
+            <a
+              href="https://github.com/ryanrasti/typegres"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Github className="w-4 h-4" />
+              <span className="hidden sm:inline">GitHub</span>
+            </a>
           </div>
         </div>
       </nav>
@@ -99,11 +95,7 @@ export default function PlaygroundPage() {
               }
             }}
             disabled={running}
-            className={`${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 relative overflow-hidden ${
-              !hasRunOnce && runCode && !running ? 'animate-pulse shadow-lg shadow-blue-500/50' : ''
-            } ${
-              showAttention ? 'scale-105 shadow-xl shadow-blue-500/60' : ''
-            }`}
+            className={`${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 relative overflow-hidden`}
           >
             {running ? (
               <svg className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} animate-spin`} fill="none" viewBox="0 0 24 24">

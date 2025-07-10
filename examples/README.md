@@ -4,12 +4,6 @@ This directory contains example code demonstrating how to use Typegres.
 
 ## Setup
 
-For regular users:
-```bash
-npm install
-npm run setup
-```
-
 To try against the latest version of Typegres:
 ```bash
 npm install typegres@latest

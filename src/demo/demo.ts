@@ -1,6 +1,6 @@
 import { Float8, Int8, Jsonb, Text, typegres, values } from "typegres";
 
-const db = await typegres({ type: "pglite" });
+const tg = await typegres({ type: "pglite" });
 
 // Example 1: Grouping and Aggregation
 const pets = values(
@@ -21,7 +21,7 @@ const example1 = await pets
     // error: p.age,
   }))
   .debug()
-  .execute(db);
+  .execute(tg);
 
 console.log("Example 1", example1);
 
@@ -33,7 +33,7 @@ const example2 = await Jsonb.new('{"a":1,"b":2, "c": [1, 2, 3]}')
     isNum: value.jsonbTypeof()["="]("number"),
   }))
   .debug()
-  .execute(db);
+  .execute(tg);
 
 console.log("Example 2", example2);
 
@@ -52,6 +52,6 @@ const example3 = await people
     petAge: pet.age,
   }))
   .debug()
-  .execute(db);
+  .execute(tg);
 
 console.log("Example 3", example3);

@@ -43,7 +43,7 @@ export default function HomePage() {
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <a
-              href="/docs"
+              href="/api/index.html"
               className="text-sm font-semibold text-typegres-gray dark:text-gray-300 hover:text-typegres-blue transition-colors"
             >
               Documentation
