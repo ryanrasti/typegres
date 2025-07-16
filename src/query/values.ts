@@ -7,6 +7,7 @@ import { Primitive, maybePrimitiveToSqlType } from "../types/primitive";
 import { row } from "../types/record";
 import { Context } from "../expression";
 import type { Typegres } from "../db";
+import invariant from "tiny-invariant";
 
 export type RowLike = {
   [key: string]: Any<unknown, 0 | 1>;
@@ -131,6 +132,7 @@ const parseRowLike = <R extends RowLike>(
   return Object.fromEntries(
     Object.entries(rowLike).map(([key, value]) => {
       const res = result[key];
+      invariant(res !== undefined, `Result key '${key}' should exist`);
       return [key, res === null ? res : value.getClass().parse(res)];
     })
   ) as RowLikeResult<R>;
@@ -382,7 +384,11 @@ export class Setof<Q extends Query> extends Expression {
       ? sql.join(
           Object.entries(this.query.joins ?? {}).map(([alias, join]) => {
             return sql`JOIN ${join.table.compile(ctx)} as ${sql.ref(
-              ctx.getAlias(this.joinAliases[alias])
+              ctx.getAlias((() => {
+                const joinAlias = this.joinAliases[alias];
+                invariant(joinAlias, `Join alias '${alias}' should exist`);
+                return joinAlias;
+              })())
             )} ON ${join.on.toExpression().compile(ctx)}`;
           }),
           sql` `

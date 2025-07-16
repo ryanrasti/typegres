@@ -8,6 +8,7 @@ import type { BindedSetof, RowLike } from "./query/values";
 import { Any, Setof } from "./types";
 import { Schema } from "./types/any";
 import { Context, SelectableExpression } from "./expression";
+import invariant from "tiny-invariant";
 
 const Sentinel = class Sentinel {
   static typeString() {
@@ -37,6 +38,7 @@ const getRetType = (args: unknown[], defn: TypedFunctionDefinition) => {
       continue;
     }
 
+    invariant(param, `Parameter at index ${i} should exist`);
     const subtype = param.subtype();
     const argSubtype = arg instanceof Any ? arg.getClass().subtype() : null;
     if (argSubtype != null && subtype?.subtype === Sentinel) {
@@ -48,7 +50,7 @@ const getRetType = (args: unknown[], defn: TypedFunctionDefinition) => {
     if (
       arg instanceof Any &&
       arg.getClass().typeString() !== param.typeString() &&
-      !(arg instanceof param)
+      !(arg instanceof (param as any))
     ) {
       // If the argument is not an instance of the parameter, we can't bind it.
       // Note that if the argument type is not an `Any` (i.e., its a primitive type),
@@ -107,7 +109,7 @@ export const sqlFunction = (
   defn: TypedFunctionDefinition[],
   args: unknown[],
 ): Any | Setof<any> => {
-  const [{ matchingDef, RetType }] = defn.flatMap((def) => {
+  const matches = defn.flatMap((def) => {
     const RetType = getRetType(args, def);
     return RetType
       ? [
@@ -119,6 +121,12 @@ export const sqlFunction = (
         ]
       : [];
   });
+  
+  invariant(matches.length > 0, `No matching function found for ${name}`);
+  const match = matches[0];
+  invariant(match, `First match should exist`);
+  const { matchingDef, RetType } = match;
+  
   if (!RetType) {
     console.error(
       `No matching function found for ${name}`,

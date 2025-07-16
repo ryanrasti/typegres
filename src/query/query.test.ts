@@ -5,6 +5,7 @@ import { assert, Equals } from "tsafe";
 import { withDb } from "../test/db";
 import { db } from "../gen/tables";
 import { testDb } from "../db.test";
+import invariant from "tiny-invariant";
 
 
 const strings = values(
@@ -357,18 +358,19 @@ describe("Mutations", async () => {
       const [john] = await db.person
         .where((p) => p.firstName.texteq(Text.new("John")))
         .execute(kdb);
+      invariant(john, "John should exist in the test data");
 
       const res = await db.pet
         .insert(
           values(
             {
-              ownerId: Int4.new(john.id ?? 0),
+              ownerId: Int4.new(john.id),
               name: Text.new("John's pet #2"),
               age: Int4.new(1),
               species: Text.new("dog"),
             },
             {
-              ownerId: Int4.new(john.id ?? 0),
+              ownerId: Int4.new(john.id),
               name: Text.new("John's pet #3"),
               age: Int4.new(2),
               species: Text.new("cat"),
@@ -404,10 +406,11 @@ describe("Mutations", async () => {
       const [john] = await db.person
         .where((p) => p.firstName.texteq(Text.new("John")))
         .execute(kdb);
+      invariant(john, "John should exist in the test data");
 
       const res = await db.pet
         .update({
-          where: (p) => p.ownerId.int4Eq(Int4.new(john.id ?? 0)),
+          where: (p) => p.ownerId.int4Eq(Int4.new(john.id)),
         })
         .set((p) => ({
           name: p.name.textcat(Text.new(" II")),
@@ -441,10 +444,11 @@ describe("Mutations", async () => {
       const [john] = await db.person
         .where((p) => p.firstName.texteq(Text.new("John")))
         .execute(kdb);
+      invariant(john, "John should exist in the test data");
 
       const res = await db.pet
         .update({
-          where: (p) => p.ownerId.int4Eq(Int4.new(john.id ?? 0)),
+          where: (p) => p.ownerId.int4Eq(Int4.new(john.id)),
           from: () =>
             values({
               ownerId: Int4.new(john.id),

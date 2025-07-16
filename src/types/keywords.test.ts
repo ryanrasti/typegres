@@ -3,6 +3,7 @@ import * as Types from "./index";
 import { values } from "../query/values";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
+import invariant from "tiny-invariant";
 
 describe("Keyword operators", () => {
   describe("isNull and isNotNull", () => {
@@ -439,6 +440,7 @@ describe("Keyword operators", () => {
         .execute(testDb);
       
       expect(result.length).toBe(1);
+      invariant(result[0], "Result should have at least one element");
       expect(result[0].name).toBe("John");
     });
 

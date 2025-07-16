@@ -3,6 +3,7 @@ import { Record as PgRecord } from "../gen/types/record";
 import { Expression, LiteralExpression } from "../expression";
 import array from "postgres-array";
 import { RawBuilder, sql } from "kysely";
+import invariant from "tiny-invariant";
 import {
   ColumnAliasExpression,
   RowLike,
@@ -32,10 +33,12 @@ export class LiteralRecordExpression extends Expression {
     // 2. Then each part corresponds to a k/v in the schema:
     return sql`ROW(${sql.join(
       Object.values(this.schema).map((type, i) => {
+        const part = parts[i];
+        invariant(part !== undefined, `Part at index ${i} should exist`);
         const instantiated = type.new("");
         return instantiated instanceof Record
-          ? new LiteralRecordExpression(parts[i], instantiated.schema).compile()
-          : new LiteralExpression(parts[i], type.typeString()!).compile();
+          ? new LiteralRecordExpression(part, instantiated.schema).compile()
+          : new LiteralExpression(part, type.typeString()!).compile();
       }),
       sql.raw(", "),
     )})`;
@@ -114,7 +117,11 @@ export default abstract class Record<
         return Object.fromEntries(
           Object.entries(schema).map(([key, value], i) => [
             key,
-            value.parse(parts[i]),
+            value.parse((() => {
+              const part = parts[i];
+              invariant(part !== undefined, `Part at index ${i} should exist`);
+              return part;
+            })()),
           ]),
         ) as SchemaResultType<S>;
       }

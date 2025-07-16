@@ -2,6 +2,7 @@ import camelcase from "camelcase";
 import fs from "fs";
 import { $ } from "zx";
 import { typeMap } from "../types/serialization";
+import invariant from "tiny-invariant";
 
 // edge cases:
 // * if ends with `[]`, then:
@@ -239,14 +240,18 @@ const main = async () => {
       );
       addType(definition.ret, definition.ret_oid);
       for (const [idx, argType] of definition.args.entries()) {
+        const argOid = definition.arg_oids[idx];
+        invariant(argOid !== undefined, `arg_oids[${idx}] should exist for function ${name}`);
         addType(
           argType,
-          definition.arg_oids[idx],
+          argOid,
           idx === 0 ? [name, definition] : undefined,
         );
       }
       for (const [idx, argType] of definition.retset.entries()) {
-        addType(argType, definition.retset_oids[idx]);
+        const retsetOid = definition.retset_oids[idx];
+        invariant(retsetOid !== undefined, `retset_oids[${idx}] should exist for function ${name}`);
+        addType(argType, retsetOid);
       }
       const args = definition.args.map((argType, idx) => {
         const rawType = asType(argType, { aggregate: definition.is_agg });
