@@ -1,4 +1,4 @@
-import { Expression, LiteralExpression, UnaryOperatorExpression, BinaryOperatorExpression, TernaryOperatorExpression } from "../expression";
+import { Expression, LiteralExpression, UnaryOperatorExpression, BinaryOperatorExpression } from "../expression";
 import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
 import { Typegres } from "../db";
@@ -176,47 +176,7 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
     ) as Types.Bool<1>;
   }
 
-  /**
-   * SQL BETWEEN operator - checks if value is within a range (inclusive)
-   * value BETWEEN lower AND upper is equivalent to value >= lower AND value <= upper
-   * Returns null if any of the three values is null
-   * Note: This will generate a runtime error if used on types without >= and <= operators
-   */
-  between<N2 extends number, N3 extends number>(
-    lower: Types.Any<R, N2>,
-    upper: Types.Any<R, N3>
-  ): Types.Bool<N | N2 | N3> {
-    return Types.Bool.new(
-      new TernaryOperatorExpression(
-        "BETWEEN",
-        "AND",
-        this.toExpression(),
-        this.toExpressionHelper(lower),
-        this.toExpressionHelper(upper)
-      )
-    ) as Types.Bool<N | N2 | N3>;
-  }
 
-  /**
-   * SQL NOT BETWEEN operator - checks if value is outside a range
-   * value NOT BETWEEN lower AND upper is equivalent to value < lower OR value > upper
-   * Returns null if any of the three values is null
-   * Note: This will generate a runtime error if used on types without >= and <= operators
-   */
-  notBetween<N2 extends number, N3 extends number>(
-    lower: Types.Any<R, N2>,
-    upper: Types.Any<R, N3>
-  ): Types.Bool<N | N2 | N3> {
-    return Types.Bool.new(
-      new TernaryOperatorExpression(
-        "NOT BETWEEN",
-        "AND",
-        this.toExpression(),
-        this.toExpressionHelper(lower),
-        this.toExpressionHelper(upper)
-      )
-    ) as Types.Bool<N | N2 | N3>;
-  }
 }
 
 export type AnyType = Any<unknown>;
