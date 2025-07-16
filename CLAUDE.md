@@ -1,0 +1,1 @@
+1. Always run `npm test` and `npm run typecheck` to validate your changes.

@@ -116,11 +116,29 @@ export class BinaryOperatorExpression extends Expression {
   }
 
   compile(ctx: Context) {
-    return sql`${this.args[0].compile(ctx)} ${sql.raw(
+    return sql`(${this.args[0].compile(ctx)} ${sql.raw(
       this.operator,
-    )} ${this.args[1].compile(ctx)}`;
+    )} ${this.args[1].compile(ctx)})`;
   }
 }
+
+export class UnaryOperatorExpression extends Expression {
+  constructor(
+    public operator: string,
+    public arg: Expression,
+    public isPostfix: boolean = false,
+  ) {
+    super();
+  }
+
+  compile(ctx: Context) {
+    if (this.isPostfix) {
+      return sql`(${this.arg.compile(ctx)} ${sql.raw(this.operator)})`;
+    }
+    return sql`(${sql.raw(this.operator)} ${this.arg.compile(ctx)})`;
+  }
+}
+
 
 export abstract class SelectableExpression extends Expression {
   constructor(public schema: RowLike) {
