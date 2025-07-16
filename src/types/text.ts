@@ -8,8 +8,8 @@ export default class Text<N extends number> extends PgText<N> {
   ilike(this: Types.Text<1>, pattern: Types.Text<1> | Types.Input<Types.Text<0 | 1>>): Types.Bool<1>
   ilike(this: Types.Text<0 | 1>, pattern: Types.Text<0 | 1> | Types.Input<Types.Text<0 | 1>>): Types.Bool<0 | 1>
   ilike(this: Types.Text<number>, pattern: Types.Text<number> | Types.Input<Types.Text<0 | 1>>): Types.Bool<number>
-  ilike(...args: unknown[]) {
-    return this["~~*"](...args);
+  ilike(pattern: any) {
+    return this["~~*"](pattern);
   }
 
   /**
@@ -18,7 +18,7 @@ export default class Text<N extends number> extends PgText<N> {
   notilike(this: Types.Text<1>, pattern: Types.Text<1> | Types.Input<Types.Text<0 | 1>>): Types.Bool<1>
   notilike(this: Types.Text<0 | 1>, pattern: Types.Text<0 | 1> | Types.Input<Types.Text<0 | 1>>): Types.Bool<0 | 1>
   notilike(this: Types.Text<number>, pattern: Types.Text<number> | Types.Input<Types.Text<0 | 1>>): Types.Bool<number>
-  notilike(...args: unknown[]) {
-    return this["!~~*"](...args);
+  notilike(pattern: any) {
+    return this["!~~*"](pattern);
   }
 }
