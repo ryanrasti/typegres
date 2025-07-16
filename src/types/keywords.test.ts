@@ -424,6 +424,145 @@ describe("Keyword operators", () => {
     });
   });
 
+  describe("BETWEEN operators", () => {
+    it("should have correct types for BETWEEN operators", () => {
+      const int1 = Types.Int4.new(5);
+      const int0 = Types.Int4.new(null);
+      const intMaybe: Types.Int4<0 | 1> = Types.Int4.new(5);
+      
+      // BETWEEN with all non-null values returns Bool<1>
+      const between1 = int1.between(Types.Int4.new(1), Types.Int4.new(10));
+      assert<Equals<typeof between1, Types.Bool<1>>>();
+      
+      // BETWEEN with any nullable value returns Bool<0 | 1>
+      const between2 = int0.between(Types.Int4.new(1), Types.Int4.new(10));
+      assert<Equals<typeof between2, Types.Bool<0 | 1>>>();
+      
+      const between3 = int1.between(int0, Types.Int4.new(10));
+      assert<Equals<typeof between3, Types.Bool<0 | 1>>>();
+      
+      const between4 = intMaybe.between(Types.Int4.new(1), Types.Int4.new(10));
+      assert<Equals<typeof between4, Types.Bool<0 | 1>>>();
+      
+      // NOT BETWEEN follows the same rules
+      const notBetween1 = int1.notBetween(Types.Int4.new(1), Types.Int4.new(10));
+      assert<Equals<typeof notBetween1, Types.Bool<1>>>();
+      
+      const notBetween2 = int0.notBetween(Types.Int4.new(1), Types.Int4.new(10));
+      assert<Equals<typeof notBetween2, Types.Bool<0 | 1>>>();
+    });
+
+    it("should work with BETWEEN for integer ranges", async () => {
+      const data = values(
+        { id: Types.Int4.new(1), score: Types.Int4.new(50) },
+        { id: Types.Int4.new(2), score: Types.Int4.new(75) },
+        { id: Types.Int4.new(3), score: Types.Int4.new(90) },
+        { id: Types.Int4.new(4), score: Types.Int4.new(null) },
+        { id: Types.Int4.new(5), score: Types.Int4.new(25) }
+      );
+      
+      const result = await data
+        .select((row) => ({
+          id: row.id,
+          score: row.score,
+          inRange: row.score.between(Types.Int4.new(50), Types.Int4.new(80))
+        }))
+        .execute(testDb);
+      
+      expect(result).toEqual([
+        { id: 1, score: 50, inRange: true },   // 50 is in [50, 80]
+        { id: 2, score: 75, inRange: true },   // 75 is in [50, 80]
+        { id: 3, score: 90, inRange: false },  // 90 > 80
+        { id: 4, score: null, inRange: null }, // null propagation
+        { id: 5, score: 25, inRange: false }   // 25 < 50
+      ]);
+    });
+
+    it("should work with NOT BETWEEN", async () => {
+      const data = values(
+        { id: Types.Int4.new(1), age: Types.Int4.new(18) },
+        { id: Types.Int4.new(2), age: Types.Int4.new(25) },
+        { id: Types.Int4.new(3), age: Types.Int4.new(65) },
+        { id: Types.Int4.new(4), age: Types.Int4.new(null) }
+      );
+      
+      const result = await data
+        .select((row) => ({
+          id: row.id,
+          age: row.age,
+          notWorkingAge: row.age.notBetween(Types.Int4.new(18), Types.Int4.new(64))
+        }))
+        .execute(testDb);
+      
+      expect(result).toEqual([
+        { id: 1, age: 18, notWorkingAge: false },  // 18 is in [18, 64]
+        { id: 2, age: 25, notWorkingAge: false },  // 25 is in [18, 64]
+        { id: 3, age: 65, notWorkingAge: true },   // 65 > 64
+        { id: 4, age: null, notWorkingAge: null }  // null propagation
+      ]);
+    });
+
+    it("should work with BETWEEN on dates", async () => {
+      const data = values(
+        { id: Types.Int4.new(1), created: Types.Date.new("2024-01-15") },
+        { id: Types.Int4.new(2), created: Types.Date.new("2024-06-15") },
+        { id: Types.Int4.new(3), created: Types.Date.new("2024-12-15") },
+        { id: Types.Int4.new(4), created: Types.Date.new(null) }
+      );
+      
+      const result = await data
+        .where((row) => 
+          row.created.between(
+            Types.Date.new("2024-01-01"), 
+            Types.Date.new("2024-06-30")
+          )
+        )
+        .select((row) => ({ id: row.id }))
+        .execute(testDb);
+      
+      expect(result).toEqual([
+        { id: 1 },  // 2024-01-15 is in range
+        { id: 2 }   // 2024-06-15 is in range
+        // 3 is excluded (2024-12-15 > 2024-06-30)
+        // 4 is excluded (null)
+      ]);
+    });
+
+    it("should handle null values in BETWEEN bounds", async () => {
+      const data = values(
+        { id: Types.Int4.new(1), value: Types.Int4.new(50) },
+        { id: Types.Int4.new(2), value: Types.Int4.new(100) }
+      );
+      
+      const result = await data
+        .select((row) => ({
+          id: row.id,
+          // Testing with null in bounds
+          betweenWithNullLower: row.value.between(Types.Int4.new(null), Types.Int4.new(75)),
+          betweenWithNullUpper: row.value.between(Types.Int4.new(25), Types.Int4.new(null)),
+          betweenWithBothNull: row.value.between(Types.Int4.new(null), Types.Int4.new(null))
+        }))
+        .execute(testDb);
+      
+      // PostgreSQL's BETWEEN behavior with nulls:
+      // - If the value is null, result is null
+      // - If both bounds are null, result is null
+      // - If one bound is null, it depends on the comparison with the non-null bound
+      expect(result).toEqual([
+        { id: 1, betweenWithNullLower: null, betweenWithNullUpper: null, betweenWithBothNull: null },
+        { id: 2, betweenWithNullLower: false, betweenWithNullUpper: null, betweenWithBothNull: null }
+      ]);
+    });
+
+    // This should fail to compile for types without comparison operators
+    // Uncomment to verify type safety:
+    // it("should not compile for types without comparison operators", () => {
+    //   const bool1 = Types.Bool.new(true);
+    //   // @ts-expect-error Bool doesn't have >= and <= operators
+    //   const betweenBool = bool1.between(Types.Bool.new(false), Types.Bool.new(true));
+    // });
+  });
+
   describe("Combined operators in WHERE clauses", () => {
     it("should work with complex boolean logic", async () => {
       const users = values(

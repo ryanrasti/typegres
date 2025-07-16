@@ -1,4 +1,4 @@
-import { Expression, LiteralExpression, UnaryOperatorExpression, BinaryOperatorExpression } from "../expression";
+import { Expression, LiteralExpression, UnaryOperatorExpression, BinaryOperatorExpression, TernaryOperatorExpression } from "../expression";
 import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
 import { Typegres } from "../db";
@@ -26,6 +26,17 @@ export type UseSubtype = {
 export default class Any<R = unknown, N extends number = number> extends PgAny {
   constructor(public v: unknown | null | Expression) {
     super();
+  }
+
+  /**
+   * Helper function to convert a value to an Expression
+   * If the value is already an Any type, uses its expression
+   * Otherwise creates a LiteralExpression with the appropriate type
+   */
+  private toExpressionHelper(value: Any | unknown): Expression {
+    return value instanceof Any 
+      ? value.toExpression() 
+      : new LiteralExpression(value, this.getClass().typeString() || "unknown");
   }
 
   static new(v: null): Any<unknown, 0>;
@@ -99,7 +110,7 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
     };
   }
 
-  getClass(this: this): typeof Any {
+  getClass(): ClassType<this> {
     return this.constructor as any;
   }
 
@@ -139,14 +150,10 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
   isDistinctFrom<R2, N2 extends number>(
     other: Types.Any<R2, N2> | Types.Input<Types.Any<R2, N2>>
   ): Types.Bool<1> {
-    const otherExpr = other instanceof Any 
-      ? other.toExpression() 
-      : new LiteralExpression(other, this.getClass().typeString() || "unknown");
-    
     return Types.Bool.new(
       new BinaryOperatorExpression(
         "IS DISTINCT FROM",
-        [this.toExpression(), otherExpr]
+        [this.toExpression(), this.toExpressionHelper(other)]
       )
     ) as Types.Bool<1>;
   }
@@ -161,16 +168,56 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
   isNotDistinctFrom<R2, N2 extends number>(
     other: Types.Any<R2, N2> | Types.Input<Types.Any<R2, N2>>
   ): Types.Bool<1> {
-    const otherExpr = other instanceof Any 
-      ? other.toExpression() 
-      : new LiteralExpression(other, this.getClass().typeString() || "unknown");
-    
     return Types.Bool.new(
       new BinaryOperatorExpression(
         "IS NOT DISTINCT FROM",
-        [this.toExpression(), otherExpr]
+        [this.toExpression(), this.toExpressionHelper(other)]
       )
     ) as Types.Bool<1>;
+  }
+
+  /**
+   * SQL BETWEEN operator - checks if value is within a range (inclusive)
+   * value BETWEEN lower AND upper is equivalent to value >= lower AND value <= upper
+   * Returns null if any of the three values is null
+   * Only available for types that have >= and <= operators
+   */
+  between<N2 extends number, N3 extends number>(
+    this: Any<R, N> & { [">="](...args: any[]): any; ["<="](...args: any[]): any },
+    lower: Types.Any<R, N2> | Types.Input<Types.Any<R, N2>>,
+    upper: Types.Any<R, N3> | Types.Input<Types.Any<R, N3>>
+  ): Types.Bool<N | N2 | N3> {
+    return Types.Bool.new(
+      new TernaryOperatorExpression(
+        "BETWEEN",
+        "AND",
+        this.toExpression(),
+        this.toExpressionHelper(lower),
+        this.toExpressionHelper(upper)
+      )
+    ) as Types.Bool<N | N2 | N3>;
+  }
+
+  /**
+   * SQL NOT BETWEEN operator - checks if value is outside a range
+   * value NOT BETWEEN lower AND upper is equivalent to value < lower OR value > upper
+   * Returns null if any of the three values is null
+   * Only available for types that have >= and <= operators
+   */
+  notBetween<N2 extends number, N3 extends number>(
+    this: Any<R, N> & { [">="](...args: any[]): any; ["<="](...args: any[]): any },
+    lower: Types.Any<R, N2> | Types.Input<Types.Any<R, N2>>,
+    upper: Types.Any<R, N3> | Types.Input<Types.Any<R, N3>>
+  ): Types.Bool<N | N2 | N3> {
+    return Types.Bool.new(
+      new TernaryOperatorExpression(
+        "NOT BETWEEN",
+        "AND",
+        this.toExpression(),
+        this.toExpressionHelper(lower),
+        this.toExpressionHelper(upper)
+      )
+    ) as Types.Bool<N | N2 | N3>;
   }
 }
 

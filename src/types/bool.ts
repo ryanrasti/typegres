@@ -1,8 +1,17 @@
 import { Bool as PgBool } from "../gen/types/bool";
 import * as Types from "../types";
-import { BinaryOperatorExpression, UnaryOperatorExpression } from "../expression";
+import { BinaryOperatorExpression, UnaryOperatorExpression, Expression } from "../expression";
 
 export default class Bool<N extends number> extends PgBool<N> {
+  /**
+   * Helper to convert a boolean value to an Expression
+   */
+  private toBoolExpression(value: Types.Bool<any> | Types.Input<Types.Bool<any>>): Expression {
+    return value instanceof Types.Any 
+      ? value.toExpression() 
+      : Types.Bool.new(value as boolean).toExpression();
+  }
+
   /**
    * SQL AND operator - combines two boolean expressions
    * Returns true only when both expressions are true
@@ -10,16 +19,12 @@ export default class Bool<N extends number> extends PgBool<N> {
   and<N2 extends number>(
     other: Types.Bool<N2> | Types.Input<Types.Bool<N2>>
   ): Types.Bool<N | N2> {
-    const otherExpr = other instanceof Types.Any 
-      ? other.toExpression() 
-      : Types.Bool.new(other as any).toExpression();
-    
     return Types.Bool.new(
       new BinaryOperatorExpression(
         "AND",
-        [this.toExpression(), otherExpr]
+        [this.toExpression(), this.toBoolExpression(other)]
       )
-    ) as any;
+    ) as Types.Bool<N | N2>;
   }
 
   /**
@@ -29,16 +34,12 @@ export default class Bool<N extends number> extends PgBool<N> {
   or<N2 extends number>(
     other: Types.Bool<N2> | Types.Input<Types.Bool<N2>>
   ): Types.Bool<N | N2> {
-    const otherExpr = other instanceof Types.Any 
-      ? other.toExpression() 
-      : Types.Bool.new(other as any).toExpression();
-    
     return Types.Bool.new(
       new BinaryOperatorExpression(
         "OR",
-        [this.toExpression(), otherExpr]
+        [this.toExpression(), this.toBoolExpression(other)]
       )
-    ) as any;
+    ) as Types.Bool<N | N2>;
   }
 
   /**
@@ -52,6 +53,6 @@ export default class Bool<N extends number> extends PgBool<N> {
         this.toExpression(),
         false // prefix operator
       )
-    ) as any;
+    ) as Types.Bool<N>;
   }
 }

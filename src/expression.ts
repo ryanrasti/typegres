@@ -139,6 +139,22 @@ export class UnaryOperatorExpression extends Expression {
   }
 }
 
+export class TernaryOperatorExpression extends Expression {
+  constructor(
+    public operator1: string,
+    public operator2: string,
+    public arg1: Expression,
+    public arg2: Expression,
+    public arg3: Expression,
+  ) {
+    super();
+  }
+
+  compile(ctx: Context) {
+    return sql`(${this.arg1.compile(ctx)} ${sql.raw(this.operator1)} ${this.arg2.compile(ctx)} ${sql.raw(this.operator2)} ${this.arg3.compile(ctx)})`;
+  }
+}
+
 export abstract class SelectableExpression extends Expression {
   constructor(public schema: RowLike) {
     super();
