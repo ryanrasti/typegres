@@ -68,9 +68,9 @@
         in
         {
           devShells.default = pkgs.mkShell {
-            buildInputs = [ node pkgs.postgresql pkgs.jq pkgs.nixfmt ];
+            buildInputs = [ node pkgs.postgresql pkgs.jq pkgs.nixfmt-classic ];
           };
-          formatter = pkgs.nixpkgs-fmt;
+          formatter = pkgs.nixfmt-classic;
 
           packages = rec {
             typegres =
@@ -116,6 +116,7 @@
 
             default = typegres;
             inherit node;
+            inherit pkgs;
           };
         }
       );

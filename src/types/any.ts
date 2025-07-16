@@ -1,7 +1,8 @@
-import { Expression, LiteralExpression } from "../expression";
+import { Expression, LiteralExpression, UnaryOperatorExpression, BinaryOperatorExpression } from "../expression";
 import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
 import { Typegres } from "../db";
+import * as Types from "../types";
 
 export type ClassType<T> = {
   typeString(): string | undefined;
@@ -100,6 +101,76 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
 
   getClass(this: this): typeof Any {
     return this.constructor as any;
+  }
+
+  /**
+   * SQL IS NULL operator - checks if the value is null
+   */
+  isNull(): Types.Bool<1> {
+    return Types.Bool.new(
+      new UnaryOperatorExpression(
+        "IS NULL",
+        this.toExpression(),
+        true // postfix operator
+      )
+    ) as Types.Bool<1>;
+  }
+
+  /**
+   * SQL IS NOT NULL operator - checks if the value is not null
+   */
+  isNotNull(): Types.Bool<1> {
+    return Types.Bool.new(
+      new UnaryOperatorExpression(
+        "IS NOT NULL",
+        this.toExpression(),
+        true // postfix operator
+      )
+    ) as Types.Bool<1>;
+  }
+
+  /**
+   * SQL IS DISTINCT FROM operator - null-safe inequality comparison
+   * Returns true when values are different, treating NULL as a known value
+   * NULL IS DISTINCT FROM NULL = false
+   * NULL IS DISTINCT FROM value = true
+   * value IS DISTINCT FROM value = false
+   */
+  isDistinctFrom<R2, N2 extends number>(
+    other: Types.Any<R2, N2> | Types.Input<Types.Any<R2, N2>>
+  ): Types.Bool<1> {
+    const otherExpr = other instanceof Any 
+      ? other.toExpression() 
+      : new LiteralExpression(other, this.getClass().typeString() || "unknown");
+    
+    return Types.Bool.new(
+      new BinaryOperatorExpression(
+        "IS DISTINCT FROM",
+        [this.toExpression(), otherExpr]
+      )
+    ) as Types.Bool<1>;
+  }
+
+  /**
+   * SQL IS NOT DISTINCT FROM operator - null-safe equality comparison
+   * Returns true when values are the same, treating NULL as a known value
+   * NULL IS NOT DISTINCT FROM NULL = true
+   * NULL IS NOT DISTINCT FROM value = false
+   * value IS NOT DISTINCT FROM value = true
+   */
+  isNotDistinctFrom<R2, N2 extends number>(
+    other: Types.Any<R2, N2> | Types.Input<Types.Any<R2, N2>>
+  ): Types.Bool<1> {
+    const otherExpr = other instanceof Any 
+      ? other.toExpression() 
+      : new LiteralExpression(other, this.getClass().typeString() || "unknown");
+    
+    return Types.Bool.new(
+      new BinaryOperatorExpression(
+        "IS NOT DISTINCT FROM",
+        [this.toExpression(), otherExpr]
+      )
+    ) as Types.Bool<1>;
   }
 }
 
