@@ -207,7 +207,7 @@ export class ExistsExpression extends Expression {
   }
 
   compile(ctx: Context) {
-    return sql`EXISTS ${this.subquery.compile(ctx)}`;
+    return sql`(EXISTS ${this.subquery.compile(ctx)})`;
   }
 }
 
@@ -217,7 +217,7 @@ export class NotExistsExpression extends Expression {
   }
 
   compile(ctx: Context) {
-    return sql`NOT EXISTS ${this.subquery.compile(ctx)}`;
+    return sql`(NOT EXISTS ${this.subquery.compile(ctx)})`;
   }
 }
 
