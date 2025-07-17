@@ -1,4 +1,4 @@
-import { Expression, LiteralExpression, UnaryOperatorExpression, BinaryOperatorExpression } from "../expression";
+import { Expression, LiteralExpression, UnaryOperatorExpression, BinaryOperatorExpression, CastExpression } from "../expression";
 import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
 import { Typegres } from "../db";
@@ -48,6 +48,10 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
 
   asAggregate(): Any<R, number> | undefined {
     return undefined;
+  }
+
+  asNullable(): Any<R, 0 | 1> {
+    return this.getClass().new(this.toExpression()) as Any<R, 0 | 1>;
   }
 
   static typeString(): string | undefined {
@@ -176,7 +180,19 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
     ) as Types.Bool<1>;
   }
 
-
+  /**
+   * SQL CAST operator - converts a value to a different type
+   * CAST(expression AS target_type)
+   */
+  cast<T extends Any>(targetType: ClassType<T>): T {
+    const typeStr = targetType.typeString();
+    if (!typeStr) {
+      throw new Error(`Cannot cast to type without typeString(): target type must be a concrete SQL type`);
+    }
+    return targetType.new(
+      new CastExpression(this.toExpression(), typeStr)
+    ) as T;
+  }
 }
 
 export type AnyType = Any<unknown>;

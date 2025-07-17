@@ -419,6 +419,25 @@ const main = async () => {
         }
        \n`,
       );
+      
+      await output.write(
+        `    asNullable(): Types.${pgNameToIdent(type, true)}<0 | 1${
+          type === "array" || type === "anyrange" || type === "anymultirange"
+            ? ", T"
+            : type === "record"
+              ? ", R"
+              : ""
+        }> {
+          return Types.${pgNameToIdent(type, true)}.new(this.toExpression()) as Types.${pgNameToIdent(type, true)}<0 | 1${
+          type === "array" || type === "anyrange" || type === "anymultirange"
+            ? ", T"
+            : type === "record"
+              ? ", R"
+              : ""
+        }>;
+        }
+       \n`,
+      );
     }
 
     const isThisGeneric =

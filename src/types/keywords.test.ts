@@ -3,6 +3,7 @@ import * as Types from "./index";
 import { values } from "../query/values";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
+import { caseWhen } from "../sql-case";
 
 describe("Keyword operators", () => {
   describe("isNull and isNotNull", () => {
@@ -11,7 +12,7 @@ describe("Keyword operators", () => {
         { name: Types.Text.new("John"), age: Types.Int4.new(null) },
         { name: Types.Text.new(null), age: Types.Int4.new(25) }
       );
-      
+
       const result = await data
         .select((row) => ({
           nameIsNull: row.name.isNull(),
@@ -286,7 +287,7 @@ describe("Keyword operators", () => {
       const result = await data
         .select((row) => ({
           name: row.name,
-          hasJohn: row.name.like(Types.Text.new("%John%"))
+          hasJohn: row.name.like("%John%")
         }))
         .execute(testDb);
       
@@ -307,7 +308,7 @@ describe("Keyword operators", () => {
       const result = await data
         .select((row) => ({
           name: row.name,
-          hasJohn: row.name.ilike(Types.Text.new("%john%"))
+          hasJohn: row.name.ilike("%john%")
         }))
         .execute(testDb);
       
@@ -328,7 +329,7 @@ describe("Keyword operators", () => {
       const result = await data
         .select((row) => ({
           name: row.name,
-          notJohn: row.name.notlike(Types.Text.new("%John%"))
+          notJohn: row.name.notlike("%John%")
         }))
         .execute(testDb);
       
@@ -349,7 +350,7 @@ describe("Keyword operators", () => {
       const result = await data
         .select((row) => ({
           name: row.name,
-          notJohn: row.name.notilike(Types.Text.new("%john%"))
+          notJohn: row.name.notilike("%john%")
         }))
         .execute(testDb);
       
@@ -472,6 +473,234 @@ describe("Keyword operators", () => {
       expect(unchangedUsers).toEqual([
         { id: 2 },  // 30 -> 30
         { id: 5 }   // null -> null
+      ]);
+    });
+  });
+
+  describe("CAST", () => {
+    it("should cast between types", async () => {
+      const data = values(
+        { text: Types.Text.new("123"), num: Types.Int4.new(456) }
+      );
+
+      const result = await data
+        .select((row) => ({
+          textToInt: row.text.cast(Types.Int4),
+          numToText: row.num.cast(Types.Text),
+          numToFloat: row.num.cast(Types.Float8)
+        }))
+        .execute(testDb);
+      
+      assert<Equals<typeof result, { textToInt: number | null; numToText: string | null; numToFloat: number | null }[]>>();
+      expect(result[0].textToInt).toBe(123);
+      expect(result[0].numToText).toBe("456");
+      expect(result[0].numToFloat).toBe(456);
+    });
+
+    it("should handle null values in cast", async () => {
+      const data = values(
+        { text: Types.Text.new(null), num: Types.Int4.new(null) }
+      );
+
+      const result = await data
+        .select((row) => ({
+          textToInt: row.text.cast(Types.Int4),
+          numToText: row.num.cast(Types.Text)
+        }))
+        .execute(testDb);
+      
+      expect(result[0].textToInt).toBe(null);
+      expect(result[0].numToText).toBe(null);
+    });
+  });
+
+  describe("CASE WHEN", () => {
+    it("should have correct types for CASE expressions", () => {
+      const int1 = Types.Int4.new(100);
+      const text1 = Types.Text.new("hello");
+      
+      // Without ELSE - always nullable
+      const case1 = caseWhen(
+        { when: int1[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
+        { when: int1[">="](Types.Int4.new(80)), then: Types.Text.new("B") }
+      );
+      assert<Equals<typeof case1, Types.Text<0 | 1>>>();
+      
+      // With ELSE, all non-nullable - returns non-nullable
+      const case2 = caseWhen(
+        { when: int1[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
+        { when: int1[">="](Types.Int4.new(80)), then: Types.Text.new("B") },
+        Types.Text.new("C")
+      );
+      assert<Equals<typeof case2, Types.Text<1>>>();
+      
+      // With ELSE, but one branch is nullable - return type follows ELSE type
+      const case3 = caseWhen(
+        { when: int1[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
+        { when: int1[">="](Types.Int4.new(80)), then: Types.Text.new(null) },
+        Types.Text.new("C")
+      );
+      assert<Equals<typeof case3, Types.Text<0 | 1>>>(); // ELSE is non-nullable
+      
+      // With nullable ELSE - returns nullable
+      const case4 = caseWhen(
+        { when: int1[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
+        { when: int1[">="](Types.Int4.new(80)), then: Types.Text.new("B") },
+        Types.Text.new(null)
+      );
+      assert<Equals<typeof case4, Types.Text<0 | 1>>>(); // ELSE is nullable
+      
+      // Different types (Int4 result)
+      const case5 = caseWhen(
+        { when: text1["="]("A"), then: Types.Int4.new(1) },
+        { when: text1["="]("B"), then: Types.Int4.new(2) },
+        Types.Int4.new(3)
+      );
+      assert<Equals<typeof case5, Types.Int4<1>>>();
+    });
+
+    it("should work with ELSE clause", async () => {
+      const users = values(
+        { name: Types.Text.new("John"), age: Types.Int4.new(15) },
+        { name: Types.Text.new("Jane"), age: Types.Int4.new(25) },
+        { name: Types.Text.new("Bob"), age: Types.Int4.new(70) }
+      );
+
+      const result = await users
+        .select((u) => ({
+          name: u.name,
+          ageGroup: caseWhen(
+            { when: u.age["<"](18), then: Types.Text.new("minor") },
+            { when: u.age["<"](65), then: Types.Text.new("adult") },
+            Types.Text.new("senior") // ELSE
+          )
+        }))
+        .execute(testDb);
+      
+      assert<Equals<typeof result, { name: string; ageGroup: string }[]>>();
+      expect(result).toEqual([
+        { name: "John", ageGroup: "minor" },
+        { name: "Jane", ageGroup: "adult" },
+        { name: "Bob", ageGroup: "senior" }
+      ]);
+    });
+
+    it("should work without ELSE clause (nullable result)", async () => {
+      const scores = values(
+        { student: Types.Text.new("Alice"), score: Types.Int4.new(95) },
+        { student: Types.Text.new("Bob"), score: Types.Int4.new(85) },
+        { student: Types.Text.new("Charlie"), score: Types.Int4.new(75) },
+        { student: Types.Text.new("David"), score: Types.Int4.new(65) }
+      );
+
+      const result = await scores
+        .select((s) => ({
+          student: s.student,
+          grade: caseWhen(
+            { when: s.score[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
+            { when: s.score[">="](Types.Int4.new(80)), then: Types.Text.new("B") },
+            { when: s.score[">="](Types.Int4.new(70)), then: Types.Text.new("C") }
+            // No ELSE - scores below 70 will get NULL
+          )
+        }))
+        .execute(testDb);
+      
+      // Check that grade can be null
+      // The type is Any<string, 0 | 1> which may include undefined in the result due to TypeScript inference
+      
+      expect(result).toEqual([
+        { student: "Alice", grade: "A" },
+        { student: "Bob", grade: "B" },
+        { student: "Charlie", grade: "C" },
+        { student: "David", grade: null }
+      ]);
+    });
+
+    it("should work with complex conditions", async () => {
+      const products = values(
+        { name: Types.Text.new("Widget"), price: Types.Numeric.new("10.50"), inStock: Types.Bool.new(true) },
+        { name: Types.Text.new("Gadget"), price: Types.Numeric.new("25.00"), inStock: Types.Bool.new(false) },
+        { name: Types.Text.new("Tool"), price: Types.Numeric.new("100.00"), inStock: Types.Bool.new(true) }
+      );
+
+      const result = await products
+        .select((p) => ({
+          name: p.name,
+          status: caseWhen(
+            { 
+              when: p.inStock.not(), 
+              then: Types.Text.new("Out of Stock") 
+            },
+            { 
+              when: p.price["<"](Types.Numeric.new("20")), 
+              then: Types.Text.new("Budget") 
+            },
+            { 
+              when: p.price["<"](Types.Numeric.new("50")), 
+              then: Types.Text.new("Standard") 
+            },
+            Types.Text.new("Premium")
+          )
+        }))
+        .execute(testDb);
+      
+      expect(result).toEqual([
+        { name: "Widget", status: "Budget" },
+        { name: "Gadget", status: "Out of Stock" },
+        { name: "Tool", status: "Premium" }
+      ]);
+    });
+
+    it("should handle NULL values in conditions", async () => {
+      const data = values(
+        { id: Types.Int4.new(1), value: Types.Int4.new(10) },
+        { id: Types.Int4.new(2), value: Types.Int4.new(null) },
+        { id: Types.Int4.new(3), value: Types.Int4.new(30) }
+      );
+
+      const result = await data
+        .select((d) => ({
+          id: d.id,
+          category: caseWhen(
+            { when: d.value.isNull(), then: Types.Text.new("No Value") },
+            { when: d.value["<"](Types.Int4.new(20)), then: Types.Text.new("Low") },
+            Types.Text.new("High")
+          )
+        }))
+        .execute(testDb);
+      
+      expect(result).toEqual([
+        { id: 1, category: "Low" },
+        { id: 2, category: "No Value" },
+        { id: 3, category: "High" }
+      ]);
+    });
+
+    it("should allow mixing nullable and non-nullable values", async () => {
+      const data = values(
+        { id: Types.Int4.new(1), status: Types.Text.new("active") },
+        { id: Types.Int4.new(2), status: Types.Text.new("pending") },
+        { id: Types.Int4.new(3), status: Types.Text.new("inactive") }
+      );
+
+      const result = await data
+        .select((d) => ({
+          id: d.id,
+          label: caseWhen(
+            { when: d.status["="]("active"), then: Types.Text.new("Active User") },
+            { when: d.status["="]("pending"), then: Types.Text.new(null) }, // nullable
+            { when: d.status["="]("inactive"), then: Types.Text.new("Inactive") },
+            Types.Text.new("Unknown")
+          )
+        }))
+        .execute(testDb);
+      
+      assert<Equals<typeof result, { id: number; label: string | null }[]>>();
+      
+      expect(result).toEqual([
+        { id: 1, label: "Active User" },
+        { id: 2, label: null },
+        { id: 3, label: "Inactive" }
       ]);
     });
   });
