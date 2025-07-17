@@ -50,8 +50,8 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
     return undefined;
   }
 
-  asNullable(): Any<R, 0 | 1> {
-    return this.getClass().new(this.toExpression()) as Any<R, 0 | 1>;
+  asNullable(): Any<R, 0 | 1>  | undefined{
+    return undefined;
   }
 
   static typeString(): string | undefined {

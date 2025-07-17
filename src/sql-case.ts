@@ -1,4 +1,4 @@
-import { Expression, LiteralExpression, Context } from "./expression";
+import { Expression, Context } from "./expression";
 import { Any } from "./types";
 import * as Types from "./types";
 import { sql } from "kysely";
@@ -18,35 +18,34 @@ export interface WhenThen<R extends Any> {
  * With ELSE: nullable if any branch is nullable
  */
 
-type AsNullable<R extends Any<unknown, number>> = ReturnType<
-  R["asNullable"]>;
+type AsNullable<R extends Any<unknown, number>> = NonNullable<
+  ReturnType<R["asNullable"]>
+>;
 
 // Without ELSE - always nullable
 export function caseWhen<N extends number, R extends Any<unknown, N>>(
-  ...cases: WhenThen<R>[]
+  ...cases: [WhenThen<R>, ...WhenThen<R>[]]
 ): AsNullable<R>;
 
 // With ELSE - returns the same type as the ELSE clause
 // This is a simplification - in reality SQL would check all branches
 // but for TypeScript we'll use the ELSE type as the return type
 export function caseWhen<N extends number, T extends Any<unknown, N>>(
-  ...casesAndElse: [...WhenThen< T>[], T]
+  ...casesAndElse: [WhenThen<T>, ...WhenThen<T>[], T]
 ): T;
 export function caseWhen<N extends number, T extends Any<unknown, N>>(
-  ...casesAndElse: [...WhenThen<AsNullable<T>>[], T]
+  ...casesAndElse: [WhenThen<AsNullable<T>>, ...WhenThen<AsNullable<T>>[], T]
 ): AsNullable<T>;
 
 export function caseWhen<R extends Any<unknown, N>, N extends number>(
   ...args: (WhenThen<R> | Types.Any<R, N>)[]
 ): Types.Any<R, N> {
-  // Check if last argument is the ELSE clause
   const lastArg = args[args.length - 1];
-  const hasElse =
-    args.length > 0 &&
-    (typeof lastArg !== "object" || lastArg === null || !("when" in lastArg));
+  const hasElse = lastArg && lastArg instanceof Types.Any;
   const whenThens = hasElse
     ? (args.slice(0, -1) as WhenThen<R>[])
     : (args as WhenThen<R>[]);
+
   const elseValue = hasElse
     ? (args[args.length - 1] as Types.Any<R, any>)
     : undefined;
@@ -60,12 +59,10 @@ export function caseWhen<R extends Any<unknown, N>, N extends number>(
   let typeStr: string | undefined;
 
   // Check WHEN branches first
-  for (const wt of whenThens) {
-    if (wt.then !== null && wt.then !== undefined) {
-      resultClass = wt.then.getClass();
-      typeStr = wt.then.getClass().typeString();
-      if (typeStr) break;
-    }
+  const nonNullThen = whenThens.find((wt) => wt.then != null);
+  if (nonNullThen?.then != null) {
+    resultClass = nonNullThen.then.getClass();
+    typeStr = nonNullThen.then.getClass().typeString();
   }
 
   // If all WHEN branches are null, check ELSE
@@ -80,31 +77,13 @@ export function caseWhen<R extends Any<unknown, N>, N extends number>(
     );
   }
 
-  // Convert all values to expressions
-  const whens = whenThens.map((wt) => ({
-    condition: wt.when.toExpression(),
-    result:
-      wt.then instanceof Any
-        ? wt.then.toExpression()
-        : new LiteralExpression(wt.then, typeStr),
-  }));
-
-  const elseExpr =
-    elseValue !== undefined
-      ? elseValue instanceof Any
-        ? elseValue.toExpression()
-        : new LiteralExpression(elseValue, typeStr)
-      : undefined;
-
-  const expr = new CaseExpression(whens, elseExpr);
-
-  // Without ELSE, always nullable
-  if (!hasElse) {
-    return resultClass.new(expr).asNullable() as Types.Any<R, any>;
-  }
-
-  // With ELSE, return as-is (the type system will handle it based on the ELSE type)
-  return resultClass.new(expr) as any;
+  return resultClass.new(new CaseExpression(
+    whenThens.map(({ when, then }) => ({
+      condition: when.toExpression(),
+      result: then.toExpression(),
+    })),
+    elseValue?.toExpression()
+  )) as Types.Any<R, N>;
 }
 
 export class CaseExpression extends Expression {

@@ -16,15 +16,17 @@ describe("Keyword operators", () => {
       const result = await data
         .select((row) => ({
           nameIsNull: row.name.isNull(),
-          ageIsNull: row.age.isNull()
+          ageIsNull: row.age.isNull(),
         }))
         .execute(testDb);
-      
-      assert<Equals<typeof result, { nameIsNull: boolean; ageIsNull: boolean }[]>>();
-      
+
+      assert<
+        Equals<typeof result, { nameIsNull: boolean; ageIsNull: boolean }[]>
+      >();
+
       expect(result).toEqual([
         { nameIsNull: false, ageIsNull: true },
-        { nameIsNull: true, ageIsNull: false }
+        { nameIsNull: true, ageIsNull: false },
       ]);
     });
 
@@ -32,20 +34,20 @@ describe("Keyword operators", () => {
       const text1 = Types.Text.new("hello");
       const text0 = Types.Text.new(null);
       const textMaybe: Types.Text<0 | 1> = Types.Text.new("hello");
-      
+
       const isNull1 = text1.isNull();
       const isNull0 = text0.isNull();
       const isNullMaybe = textMaybe.isNull();
-      
+
       // isNull always returns Bool<1> (non-null boolean)
       assert<Equals<typeof isNull1, Types.Bool<1>>>();
       assert<Equals<typeof isNull0, Types.Bool<1>>>();
       assert<Equals<typeof isNullMaybe, Types.Bool<1>>>();
-      
+
       const isNotNull1 = text1.isNotNull();
       const isNotNull0 = text0.isNotNull();
       const isNotNullMaybe = textMaybe.isNotNull();
-      
+
       // isNotNull always returns Bool<1> (non-null boolean)
       assert<Equals<typeof isNotNull1, Types.Bool<1>>>();
       assert<Equals<typeof isNotNull0, Types.Bool<1>>>();
@@ -57,17 +59,17 @@ describe("Keyword operators", () => {
         { name: Types.Text.new("John"), age: Types.Int4.new(null) },
         { name: Types.Text.new(null), age: Types.Int4.new(25) }
       );
-      
+
       const result = await data
         .select((row) => ({
           nameIsNotNull: row.name.isNotNull(),
-          ageIsNotNull: row.age.isNotNull()
+          ageIsNotNull: row.age.isNotNull(),
         }))
         .execute(testDb);
-      
+
       expect(result).toEqual([
         { nameIsNotNull: true, ageIsNotNull: false },
-        { nameIsNotNull: false, ageIsNotNull: true }
+        { nameIsNotNull: false, ageIsNotNull: true },
       ]);
     });
   });
@@ -77,38 +79,38 @@ describe("Keyword operators", () => {
       const bool1 = Types.Bool.new(true);
       const bool0 = Types.Bool.new(null);
       const boolMaybe: Types.Bool<0 | 1> = Types.Bool.new(true);
-      
+
       // AND operator
       const and11 = bool1.and(bool1);
       const and10 = bool1.and(bool0);
       const and01 = bool0.and(bool1);
       const and00 = bool0.and(bool0);
       const andMaybe = boolMaybe.and(boolMaybe);
-      
+
       assert<Equals<typeof and11, Types.Bool<1>>>();
       assert<Equals<typeof and10, Types.Bool<0 | 1>>>();
       assert<Equals<typeof and01, Types.Bool<0 | 1>>>();
       assert<Equals<typeof and00, Types.Bool<0>>>();
       assert<Equals<typeof andMaybe, Types.Bool<0 | 1>>>();
-      
+
       // OR operator
       const or11 = bool1.or(bool1);
       const or10 = bool1.or(bool0);
       const or01 = bool0.or(bool1);
       const or00 = bool0.or(bool0);
       const orMaybe = boolMaybe.or(boolMaybe);
-      
+
       assert<Equals<typeof or11, Types.Bool<1>>>();
       assert<Equals<typeof or10, Types.Bool<0 | 1>>>();
       assert<Equals<typeof or01, Types.Bool<0 | 1>>>();
       assert<Equals<typeof or00, Types.Bool<0>>>();
       assert<Equals<typeof orMaybe, Types.Bool<0 | 1>>>();
-      
+
       // NOT operator
       const not1 = bool1.not();
       const not0 = bool0.not();
       const notMaybe = boolMaybe.not();
-      
+
       assert<Equals<typeof not1, Types.Bool<1>>>();
       assert<Equals<typeof not0, Types.Bool<0>>>();
       assert<Equals<typeof notMaybe, Types.Bool<0 | 1>>>();
@@ -129,15 +131,15 @@ describe("Keyword operators", () => {
         { a: Types.Bool.new(null), b: Types.Bool.new(false) },
         { a: Types.Bool.new(null), b: Types.Bool.new(null) }
       );
-      
+
       const result = await data
         .select((row) => ({
           a: row.a,
           b: row.b,
-          result: row.a.and(row.b)
+          result: row.a.and(row.b),
         }))
         .execute(testDb);
-      
+
       // AND truth table:
       // true AND true = true
       // true AND false = false
@@ -157,7 +159,7 @@ describe("Keyword operators", () => {
         { a: false, b: null, result: false },
         { a: null, b: true, result: null },
         { a: null, b: false, result: false },
-        { a: null, b: null, result: null }
+        { a: null, b: null, result: null },
       ]);
     });
 
@@ -174,15 +176,15 @@ describe("Keyword operators", () => {
         { a: Types.Bool.new(null), b: Types.Bool.new(false) },
         { a: Types.Bool.new(null), b: Types.Bool.new(null) }
       );
-      
+
       const result = await data
         .select((row) => ({
           a: row.a,
           b: row.b,
-          result: row.a.or(row.b)
+          result: row.a.or(row.b),
         }))
         .execute(testDb);
-      
+
       // OR truth table:
       // true OR true = true
       // true OR false = true
@@ -202,7 +204,7 @@ describe("Keyword operators", () => {
         { a: false, b: null, result: null },
         { a: null, b: true, result: true },
         { a: null, b: false, result: null },
-        { a: null, b: null, result: null }
+        { a: null, b: null, result: null },
       ]);
     });
 
@@ -212,14 +214,14 @@ describe("Keyword operators", () => {
         { a: Types.Bool.new(false) },
         { a: Types.Bool.new(null) }
       );
-      
+
       const result = await data
         .select((row) => ({
           a: row.a,
-          result: row.a.not()
+          result: row.a.not(),
         }))
         .execute(testDb);
-      
+
       // NOT truth table:
       // NOT true = false
       // NOT false = true
@@ -227,7 +229,7 @@ describe("Keyword operators", () => {
       expect(result).toEqual([
         { a: true, result: false },
         { a: false, result: true },
-        { a: null, result: null }
+        { a: null, result: null },
       ]);
     });
   });
@@ -238,41 +240,41 @@ describe("Keyword operators", () => {
       const text0 = Types.Text.new(null);
       const textMaybe: Types.Text<0 | 1> = Types.Text.new("hello");
       const pattern = Types.Text.new("%ell%");
-      
+
       // like operator
       const like1 = text1.like(pattern);
       const like0 = text0.like(pattern);
       const likeMaybe = textMaybe.like(pattern);
-      
+
       // Type depends on nullability of operands
-      assert<Equals<typeof like1, Types.Bool<1>>>();  // both non-null
-      assert<Equals<typeof like0, Types.Bool<0 | 1>>>();  // text is null
-      assert<Equals<typeof likeMaybe, Types.Bool<0 | 1>>>();  // text might be null
-      
+      assert<Equals<typeof like1, Types.Bool<1>>>(); // both non-null
+      assert<Equals<typeof like0, Types.Bool<0 | 1>>>(); // text is null
+      assert<Equals<typeof likeMaybe, Types.Bool<0 | 1>>>(); // text might be null
+
       // ilike operator
       const ilike1 = text1.ilike(pattern);
       const ilike0 = text0.ilike(pattern);
       const ilikeMaybe = textMaybe.ilike(pattern);
-      
-      assert<Equals<typeof ilike1, Types.Bool<1>>>();  // both non-null
+
+      assert<Equals<typeof ilike1, Types.Bool<1>>>(); // both non-null
       assert<Equals<typeof ilike0, Types.Bool<0 | 1>>>();
       assert<Equals<typeof ilikeMaybe, Types.Bool<0 | 1>>>();
-      
+
       // notLike operator
       const notLike1 = text1.notlike(pattern);
       const notLike0 = text0.notlike(pattern);
       const notLikeMaybe = textMaybe.notlike(pattern);
-      
-      assert<Equals<typeof notLike1, Types.Bool<1>>>();  // both non-null
+
+      assert<Equals<typeof notLike1, Types.Bool<1>>>(); // both non-null
       assert<Equals<typeof notLike0, Types.Bool<0 | 1>>>();
       assert<Equals<typeof notLikeMaybe, Types.Bool<0 | 1>>>();
-      
+
       // notIlike operator
       const notIlike1 = text1.notilike(pattern);
       const notIlike0 = text0.notilike(pattern);
       const notIlikeMaybe = textMaybe.notilike(pattern);
-      
-      assert<Equals<typeof notIlike1, Types.Bool<1>>>();  // both non-null
+
+      assert<Equals<typeof notIlike1, Types.Bool<1>>>(); // both non-null
       assert<Equals<typeof notIlike0, Types.Bool<0 | 1>>>();
       assert<Equals<typeof notIlikeMaybe, Types.Bool<0 | 1>>>();
     });
@@ -283,18 +285,18 @@ describe("Keyword operators", () => {
         { name: Types.Text.new("Jane Doe") },
         { name: Types.Text.new("Bob Johnson") }
       );
-      
+
       const result = await data
         .select((row) => ({
           name: row.name,
-          hasJohn: row.name.like("%John%")
+          hasJohn: row.name.like("%John%"),
         }))
         .execute(testDb);
-      
+
       expect(result).toEqual([
         { name: "John Smith", hasJohn: true },
         { name: "Jane Doe", hasJohn: false },
-        { name: "Bob Johnson", hasJohn: true }
+        { name: "Bob Johnson", hasJohn: true },
       ]);
     });
 
@@ -304,18 +306,18 @@ describe("Keyword operators", () => {
         { name: Types.Text.new("jane doe") },
         { name: Types.Text.new("BOB JOHNSON") }
       );
-      
+
       const result = await data
         .select((row) => ({
           name: row.name,
-          hasJohn: row.name.ilike("%john%")
+          hasJohn: row.name.ilike("%john%"),
         }))
         .execute(testDb);
-      
+
       expect(result).toEqual([
         { name: "John Smith", hasJohn: true },
         { name: "jane doe", hasJohn: false },
-        { name: "BOB JOHNSON", hasJohn: true }
+        { name: "BOB JOHNSON", hasJohn: true },
       ]);
     });
 
@@ -325,18 +327,18 @@ describe("Keyword operators", () => {
         { name: Types.Text.new("Jane Doe") },
         { name: Types.Text.new("Bob Johnson") }
       );
-      
+
       const result = await data
         .select((row) => ({
           name: row.name,
-          notJohn: row.name.notlike("%John%")
+          notJohn: row.name.notlike("%John%"),
         }))
         .execute(testDb);
-      
+
       expect(result).toEqual([
         { name: "John Smith", notJohn: false },
         { name: "Jane Doe", notJohn: true },
-        { name: "Bob Johnson", notJohn: false }
+        { name: "Bob Johnson", notJohn: false },
       ]);
     });
 
@@ -346,18 +348,18 @@ describe("Keyword operators", () => {
         { name: Types.Text.new("jane doe") },
         { name: Types.Text.new("BOB JOHNSON") }
       );
-      
+
       const result = await data
         .select((row) => ({
           name: row.name,
-          notJohn: row.name.notilike("%john%")
+          notJohn: row.name.notilike("%john%"),
         }))
         .execute(testDb);
-      
+
       expect(result).toEqual([
         { name: "John Smith", notJohn: false },
         { name: "jane doe", notJohn: true },
-        { name: "BOB JOHNSON", notJohn: false }
+        { name: "BOB JOHNSON", notJohn: false },
       ]);
     });
   });
@@ -367,27 +369,27 @@ describe("Keyword operators", () => {
       const text1 = Types.Text.new("hello");
       const text0 = Types.Text.new(null);
       const textMaybe: Types.Text<0 | 1> = Types.Text.new("hello");
-      
+
       const int1 = Types.Int4.new(42);
       const int0 = Types.Int4.new(null);
-      
+
       // IS DISTINCT FROM always returns Bool<1> (non-null)
       const distinct1 = text1.isDistinctFrom(text0);
       const distinct2 = text0.isDistinctFrom(text0);
       const distinct3 = textMaybe.isDistinctFrom(text1);
       const distinct4 = int1.isDistinctFrom(int0);
-      
+
       assert<Equals<typeof distinct1, Types.Bool<1>>>();
       assert<Equals<typeof distinct2, Types.Bool<1>>>();
       assert<Equals<typeof distinct3, Types.Bool<1>>>();
       assert<Equals<typeof distinct4, Types.Bool<1>>>();
-      
+
       // IS NOT DISTINCT FROM always returns Bool<1> (non-null)
       const notDistinct1 = text1.isNotDistinctFrom(text0);
       const notDistinct2 = text0.isNotDistinctFrom(text0);
       const notDistinct3 = textMaybe.isNotDistinctFrom(text1);
       const notDistinct4 = int1.isNotDistinctFrom(int0);
-      
+
       assert<Equals<typeof notDistinct1, Types.Bool<1>>>();
       assert<Equals<typeof notDistinct2, Types.Bool<1>>>();
       assert<Equals<typeof notDistinct3, Types.Bool<1>>>();
@@ -402,7 +404,7 @@ describe("Keyword operators", () => {
         { a: Types.Int4.new(null), b: Types.Int4.new(1) },
         { a: Types.Int4.new(null), b: Types.Int4.new(null) }
       );
-      
+
       const result = await data
         .select((row) => ({
           a: row.a,
@@ -411,16 +413,51 @@ describe("Keyword operators", () => {
           isNotDistinct: row.a.isNotDistinctFrom(row.b),
           // For comparison, regular equality
           isEqual: row.a["="](row.b),
-          isNotEqual: row.a["<>"](row.b)
+          isNotEqual: row.a["<>"](row.b),
         }))
         .execute(testDb);
-      
+
       expect(result).toEqual([
-        { a: 1, b: 1, isDistinct: false, isNotDistinct: true, isEqual: true, isNotEqual: false },
-        { a: 1, b: 2, isDistinct: true, isNotDistinct: false, isEqual: false, isNotEqual: true },
-        { a: 1, b: null, isDistinct: true, isNotDistinct: false, isEqual: null, isNotEqual: null },
-        { a: null, b: 1, isDistinct: true, isNotDistinct: false, isEqual: null, isNotEqual: null },
-        { a: null, b: null, isDistinct: false, isNotDistinct: true, isEqual: null, isNotEqual: null }
+        {
+          a: 1,
+          b: 1,
+          isDistinct: false,
+          isNotDistinct: true,
+          isEqual: true,
+          isNotEqual: false,
+        },
+        {
+          a: 1,
+          b: 2,
+          isDistinct: true,
+          isNotDistinct: false,
+          isEqual: false,
+          isNotEqual: true,
+        },
+        {
+          a: 1,
+          b: null,
+          isDistinct: true,
+          isNotDistinct: false,
+          isEqual: null,
+          isNotEqual: null,
+        },
+        {
+          a: null,
+          b: 1,
+          isDistinct: true,
+          isNotDistinct: false,
+          isEqual: null,
+          isNotEqual: null,
+        },
+        {
+          a: null,
+          b: null,
+          isDistinct: false,
+          isNotDistinct: true,
+          isEqual: null,
+          isNotEqual: null,
+        },
       ]);
     });
   });
@@ -428,87 +465,130 @@ describe("Keyword operators", () => {
   describe("Combined operators in WHERE clauses", () => {
     it("should work with complex boolean logic", async () => {
       const users = values(
-        { name: Types.Text.new("John"), age: Types.Int4.new(25), active: Types.Bool.new(true) },
-        { name: Types.Text.new("Jane"), age: Types.Int4.new(30), active: Types.Bool.new(false) },
-        { name: Types.Text.new("Bob"), age: Types.Int4.new(null), active: Types.Bool.new(true) }
+        {
+          name: Types.Text.new("John"),
+          age: Types.Int4.new(25),
+          active: Types.Bool.new(true),
+        },
+        {
+          name: Types.Text.new("Jane"),
+          age: Types.Int4.new(30),
+          active: Types.Bool.new(false),
+        },
+        {
+          name: Types.Text.new("Bob"),
+          age: Types.Int4.new(null),
+          active: Types.Bool.new(true),
+        }
       );
-      
+
       const result = await users
-        .where((u) => 
+        .where((u) =>
           u.active.and(u.age.isNotNull()).and(u.age[">"](Types.Int4.new(20)))
         )
         .execute(testDb);
-      
+
       expect(result.length).toBe(1);
       expect(result[0].name).toBe("John");
     });
 
     it("should use IS DISTINCT FROM for null-safe comparisons", async () => {
       const users = values(
-        { id: Types.Int4.new(1), previousAge: Types.Int4.new(25), currentAge: Types.Int4.new(26) },
-        { id: Types.Int4.new(2), previousAge: Types.Int4.new(30), currentAge: Types.Int4.new(30) },
-        { id: Types.Int4.new(3), previousAge: Types.Int4.new(null), currentAge: Types.Int4.new(40) },
-        { id: Types.Int4.new(4), previousAge: Types.Int4.new(35), currentAge: Types.Int4.new(null) },
-        { id: Types.Int4.new(5), previousAge: Types.Int4.new(null), currentAge: Types.Int4.new(null) }
+        {
+          id: Types.Int4.new(1),
+          previousAge: Types.Int4.new(25),
+          currentAge: Types.Int4.new(26),
+        },
+        {
+          id: Types.Int4.new(2),
+          previousAge: Types.Int4.new(30),
+          currentAge: Types.Int4.new(30),
+        },
+        {
+          id: Types.Int4.new(3),
+          previousAge: Types.Int4.new(null),
+          currentAge: Types.Int4.new(40),
+        },
+        {
+          id: Types.Int4.new(4),
+          previousAge: Types.Int4.new(35),
+          currentAge: Types.Int4.new(null),
+        },
+        {
+          id: Types.Int4.new(5),
+          previousAge: Types.Int4.new(null),
+          currentAge: Types.Int4.new(null),
+        }
       );
-      
+
       // Find users whose age has changed (including null transitions)
       const changedUsers = await users
         .where((u) => u.previousAge.isDistinctFrom(u.currentAge))
         .select((u) => ({ id: u.id }))
         .execute(testDb);
-      
+
       expect(changedUsers).toEqual([
-        { id: 1 },  // 25 -> 26
-        { id: 3 },  // null -> 40
-        { id: 4 }   // 35 -> null
+        { id: 1 }, // 25 -> 26
+        { id: 3 }, // null -> 40
+        { id: 4 }, // 35 -> null
       ]);
-      
+
       // Find users whose age hasn't changed (including null -> null)
       const unchangedUsers = await users
         .where((u) => u.previousAge.isNotDistinctFrom(u.currentAge))
         .select((u) => ({ id: u.id }))
         .execute(testDb);
-      
+
       expect(unchangedUsers).toEqual([
-        { id: 2 },  // 30 -> 30
-        { id: 5 }   // null -> null
+        { id: 2 }, // 30 -> 30
+        { id: 5 }, // null -> null
       ]);
     });
   });
 
   describe("CAST", () => {
     it("should cast between types", async () => {
-      const data = values(
-        { text: Types.Text.new("123"), num: Types.Int4.new(456) }
-      );
+      const data = values({
+        text: Types.Text.new("123"),
+        num: Types.Int4.new(456),
+      });
 
       const result = await data
         .select((row) => ({
           textToInt: row.text.cast(Types.Int4),
           numToText: row.num.cast(Types.Text),
-          numToFloat: row.num.cast(Types.Float8)
+          numToFloat: row.num.cast(Types.Float8),
         }))
         .execute(testDb);
-      
-      assert<Equals<typeof result, { textToInt: number | null; numToText: string | null; numToFloat: number | null }[]>>();
+
+      assert<
+        Equals<
+          typeof result,
+          {
+            textToInt: number | null;
+            numToText: string | null;
+            numToFloat: number | null;
+          }[]
+        >
+      >();
       expect(result[0].textToInt).toBe(123);
       expect(result[0].numToText).toBe("456");
       expect(result[0].numToFloat).toBe(456);
     });
 
     it("should handle null values in cast", async () => {
-      const data = values(
-        { text: Types.Text.new(null), num: Types.Int4.new(null) }
-      );
+      const data = values({
+        text: Types.Text.new(null),
+        num: Types.Int4.new(null),
+      });
 
       const result = await data
         .select((row) => ({
           textToInt: row.text.cast(Types.Int4),
-          numToText: row.num.cast(Types.Text)
+          numToText: row.num.cast(Types.Text),
         }))
         .execute(testDb);
-      
+
       expect(result[0].textToInt).toBe(null);
       expect(result[0].numToText).toBe(null);
     });
@@ -518,14 +598,14 @@ describe("Keyword operators", () => {
     it("should have correct types for CASE expressions", () => {
       const int1 = Types.Int4.new(100);
       const text1 = Types.Text.new("hello");
-      
+
       // Without ELSE - always nullable
       const case1 = caseWhen(
         { when: int1[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
         { when: int1[">="](Types.Int4.new(80)), then: Types.Text.new("B") }
       );
       assert<Equals<typeof case1, Types.Text<0 | 1>>>();
-      
+
       // With ELSE, all non-nullable - returns non-nullable
       const case2 = caseWhen(
         { when: int1[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
@@ -533,7 +613,7 @@ describe("Keyword operators", () => {
         Types.Text.new("C")
       );
       assert<Equals<typeof case2, Types.Text<1>>>();
-      
+
       // With ELSE, but one branch is nullable - return type follows ELSE type
       const case3 = caseWhen(
         { when: int1[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
@@ -541,7 +621,7 @@ describe("Keyword operators", () => {
         Types.Text.new("C")
       );
       assert<Equals<typeof case3, Types.Text<0 | 1>>>(); // ELSE is non-nullable
-      
+
       // With nullable ELSE - returns nullable
       const case4 = caseWhen(
         { when: int1[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
@@ -549,7 +629,7 @@ describe("Keyword operators", () => {
         Types.Text.new(null)
       );
       assert<Equals<typeof case4, Types.Text<0 | 1>>>(); // ELSE is nullable
-      
+
       // Different types (Int4 result)
       const case5 = caseWhen(
         { when: text1["="]("A"), then: Types.Int4.new(1) },
@@ -573,15 +653,15 @@ describe("Keyword operators", () => {
             { when: u.age["<"](18), then: Types.Text.new("minor") },
             { when: u.age["<"](65), then: Types.Text.new("adult") },
             Types.Text.new("senior") // ELSE
-          )
+          ),
         }))
         .execute(testDb);
-      
+
       assert<Equals<typeof result, { name: string; ageGroup: string }[]>>();
       expect(result).toEqual([
         { name: "John", ageGroup: "minor" },
         { name: "Jane", ageGroup: "adult" },
-        { name: "Bob", ageGroup: "senior" }
+        { name: "Bob", ageGroup: "senior" },
       ]);
     });
 
@@ -597,57 +677,78 @@ describe("Keyword operators", () => {
         .select((s) => ({
           student: s.student,
           grade: caseWhen(
-            { when: s.score[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
-            { when: s.score[">="](Types.Int4.new(80)), then: Types.Text.new("B") },
-            { when: s.score[">="](Types.Int4.new(70)), then: Types.Text.new("C") }
+            {
+              when: s.score[">="](Types.Int4.new(90)),
+              then: Types.Text.new("A"),
+            },
+            {
+              when: s.score[">="](Types.Int4.new(80)),
+              then: Types.Text.new("B"),
+            },
+            {
+              when: s.score[">="](Types.Int4.new(70)),
+              then: Types.Text.new("C"),
+            }
             // No ELSE - scores below 70 will get NULL
-          )
+          ),
         }))
         .execute(testDb);
-      
+
       // Check that grade can be null
       // The type is Any<string, 0 | 1> which may include undefined in the result due to TypeScript inference
-      
+
       expect(result).toEqual([
         { student: "Alice", grade: "A" },
         { student: "Bob", grade: "B" },
         { student: "Charlie", grade: "C" },
-        { student: "David", grade: null }
+        { student: "David", grade: null },
       ]);
     });
 
     it("should work with complex conditions", async () => {
       const products = values(
-        { name: Types.Text.new("Widget"), price: Types.Numeric.new("10.50"), inStock: Types.Bool.new(true) },
-        { name: Types.Text.new("Gadget"), price: Types.Numeric.new("25.00"), inStock: Types.Bool.new(false) },
-        { name: Types.Text.new("Tool"), price: Types.Numeric.new("100.00"), inStock: Types.Bool.new(true) }
+        {
+          name: Types.Text.new("Widget"),
+          price: Types.Numeric.new("10.50"),
+          inStock: Types.Bool.new(true),
+        },
+        {
+          name: Types.Text.new("Gadget"),
+          price: Types.Numeric.new("25.00"),
+          inStock: Types.Bool.new(false),
+        },
+        {
+          name: Types.Text.new("Tool"),
+          price: Types.Numeric.new("100.00"),
+          inStock: Types.Bool.new(true),
+        }
       );
 
       const result = await products
         .select((p) => ({
           name: p.name,
           status: caseWhen(
-            { 
-              when: p.inStock.not(), 
-              then: Types.Text.new("Out of Stock") 
+            {
+              when: p.inStock.not(),
+              then: Types.Text.new("Out of Stock"),
             },
-            { 
-              when: p.price["<"](Types.Numeric.new("20")), 
-              then: Types.Text.new("Budget") 
+            {
+              when: p.price["<"](Types.Numeric.new("20")),
+              then: Types.Text.new("Budget"),
             },
-            { 
-              when: p.price["<"](Types.Numeric.new("50")), 
-              then: Types.Text.new("Standard") 
+            {
+              when: p.price["<"](Types.Numeric.new("50")),
+              then: Types.Text.new("Standard"),
             },
             Types.Text.new("Premium")
-          )
+          ),
         }))
         .execute(testDb);
-      
+
       expect(result).toEqual([
         { name: "Widget", status: "Budget" },
         { name: "Gadget", status: "Out of Stock" },
-        { name: "Tool", status: "Premium" }
+        { name: "Tool", status: "Premium" },
       ]);
     });
 
@@ -663,16 +764,19 @@ describe("Keyword operators", () => {
           id: d.id,
           category: caseWhen(
             { when: d.value.isNull(), then: Types.Text.new("No Value") },
-            { when: d.value["<"](Types.Int4.new(20)), then: Types.Text.new("Low") },
+            {
+              when: d.value["<"](Types.Int4.new(20)),
+              then: Types.Text.new("Low"),
+            },
             Types.Text.new("High")
-          )
+          ),
         }))
         .execute(testDb);
-      
+
       expect(result).toEqual([
         { id: 1, category: "Low" },
         { id: 2, category: "No Value" },
-        { id: 3, category: "High" }
+        { id: 3, category: "High" },
       ]);
     });
 
@@ -687,21 +791,34 @@ describe("Keyword operators", () => {
         .select((d) => ({
           id: d.id,
           label: caseWhen(
-            { when: d.status["="]("active"), then: Types.Text.new("Active User") },
+            {
+              when: d.status["="]("active"),
+              then: Types.Text.new("Active User"),
+            },
             { when: d.status["="]("pending"), then: Types.Text.new(null) }, // nullable
-            { when: d.status["="]("inactive"), then: Types.Text.new("Inactive") },
+            {
+              when: d.status["="]("inactive"),
+              then: Types.Text.new("Inactive"),
+            },
             Types.Text.new("Unknown")
-          )
+          ),
         }))
         .execute(testDb);
-      
+
       assert<Equals<typeof result, { id: number; label: string | null }[]>>();
-      
+
       expect(result).toEqual([
         { id: 1, label: "Active User" },
         { id: 2, label: null },
-        { id: 3, label: "Inactive" }
+        { id: 3, label: "Inactive" },
       ]);
+    });
+
+    it("can't create an empty CASE WHEN", () => {
+      expect(() => {
+        // @ts-expect-error
+        caseWhen();
+      })
     });
   });
 });
