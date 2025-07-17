@@ -164,3 +164,74 @@ export abstract class SelectableExpression extends Expression {
     return sql.join(keys);
   }
 }
+
+export class InExpression extends Expression {
+  constructor(
+    public value: Expression,
+    public list: Expression[] | Expression
+  ) {
+    super();
+  }
+
+  compile(ctx: Context) {
+    if (Array.isArray(this.list)) {
+      return sql`(${this.value.compile(ctx)} IN (${sql.join(
+        this.list.map((item) => item.compile(ctx))
+      )}))`;
+    }
+    return sql`(${this.value.compile(ctx)} IN ${this.list.compile(ctx)})`;
+  }
+}
+
+export class NotInExpression extends Expression {
+  constructor(
+    public value: Expression,
+    public list: Expression[] | Expression
+  ) {
+    super();
+  }
+
+  compile(ctx: Context) {
+    if (Array.isArray(this.list)) {
+      return sql`(${this.value.compile(ctx)} NOT IN (${sql.join(
+        this.list.map((item) => item.compile(ctx))
+      )}))`;
+    }
+    return sql`(${this.value.compile(ctx)} NOT IN ${this.list.compile(ctx)})`;
+  }
+}
+
+export class ExistsExpression extends Expression {
+  constructor(public subquery: Expression) {
+    super();
+  }
+
+  compile(ctx: Context) {
+    return sql`EXISTS ${this.subquery.compile(ctx)}`;
+  }
+}
+
+export class NotExistsExpression extends Expression {
+  constructor(public subquery: Expression) {
+    super();
+  }
+
+  compile(ctx: Context) {
+    return sql`NOT EXISTS ${this.subquery.compile(ctx)}`;
+  }
+}
+
+export class SetOperationExpression extends SelectableExpression {
+  constructor(
+    public left: Expression,
+    public right: Expression,
+    public operation: "UNION" | "UNION ALL" | "INTERSECT" | "INTERSECT ALL" | "EXCEPT" | "EXCEPT ALL",
+    schema: RowLike
+  ) {
+    super(schema);
+  }
+
+  compile(ctx: Context) {
+    return sql`(${this.left.compile(ctx)} ${sql.raw(this.operation)} ${this.right.compile(ctx)})`;
+  }
+}

@@ -1,5 +1,12 @@
 import { RawBuilder, sql } from "kysely";
-import { Expression, QueryAlias, SelectableExpression } from "../expression";
+import {
+  Expression,
+  QueryAlias,
+  SelectableExpression,
+  ExistsExpression,
+  NotExistsExpression,
+  SetOperationExpression,
+} from "../expression";
 import { Any, Bool, Record } from "../types";
 import { dummyDb } from "../test/db";
 import { AggregateOfRow } from "../types/aggregate";
@@ -421,13 +428,18 @@ export class Setof<Q extends Query> extends Expression {
   }
 
   debug() {
-    console.log("Debugging query:", this.compile(Context.new()).compile(dummyDb));
+    console.log(
+      "Debugging query:",
+      this.compile(Context.new()).compile(dummyDb)
+    );
     return this;
   }
 
   async execute(tg: Typegres): Promise<AwaitedResultType<Q>> {
     const kysely = (tg as any)._internal;
-    const kexpr = kysely.executeQuery(this.compile(Context.new()).compile(kysely));
+    const kexpr = kysely.executeQuery(
+      this.compile(Context.new()).compile(kysely)
+    );
     const resultRowLike = this.query.select
       ? this.query.select
       : this.query.from;
@@ -453,6 +465,178 @@ export class Setof<Q extends Query> extends Expression {
 
   scalar<S extends Scalar>(this: Setof<{ select: S; from: Query["from"] }>): S {
     return this.query.select.getClass().new(this) as unknown as S;
+  }
+
+  /**
+   * SQL EXISTS operator - checks if the subquery returns any rows
+   * EXISTS (SELECT ...)
+   */
+  exists(): Bool<1> {
+    return Bool.new(new ExistsExpression(this)) as Bool<1>;
+  }
+
+  /**
+   * SQL NOT EXISTS operator - checks if the subquery returns no rows
+   * NOT EXISTS (SELECT ...)
+   */
+  notExists(): Bool<1> {
+    return Bool.new(new NotExistsExpression(this)) as Bool<1>;
+  }
+
+  /**
+   * SQL UNION operator - combines results of two queries, removing duplicates
+   */
+  union<Q2 extends Query>(
+    other: Setof<Q2>
+  ): Setof<{ from: ResultType<Q>; select: ResultType<Q> }> {
+    const alias = new QueryAlias("union");
+    const result = resultType(this.query);
+    const schema = isScalar(result)
+      ? { value: result as Any<unknown, 0 | 1> }
+      : (result as RowLike);
+    const aliasedResult = isScalar(result)
+      ? aliasScalar(alias, result)
+      : aliasRowLike(alias, result);
+    return new Setof(
+      new SetOperationExpression(this, other, "UNION", schema),
+      alias,
+      {},
+      {
+        from: aliasedResult,
+        select: aliasedResult,
+      },
+      result
+    ) as any;
+  }
+
+  /**
+   * SQL UNION ALL operator - combines results of two queries, keeping duplicates
+   */
+  unionAll<Q2 extends Query>(
+    other: Setof<Q2>
+  ): Setof<{ from: ResultType<Q>; select: ResultType<Q> }> {
+    const alias = new QueryAlias("union");
+    const result = resultType(this.query);
+    const schema = isScalar(result)
+      ? { value: result as Any<unknown, 0 | 1> }
+      : (result as RowLike);
+    const aliasedResult = isScalar(result)
+      ? aliasScalar(alias, result)
+      : aliasRowLike(alias, result);
+    return new Setof(
+      new SetOperationExpression(this, other, "UNION ALL", schema),
+      alias,
+      {},
+      {
+        from: aliasedResult,
+        select: aliasedResult,
+      },
+      result
+    ) as any;
+  }
+
+  /**
+   * SQL INTERSECT operator - returns rows that exist in both queries, removing duplicates
+   */
+  intersect<Q2 extends Query>(
+    other: Setof<Q2>
+  ): Setof<{ from: ResultType<Q>; select: ResultType<Q> }> {
+    const alias = new QueryAlias("intersect");
+    const result = resultType(this.query);
+    const schema = isScalar(result)
+      ? { value: result as Any<unknown, 0 | 1> }
+      : (result as RowLike);
+    const aliasedResult = isScalar(result)
+      ? aliasScalar(alias, result)
+      : aliasRowLike(alias, result);
+    return new Setof(
+      new SetOperationExpression(this, other, "INTERSECT", schema),
+      alias,
+      {},
+      {
+        from: aliasedResult,
+        select: aliasedResult,
+      },
+      result
+    ) as any;
+  }
+
+  /**
+   * SQL INTERSECT ALL operator - returns rows that exist in both queries, keeping duplicates
+   */
+  intersectAll<Q2 extends Query>(
+    other: Setof<Q2>
+  ): Setof<{ from: ResultType<Q>; select: ResultType<Q> }> {
+    const alias = new QueryAlias("intersect");
+    const result = resultType(this.query);
+    const schema = isScalar(result)
+      ? { value: result as Any<unknown, 0 | 1> }
+      : (result as RowLike);
+    const aliasedResult = isScalar(result)
+      ? aliasScalar(alias, result)
+      : aliasRowLike(alias, result);
+    return new Setof(
+      new SetOperationExpression(this, other, "INTERSECT ALL", schema),
+      alias,
+      {},
+      {
+        from: aliasedResult,
+        select: aliasedResult,
+      },
+      result
+    ) as any;
+  }
+
+  /**
+   * SQL EXCEPT operator - returns rows from first query that don't exist in second, removing duplicates
+   */
+  except<Q2 extends Query>(
+    other: Setof<Q2>
+  ): Setof<{ from: ResultType<Q>; select: ResultType<Q> }> {
+    const alias = new QueryAlias("except");
+    const result = resultType(this.query);
+    const schema = isScalar(result)
+      ? { value: result as Any<unknown, 0 | 1> }
+      : (result as RowLike);
+    const aliasedResult = isScalar(result)
+      ? aliasScalar(alias, result)
+      : aliasRowLike(alias, result);
+    return new Setof(
+      new SetOperationExpression(this, other, "EXCEPT", schema),
+      alias,
+      {},
+      {
+        from: aliasedResult,
+        select: aliasedResult,
+      },
+      result
+    ) as any;
+  }
+
+  /**
+   * SQL EXCEPT ALL operator - returns rows from first query that don't exist in second, keeping duplicates
+   */
+  exceptAll<Q2 extends Query>(
+    other: Setof<Q2>
+  ): Setof<{ from: ResultType<Q>; select: ResultType<Q> }> {
+    const alias = new QueryAlias("except");
+    const result = resultType(this.query);
+    const schema = isScalar(result)
+      ? { value: result as Any<unknown, 0 | 1> }
+      : (result as RowLike);
+    const aliasedResult = isScalar(result)
+      ? aliasScalar(alias, result)
+      : aliasRowLike(alias, result);
+    return new Setof(
+      new SetOperationExpression(this, other, "EXCEPT ALL", schema),
+      alias,
+      {},
+      {
+        from: aliasedResult,
+        select: aliasedResult,
+      },
+      result
+    ) as any;
   }
 
   // then(

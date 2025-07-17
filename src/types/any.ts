@@ -4,6 +4,8 @@ import {
   UnaryOperatorExpression,
   BinaryOperatorExpression,
   CastExpression,
+  InExpression,
+  NotInExpression,
 } from "../expression";
 import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
@@ -216,6 +218,40 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
     return targetType.new(
       new CastExpression(this.toExpression(), typeStr)
     ) as WithNullability<N, ReturnType<T["new"]>>;
+  }
+
+  /**
+   * SQL IN operator - checks if value is in a list or subquery result
+   * value IN (1, 2, 3) or value IN (SELECT ...)
+   */
+  in<R>(
+    list: Types.Input<Any<R, 0 | 1>>[] | Types.Setof<any>
+  ): Types.Bool<1> {
+    return Types.Bool.new(
+      new InExpression(
+        this.toExpression(),
+        Array.isArray(list) 
+          ? list.map(item => this.toExpressionHelper(item))
+          : list
+      )
+    ) as Types.Bool<1>;
+  }
+
+  /**
+   * SQL NOT IN operator - checks if value is not in a list or subquery result
+   * value NOT IN (1, 2, 3) or value NOT IN (SELECT ...)
+   */
+  notIn<R>(
+    list: Types.Input<Any<R, 0 | 1>>[] | Types.Setof<any>
+  ): Types.Bool<1> {
+    return Types.Bool.new(
+      new NotInExpression(
+        this.toExpression(),
+        Array.isArray(list) 
+          ? list.map(item => this.toExpressionHelper(item))
+          : list
+      )
+    ) as Types.Bool<1>;
   }
 }
 
