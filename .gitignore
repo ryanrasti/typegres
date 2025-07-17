@@ -44,3 +44,5 @@ site/public/demo.ts.static
 .next
 site/out
 site/tsconfig.tsbuildinfo
+
+standup

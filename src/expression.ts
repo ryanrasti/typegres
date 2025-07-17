@@ -139,6 +139,18 @@ export class UnaryOperatorExpression extends Expression {
   }
 }
 
+export class CastExpression extends Expression {
+  constructor(
+    public value: Expression,
+    public targetType: string
+  ) {
+    super();
+  }
+
+  compile(ctx: Context) {
+    return sql`CAST(${this.value.compile(ctx)} AS ${sql.raw(this.targetType)})`;
+  }
+}
 
 export abstract class SelectableExpression extends Expression {
   constructor(public schema: RowLike) {

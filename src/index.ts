@@ -8,6 +8,7 @@ export * from './expression'
 export * from './query/db'
 export * from './query/values'
 export * from './sql-function'
+export * from './sql-case'
 export * from './types'
 
 // Re-export generated types
