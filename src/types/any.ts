@@ -1,8 +1,24 @@
-import { Expression, LiteralExpression, UnaryOperatorExpression, BinaryOperatorExpression, CastExpression } from "../expression";
+import {
+  Expression,
+  LiteralExpression,
+  UnaryOperatorExpression,
+  BinaryOperatorExpression,
+  CastExpression,
+} from "../expression";
 import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
 import { Typegres } from "../db";
 import * as Types from "../types";
+
+export type WithNullability<N extends number, T extends Any> = NonNullable<
+  ReturnType<
+    N extends 0
+      ? T["asNullable"]
+      : N extends 1
+        ? T["asNonNullable"]
+        : T["asAggregate"]
+  >
+>;
 
 export type ClassType<T> = {
   typeString(): string | undefined;
@@ -34,8 +50,8 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
    * Otherwise creates a LiteralExpression with the appropriate type
    */
   private toExpressionHelper(value: Any | unknown): Expression {
-    return value instanceof Any 
-      ? value.toExpression() 
+    return value instanceof Any
+      ? value.toExpression()
       : new LiteralExpression(value, this.getClass().typeString() || "unknown");
   }
 
@@ -50,7 +66,10 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
     return undefined;
   }
 
-  asNullable(): Any<R, 0 | 1>  | undefined{
+  asNullable(): Any<R, 0 | 1> | undefined {
+    return undefined;
+  }
+  asNonNullable(): Any<R, 1> | undefined {
     return undefined;
   }
 
@@ -96,7 +115,7 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
         const kexpr = db._internal.selectNoFrom(
           expr.compile(Context.new()).as("val")
         );
-        
+
         kexpr
           .executeTakeFirst()
           ?.then((result) =>
@@ -155,10 +174,10 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
     other: Types.Any<R2, N2> | Types.Input<Types.Any<R2, N2>>
   ): Types.Bool<1> {
     return Types.Bool.new(
-      new BinaryOperatorExpression(
-        "IS DISTINCT FROM",
-        [this.toExpression(), this.toExpressionHelper(other)]
-      )
+      new BinaryOperatorExpression("IS DISTINCT FROM", [
+        this.toExpression(),
+        this.toExpressionHelper(other),
+      ])
     ) as Types.Bool<1>;
   }
 
@@ -173,10 +192,10 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
     other: Types.Any<R2, N2> | Types.Input<Types.Any<R2, N2>>
   ): Types.Bool<1> {
     return Types.Bool.new(
-      new BinaryOperatorExpression(
-        "IS NOT DISTINCT FROM",
-        [this.toExpression(), this.toExpressionHelper(other)]
-      )
+      new BinaryOperatorExpression("IS NOT DISTINCT FROM", [
+        this.toExpression(),
+        this.toExpressionHelper(other),
+      ])
     ) as Types.Bool<1>;
   }
 
@@ -184,14 +203,19 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
    * SQL CAST operator - converts a value to a different type
    * CAST(expression AS target_type)
    */
-  cast<T extends Any>(targetType: ClassType<T>): T {
+  cast<N extends number, T extends typeof Any<unknown, N>>(
+    this: Any<unknown, N>,
+    targetType: T
+  ): WithNullability<N, ReturnType<T["new"]>> {
     const typeStr = targetType.typeString();
     if (!typeStr) {
-      throw new Error(`Cannot cast to type without typeString(): target type must be a concrete SQL type`);
+      throw new Error(
+        `Cannot cast to type without typeString(): target type must be a concrete SQL type`
+      );
     }
     return targetType.new(
       new CastExpression(this.toExpression(), typeStr)
-    ) as T;
+    ) as WithNullability<N, ReturnType<T["new"]>>;
   }
 }
 

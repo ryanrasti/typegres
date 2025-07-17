@@ -38,7 +38,7 @@ export function caseWhen<N extends number, T extends Any<unknown, N>>(
 ): AsNullable<T>;
 
 export function caseWhen<R extends Any<unknown, N>, N extends number>(
-  ...args: (WhenThen<R> | Types.Any<R, N>)[]
+  ...args: [WhenThen<R>, ...(WhenThen<R> | Types.Any<R, N>)[] ]
 ): Types.Any<R, N> {
   const lastArg = args[args.length - 1];
   const hasElse = lastArg && lastArg instanceof Types.Any;
@@ -54,7 +54,7 @@ export function caseWhen<R extends Any<unknown, N>, N extends number>(
     throw new Error("CASE expression must have at least one WHEN clause");
   }
 
-  // Find first non-null value to determine the concrete type
+  // Find first non-null value to determine the return type
   let resultClass: typeof Types.Any | undefined;
   let typeStr: string | undefined;
 

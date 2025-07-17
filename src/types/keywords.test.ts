@@ -558,6 +558,7 @@ describe("Keyword operators", () => {
           textToInt: row.text.cast(Types.Int4),
           numToText: row.num.cast(Types.Text),
           numToFloat: row.num.cast(Types.Float8),
+          nullableText: (Types.Text.new("456") as Types.Text<0 | 1>).cast(Types.Numeric), // nullable cast
         }))
         .execute(testDb);
 
@@ -565,9 +566,10 @@ describe("Keyword operators", () => {
         Equals<
           typeof result,
           {
-            textToInt: number | null;
-            numToText: string | null;
-            numToFloat: number | null;
+            textToInt: number;
+            numToText: string;
+            numToFloat: number;
+            nullableText: string | null;
           }[]
         >
       >();
@@ -818,7 +820,7 @@ describe("Keyword operators", () => {
       expect(() => {
         // @ts-expect-error
         caseWhen();
-      })
+      });
     });
   });
 });
