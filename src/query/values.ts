@@ -168,6 +168,9 @@ export type AwaitedResultType<Q extends Query> =
           ? ScalarResult<Q["from"]>[]
           : RowLikeResult<Q["from"]>[];
 
+type SetOperationCompatible<Q extends Query> = 
+ { select?: ResultType<Q>; from: ResultType<Q> };
+
 const createSetOperation = <Q extends Query, Q2 extends Query>(
   self: Setof<Q>,
   other: Setof<Q2>,
@@ -517,48 +520,48 @@ export class Setof<Q extends Query> extends Expression {
   /**
    * SQL UNION operator - combines results of two queries, removing duplicates
    */
-  union<Q2 extends Query>(other: Setof<Q2>): Setof<{ from: ResultType<Q> }> {
+  union(other: Setof<Q>): Setof<SetOperationCompatible<Q>> {
     return createSetOperation(this, other, "UNION", "union");
   }
 
   /**
    * SQL UNION ALL operator - combines results of two queries, keeping duplicates
    */
-  unionAll<Q2 extends Query>(other: Setof<Q2>): Setof<{ from: ResultType<Q> }> {
+  unionAll(other: Setof<Q>): Setof<SetOperationCompatible<Q>> {
     return createSetOperation(this, other, "UNION ALL", "union");
   }
 
   /**
    * SQL INTERSECT operator - returns rows that exist in both queries, removing duplicates
    */
-  intersect<Q2 extends Query>(
-    other: Setof<Q2>
-  ): Setof<{ from: ResultType<Q> }> {
+  intersect(
+    other: Setof<Q>
+  ): Setof<SetOperationCompatible<Q>> {
     return createSetOperation(this, other, "INTERSECT", "intersect");
   }
 
   /**
    * SQL INTERSECT ALL operator - returns rows that exist in both queries, keeping duplicates
    */
-  intersectAll<Q2 extends Query>(
-    other: Setof<Q2>
-  ): Setof<{ from: ResultType<Q> }> {
+  intersectAll(
+    other: Setof<Q>
+  ): Setof<SetOperationCompatible<Q>> {
     return createSetOperation(this, other, "INTERSECT ALL", "intersect");
   }
 
   /**
    * SQL EXCEPT operator - returns rows from first query that don't exist in second, removing duplicates
    */
-  except<Q2 extends Query>(other: Setof<Q2>): Setof<{ from: ResultType<Q> }> {
+  except(other: Setof<Q>): Setof<SetOperationCompatible<Q>> {
     return createSetOperation(this, other, "EXCEPT", "except");
   }
 
   /**
    * SQL EXCEPT ALL operator - returns rows from first query that don't exist in second, keeping duplicates
    */
-  exceptAll<Q2 extends Query>(
-    other: Setof<Q2>
-  ): Setof<{ from: ResultType<Q> }> {
+  exceptAll(
+    other: Setof<Q>
+  ): Setof<SetOperationCompatible<Q>> {
     return createSetOperation(this, other, "EXCEPT ALL", "except");
   }
 
