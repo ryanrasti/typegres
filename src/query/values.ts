@@ -7,13 +7,14 @@ import {
   NotExistsExpression,
   SetOperationExpression,
 } from "../expression";
-import { Any, Bool, Record } from "../types";
+import { Any, Bool, NumericLike, Record } from "../types";
 import { dummyDb } from "../test/db";
 import { AggregateOfRow } from "../types/aggregate";
 import { Primitive, maybePrimitiveToSqlType } from "../types/primitive";
 import { row } from "../types/record";
 import { Context } from "../expression";
 import type { Typegres } from "../db";
+import invariant from "tiny-invariant";
 
 export type RowLike = {
   [key: string]: Any<unknown, 0 | 1>;
@@ -202,6 +203,16 @@ const createSetOperation = <Q extends Query, Q2 extends Query>(
   ) as any;
 };
 
+type OrderByAscDesc = "asc" | "desc";
+type OrderByNulls = "nulls first" | "nulls last";
+type OrderBySuffix =
+  | OrderByAscDesc
+  | OrderByNulls
+  | `${OrderByAscDesc} ${OrderByNulls}`;
+type OrderByExpression =
+  | Any<unknown, 0 | 1>
+  | [Any<unknown, 0 | 1>, OrderBySuffix];
+
 export type Query = {
   select?: RowLike | Scalar;
   from: RowLike | Scalar;
@@ -215,6 +226,9 @@ export type Query = {
   wheres?: [Bool<0 | 1>, ...Bool<0 | 1>[]];
   havings?: [Bool<0 | 1>, ...Bool<0 | 1>[]];
   groupBy?: Any<unknown, 0 | 1>[];
+  orderBys?: OrderByExpression[];
+  limit?: NumericLike | number;
+  offset?: NumericLike | number;
 };
 
 export type BindedSetof<Q extends Query> = typeof Setof<Q> & {
@@ -345,6 +359,44 @@ export class Setof<Q extends Query> extends Expression {
         havings: [
           ...(this.query.havings ?? []),
           maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
+        ],
+      },
+      this.fromRow,
+    );
+  }
+
+  limit(limit: NumericLike | number) {
+    return new Setof(
+      this.rawFromExpr,
+      this.fromAlias,
+      this.joinAliases,
+      { ...this.query, limit },
+      this.fromRow,
+    );
+  }
+
+  offset(offset: NumericLike | number) {
+    return new Setof(
+      this.rawFromExpr,
+      this.fromAlias,
+      this.joinAliases,
+      { ...this.query, offset },
+      this.fromRow,
+    );
+  }
+
+  orderBy(...fns: Array<(...from: SelectArgs<Q>) => OrderByExpression>) {
+    return new Setof(
+      this.rawFromExpr,
+      this.fromAlias,
+      this.joinAliases,
+      {
+        ...this.query,
+        // Add new orderBys at the beginning to match user expectation
+        // Last call should be the primary sort
+        orderBys: [
+          ...(this.query.orderBys ?? []),
+          ...fns.map((fn) => fn(...this.toSelectArgs())),
         ],
       },
       this.fromRow,
@@ -491,7 +543,41 @@ export class Setof<Q extends Query> extends Expression {
         )}`
       : sql``;
 
-    return sql`(${select} ${from} ${joins} ${where} ${groupBy} ${having})`;
+    const orderBy = this.query.orderBys
+      ? sql`ORDER BY ${sql.join(
+          this.query.orderBys.map((expr) => {
+            if (Array.isArray(expr)) {
+              const [e, suffix] = expr;
+              const parts = suffix.split(" ");
+              invariant(parts.length > 0 && parts.length <= 3);
+              invariant(
+                parts.every(
+                  (p) =>
+                    p === "asc" ||
+                    p === "desc" ||
+                    p === "nulls first" ||
+                    p === "nulls last",
+                ),
+              );
+              return sql`${e.toExpression().compile(ctx)} ${sql.raw(suffix)}`;
+            }
+            return sql`${expr.toExpression().compile(ctx)}`;
+          }),
+          sql`, `,
+        )}`
+      : sql``;
+
+    const limit =
+      this.query.limit != null
+        ? sql`LIMIT ${typeof this.query.limit === "number" ? this.query.limit : this.query.limit.toExpression().compile(ctx)}`
+        : sql``;
+
+    const offset =
+      this.query.offset != null
+        ? sql`OFFSET ${typeof this.query.offset === "number" ? this.query.offset : this.query.offset.toExpression().compile(ctx)}`
+        : sql``;
+
+    return sql`(${select} ${from} ${joins} ${where} ${groupBy} ${having} ${orderBy} ${limit} ${offset})`;
   }
 
   debug() {
