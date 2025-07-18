@@ -17,7 +17,7 @@ describe("HAVING clause", () => {
 
     const result = await orders
       .groupBy((o) => [o.customer])
-      .having((agg) => agg.amount.sum()[">="](Numeric.new("300")))
+      .having((agg) => agg.amount.sum()[">="]("300"))
       .select((agg, [customer]) => ({
         customer,
         totalAmount: agg.amount.sum(),
@@ -68,7 +68,7 @@ describe("HAVING clause", () => {
 
     const result = await sales
       .groupBy((s) => [s.product, s.price])
-      .having((agg) => agg.quantity.count()[">="](Int4.new(2)))
+      .having((agg) => agg.quantity.count()[">="](2))
       .select((agg, [product, price]) => ({
         product,
         price,
@@ -120,8 +120,8 @@ describe("HAVING clause", () => {
 
     const result = await transactions
       .groupBy((t) => [t.userId])
-      .having((agg) => agg.amount.sum()[">="](Numeric.new("200")))
-      .having((agg) => agg.amount.count()[">"](Int4.new(1)))
+      .having((agg) => agg.amount.sum()[">="]("200"))
+      .having((agg) => agg.amount.count()[">"](1))
       .select((agg, [userId]) => ({
         userId,
         totalAmount: agg.amount.sum(),
@@ -186,9 +186,9 @@ describe("HAVING clause", () => {
     );
 
     const result = await products
-      .where((p) => p.category["<>"](Text.new("Food")))
+      .where((p) => p.category["<>"]("Food"))
       .groupBy((p) => [p.category])
-      .having((agg) => agg.sales.sum()[">"](Int4.new(200)))
+      .having((agg) => agg.sales.sum()[">"](200))
       .select((agg, [category]) => ({
         category,
         totalSales: agg.sales.sum(),
@@ -259,8 +259,8 @@ describe("HAVING clause", () => {
       .having((agg) =>
         agg.score
           .avg()
-          [">="](Numeric.new("85"))
-          .and(agg.score.count()[">="](Int4.new(3))),
+          [">="]("85")
+          .and(agg.score.count()[">="](3)),
       )
       .select((agg, [student]) => ({
         student,
@@ -324,7 +324,7 @@ describe("HAVING clause", () => {
 
     // This should be a compile-time error
     // @ts-expect-error Cannot use having without groupBy
-    data.having((agg) => agg.value.sum()[">"](Int4.new(10)));
+    data.having((agg) => agg.value.sum()[">"](10));
   });
 
   it("can reference grouped columns in HAVING", async () => {
@@ -354,8 +354,8 @@ describe("HAVING clause", () => {
     const result = await sales
       .groupBy((s) => [s.region, s.salesperson])
       .having((agg, [_, salesperson]) =>
-        salesperson["<>"](Text.new("Charlie")).and(
-          agg.amount.sum()[">="](Numeric.new("1000")),
+        salesperson["<>"]("Charlie").and(
+          agg.amount.sum()[">="]("1000"),
         ),
       )
       .select((agg, [region, salesperson]) => ({
