@@ -1,6 +1,7 @@
 import { sql, RawBuilder } from "kysely";
 import { Any } from "../types";
 import { Context } from "../expression";
+import invariant from "tiny-invariant";
 
 // Types for ORDER BY expressions
 export type OrderByDirection = "asc" | "desc";
@@ -56,12 +57,12 @@ function compileOrderByItem(
   const parts = suffix.split(" ");
   
   // Validate suffix parts
-  const validParts = ["asc", "desc", "nulls", "first", "last"];
-  if (!parts.every(p => validParts.includes(p))) {
-    throw new Error(`Invalid order by suffix: ${suffix}`);
-  }
+  const validParts: {[k in string]?: string} = Object.fromEntries(["asc", "desc", "nulls", "first", "last"].map(p => [p, p]));
+  const sanitizedParts = parts.map(p => validParts[p.toLowerCase()]);
+  invariant(sanitizedParts.every(Boolean), `Invalid ORDER BY suffix: ${suffix}`);
+  invariant(sanitizedParts.length > 0 && sanitizedParts.length <= 3, `ORDER BY suffix invalid length: ${suffix}`);
   
-  return sql`${expr.toExpression().compile(ctx)} ${sql.raw(suffix.toUpperCase())}`;
+  return sql`${expr.toExpression().compile(ctx)} ${sql.raw(sanitizedParts.join(" ").toUpperCase())}`;
 }
 
 /**
