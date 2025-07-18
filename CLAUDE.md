@@ -1,5 +1,7 @@
 1. Always run `npm test` to validate your changes.
 1. Always run `npm run typecheck` to validate your changes.
+1. Always run `npm run format` to validate your changes.
+1. Always run `npm run lint` to validate your changes.
 1. Prefer concise code -- take extra time to see if you can turn verbose code you generate into something more concise and readable.
 1. Prefer inlining variables/functions when used less than 3 times. Exceptions when logic is complex or for readability.
   * Yardstick: Prefer 3-4 levels of inline nesting to creating variables to pass around.

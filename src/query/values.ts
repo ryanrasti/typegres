@@ -333,7 +333,7 @@ export class Setof<Q extends Query> extends Expression {
   }
 
   having<H extends Bool<0 | 1> | boolean>(
-    this: Setof<Q & { groupBy: unknown[]}>,
+    this: Setof<Q & { groupBy: unknown[] }>,
     fn: (...from: SelectArgs<Q>) => H,
   ) {
     return new Setof(
@@ -475,14 +475,18 @@ export class Setof<Q extends Query> extends Expression {
 
     const groupBy = this.query.groupBy
       ? sql`GROUP BY ${sql.join(
-          this.query.groupBy.map((g) => sql`(${g.toExpression().compile(ctx)})`),
+          this.query.groupBy.map(
+            (g) => sql`(${g.toExpression().compile(ctx)})`,
+          ),
           sql`, `,
         )}`
       : sql``;
 
     const having = this.query.havings
       ? sql`HAVING ${sql.join(
-          this.query.havings.map((h) => sql`(${h.toExpression().compile(ctx)})`),
+          this.query.havings.map(
+            (h) => sql`(${h.toExpression().compile(ctx)})`,
+          ),
           sql` AND `,
         )}`
       : sql``;
