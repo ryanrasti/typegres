@@ -257,10 +257,7 @@ describe("HAVING clause", () => {
     const result = await scores
       .groupBy((s) => [s.student])
       .having((agg) =>
-        agg.score
-          .avg()
-          [">="]("85")
-          .and(agg.score.count()[">="](3)),
+        agg.score.avg()[">="]("85").and(agg.score.count()[">="](3)),
       )
       .select((agg, [student]) => ({
         student,
@@ -354,9 +351,7 @@ describe("HAVING clause", () => {
     const result = await sales
       .groupBy((s) => [s.region, s.salesperson])
       .having((agg, [_, salesperson]) =>
-        salesperson["<>"]("Charlie").and(
-          agg.amount.sum()[">="]("1000"),
-        ),
+        salesperson["<>"]("Charlie").and(agg.amount.sum()[">="]("1000")),
       )
       .select((agg, [region, salesperson]) => ({
         region,
