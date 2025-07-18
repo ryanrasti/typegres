@@ -1,5 +1,5 @@
 import { RawBuilder, sql } from "kysely";
-import type { RowLike } from "./query/values";
+import type { Query, RowLike, Setof } from "./query/values";
 
 export class QueryAlias {
   constructor(public name: string) {}
@@ -40,7 +40,7 @@ export class Context {
           }
           if (i === 99) {
             throw new Error(
-              `Alias ${aliasName} already exists in the current context: ${JSON.stringify(Array.from(this.usedAliases))}`,
+              `Alias ${aliasName} already exists in the current context: ${JSON.stringify(Array.from(this.usedAliases))}`
             );
           }
         }
@@ -56,7 +56,7 @@ export class Context {
     const name = this.namespace.get(alias);
     if (!name) {
       throw new Error(
-        `Alias "${alias.name}" not found in the current context: ${JSON.stringify(Array.from(this.usedAliases))} / ${JSON.stringify(Array.from(this.namespace))}`,
+        `Alias "${alias.name}" not found in the current context: ${JSON.stringify(Array.from(this.usedAliases))} / ${JSON.stringify(Array.from(this.namespace))}`
       );
     }
     return name;
@@ -67,10 +67,23 @@ export abstract class Expression {
   abstract compile(ctx: Context): RawBuilder<unknown>;
 }
 
+export interface ExpressionLike {
+  compile: (ctx: Context) => RawBuilder<unknown>;
+}
+
+export const isExpressionLike = (value: unknown): value is ExpressionLike => {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "compile" in value &&
+    typeof (value as ExpressionLike).compile === "function"
+  );
+};
+
 export class LiteralExpression extends Expression {
   constructor(
     public value: unknown | null,
-    public type: string,
+    public type: string
   ) {
     super();
   }
@@ -94,7 +107,7 @@ export class FunctionExpression extends Expression {
   constructor(
     public name: string,
     public args: Expression[],
-    public isReserved: boolean = false,
+    public isReserved: boolean = false
   ) {
     super();
   }
@@ -102,7 +115,7 @@ export class FunctionExpression extends Expression {
   compile(ctx: Context) {
     const funcName = this.isReserved ? sql.ref(this.name) : sql.raw(this.name);
     return sql`${funcName}(${sql.join(
-      this.args.map((arg) => arg.compile(ctx)),
+      this.args.map((arg) => arg.compile(ctx))
     )})`;
   }
 }
@@ -110,14 +123,14 @@ export class FunctionExpression extends Expression {
 export class BinaryOperatorExpression extends Expression {
   constructor(
     public operator: string,
-    public args: [Expression, Expression],
+    public args: [Expression, Expression]
   ) {
     super();
   }
 
   compile(ctx: Context) {
     return sql`(${this.args[0].compile(ctx)} ${sql.raw(
-      this.operator,
+      this.operator
     )} ${this.args[1].compile(ctx)})`;
   }
 }
@@ -126,7 +139,7 @@ export class UnaryOperatorExpression extends Expression {
   constructor(
     public operator: string,
     public arg: Expression,
-    public isPostfix: boolean = false,
+    public isPostfix: boolean = false
   ) {
     super();
   }
@@ -168,7 +181,7 @@ export abstract class SelectableExpression extends Expression {
 export class InExpression extends Expression {
   constructor(
     public value: Expression,
-    public list: Expression[] | Expression
+    public list: Expression[] | Expression | Setof<Query>
   ) {
     super();
   }
@@ -186,7 +199,7 @@ export class InExpression extends Expression {
 export class NotInExpression extends Expression {
   constructor(
     public value: Expression,
-    public list: Expression[] | Expression
+    public list: Expression[] | Expression | Setof<Query>
   ) {
     super();
   }
@@ -225,7 +238,13 @@ export class SetOperationExpression extends SelectableExpression {
   constructor(
     public left: Expression,
     public right: Expression,
-    public operation: "UNION" | "UNION ALL" | "INTERSECT" | "INTERSECT ALL" | "EXCEPT" | "EXCEPT ALL",
+    public operation:
+      | "UNION"
+      | "UNION ALL"
+      | "INTERSECT"
+      | "INTERSECT ALL"
+      | "EXCEPT"
+      | "EXCEPT ALL",
     schema: RowLike
   ) {
     super(schema);

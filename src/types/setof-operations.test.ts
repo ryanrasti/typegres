@@ -13,7 +13,7 @@ describe("IN/NOT IN operations", () => {
     )
       .select((row) => ({
         id: row.id,
-        isInList: row.id.in([Int4.new(1), Int4.new(3), Int4.new(5)]),
+        isInList: row.id.in([1, 3, 5]),
       }))
       .execute(testDb);
 
@@ -34,7 +34,7 @@ describe("IN/NOT IN operations", () => {
     )
       .select((row) => ({
         id: row.id,
-        notInList: row.id.notIn([Int4.new(2), Int4.new(4)]),
+        notInList: row.id.notIn([2, 4, 6]),
       }))
       .execute(testDb);
 
