@@ -4,10 +4,15 @@ import { PGliteDialect } from "kysely-pglite-dialect";
 import { PGlite, PGliteOptions } from "@electric-sql/pglite";
 import { sql } from "kysely";
 
-export class Typegres {
-  private kysely: Kysely<{}> | Transaction<{}>;
+// Transaction interface for callback-based transactions
+export interface TypegresTransaction extends Typegres {
+  readonly isTransaction: true;
+}
 
-  private constructor(kysely: Kysely<{}>) {
+export class Typegres {
+  protected kysely: Kysely<{}> | Transaction<{}>;
+
+  protected constructor(kysely: Kysely<{}> | Transaction<{}>) {
     this.kysely = kysely;
   }
 
@@ -44,7 +49,7 @@ export class Typegres {
 
   // Get the internal Kysely instance for query execution
   // This is used by the query builder's execute method
-  get _internal(): Kysely<{}> {
+  get _internal(): Kysely<{}> | Transaction<{}> {
     return this.kysely;
   }
 
@@ -61,6 +66,17 @@ export class Typegres {
 
   static _createFromKysely(kysely: Kysely<{}>): Typegres {
     return new Typegres(kysely);
+  }
+
+  // Transaction with callback - auto commit/rollback
+  async transaction<T>(
+    callback: (tx: TypegresTransaction) => Promise<T>,
+  ): Promise<T> {
+    // Just delegate to Kysely's transaction handling
+    return await this.kysely.transaction().execute(async (kyselyTx) => {
+      const tx = new TypegresTransactionImpl(kyselyTx);
+      return await callback(tx);
+    });
   }
 }
 
@@ -107,6 +123,20 @@ async function createKyselyInstance(
 
   dbConfig satisfies never;
   throw new Error("Invalid database configuration");
+}
+
+// Internal transaction implementation
+class TypegresTransactionImpl extends Typegres implements TypegresTransaction {
+  readonly isTransaction = true as const;
+
+  constructor(kyselyTx: Transaction<{}>) {
+    super(kyselyTx);
+  }
+
+  // Override end to prevent closing the connection during transaction
+  async end(): Promise<void> {
+    throw new Error("Cannot close connection during transaction");
+  }
 }
 
 // Export the factory function for backward compatibility
