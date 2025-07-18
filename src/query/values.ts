@@ -213,6 +213,7 @@ export type Query = {
     };
   };
   wheres?: [Bool<0 | 1>, ...Bool<0 | 1>[]];
+  havings?: [Bool<0 | 1>, ...Bool<0 | 1>[]];
   groupBy?: Any<unknown, 0 | 1>[];
 };
 
@@ -325,6 +326,25 @@ export class Setof<Q extends Query> extends Expression {
         groupBy: [...(this.query.groupBy ?? []), ...fn(this.query.from)] as [
           ...(Q["groupBy"] extends unknown[] ? Q["groupBy"] : []),
           ...G,
+        ],
+      },
+      this.fromRow,
+    );
+  }
+
+  having<H extends Bool<0 | 1> | boolean>(
+    this: Setof<Q & { groupBy: unknown[] }>,
+    fn: (...from: SelectArgs<Q>) => H,
+  ) {
+    return new Setof(
+      this.rawFromExpr,
+      this.fromAlias,
+      this.joinAliases,
+      {
+        ...this.query,
+        havings: [
+          ...(this.query.havings ?? []),
+          maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
         ],
       },
       this.fromRow,
@@ -455,12 +475,23 @@ export class Setof<Q extends Query> extends Expression {
 
     const groupBy = this.query.groupBy
       ? sql`GROUP BY ${sql.join(
-          this.query.groupBy.map((g) => sql`${g.toExpression().compile(ctx)}`),
+          this.query.groupBy.map(
+            (g) => sql`(${g.toExpression().compile(ctx)})`,
+          ),
           sql`, `,
         )}`
       : sql``;
 
-    return sql`(${select} ${from} ${joins} ${where} ${groupBy})`;
+    const having = this.query.havings
+      ? sql`HAVING ${sql.join(
+          this.query.havings.map(
+            (h) => sql`(${h.toExpression().compile(ctx)})`,
+          ),
+          sql` AND `,
+        )}`
+      : sql``;
+
+    return sql`(${select} ${from} ${joins} ${where} ${groupBy} ${having})`;
   }
 
   debug() {
