@@ -12,7 +12,10 @@ export class Typegres {
   }
 
   // Execute raw SQL query using template literal
-  sql<T = unknown>(strings: TemplateStringsArray, ...values: unknown[]): { execute: () => Promise<T[]> } {
+  sql<T = unknown>(
+    strings: TemplateStringsArray,
+    ...values: unknown[]
+  ): { execute: () => Promise<T[]> } {
     const kysely = this.kysely;
     return {
       async execute(): Promise<T[]> {
@@ -22,12 +25,15 @@ export class Typegres {
         const result = await kysely.executeQuery(compiled);
 
         return result.rows as T[];
-      }
+      },
     };
   }
 
   // Execute a compiled query with parameters
-  async executeCompiled(compiledSql: string, parameters: unknown[]): Promise<unknown[]> {
+  async executeCompiled(
+    compiledSql: string,
+    parameters: unknown[],
+  ): Promise<unknown[]> {
     const result = await this.kysely.executeQuery({
       sql: compiledSql,
       parameters: parameters,
@@ -62,7 +68,9 @@ export type DatabaseConfig =
   | { type: "pg"; PoolClass: typeof Pool; config?: PoolConfig }
   | { type: "pglite"; PGliteClass?: typeof PGlite; options?: PGliteOptions };
 
-async function createKyselyInstance(dbConfig: DatabaseConfig): Promise<Kysely<{}>> {
+async function createKyselyInstance(
+  dbConfig: DatabaseConfig,
+): Promise<Kysely<{}>> {
   if (dbConfig.type === "pg") {
     const { PoolClass, config } = dbConfig;
     return new Kysely<{}>({
@@ -90,9 +98,9 @@ async function createKyselyInstance(dbConfig: DatabaseConfig): Promise<Kysely<{}
           parsers: Object.fromEntries(
             [...Array(2000).keys()].map((value) => {
               return [value, (x: string) => x];
-            })
+            }),
           ),
-        })
+        }),
       ),
     });
   }

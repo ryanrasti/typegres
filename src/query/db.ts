@@ -133,7 +133,11 @@ class Table<Q extends Query> extends Setof<Q> {
           const res = await kysely.executeQuery(statement.compile(kysely));
           return res.rows as unknown as AwaitedResultType<Q>;
         } catch (e) {
-          console.error("Error executing insert:", e, statement.compile(kysely));
+          console.error(
+            "Error executing insert:",
+            e,
+            statement.compile(kysely),
+          );
           throw e;
         }
       },
@@ -243,7 +247,11 @@ class UpdateBuilder<
           const res = await kysely.executeQuery(statement.compile(kysely));
           return res.rows as unknown as AwaitedResultType<Q>;
         } catch (e) {
-          console.error("Error executing update:", e, statement.compile(kysely));
+          console.error(
+            "Error executing update:",
+            e,
+            statement.compile(kysely),
+          );
           throw e;
         }
       },

@@ -62,7 +62,7 @@ declare module 'typegres' {
   export const db: Kysely<Database>;
 }
 `,
-    "file:///node_modules/typegres/index.d.ts"
+    "file:///node_modules/typegres/index.d.ts",
   );
 
   // Add Kysely types (simplified but functional)
@@ -141,7 +141,7 @@ declare module 'kysely' {
   export const sql: Sql;
 }
 `,
-    "file:///node_modules/kysely/index.d.ts"
+    "file:///node_modules/kysely/index.d.ts",
   );
 
   // Enable type acquisition

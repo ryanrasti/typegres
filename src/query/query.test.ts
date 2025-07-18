@@ -6,7 +6,6 @@ import { withDb } from "../test/db";
 import { db } from "../gen/tables";
 import { testDb } from "../db.test";
 
-
 const strings = values(
   { a: Text.new("foo"), b: Numeric.new(1.1), c: Int4.new(1) },
   { a: Text.new("baz"), b: Numeric.new("1.2"), c: Int4.new(3) },

@@ -23,7 +23,7 @@ export const main = async () => {
   // Output: [ { upper: 'ALICE', isAdult: true }, { upper: 'BOB', isAdult: false } ]
 
   await tg.end();
-  
+
   return activeUsers;
 };
 

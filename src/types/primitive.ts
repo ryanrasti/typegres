@@ -21,7 +21,7 @@ export type MaybePrimitiveToSqlType<
   : T extends Any
     ? T
     : T extends RowLikeRelaxed
-      ? RecordInstance<1, { [K in keyof T]: MaybePrimitiveToSqlType<T[K]> }> 
+      ? RecordInstance<1, { [K in keyof T]: MaybePrimitiveToSqlType<T[K]> }>
       : never;
 
 export const maybePrimitiveToSqlType = <

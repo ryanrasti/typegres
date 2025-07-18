@@ -63,7 +63,7 @@ export const main = async () => {
   // Type of prolificAuthors is { id: number; name: string; totalPosts: bigint }[]
 
   await tg.end();
-  
+
   return { postsCount, prolificAuthors };
 };
 

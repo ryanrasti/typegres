@@ -40,7 +40,7 @@ export class Context {
           }
           if (i === 99) {
             throw new Error(
-              `Alias ${aliasName} already exists in the current context: ${JSON.stringify(Array.from(this.usedAliases))}`
+              `Alias ${aliasName} already exists in the current context: ${JSON.stringify(Array.from(this.usedAliases))}`,
             );
           }
         }
@@ -56,7 +56,7 @@ export class Context {
     const name = this.namespace.get(alias);
     if (!name) {
       throw new Error(
-        `Alias "${alias.name}" not found in the current context: ${JSON.stringify(Array.from(this.usedAliases))} / ${JSON.stringify(Array.from(this.namespace))}`
+        `Alias "${alias.name}" not found in the current context: ${JSON.stringify(Array.from(this.usedAliases))} / ${JSON.stringify(Array.from(this.namespace))}`,
       );
     }
     return name;
@@ -83,7 +83,7 @@ export const isExpressionLike = (value: unknown): value is ExpressionLike => {
 export class LiteralExpression extends Expression {
   constructor(
     public value: unknown | null,
-    public type: string
+    public type: string,
   ) {
     super();
   }
@@ -107,7 +107,7 @@ export class FunctionExpression extends Expression {
   constructor(
     public name: string,
     public args: Expression[],
-    public isReserved: boolean = false
+    public isReserved: boolean = false,
   ) {
     super();
   }
@@ -115,7 +115,7 @@ export class FunctionExpression extends Expression {
   compile(ctx: Context) {
     const funcName = this.isReserved ? sql.ref(this.name) : sql.raw(this.name);
     return sql`${funcName}(${sql.join(
-      this.args.map((arg) => arg.compile(ctx))
+      this.args.map((arg) => arg.compile(ctx)),
     )})`;
   }
 }
@@ -123,14 +123,14 @@ export class FunctionExpression extends Expression {
 export class BinaryOperatorExpression extends Expression {
   constructor(
     public operator: string,
-    public args: [Expression, Expression]
+    public args: [Expression, Expression],
   ) {
     super();
   }
 
   compile(ctx: Context) {
     return sql`(${this.args[0].compile(ctx)} ${sql.raw(
-      this.operator
+      this.operator,
     )} ${this.args[1].compile(ctx)})`;
   }
 }
@@ -139,7 +139,7 @@ export class UnaryOperatorExpression extends Expression {
   constructor(
     public operator: string,
     public arg: Expression,
-    public isPostfix: boolean = false
+    public isPostfix: boolean = false,
   ) {
     super();
   }
@@ -155,7 +155,7 @@ export class UnaryOperatorExpression extends Expression {
 export class CastExpression extends Expression {
   constructor(
     public value: Expression,
-    public targetType: string
+    public targetType: string,
   ) {
     super();
   }
@@ -181,7 +181,7 @@ export abstract class SelectableExpression extends Expression {
 export class InExpression extends Expression {
   constructor(
     public value: Expression,
-    public list: Expression[] | Expression | Setof<Query>
+    public list: Expression[] | Expression | Setof<Query>,
   ) {
     super();
   }
@@ -189,7 +189,7 @@ export class InExpression extends Expression {
   compile(ctx: Context) {
     if (Array.isArray(this.list)) {
       return sql`(${this.value.compile(ctx)} IN (${sql.join(
-        this.list.map((item) => item.compile(ctx))
+        this.list.map((item) => item.compile(ctx)),
       )}))`;
     }
     return sql`(${this.value.compile(ctx)} IN ${this.list.compile(ctx)})`;
@@ -199,7 +199,7 @@ export class InExpression extends Expression {
 export class NotInExpression extends Expression {
   constructor(
     public value: Expression,
-    public list: Expression[] | Expression | Setof<Query>
+    public list: Expression[] | Expression | Setof<Query>,
   ) {
     super();
   }
@@ -207,7 +207,7 @@ export class NotInExpression extends Expression {
   compile(ctx: Context) {
     if (Array.isArray(this.list)) {
       return sql`(${this.value.compile(ctx)} NOT IN (${sql.join(
-        this.list.map((item) => item.compile(ctx))
+        this.list.map((item) => item.compile(ctx)),
       )}))`;
     }
     return sql`(${this.value.compile(ctx)} NOT IN ${this.list.compile(ctx)})`;
@@ -245,7 +245,7 @@ export class SetOperationExpression extends SelectableExpression {
       | "INTERSECT ALL"
       | "EXCEPT"
       | "EXCEPT ALL",
-    schema: RowLike
+    schema: RowLike,
   ) {
     super(schema);
   }

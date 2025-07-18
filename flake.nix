@@ -85,6 +85,7 @@
 
                   npm run typecheck
                   npm run lint
+                  npm run format:check
                   
                   bash ./start_postgres.sh
                   kysely --no-outdated-check migrate:up -e test

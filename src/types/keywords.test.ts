@@ -10,7 +10,7 @@ describe("Keyword operators", () => {
     it("should work with isNull", async () => {
       const data = values(
         { name: Types.Text.new("John"), age: Types.Int4.new(null) },
-        { name: Types.Text.new(null), age: Types.Int4.new(25) }
+        { name: Types.Text.new(null), age: Types.Int4.new(25) },
       );
 
       const result = await data
@@ -57,7 +57,7 @@ describe("Keyword operators", () => {
     it("should work with isNotNull", async () => {
       const data = values(
         { name: Types.Text.new("John"), age: Types.Int4.new(null) },
-        { name: Types.Text.new(null), age: Types.Int4.new(25) }
+        { name: Types.Text.new(null), age: Types.Int4.new(25) },
       );
 
       const result = await data
@@ -129,7 +129,7 @@ describe("Keyword operators", () => {
         { a: Types.Bool.new(false), b: Types.Bool.new(null) },
         { a: Types.Bool.new(null), b: Types.Bool.new(true) },
         { a: Types.Bool.new(null), b: Types.Bool.new(false) },
-        { a: Types.Bool.new(null), b: Types.Bool.new(null) }
+        { a: Types.Bool.new(null), b: Types.Bool.new(null) },
       );
 
       const result = await data
@@ -174,7 +174,7 @@ describe("Keyword operators", () => {
         { a: Types.Bool.new(false), b: Types.Bool.new(null) },
         { a: Types.Bool.new(null), b: Types.Bool.new(true) },
         { a: Types.Bool.new(null), b: Types.Bool.new(false) },
-        { a: Types.Bool.new(null), b: Types.Bool.new(null) }
+        { a: Types.Bool.new(null), b: Types.Bool.new(null) },
       );
 
       const result = await data
@@ -212,7 +212,7 @@ describe("Keyword operators", () => {
       const data = values(
         { a: Types.Bool.new(true) },
         { a: Types.Bool.new(false) },
-        { a: Types.Bool.new(null) }
+        { a: Types.Bool.new(null) },
       );
 
       const result = await data
@@ -283,7 +283,7 @@ describe("Keyword operators", () => {
       const data = values(
         { name: Types.Text.new("John Smith") },
         { name: Types.Text.new("Jane Doe") },
-        { name: Types.Text.new("Bob Johnson") }
+        { name: Types.Text.new("Bob Johnson") },
       );
 
       const result = await data
@@ -304,7 +304,7 @@ describe("Keyword operators", () => {
       const data = values(
         { name: Types.Text.new("John Smith") },
         { name: Types.Text.new("jane doe") },
-        { name: Types.Text.new("BOB JOHNSON") }
+        { name: Types.Text.new("BOB JOHNSON") },
       );
 
       const result = await data
@@ -325,7 +325,7 @@ describe("Keyword operators", () => {
       const data = values(
         { name: Types.Text.new("John Smith") },
         { name: Types.Text.new("Jane Doe") },
-        { name: Types.Text.new("Bob Johnson") }
+        { name: Types.Text.new("Bob Johnson") },
       );
 
       const result = await data
@@ -346,7 +346,7 @@ describe("Keyword operators", () => {
       const data = values(
         { name: Types.Text.new("John Smith") },
         { name: Types.Text.new("jane doe") },
-        { name: Types.Text.new("BOB JOHNSON") }
+        { name: Types.Text.new("BOB JOHNSON") },
       );
 
       const result = await data
@@ -402,7 +402,7 @@ describe("Keyword operators", () => {
         { a: Types.Int4.new(1), b: Types.Int4.new(2) },
         { a: Types.Int4.new(1), b: Types.Int4.new(null) },
         { a: Types.Int4.new(null), b: Types.Int4.new(1) },
-        { a: Types.Int4.new(null), b: Types.Int4.new(null) }
+        { a: Types.Int4.new(null), b: Types.Int4.new(null) },
       );
 
       const result = await data
@@ -479,12 +479,12 @@ describe("Keyword operators", () => {
           name: Types.Text.new("Bob"),
           age: Types.Int4.new(null),
           active: Types.Bool.new(true),
-        }
+        },
       );
 
       const result = await users
         .where((u) =>
-          u.active.and(u.age.isNotNull()).and(u.age[">"](Types.Int4.new(20)))
+          u.active.and(u.age.isNotNull()).and(u.age[">"](Types.Int4.new(20))),
         )
         .execute(testDb);
 
@@ -518,7 +518,7 @@ describe("Keyword operators", () => {
           id: Types.Int4.new(5),
           previousAge: Types.Int4.new(null),
           currentAge: Types.Int4.new(null),
-        }
+        },
       );
 
       // Find users whose age has changed (including null transitions)
@@ -558,7 +558,9 @@ describe("Keyword operators", () => {
           textToInt: row.text.cast(Types.Int4),
           numToText: row.num.cast(Types.Text),
           numToFloat: row.num.cast(Types.Float8),
-          nullableText: (Types.Text.new("456") as Types.Text<0 | 1>).cast(Types.Numeric), // nullable cast
+          nullableText: (Types.Text.new("456") as Types.Text<0 | 1>).cast(
+            Types.Numeric,
+          ), // nullable cast
         }))
         .execute(testDb);
 
@@ -604,7 +606,7 @@ describe("Keyword operators", () => {
       // Without ELSE - always nullable
       const case1 = caseWhen(
         { when: int1[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
-        { when: int1[">="](Types.Int4.new(80)), then: Types.Text.new("B") }
+        { when: int1[">="](Types.Int4.new(80)), then: Types.Text.new("B") },
       );
       assert<Equals<typeof case1, Types.Text<0 | 1>>>();
 
@@ -612,7 +614,7 @@ describe("Keyword operators", () => {
       const case2 = caseWhen(
         { when: int1[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
         { when: int1[">="](Types.Int4.new(80)), then: Types.Text.new("B") },
-        Types.Text.new("C")
+        Types.Text.new("C"),
       );
       assert<Equals<typeof case2, Types.Text<1>>>();
 
@@ -620,7 +622,7 @@ describe("Keyword operators", () => {
       const case3 = caseWhen(
         { when: int1[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
         { when: int1[">="](Types.Int4.new(80)), then: Types.Text.new(null) },
-        Types.Text.new("C")
+        Types.Text.new("C"),
       );
       assert<Equals<typeof case3, Types.Text<0 | 1>>>(); // ELSE is non-nullable
 
@@ -628,7 +630,7 @@ describe("Keyword operators", () => {
       const case4 = caseWhen(
         { when: int1[">="](Types.Int4.new(90)), then: Types.Text.new("A") },
         { when: int1[">="](Types.Int4.new(80)), then: Types.Text.new("B") },
-        Types.Text.new(null)
+        Types.Text.new(null),
       );
       assert<Equals<typeof case4, Types.Text<0 | 1>>>(); // ELSE is nullable
 
@@ -636,7 +638,7 @@ describe("Keyword operators", () => {
       const case5 = caseWhen(
         { when: text1["="]("A"), then: Types.Int4.new(1) },
         { when: text1["="]("B"), then: Types.Int4.new(2) },
-        Types.Int4.new(3)
+        Types.Int4.new(3),
       );
       assert<Equals<typeof case5, Types.Int4<1>>>();
     });
@@ -645,7 +647,7 @@ describe("Keyword operators", () => {
       const users = values(
         { name: Types.Text.new("John"), age: Types.Int4.new(15) },
         { name: Types.Text.new("Jane"), age: Types.Int4.new(25) },
-        { name: Types.Text.new("Bob"), age: Types.Int4.new(70) }
+        { name: Types.Text.new("Bob"), age: Types.Int4.new(70) },
       );
 
       const result = await users
@@ -654,7 +656,7 @@ describe("Keyword operators", () => {
           ageGroup: caseWhen(
             { when: u.age["<"](18), then: Types.Text.new("minor") },
             { when: u.age["<"](65), then: Types.Text.new("adult") },
-            Types.Text.new("senior") // ELSE
+            Types.Text.new("senior"), // ELSE
           ),
         }))
         .execute(testDb);
@@ -672,7 +674,7 @@ describe("Keyword operators", () => {
         { student: Types.Text.new("Alice"), score: Types.Int4.new(95) },
         { student: Types.Text.new("Bob"), score: Types.Int4.new(85) },
         { student: Types.Text.new("Charlie"), score: Types.Int4.new(75) },
-        { student: Types.Text.new("David"), score: Types.Int4.new(65) }
+        { student: Types.Text.new("David"), score: Types.Int4.new(65) },
       );
 
       const result = await scores
@@ -690,7 +692,7 @@ describe("Keyword operators", () => {
             {
               when: s.score[">="](Types.Int4.new(70)),
               then: Types.Text.new("C"),
-            }
+            },
             // No ELSE - scores below 70 will get NULL
           ),
         }))
@@ -723,7 +725,7 @@ describe("Keyword operators", () => {
           name: Types.Text.new("Tool"),
           price: Types.Numeric.new("100.00"),
           inStock: Types.Bool.new(true),
-        }
+        },
       );
 
       const result = await products
@@ -742,7 +744,7 @@ describe("Keyword operators", () => {
               when: p.price["<"](Types.Numeric.new("50")),
               then: Types.Text.new("Standard"),
             },
-            Types.Text.new("Premium")
+            Types.Text.new("Premium"),
           ),
         }))
         .execute(testDb);
@@ -758,7 +760,7 @@ describe("Keyword operators", () => {
       const data = values(
         { id: Types.Int4.new(1), value: Types.Int4.new(10) },
         { id: Types.Int4.new(2), value: Types.Int4.new(null) },
-        { id: Types.Int4.new(3), value: Types.Int4.new(30) }
+        { id: Types.Int4.new(3), value: Types.Int4.new(30) },
       );
 
       const result = await data
@@ -770,7 +772,7 @@ describe("Keyword operators", () => {
               when: d.value["<"](Types.Int4.new(20)),
               then: Types.Text.new("Low"),
             },
-            Types.Text.new("High")
+            Types.Text.new("High"),
           ),
         }))
         .execute(testDb);
@@ -786,7 +788,7 @@ describe("Keyword operators", () => {
       const data = values(
         { id: Types.Int4.new(1), status: Types.Text.new("active") },
         { id: Types.Int4.new(2), status: Types.Text.new("pending") },
-        { id: Types.Int4.new(3), status: Types.Text.new("inactive") }
+        { id: Types.Int4.new(3), status: Types.Text.new("inactive") },
       );
 
       const result = await data
@@ -802,7 +804,7 @@ describe("Keyword operators", () => {
               when: d.status["="]("inactive"),
               then: Types.Text.new("Inactive"),
             },
-            Types.Text.new("Unknown")
+            Types.Text.new("Unknown"),
           ),
         }))
         .execute(testDb);

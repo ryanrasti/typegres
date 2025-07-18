@@ -24,7 +24,7 @@
     "declarationMap": true,
 
     "paths": {
-      "typegres": ["./src/index.ts"],
+      "typegres": ["./src/index.ts"]
     }
   },
   "include": ["src"]

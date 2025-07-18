@@ -75,7 +75,8 @@ export type RecordClass<T extends { [key in string]: Any<unknown, 0 | 1> }> = {
   parse(v: string): { [key in keyof T]: T[key]["resultType"] };
 };
 
-export type RecordInstance<N extends number, T extends RowLike> = Record<N, T> & T;
+export type RecordInstance<N extends number, T extends RowLike> = Record<N, T> &
+  T;
 
 export default abstract class Record<
   N extends number,

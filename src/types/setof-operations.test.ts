@@ -9,7 +9,7 @@ describe("IN/NOT IN operations", () => {
     const result = await values(
       { id: Int4.new(1), name: Text.new("Alice") },
       { id: Int4.new(2), name: Text.new("Bob") },
-      { id: Int4.new(3), name: Text.new("Charlie") }
+      { id: Int4.new(3), name: Text.new("Charlie") },
     )
       .select((row) => ({
         id: row.id,
@@ -30,7 +30,7 @@ describe("IN/NOT IN operations", () => {
     const result = await values(
       { id: Int4.new(1), name: Text.new("Alice") },
       { id: Int4.new(2), name: Text.new("Bob") },
-      { id: Int4.new(3), name: Text.new("Charlie") }
+      { id: Int4.new(3), name: Text.new("Charlie") },
     )
       .select((row) => ({
         id: row.id,
@@ -50,13 +50,13 @@ describe("IN/NOT IN operations", () => {
   it("can use IN with subquery", async () => {
     const activeUserIds = values(
       { userId: Int4.new(1) },
-      { userId: Int4.new(3) }
+      { userId: Int4.new(3) },
     ).select((u) => u.userId);
 
     const result = await values(
       { id: Int4.new(1), name: Text.new("Alice") },
       { id: Int4.new(2), name: Text.new("Bob") },
-      { id: Int4.new(3), name: Text.new("Charlie") }
+      { id: Int4.new(3), name: Text.new("Charlie") },
     )
       .select((row) => ({
         id: row.id,
@@ -78,13 +78,13 @@ describe("IN/NOT IN operations", () => {
 
   it("can use NOT IN with subquery", async () => {
     const bannedUserIds = values({ userId: Int4.new(2) }).select(
-      (u) => u.userId
+      (u) => u.userId,
     );
 
     const result = await values(
       { id: Int4.new(1), name: Text.new("Alice") },
       { id: Int4.new(2), name: Text.new("Bob") },
-      { id: Int4.new(3), name: Text.new("Charlie") }
+      { id: Int4.new(3), name: Text.new("Charlie") },
     )
       .select((row) => ({
         id: row.id,
@@ -109,13 +109,13 @@ describe("EXISTS/NOT EXISTS operations", () => {
   it("can use EXISTS", async () => {
     const users = values(
       { id: Int4.new(1), name: Text.new("Alice") },
-      { id: Int4.new(2), name: Text.new("Bob") }
+      { id: Int4.new(2), name: Text.new("Bob") },
     );
 
     const orders = values(
       { orderId: Int4.new(1), userId: Int4.new(1), amount: Int4.new(100) },
       { orderId: Int4.new(2), userId: Int4.new(1), amount: Int4.new(200) },
-      { orderId: Int4.new(3), userId: Int4.new(3), amount: Int4.new(300) }
+      { orderId: Int4.new(3), userId: Int4.new(3), amount: Int4.new(300) },
     );
 
     const result = await users
@@ -137,12 +137,12 @@ describe("EXISTS/NOT EXISTS operations", () => {
     const users = values(
       { id: Int4.new(1), name: Text.new("Alice") },
       { id: Int4.new(2), name: Text.new("Bob") },
-      { id: Int4.new(3), name: Text.new("Charlie") }
+      { id: Int4.new(3), name: Text.new("Charlie") },
     );
 
     const orders = values(
       { orderId: Int4.new(1), userId: Int4.new(1), amount: Int4.new(100) },
-      { orderId: Int4.new(2), userId: Int4.new(3), amount: Int4.new(200) }
+      { orderId: Int4.new(2), userId: Int4.new(3), amount: Int4.new(200) },
     );
 
     const result = await users
@@ -166,12 +166,12 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
   it("can use UNION", async () => {
     const query1 = values(
       { id: Int4.new(1), name: Text.new("Alice") },
-      { id: Int4.new(2), name: Text.new("Bob") }
+      { id: Int4.new(2), name: Text.new("Bob") },
     );
 
     const query2 = values(
       { id: Int4.new(2), name: Text.new("Bob") },
-      { id: Int4.new(3), name: Text.new("Charlie") }
+      { id: Int4.new(3), name: Text.new("Charlie") },
     );
 
     const result = await query1.union(query2).execute(testDb);
@@ -184,19 +184,19 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
         { id: 1, name: "Alice" },
         { id: 2, name: "Bob" },
         { id: 3, name: "Charlie" },
-      ])
+      ]),
     );
   });
 
   it("can use UNION ALL", async () => {
     const query1 = values(
       { id: Int4.new(1), name: Text.new("Alice") },
-      { id: Int4.new(2), name: Text.new("Bob") }
+      { id: Int4.new(2), name: Text.new("Bob") },
     );
 
     const query2 = values(
       { id: Int4.new(2), name: Text.new("Bob") },
-      { id: Int4.new(3), name: Text.new("Charlie") }
+      { id: Int4.new(3), name: Text.new("Charlie") },
     );
 
     const result = await query1.unionAll(query2).execute(testDb);
@@ -215,13 +215,13 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
     const query1 = values(
       { id: Int4.new(1), name: Text.new("Alice") },
       { id: Int4.new(2), name: Text.new("Bob") },
-      { id: Int4.new(3), name: Text.new("Charlie") }
+      { id: Int4.new(3), name: Text.new("Charlie") },
     );
 
     const query2 = values(
       { id: Int4.new(2), name: Text.new("Bob") },
       { id: Int4.new(3), name: Text.new("Charlie") },
-      { id: Int4.new(4), name: Text.new("David") }
+      { id: Int4.new(4), name: Text.new("David") },
     );
 
     const result = await query1.intersect(query2).execute(testDb);
@@ -238,7 +238,7 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
     const query1 = values(
       { id: Int4.new(1), name: Text.new("Alice") },
       { id: Int4.new(2), name: Text.new("Bob") },
-      { id: Int4.new(3), name: Text.new("Charlie") }
+      { id: Int4.new(3), name: Text.new("Charlie") },
     );
 
     const query2 = values({ id: Int4.new(2), name: Text.new("Bob") });
@@ -257,13 +257,13 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
     const query1 = values(
       { id: Int4.new(1) },
       { id: Int4.new(2) },
-      { id: Int4.new(3) }
+      { id: Int4.new(3) },
     ).select((v) => v.id);
 
     const query2 = values(
       { id: Int4.new(3) },
       { id: Int4.new(4) },
-      { id: Int4.new(5) }
+      { id: Int4.new(5) },
     ).select((v) => v.id);
 
     const result = await query1.union(query2).execute(testDb);
@@ -285,7 +285,7 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
 
     expect(result).toHaveLength(4);
     expect(result).toEqual(
-      expect.arrayContaining([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }])
+      expect.arrayContaining([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]),
     );
   });
 
@@ -294,7 +294,7 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
       { id: Int4.new(1), name: Text.new("Alice"), age: Int4.new(25) },
       { id: Int4.new(2), name: Text.new("Bob"), age: Int4.new(30) },
       { id: Int4.new(3), name: Text.new("Charlie"), age: Int4.new(35) },
-      { id: Int4.new(4), name: Text.new("David"), age: Int4.new(40) }
+      { id: Int4.new(4), name: Text.new("David"), age: Int4.new(40) },
     );
 
     const youngUsers = users.where((u) => u.age["<"](Int4.new(32)));
@@ -303,7 +303,7 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
     const result = await youngUsers
       .select((u) => ({ name: u.name, category: Text.new("young") }))
       .union(
-        oldUsers.select((u) => ({ name: u.name, category: Text.new("old") }))
+        oldUsers.select((u) => ({ name: u.name, category: Text.new("old") })),
       )
       .select((u) => ({
         name: u.name.lower(),
@@ -323,14 +323,14 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
         { name: "bob", category: "young", foo: "bar" },
         { name: "charlie", category: "old", foo: "bar" },
         { name: "david", category: "old", foo: "bar" },
-      ])
+      ]),
     );
   });
 
   it("cannot use set operations with incompatible types", async () => {
     const query1 = values(
       { id: Int4.new(1), name: Text.new("Alice") },
-      { id: Int4.new(2), name: Text.new("Bob") }
+      { id: Int4.new(2), name: Text.new("Bob") },
     );
 
     const query2 = values({ id: Int4.new(3), name2: Text.new("Charlie") });
