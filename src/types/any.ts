@@ -25,6 +25,10 @@ export type WithNullability<N extends number, T extends Any> = NonNullable<
   >
 >;
 
+export type MakeNullable<T extends Any> = NonNullable<
+  ReturnType<T["asNullable"]>
+>;
+
 export type ClassType<T> = {
   typeString(): string | undefined;
   subtype(): UseSubtype | undefined;
