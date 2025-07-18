@@ -11,7 +11,7 @@
     "typecheck": "tsgo --noEmit",
     "lint": "eslint",
     "prepare": "true",
-    "format": "prettier --write \"**/*.{ts,js,json}\"",
+    "format": "prettier --write \"**/*.{ts,js,json}\" --log-level warn",
     "format:check": "prettier --check \"**/*.{ts,js,json}\"",
     "codegen": "bash ./src/gen/gen.sh && kysely --no-outdated-check migrate:up -e test && bash ./src/gen/table-gen.sh",
     "clean": "(rm ./src/gen/functions.ts; rm -r ./src/gen/types; rm ./src/gen/tables.json; rm ./src/gen/tables.ts) || true",

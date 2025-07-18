@@ -7,7 +7,7 @@ import {
   NotExistsExpression,
   SetOperationExpression,
 } from "../expression";
-import { Any, Bool, Int4, NumericLike, Record } from "../types";
+import { Any, Bool, NumericLike, Record } from "../types";
 import { dummyDb } from "../test/db";
 import { AggregateOfRow } from "../types/aggregate";
 import { Primitive, maybePrimitiveToSqlType } from "../types/primitive";
@@ -227,8 +227,8 @@ export type Query = {
   havings?: [Bool<0 | 1>, ...Bool<0 | 1>[]];
   groupBy?: Any<unknown, 0 | 1>[];
   orderBys?: OrderByExpression[];
-  limit?: NumericLike;
-  offset?: NumericLike;
+  limit?: NumericLike | number;
+  offset?: NumericLike | number;
 };
 
 export type BindedSetof<Q extends Query> = typeof Setof<Q> & {
@@ -370,10 +370,7 @@ export class Setof<Q extends Query> extends Expression {
       this.rawFromExpr,
       this.fromAlias,
       this.joinAliases,
-      {
-        ...this.query,
-        limit: typeof limit === "number" ? Int4.new(limit) : limit,
-      },
+      { ...this.query, limit },
       this.fromRow,
     );
   }
@@ -383,10 +380,7 @@ export class Setof<Q extends Query> extends Expression {
       this.rawFromExpr,
       this.fromAlias,
       this.joinAliases,
-      {
-        ...this.query,
-        offset: typeof offset === "number" ? Int4.new(offset) : offset,
-      },
+      { ...this.query, offset },
       this.fromRow,
     );
   }
@@ -573,13 +567,15 @@ export class Setof<Q extends Query> extends Expression {
         )}`
       : sql``;
 
-    const limit = this.query.limit
-      ? sql`LIMIT ${this.query.limit.toExpression().compile(ctx)}`
-      : sql``;
+    const limit =
+      this.query.limit != null
+        ? sql`LIMIT ${typeof this.query.limit === "number" ? this.query.limit : this.query.limit.toExpression().compile(ctx)}`
+        : sql``;
 
-    const offset = this.query.offset
-      ? sql`OFFSET ${this.query.offset.toExpression().compile(ctx)}`
-      : sql``;
+    const offset =
+      this.query.offset != null
+        ? sql`OFFSET ${typeof this.query.offset === "number" ? this.query.offset : this.query.offset.toExpression().compile(ctx)}`
+        : sql``;
 
     return sql`(${select} ${from} ${joins} ${where} ${groupBy} ${having} ${orderBy} ${limit} ${offset})`;
   }
