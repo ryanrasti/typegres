@@ -1,5 +1,6 @@
 import { RawBuilder, sql } from "kysely";
 import type { Query, RowLike, Setof } from "./query/values";
+import type { Any } from "./types";
 
 export class QueryAlias {
   constructor(public name: string) {}
@@ -252,5 +253,59 @@ export class SetOperationExpression extends SelectableExpression {
 
   compile(ctx: Context) {
     return sql`(${this.left.compile(ctx)} ${sql.raw(this.operation)} ${this.right.compile(ctx)})`;
+  }
+}
+
+export interface WindowSpec {
+  partitionBy?: Any | Any[];
+  orderBy?: Any | Any[] | [Any, "asc" | "desc"] | Array<[Any, "asc" | "desc"]>;
+}
+
+export class WindowExpression extends Expression {
+  constructor(
+    public func: Expression,
+    public spec?: WindowSpec,
+  ) {
+    super();
+  }
+
+  compile(ctx: Context) {
+    const parts: RawBuilder<unknown>[] = [];
+    
+    if (this.spec?.partitionBy) {
+      const partitions = Array.isArray(this.spec.partitionBy) 
+        ? this.spec.partitionBy 
+        : [this.spec.partitionBy];
+      parts.push(sql`PARTITION BY ${sql.join(partitions.map(p => p.toExpression().compile(ctx)))}`);
+    }
+    
+    if (this.spec?.orderBy) {
+      // Check if orderBy is a single tuple [expr, "asc"/"desc"]
+      const isSingleTuple = Array.isArray(this.spec.orderBy) && 
+        this.spec.orderBy.length === 2 && 
+        typeof this.spec.orderBy[1] === 'string';
+      
+      const orderItems = isSingleTuple 
+        ? [this.spec.orderBy as [Any, string]]
+        : Array.isArray(this.spec.orderBy) 
+          ? this.spec.orderBy 
+          : [this.spec.orderBy];
+      
+      const orderClauses = orderItems.map(item => {
+        if (Array.isArray(item)) {
+          const [expr, dir] = item;
+          return sql`${expr.toExpression().compile(ctx)} ${sql.raw(dir.toUpperCase())}`;
+        }
+        return (item as Any).toExpression().compile(ctx);
+      });
+      
+      parts.push(sql`ORDER BY ${sql.join(orderClauses)}`);
+    }
+    
+    if (parts.length > 0) {
+      return sql`${this.func.compile(ctx)} OVER (${sql.join(parts, sql` `)})`;
+    } else {
+      return sql`${this.func.compile(ctx)} OVER ()`;
+    }
   }
 }
