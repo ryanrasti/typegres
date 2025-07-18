@@ -1,5 +1,12 @@
 import { RawBuilder, sql } from "kysely";
-import { Expression, QueryAlias, SelectableExpression } from "../expression";
+import {
+  Expression,
+  QueryAlias,
+  SelectableExpression,
+  ExistsExpression,
+  NotExistsExpression,
+  SetOperationExpression,
+} from "../expression";
 import { Any, Bool, Record } from "../types";
 import { dummyDb } from "../test/db";
 import { AggregateOfRow } from "../types/aggregate";
@@ -157,7 +164,41 @@ export type AwaitedResultType<Q extends Query> =
       ? ScalarResult<Q["select"]>[]
       : Q["select"] extends RowLike
         ? RowLikeResult<Q["select"]>[]
-        : RowLikeResult<Q["from"]>[];
+        : Q["from"] extends Scalar
+          ? ScalarResult<Q["from"]>[]
+          : RowLikeResult<Q["from"]>[];
+
+type SetOperationCompatible<Q extends Query> = 
+ { select?: ResultType<Q>; from: ResultType<Q> };
+
+const createSetOperation = <Q extends Query, Q2 extends Query>(
+  self: Setof<Q>,
+  other: Setof<Q2>,
+  operation:
+    | "UNION"
+    | "UNION ALL"
+    | "INTERSECT"
+    | "INTERSECT ALL"
+    | "EXCEPT"
+    | "EXCEPT ALL",
+  aliasName: string
+): Setof<{ from: ResultType<Q> }> => {
+  const alias = new QueryAlias(aliasName);
+  const result = resultType(self.query);
+  const schema = isScalar(result)
+    ? { value: result as Any<unknown, 0 | 1> }
+    : (result as RowLike);
+  const aliasedResult = isScalar(result)
+    ? aliasScalar(alias, result)
+    : aliasRowLike(alias, result);
+  return new Setof(
+    new SetOperationExpression(self, other, operation, schema),
+    alias,
+    {},
+    { from: aliasedResult },
+    result
+  ) as any;
+};
 
 export type Query = {
   select?: RowLike | Scalar;
@@ -421,13 +462,18 @@ export class Setof<Q extends Query> extends Expression {
   }
 
   debug() {
-    console.log("Debugging query:", this.compile(Context.new()).compile(dummyDb));
+    console.log(
+      "Debugging query:",
+      this.compile(Context.new()).compile(dummyDb)
+    );
     return this;
   }
 
   async execute(tg: Typegres): Promise<AwaitedResultType<Q>> {
     const kysely = (tg as any)._internal;
-    const kexpr = kysely.executeQuery(this.compile(Context.new()).compile(kysely));
+    const kexpr = kysely.executeQuery(
+      this.compile(Context.new()).compile(kysely)
+    );
     const resultRowLike = this.query.select
       ? this.query.select
       : this.query.from;
@@ -453,6 +499,70 @@ export class Setof<Q extends Query> extends Expression {
 
   scalar<S extends Scalar>(this: Setof<{ select: S; from: Query["from"] }>): S {
     return this.query.select.getClass().new(this) as unknown as S;
+  }
+
+  /**
+   * SQL EXISTS operator - checks if the subquery returns any rows
+   * EXISTS (SELECT ...)
+   */
+  exists(): Bool<1> {
+    return Bool.new(new ExistsExpression(this)) as Bool<1>;
+  }
+
+  /**
+   * SQL NOT EXISTS operator - checks if the subquery returns no rows
+   * NOT EXISTS (SELECT ...)
+   */
+  notExists(): Bool<1> {
+    return Bool.new(new NotExistsExpression(this)) as Bool<1>;
+  }
+
+  /**
+   * SQL UNION operator - combines results of two queries, removing duplicates
+   */
+  union(other: Setof<Q>): Setof<SetOperationCompatible<Q>> {
+    return createSetOperation(this, other, "UNION", "union");
+  }
+
+  /**
+   * SQL UNION ALL operator - combines results of two queries, keeping duplicates
+   */
+  unionAll(other: Setof<Q>): Setof<SetOperationCompatible<Q>> {
+    return createSetOperation(this, other, "UNION ALL", "union");
+  }
+
+  /**
+   * SQL INTERSECT operator - returns rows that exist in both queries, removing duplicates
+   */
+  intersect(
+    other: Setof<Q>
+  ): Setof<SetOperationCompatible<Q>> {
+    return createSetOperation(this, other, "INTERSECT", "intersect");
+  }
+
+  /**
+   * SQL INTERSECT ALL operator - returns rows that exist in both queries, keeping duplicates
+   */
+  intersectAll(
+    other: Setof<Q>
+  ): Setof<SetOperationCompatible<Q>> {
+    return createSetOperation(this, other, "INTERSECT ALL", "intersect");
+  }
+
+  /**
+   * SQL EXCEPT operator - returns rows from first query that don't exist in second, removing duplicates
+   */
+  except(other: Setof<Q>): Setof<SetOperationCompatible<Q>> {
+    return createSetOperation(this, other, "EXCEPT", "except");
+  }
+
+  /**
+   * SQL EXCEPT ALL operator - returns rows from first query that don't exist in second, keeping duplicates
+   */
+  exceptAll(
+    other: Setof<Q>
+  ): Setof<SetOperationCompatible<Q>> {
+    return createSetOperation(this, other, "EXCEPT ALL", "except");
   }
 
   // then(

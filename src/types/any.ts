@@ -4,11 +4,16 @@ import {
   UnaryOperatorExpression,
   BinaryOperatorExpression,
   CastExpression,
+  InExpression,
+  NotInExpression,
+  ExpressionLike,
+  isExpressionLike,
 } from "../expression";
 import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
 import { Typegres } from "../db";
 import * as Types from "../types";
+import { RowLike } from "../query/values";
 
 export type WithNullability<N extends number, T extends Any> = NonNullable<
   ReturnType<
@@ -49,10 +54,17 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
    * If the value is already an Any type, uses its expression
    * Otherwise creates a LiteralExpression with the appropriate type
    */
-  private toExpressionHelper(value: Any | unknown): Expression {
+  private toExpressionHelper(
+    value: ExpressionLike | Expression | unknown
+  ): ExpressionLike {
     return value instanceof Any
       ? value.toExpression()
-      : new LiteralExpression(value, this.getClass().typeString() || "unknown");
+      : typeof value === "object" && value && "compile" in value
+        ? (value as ExpressionLike)
+        : new LiteralExpression(
+            value,
+            this.getClass().typeString() || "unknown"
+          );
   }
 
   static new(v: null): Any<unknown, 0>;
@@ -216,6 +228,47 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
     return targetType.new(
       new CastExpression(this.toExpression(), typeStr)
     ) as WithNullability<N, ReturnType<T["new"]>>;
+  }
+
+  /**
+   * SQL IN operator - checks if value is in a list or subquery result
+   * value IN (1, 2, 3) or value IN (SELECT ...)
+   */
+  in<T extends this>(list: Types.Input<T>[]): Types.Bool<N>;
+  in<T extends this>(
+    list: Types.Setof<
+      { from: Any | RowLike; select: T } | { from: T; select?: undefined }
+    >
+  ): Types.Bool<N>;
+  in<T extends this, N2 extends number>(
+    list:
+      | Types.Input<T>[]
+      | Types.Setof<{ from: Any; select: T } | { from: T; select?: undefined }>
+  ): Types.Bool<N | N2> {
+    return Types.Bool.new(
+      new InExpression(this.toExpression(), isExpressionLike(list) ? list : list.map((x) => this.toExpressionHelper(x)))
+    ) as Types.Bool<N | N2>;
+  }
+
+  /**
+   * SQL NOT IN operator - checks if value is not in a list or subquery result
+   * value NOT IN (1, 2, 3) or value NOT IN (SELECT ...)
+   */
+
+  notIn<T extends this>(list: Types.Input<T>[]): Types.Bool<N>;
+  notIn<T extends this>(
+    list: Types.Setof<
+      { from: Any | RowLike; select: T } | { from: T; select?: undefined }
+    >
+  ): Types.Bool<N>;
+  notIn<T extends this, N2 extends number>(
+    list:
+      | Types.Input<T>[]
+      | Types.Setof<{ from: Any; select: T } | { from: T; select?: undefined }>
+  ): Types.Bool<N | N2> {
+    return Types.Bool.new(
+      new NotInExpression(this.toExpression(), isExpressionLike(list) ? list : list.map((x) => this.toExpressionHelper(x)))
+    ) as Types.Bool<N | N2>;
   }
 }
 
