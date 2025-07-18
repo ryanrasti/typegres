@@ -273,14 +273,16 @@ export class WindowExpression extends Expression {
 
   compile(ctx: Context) {
     const parts = [
-      this.spec?.partitionBy && sql`PARTITION BY ${sql.join(
-        [this.spec.partitionBy].flat().map(p => p.toExpression().compile(ctx))
-      )}`,
-      this.spec?.orderBy && sql`ORDER BY ${sql.join(
-        compileOrderBy(this.spec.orderBy, ctx)
-      )}`,
+      this.spec?.partitionBy &&
+        sql`PARTITION BY ${sql.join(
+          [this.spec.partitionBy]
+            .flat()
+            .map((p) => p.toExpression().compile(ctx)),
+        )}`,
+      this.spec?.orderBy &&
+        sql`ORDER BY ${sql.join(compileOrderBy(this.spec.orderBy, ctx))}`,
     ].filter((x) => x != null);
-    
+
     return sql`${this.func.compile(ctx)} OVER (${
       parts.length > 0 ? sql.join(parts, sql` `) : sql``
     })`;

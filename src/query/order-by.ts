@@ -23,69 +23,75 @@ export type OrderBySpec = OrderByExpression | OrderByExpression[];
  * @param ctx - The compilation context
  * @returns The compiled SQL parts for ORDER BY clause
  */
-export function compileOrderBy(
+export const compileOrderBy = (
   spec: OrderBySpec,
-  ctx: Context
-): RawBuilder<unknown>[] {
-  // Check if spec is a single tuple first
-  if (isSingleTupleSpec(spec)) {
-    const [expr, suffix] = spec;
-    return [compileOrderByItem(expr, suffix, ctx)];
-  }
-  
-  const items = Array.isArray(spec) ? spec : [spec];
-  
-  return items.map((item) => {
+  ctx: Context,
+): RawBuilder<unknown>[] => {
+  return normalizeOrderBySpec(spec).map((item) => {
     if (Array.isArray(item)) {
       const [expr, suffix] = item;
       return compileOrderByItem(expr, suffix, ctx);
     }
-    
+
     // Just an expression without suffix
     return item.toExpression().compile(ctx);
   });
-}
+};
 
 /**
  * Compiles a single ORDER BY item with suffix
  */
-function compileOrderByItem(
+const compileOrderByItem = (
   expr: Any<unknown, 0 | 1>,
   suffix: OrderBySuffix,
-  ctx: Context
-): RawBuilder<unknown> {
+  ctx: Context,
+): RawBuilder<unknown> => {
   const parts = suffix.split(" ");
-  
+
   // Validate suffix parts
-  const validParts: {[k in string]?: string} = Object.fromEntries(["asc", "desc", "nulls", "first", "last"].map(p => [p, p]));
-  const sanitizedParts = parts.map(p => validParts[p.toLowerCase()]);
-  invariant(sanitizedParts.every(Boolean), `Invalid ORDER BY suffix: ${suffix}`);
-  invariant(sanitizedParts.length > 0 && sanitizedParts.length <= 3, `ORDER BY suffix invalid length: ${suffix}`);
-  
+  const validParts: { [k in string]?: string } = Object.fromEntries(
+    ["asc", "desc", "nulls", "first", "last"].map((p) => [p, p]),
+  );
+  const sanitizedParts = parts.map((p) => validParts[p.toLowerCase()]);
+  invariant(
+    sanitizedParts.every(Boolean),
+    `Invalid ORDER BY suffix: ${suffix}`,
+  );
+  invariant(
+    sanitizedParts.length > 0 && sanitizedParts.length <= 3,
+    `ORDER BY suffix invalid length: ${suffix}`,
+  );
+
   return sql`${expr.toExpression().compile(ctx)} ${sql.raw(sanitizedParts.join(" ").toUpperCase())}`;
-}
+};
 
 /**
  * Checks if the spec is a single tuple [expr, "asc"/"desc"]
  * This is needed for backward compatibility with WindowSpec
  */
-export function isSingleTupleSpec(spec: unknown): spec is [Any, string] {
-  return Array.isArray(spec) && 
-    spec.length === 2 && 
-    spec[0] && typeof spec[0] === 'object' && 'toExpression' in spec[0] &&
-    typeof spec[1] === 'string';
-}
+export const isSingleTupleSpec = (spec: unknown): spec is [Any, string] => {
+  return (
+    Array.isArray(spec) &&
+    spec.length === 2 &&
+    spec[0] &&
+    typeof spec[0] === "object" &&
+    "toExpression" in spec[0] &&
+    typeof spec[1] === "string"
+  );
+};
 
 /**
  * Normalizes an ORDER BY spec to always be an array of expressions
  * Handles the special case of a single tuple [expr, "asc"/"desc"]
  */
-export function normalizeOrderBySpec(spec: OrderBySpec): OrderByExpression[] {
+export const normalizeOrderBySpec = (
+  spec: OrderBySpec,
+): OrderByExpression[] => {
   // Check if it's a single tuple [expr, "asc"/"desc"]
   if (isSingleTupleSpec(spec)) {
     return [spec];
   }
-  
+
   // Otherwise, ensure it's an array
   return Array.isArray(spec) ? spec : [spec];
-}
+};

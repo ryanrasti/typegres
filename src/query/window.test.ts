@@ -7,10 +7,26 @@ import { assert, Equals } from "tsafe";
 describe("Window Functions", () => {
   it("can use aggregate functions with OVER()", async () => {
     const sales = values(
-      { department: Text.new("Sales"), employee: Text.new("Alice"), amount: Numeric.new("1000") },
-      { department: Text.new("Sales"), employee: Text.new("Bob"), amount: Numeric.new("1500") },
-      { department: Text.new("Marketing"), employee: Text.new("Charlie"), amount: Numeric.new("800") },
-      { department: Text.new("Marketing"), employee: Text.new("David"), amount: Numeric.new("1200") },
+      {
+        department: Text.new("Sales"),
+        employee: Text.new("Alice"),
+        amount: Numeric.new("1000"),
+      },
+      {
+        department: Text.new("Sales"),
+        employee: Text.new("Bob"),
+        amount: Numeric.new("1500"),
+      },
+      {
+        department: Text.new("Marketing"),
+        employee: Text.new("Charlie"),
+        amount: Numeric.new("800"),
+      },
+      {
+        department: Text.new("Marketing"),
+        employee: Text.new("David"),
+        amount: Numeric.new("1200"),
+      },
     );
 
     const result = await sales
@@ -20,7 +36,10 @@ describe("Window Functions", () => {
         amount: s.amount,
         totalSales: s.amount.sum().over(),
       }))
-      .orderBy((s) => s.department, (s) => s.employee)
+      .orderBy(
+        (s) => s.department,
+        (s) => s.employee,
+      )
       .execute(testDb);
 
     assert<
@@ -37,19 +56,55 @@ describe("Window Functions", () => {
 
     expect(result).toHaveLength(4);
     expect(result).toEqual([
-      { department: "Marketing", employee: "Charlie", amount: "800", totalSales: "4500" },
-      { department: "Marketing", employee: "David", amount: "1200", totalSales: "4500" },
-      { department: "Sales", employee: "Alice", amount: "1000", totalSales: "4500" },
-      { department: "Sales", employee: "Bob", amount: "1500", totalSales: "4500" },
+      {
+        department: "Marketing",
+        employee: "Charlie",
+        amount: "800",
+        totalSales: "4500",
+      },
+      {
+        department: "Marketing",
+        employee: "David",
+        amount: "1200",
+        totalSales: "4500",
+      },
+      {
+        department: "Sales",
+        employee: "Alice",
+        amount: "1000",
+        totalSales: "4500",
+      },
+      {
+        department: "Sales",
+        employee: "Bob",
+        amount: "1500",
+        totalSales: "4500",
+      },
     ]);
   });
 
   it("can use OVER with PARTITION BY", async () => {
     const sales = values(
-      { department: Text.new("Sales"), employee: Text.new("Alice"), amount: Numeric.new("1000") },
-      { department: Text.new("Sales"), employee: Text.new("Bob"), amount: Numeric.new("1500") },
-      { department: Text.new("Marketing"), employee: Text.new("Charlie"), amount: Numeric.new("800") },
-      { department: Text.new("Marketing"), employee: Text.new("David"), amount: Numeric.new("1200") },
+      {
+        department: Text.new("Sales"),
+        employee: Text.new("Alice"),
+        amount: Numeric.new("1000"),
+      },
+      {
+        department: Text.new("Sales"),
+        employee: Text.new("Bob"),
+        amount: Numeric.new("1500"),
+      },
+      {
+        department: Text.new("Marketing"),
+        employee: Text.new("Charlie"),
+        amount: Numeric.new("800"),
+      },
+      {
+        department: Text.new("Marketing"),
+        employee: Text.new("David"),
+        amount: Numeric.new("1200"),
+      },
     );
 
     const result = await sales
@@ -65,33 +120,33 @@ describe("Window Functions", () => {
       .execute(testDb);
 
     expect(result).toEqual([
-      { 
-        department: "Marketing", 
-        employee: "Charlie", 
-        amount: "800", 
+      {
+        department: "Marketing",
+        employee: "Charlie",
+        amount: "800",
         deptTotal: "2000",
-        deptAvg: "1000.0000000000000000"
+        deptAvg: "1000.0000000000000000",
       },
-      { 
-        department: "Marketing", 
-        employee: "David", 
-        amount: "1200", 
+      {
+        department: "Marketing",
+        employee: "David",
+        amount: "1200",
         deptTotal: "2000",
-        deptAvg: "1000.0000000000000000"
+        deptAvg: "1000.0000000000000000",
       },
-      { 
-        department: "Sales", 
-        employee: "Alice", 
-        amount: "1000", 
+      {
+        department: "Sales",
+        employee: "Alice",
+        amount: "1000",
         deptTotal: "2500",
-        deptAvg: "1250.0000000000000000"
+        deptAvg: "1250.0000000000000000",
       },
-      { 
-        department: "Sales", 
-        employee: "Bob", 
-        amount: "1500", 
+      {
+        department: "Sales",
+        employee: "Bob",
+        amount: "1500",
         deptTotal: "2500",
-        deptAvg: "1250.0000000000000000"
+        deptAvg: "1250.0000000000000000",
       },
     ]);
   });
@@ -123,12 +178,36 @@ describe("Window Functions", () => {
 
   it("can use OVER with both PARTITION BY and ORDER BY", async () => {
     const sales = values(
-      { department: Text.new("Sales"), month: Int4.new(1), amount: Numeric.new("1000") },
-      { department: Text.new("Sales"), month: Int4.new(2), amount: Numeric.new("1500") },
-      { department: Text.new("Sales"), month: Int4.new(3), amount: Numeric.new("1200") },
-      { department: Text.new("Marketing"), month: Int4.new(1), amount: Numeric.new("800") },
-      { department: Text.new("Marketing"), month: Int4.new(2), amount: Numeric.new("900") },
-      { department: Text.new("Marketing"), month: Int4.new(3), amount: Numeric.new("1100") },
+      {
+        department: Text.new("Sales"),
+        month: Int4.new(1),
+        amount: Numeric.new("1000"),
+      },
+      {
+        department: Text.new("Sales"),
+        month: Int4.new(2),
+        amount: Numeric.new("1500"),
+      },
+      {
+        department: Text.new("Sales"),
+        month: Int4.new(3),
+        amount: Numeric.new("1200"),
+      },
+      {
+        department: Text.new("Marketing"),
+        month: Int4.new(1),
+        amount: Numeric.new("800"),
+      },
+      {
+        department: Text.new("Marketing"),
+        month: Int4.new(2),
+        amount: Numeric.new("900"),
+      },
+      {
+        department: Text.new("Marketing"),
+        month: Int4.new(3),
+        amount: Numeric.new("1100"),
+      },
     );
 
     const result = await sales
@@ -136,9 +215,9 @@ describe("Window Functions", () => {
         department: s.department,
         month: s.month,
         amount: s.amount,
-        runningDeptTotal: s.amount.sum().over({ 
+        runningDeptTotal: s.amount.sum().over({
           partitionBy: s.department,
-          orderBy: s.month 
+          orderBy: s.month,
         }),
       }))
       .orderBy((s) => s.department)
@@ -146,23 +225,77 @@ describe("Window Functions", () => {
       .execute(testDb);
 
     expect(result).toEqual([
-      { department: "Marketing", month: 1, amount: "800", runningDeptTotal: "800" },
-      { department: "Marketing", month: 2, amount: "900", runningDeptTotal: "1700" },
-      { department: "Marketing", month: 3, amount: "1100", runningDeptTotal: "2800" },
-      { department: "Sales", month: 1, amount: "1000", runningDeptTotal: "1000" },
-      { department: "Sales", month: 2, amount: "1500", runningDeptTotal: "2500" },
-      { department: "Sales", month: 3, amount: "1200", runningDeptTotal: "3700" },
+      {
+        department: "Marketing",
+        month: 1,
+        amount: "800",
+        runningDeptTotal: "800",
+      },
+      {
+        department: "Marketing",
+        month: 2,
+        amount: "900",
+        runningDeptTotal: "1700",
+      },
+      {
+        department: "Marketing",
+        month: 3,
+        amount: "1100",
+        runningDeptTotal: "2800",
+      },
+      {
+        department: "Sales",
+        month: 1,
+        amount: "1000",
+        runningDeptTotal: "1000",
+      },
+      {
+        department: "Sales",
+        month: 2,
+        amount: "1500",
+        runningDeptTotal: "2500",
+      },
+      {
+        department: "Sales",
+        month: 3,
+        amount: "1200",
+        runningDeptTotal: "3700",
+      },
     ]);
   });
 
   it("can use multiple window functions in same query", async () => {
     const scores = values(
-      { student: Text.new("Alice"), subject: Text.new("Math"), score: Int4.new(85) },
-      { student: Text.new("Alice"), subject: Text.new("Science"), score: Int4.new(92) },
-      { student: Text.new("Bob"), subject: Text.new("Math"), score: Int4.new(78) },
-      { student: Text.new("Bob"), subject: Text.new("Science"), score: Int4.new(88) },
-      { student: Text.new("Charlie"), subject: Text.new("Math"), score: Int4.new(95) },
-      { student: Text.new("Charlie"), subject: Text.new("Science"), score: Int4.new(90) },
+      {
+        student: Text.new("Alice"),
+        subject: Text.new("Math"),
+        score: Int4.new(85),
+      },
+      {
+        student: Text.new("Alice"),
+        subject: Text.new("Science"),
+        score: Int4.new(92),
+      },
+      {
+        student: Text.new("Bob"),
+        subject: Text.new("Math"),
+        score: Int4.new(78),
+      },
+      {
+        student: Text.new("Bob"),
+        subject: Text.new("Science"),
+        score: Int4.new(88),
+      },
+      {
+        student: Text.new("Charlie"),
+        subject: Text.new("Math"),
+        score: Int4.new(95),
+      },
+      {
+        student: Text.new("Charlie"),
+        subject: Text.new("Science"),
+        score: Int4.new(90),
+      },
     );
 
     const result = await scores
@@ -198,8 +331,8 @@ describe("Window Functions", () => {
       .select((s) => ({
         month: s.month,
         amount: s.amount,
-        reverseRunningTotal: s.amount.sum().over({ 
-          orderBy: [s.month, "desc"] 
+        reverseRunningTotal: s.amount.sum().over({
+          orderBy: [s.month, "desc"],
         }),
       }))
       .orderBy((s) => s.month)
@@ -226,7 +359,9 @@ describe("Window Functions", () => {
       .select((o) => ({
         customer: o.customer,
         product: o.product,
-        customerOrderCount: o.customer.count().over({ partitionBy: o.customer }),
+        customerOrderCount: o.customer
+          .count()
+          .over({ partitionBy: o.customer }),
         totalOrderCount: o.customer.count().over(),
       }))
       .orderBy((o) => o.customer)
@@ -234,11 +369,36 @@ describe("Window Functions", () => {
       .execute(testDb);
 
     expect(result).toEqual([
-      { customer: "Alice", product: "Doohickey", customerOrderCount: 3n, totalOrderCount: 5n },
-      { customer: "Alice", product: "Gadget", customerOrderCount: 3n, totalOrderCount: 5n },
-      { customer: "Alice", product: "Widget", customerOrderCount: 3n, totalOrderCount: 5n },
-      { customer: "Bob", product: "Gadget", customerOrderCount: 2n, totalOrderCount: 5n },
-      { customer: "Bob", product: "Widget", customerOrderCount: 2n, totalOrderCount: 5n },
+      {
+        customer: "Alice",
+        product: "Doohickey",
+        customerOrderCount: 3n,
+        totalOrderCount: 5n,
+      },
+      {
+        customer: "Alice",
+        product: "Gadget",
+        customerOrderCount: 3n,
+        totalOrderCount: 5n,
+      },
+      {
+        customer: "Alice",
+        product: "Widget",
+        customerOrderCount: 3n,
+        totalOrderCount: 5n,
+      },
+      {
+        customer: "Bob",
+        product: "Gadget",
+        customerOrderCount: 2n,
+        totalOrderCount: 5n,
+      },
+      {
+        customer: "Bob",
+        product: "Widget",
+        customerOrderCount: 2n,
+        totalOrderCount: 5n,
+      },
     ]);
   });
 
@@ -255,25 +415,25 @@ describe("Window Functions", () => {
       .select((s) => ({
         student: s.student,
         score: s.score,
-        rankWithNullsLast: s.student.count().over({ 
-          orderBy: [s.score, "desc nulls last"] 
+        rankWithNullsLast: s.student.count().over({
+          orderBy: [s.score, "desc nulls last"],
         }),
-        rankWithNullsFirst: s.student.count().over({ 
-          orderBy: [s.score, "desc nulls first"] 
+        rankWithNullsFirst: s.student.count().over({
+          orderBy: [s.score, "desc nulls first"],
         }),
       }))
       .orderBy((s) => s.student)
       .execute(testDb);
 
     // With nulls last, NULL values should come after all non-NULL values
-    const nullsLast = result.filter(r => r.score === null);
-    const nonNullsLast = result.filter(r => r.score !== null);
-    
-    expect(nullsLast.every(r => r.rankWithNullsLast === 5n)).toBe(true);
-    expect(nonNullsLast.every(r => r.rankWithNullsLast! < 5n)).toBe(true);
-    
+    const nullsLast = result.filter((r) => r.score === null);
+    const nonNullsLast = result.filter((r) => r.score !== null);
+
+    expect(nullsLast.every((r) => r.rankWithNullsLast === 5n)).toBe(true);
+    expect(nonNullsLast.every((r) => r.rankWithNullsLast! < 5n)).toBe(true);
+
     // With nulls first, NULL values should come before all non-NULL values
-    expect(nullsLast.every(r => r.rankWithNullsFirst! <= 2n)).toBe(true);
-    expect(nonNullsLast.every(r => r.rankWithNullsFirst! > 2n)).toBe(true);
+    expect(nullsLast.every((r) => r.rankWithNullsFirst! <= 2n)).toBe(true);
+    expect(nonNullsLast.every((r) => r.rankWithNullsFirst! > 2n)).toBe(true);
   });
 });

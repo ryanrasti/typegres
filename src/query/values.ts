@@ -214,10 +214,7 @@ const createSetOperation = <Q extends Query, Q2 extends Query>(
   ) as any;
 };
 
-import { 
-  OrderByExpression, 
-  compileOrderBy 
-} from "./order-by";
+import { OrderByExpression, compileOrderBy } from "./order-by";
 
 export type JoinType = "JOIN" | "LEFT JOIN" | "RIGHT JOIN" | "FULL OUTER JOIN";
 type Join = {
