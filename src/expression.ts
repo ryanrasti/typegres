@@ -1,6 +1,8 @@
 import { RawBuilder, sql } from "kysely";
 import type { Query, RowLike, Setof } from "./query/values";
 import type { Any } from "./types";
+import type { OrderBySpec } from "./query/order-by";
+import { compileOrderBy } from "./query/order-by";
 
 export class QueryAlias {
   constructor(public name: string) {}
@@ -258,7 +260,7 @@ export class SetOperationExpression extends SelectableExpression {
 
 export interface WindowSpec {
   partitionBy?: Any | Any[];
-  orderBy?: Any | Any[] | [Any, "asc" | "desc"] | Array<[Any, "asc" | "desc"]>;
+  orderBy?: OrderBySpec;
 }
 
 export class WindowExpression extends Expression {
@@ -270,42 +272,17 @@ export class WindowExpression extends Expression {
   }
 
   compile(ctx: Context) {
-    const parts: RawBuilder<unknown>[] = [];
+    const parts = [
+      this.spec?.partitionBy && sql`PARTITION BY ${sql.join(
+        [this.spec.partitionBy].flat().map(p => p.toExpression().compile(ctx))
+      )}`,
+      this.spec?.orderBy && sql`ORDER BY ${sql.join(
+        compileOrderBy(this.spec.orderBy, ctx)
+      )}`,
+    ].filter((x) => x != null);
     
-    if (this.spec?.partitionBy) {
-      const partitions = Array.isArray(this.spec.partitionBy) 
-        ? this.spec.partitionBy 
-        : [this.spec.partitionBy];
-      parts.push(sql`PARTITION BY ${sql.join(partitions.map(p => p.toExpression().compile(ctx)))}`);
-    }
-    
-    if (this.spec?.orderBy) {
-      // Check if orderBy is a single tuple [expr, "asc"/"desc"]
-      const isSingleTuple = Array.isArray(this.spec.orderBy) && 
-        this.spec.orderBy.length === 2 && 
-        typeof this.spec.orderBy[1] === 'string';
-      
-      const orderItems = isSingleTuple 
-        ? [this.spec.orderBy as [Any, string]]
-        : Array.isArray(this.spec.orderBy) 
-          ? this.spec.orderBy 
-          : [this.spec.orderBy];
-      
-      const orderClauses = orderItems.map(item => {
-        if (Array.isArray(item)) {
-          const [expr, dir] = item;
-          return sql`${expr.toExpression().compile(ctx)} ${sql.raw(dir.toUpperCase())}`;
-        }
-        return (item as Any).toExpression().compile(ctx);
-      });
-      
-      parts.push(sql`ORDER BY ${sql.join(orderClauses)}`);
-    }
-    
-    if (parts.length > 0) {
-      return sql`${this.func.compile(ctx)} OVER (${sql.join(parts, sql` `)})`;
-    } else {
-      return sql`${this.func.compile(ctx)} OVER ()`;
-    }
+    return sql`${this.func.compile(ctx)} OVER (${
+      parts.length > 0 ? sql.join(parts, sql` `) : sql``
+    })`;
   }
 }

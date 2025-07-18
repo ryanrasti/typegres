@@ -241,4 +241,39 @@ describe("Window Functions", () => {
       { customer: "Bob", product: "Widget", customerOrderCount: 2n, totalOrderCount: 5n },
     ]);
   });
+
+  it("can use ORDER BY with nulls first/last", async () => {
+    const scores = values(
+      { student: Text.new("Alice"), score: Int4.new(85) },
+      { student: Text.new("Bob"), score: Int4.new(null) },
+      { student: Text.new("Charlie"), score: Int4.new(92) },
+      { student: Text.new("David"), score: Int4.new(null) },
+      { student: Text.new("Eve"), score: Int4.new(78) },
+    );
+
+    const result = await scores
+      .select((s) => ({
+        student: s.student,
+        score: s.score,
+        rankWithNullsLast: s.student.count().over({ 
+          orderBy: [s.score, "desc nulls last"] 
+        }),
+        rankWithNullsFirst: s.student.count().over({ 
+          orderBy: [s.score, "desc nulls first"] 
+        }),
+      }))
+      .orderBy((s) => s.student)
+      .execute(testDb);
+
+    // With nulls last, NULL values should come after all non-NULL values
+    const nullsLast = result.filter(r => r.score === null);
+    const nonNullsLast = result.filter(r => r.score !== null);
+    
+    expect(nullsLast.every(r => r.rankWithNullsLast === 5n)).toBe(true);
+    expect(nonNullsLast.every(r => r.rankWithNullsLast! < 5n)).toBe(true);
+    
+    // With nulls first, NULL values should come before all non-NULL values
+    expect(nullsLast.every(r => r.rankWithNullsFirst! <= 2n)).toBe(true);
+    expect(nonNullsLast.every(r => r.rankWithNullsFirst! > 2n)).toBe(true);
+  });
 });
