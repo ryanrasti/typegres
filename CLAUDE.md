@@ -12,3 +12,5 @@
   * Overloading functions
   * When the function is used as a method on a class or object
   * A generator function
+
+1. The goal of the project is to be TYPE-SAFE and expressive. Don't just remove type checks/tests because the "functionality works" (i.e., at runtime). Proper typing is as import as runtime correctness.
