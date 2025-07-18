@@ -38,7 +38,7 @@ export function caseWhen<N extends number, T extends Any<unknown, N>>(
 ): AsNullable<T>;
 
 export function caseWhen<R extends Any<unknown, N>, N extends number>(
-  ...args: [WhenThen<R>, ...(WhenThen<R> | Types.Any<R, N>)[] ]
+  ...args: [WhenThen<R>, ...(WhenThen<R> | Types.Any<R, N>)[]]
 ): Types.Any<R, N> {
   const lastArg = args[args.length - 1];
   const hasElse = lastArg && lastArg instanceof Types.Any;
@@ -73,30 +73,33 @@ export function caseWhen<R extends Any<unknown, N>, N extends number>(
 
   if (!typeStr || !resultClass) {
     throw new Error(
-      `Cannot create CASE expression: unable to determine result type`
+      `Cannot create CASE expression: unable to determine result type`,
     );
   }
 
-  return resultClass.new(new CaseExpression(
-    whenThens.map(({ when, then }) => ({
-      condition: when.toExpression(),
-      result: then.toExpression(),
-    })),
-    elseValue?.toExpression()
-  )) as Types.Any<R, N>;
+  return resultClass.new(
+    new CaseExpression(
+      whenThens.map(({ when, then }) => ({
+        condition: when.toExpression(),
+        result: then.toExpression(),
+      })),
+      elseValue?.toExpression(),
+    ),
+  ) as Types.Any<R, N>;
 }
 
 export class CaseExpression extends Expression {
   constructor(
     private whens: Array<{ condition: Expression; result: Expression }>,
-    private elseResult?: Expression
+    private elseResult?: Expression,
   ) {
     super();
   }
 
   compile(ctx: Context) {
     const whenClauses = this.whens.map(
-      (w) => sql`WHEN ${w.condition.compile(ctx)} THEN ${w.result.compile(ctx)}`
+      (w) =>
+        sql`WHEN ${w.condition.compile(ctx)} THEN ${w.result.compile(ctx)}`,
     );
 
     const elsePart = this.elseResult

@@ -150,6 +150,10 @@ export const sqlFunction = (
           name,
           argsAsExpressions as [Expression, Expression],
         )
-      : new FunctionExpression(name, argsAsExpressions, matchingDef.isReserved || false),
+      : new FunctionExpression(
+          name,
+          argsAsExpressions,
+          matchingDef.isReserved || false,
+        ),
   );
 };

@@ -6,7 +6,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   resolve: {
     alias: {
-        typegres: fileURLToPath(new URL("./src/index.ts", import.meta.url)),
-    }
+      typegres: fileURLToPath(new URL("./src/index.ts", import.meta.url)),
+    },
   },
 });

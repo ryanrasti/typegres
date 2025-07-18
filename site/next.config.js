@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  output: "export",
   trailingSlash: true,
   images: {
-    unoptimized: true
+    unoptimized: true,
   },
   webpack: (config, { isServer }) => {
     // Handle Monaco Editor
@@ -13,7 +13,7 @@ const nextConfig = {
         fs: false,
         path: false,
         crypto: false,
-      }
+      };
     }
 
     // Handle PGLite
@@ -21,10 +21,10 @@ const nextConfig = {
       ...config.experiments,
       topLevelAwait: true,
       asyncWebAssembly: true,
-    }
+    };
 
-    return config
+    return config;
   },
-}
+};
 
-export default nextConfig
+export default nextConfig;

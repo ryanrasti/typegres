@@ -1,27 +1,27 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
-const typegresPath = path.join(__dirname, '../node_modules/typegres');
-const outputPath = path.join(__dirname, '../lib/typegres-bundle.ts');
+const typegresPath = path.join(__dirname, "../node_modules/typegres");
+const outputPath = path.join(__dirname, "../lib/typegres-bundle.ts");
 
 // Read all .d.ts files from typegres
-function readDtsFiles(dir, baseDir = '') {
+function readDtsFiles(dir, baseDir = "") {
   const files = {};
   const items = fs.readdirSync(dir);
-  
+
   for (const item of items) {
     const fullPath = path.join(dir, item);
     const relativePath = path.join(baseDir, item);
     const stat = fs.statSync(fullPath);
-    
-    if (stat.isDirectory() && !item.includes('test')) {
+
+    if (stat.isDirectory() && !item.includes("test")) {
       Object.assign(files, readDtsFiles(fullPath, relativePath));
-    } else if (item.endsWith('.d.ts') && !item.includes('test')) {
-      const content = fs.readFileSync(fullPath, 'utf8');
+    } else if (item.endsWith(".d.ts") && !item.includes("test")) {
+      const content = fs.readFileSync(fullPath, "utf8");
       files[relativePath] = content;
     }
   }
-  
+
   return files;
 }
 
@@ -29,39 +29,39 @@ function readDtsFiles(dir, baseDir = '') {
 function createMainIndex(files) {
   // Start with basic structure
   let mainExports = [];
-  
+
   // Check what's exported from key files
-  if (files['dist/expression.d.ts']) {
+  if (files["dist/expression.d.ts"]) {
     mainExports.push('export * from "./dist/expression"');
   }
-  if (files['dist/query/db.d.ts']) {
+  if (files["dist/query/db.d.ts"]) {
     mainExports.push('export * from "./dist/query/db"');
   }
-  if (files['dist/query/values.d.ts']) {
+  if (files["dist/query/values.d.ts"]) {
     mainExports.push('export * from "./dist/query/values"');
   }
-  if (files['dist/sql-function.d.ts']) {
+  if (files["dist/sql-function.d.ts"]) {
     mainExports.push('export * from "./dist/sql-function"');
   }
-  if (files['dist/types/index.d.ts']) {
+  if (files["dist/types/index.d.ts"]) {
     mainExports.push('export * from "./dist/types/index"');
   }
-  if (files['dist/gen/functions.d.ts']) {
+  if (files["dist/gen/functions.d.ts"]) {
     mainExports.push('export * from "./dist/gen/functions"');
   }
-  if (files['dist/gen/tables.d.ts']) {
+  if (files["dist/gen/tables.d.ts"]) {
     mainExports.push('export * from "./dist/gen/tables"');
   }
-  
-  return mainExports.join('\n');
+
+  return mainExports.join("\n");
 }
 
 // Bundle all files
-console.log('Reading typegres type definitions...');
+console.log("Reading typegres type definitions...");
 const typeFiles = readDtsFiles(path.join(typegresPath));
 
 // Add a main index.d.ts
-typeFiles['index.d.ts'] = createMainIndex(typeFiles);
+typeFiles["index.d.ts"] = createMainIndex(typeFiles);
 
 // Create the bundle
 const bundleContent = `// Auto-generated bundle of typegres type definitions
@@ -91,4 +91,6 @@ export function installTypegresToMonaco(monaco: typeof import('monaco-editor')) 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, bundleContent);
 
-console.log(`Successfully bundled ${Object.keys(typeFiles).length} type definition files to ${outputPath}`);
+console.log(
+  `Successfully bundled ${Object.keys(typeFiles).length} type definition files to ${outputPath}`,
+);

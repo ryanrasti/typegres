@@ -3,7 +3,16 @@
   "entryPointStrategy": "resolve",
   "out": "./public/api",
   "tsconfig": "../tsconfig.json",
-  "exclude": ["**/*.test.ts", "**/test/**", "**/gen/**/*.json", "**/node_modules/**", "**/site/**", "**/dist/**", "**/pages/**", "**/*.tsx"],
+  "exclude": [
+    "**/*.test.ts",
+    "**/test/**",
+    "**/gen/**/*.json",
+    "**/node_modules/**",
+    "**/site/**",
+    "**/dist/**",
+    "**/pages/**",
+    "**/*.tsx"
+  ],
   "excludePrivate": true,
   "excludeProtected": true,
   "excludeInternal": true,

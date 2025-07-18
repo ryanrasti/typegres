@@ -9,7 +9,9 @@ const CircleArray = Array.of(Circle);
 
 describe("Types & functions", () => {
   it("composes and runs a basic expression", async () => {
-    expect(await Text.new("foo").textcat(Text.new("bar")).length().execute(testDb)).toEqual(6);
+    expect(
+      await Text.new("foo").textcat(Text.new("bar")).length().execute(testDb),
+    ).toEqual(6);
   });
 
   it("infers return type basic", async () => {
@@ -22,7 +24,8 @@ describe("Types & functions", () => {
     const res = await Text.new("foo")
       .arrayFill(IntegerArray.new("{2}"))
       .arrayAppend(Text.new("bar"))
-      .arrayCat(TextArray.new("{baz, buz}")).execute(testDb);
+      .arrayCat(TextArray.new("{baz, buz}"))
+      .execute(testDb);
 
     expect(res).toEqual(["foo", "foo", "bar", "baz", "buz"]);
     assert<Equals<typeof res, string[]>>;
@@ -50,7 +53,8 @@ describe("Types & functions", () => {
     const res = await (Text.new(null) as unknown as Text<1>)
       .arrayFill(IntegerArray.new("{2}"))
       .arrayAppend(Text.new("bar"))
-      .arrayCat(TextArray.new("{baz, buz}")).execute(testDb);
+      .arrayCat(TextArray.new("{baz, buz}"))
+      .execute(testDb);
 
     expect(res).toEqual([null, null, "bar", "baz", "buz"]);
 
@@ -62,7 +66,8 @@ describe("Types & functions", () => {
     const res = await Circle.new("<(1,2),3>")
       .arrayFill(IntegerArray.new("{2}"))
       .arrayAppend(Circle.new("<(3,4),5>"))
-      .arrayCat(CircleArray.new('{"<(8,9),10>"}')).execute(testDb);
+      .arrayCat(CircleArray.new('{"<(8,9),10>"}'))
+      .execute(testDb);
 
     expect(res).toEqual(["<(1,2),3>", "<(1,2),3>", "<(3,4),5>", "<(8,9),10>"]);
     assert<Equals<typeof res, string[]>>;
@@ -72,7 +77,8 @@ describe("Types & functions", () => {
     const res = await Circle.new("<(1,2),3>")
       .arrayFill(IntegerArray.new("{2}"))
       .arrayAppend(Circle.new("<(3,4),5>"))
-      .arrayCat(CircleArray.new('{"<(8,9),10>"}')).execute(testDb);
+      .arrayCat(CircleArray.new('{"<(8,9),10>"}'))
+      .execute(testDb);
 
     expect(res).toEqual(["<(1,2),3>", "<(1,2),3>", "<(3,4),5>", "<(8,9),10>"]);
     assert<Equals<typeof res, string[]>>;
@@ -93,7 +99,8 @@ describe("Types & functions", () => {
   it("can use serialized type in function calls -- with generic text", async () => {
     const res = await Text.new("foo")
       .arrayFill(IntegerArray.new("{2}"))
-      .arrayAppend("bar").execute(testDb);
+      .arrayAppend("bar")
+      .execute(testDb);
 
     expect(res).toEqual(["foo", "foo", "bar"]);
     assert<Equals<typeof res, string[]>>;

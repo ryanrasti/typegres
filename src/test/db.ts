@@ -5,13 +5,12 @@ import {
   PostgresAdapter,
   PostgresIntrospector,
   PostgresQueryCompiler,
-} from 'kysely'
+} from "kysely";
 import { SeedDatabase, testSeeds } from "./seeds";
 import { Typegres } from "../db";
 
-
 export const dummyDb = new Kysely<SeedDatabase>({
- dialect: {
+  dialect: {
     createAdapter: () => new PostgresAdapter(),
     createDriver: () => new DummyDriver(),
     createIntrospector: (db) => new PostgresIntrospector(db),
@@ -32,7 +31,9 @@ export const withDb = async (
   try {
     await db._internal.transaction().execute(async (txn) => {
       await testSeeds(txn as unknown as Transaction<SeedDatabase>);
-      throw new ExpectedRollbackException(await fn(Typegres._createFromKysely(txn as unknown as Transaction<{}>)));
+      throw new ExpectedRollbackException(
+        await fn(Typegres._createFromKysely(txn as unknown as Transaction<{}>)),
+      );
     });
   } catch (e) {
     if (!(e instanceof ExpectedRollbackException)) {

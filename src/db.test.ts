@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { sql } from "kysely";
 import { Pool } from "pg";
-import { typegres} from "./db";
+import { typegres } from "./db";
 
 export const testDb = await typegres({
   type: "pg",
@@ -12,7 +12,7 @@ export const testDb = await typegres({
     user: "postgres",
     password: "postgres",
     database: "test",
-  }
+  },
 });
 
 describe("App", () => {

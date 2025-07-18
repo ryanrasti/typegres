@@ -28,7 +28,7 @@ describe("demo.ts examples", async () => {
     expect(Array.isArray(example1)).toBe(true);
     // Should group by species and aggregate
     expect(
-      example1?.toSorted((a, b) => a.species.localeCompare(b.species))
+      example1?.toSorted((a, b) => a.species.localeCompare(b.species)),
     ).toEqual([
       {
         species: "cat",

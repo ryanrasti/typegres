@@ -21,12 +21,12 @@ async function getEsbuild() {
   // Start initialization
   globalThis.__esbuildInitializePromise = (async () => {
     const esbuild = await import("esbuild-wasm");
-    
+
     // Initialize with the CDN URL (simpler than trying to serve from node_modules)
     await esbuild.initialize({
       wasmURL: "https://unpkg.com/esbuild-wasm@0.25.5/esbuild.wasm",
     });
-    
+
     globalThis.__esbuildModule = esbuild;
   })();
 
@@ -35,7 +35,7 @@ async function getEsbuild() {
 }
 
 export async function setupMonacoWithTypegres(
-  monaco: typeof import("monaco-editor")
+  monaco: typeof import("monaco-editor"),
 ) {
   // Ensure esbuild is available (but don't need to use it here)
   await getEsbuild();
@@ -87,12 +87,12 @@ ${rawTypes}
   // Add the module declaration to Monaco
   monaco.languages.typescript.typescriptDefaults.addExtraLib(
     typegresModule,
-    "file:///node_modules/typegres/index.d.ts"
+    "file:///node_modules/typegres/index.d.ts",
   );
 
   console.log(
     "Loading typegres types, first 1000 chars:",
-    typegresModule.substring(0, 1000)
+    typegresModule.substring(0, 1000),
   );
 
   // Enable type acquisition
@@ -119,7 +119,7 @@ export async function transformCodeWithEsbuild(code: string): Promise<string> {
 
 export async function runTypegresCode(
   code: string,
-  typegresJsUrl: string
+  typegresJsUrl: string,
 ): Promise<{ sql: string; result?: any; error?: string }> {
   try {
     // Transform TypeScript code to JavaScript
