@@ -8,7 +8,7 @@ import { Int2, Int4, Int8, Float4, Float8, Numeric } from "../gen/types";
 
 //     all arrays
 export * from "../gen/types";
-export { default as Any, type WithNullability } from "./any";
+export { default as Any } from "./any";
 export { default as Array } from "./array";
 export { default as Bool } from "./bool";
 export { default as Text } from "./text";

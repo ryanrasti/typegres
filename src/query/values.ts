@@ -7,7 +7,7 @@ import {
   NotExistsExpression,
   SetOperationExpression,
 } from "../expression";
-import { Any, Bool, NumericLike, Record, WithNullability } from "../types";
+import { Any, Bool, NumericLike, Record } from "../types";
 import { dummyDb } from "../test/db";
 import { AggregateOfRow } from "../types/aggregate";
 import { Primitive, maybePrimitiveToSqlType } from "../types/primitive";
@@ -15,6 +15,7 @@ import { row } from "../types/record";
 import { Context } from "../expression";
 import type { Typegres } from "../db";
 import invariant from "tiny-invariant";
+import { MakeNullable } from "../types/any";
 
 export type RowLike = {
   [key: string]: Any<unknown, 0 | 1>;
@@ -146,9 +147,9 @@ const parseRowLike = <R extends RowLike>(
 
 // Helper type to make all columns in a RowLike nullable
 type MakeRowNullable<R> = R extends RowLike
-  ? { [K in keyof R]: WithNullability<0 | 1, R[K]> }
+  ? { [K in keyof R]: MakeNullable<R[K]> }
   : R extends Scalar
-    ? WithNullability<0 | 1, R>
+    ? MakeNullable<R>
     : never;
 
 type MakeJoinsNullable<J extends Query["joins"]> = {
@@ -429,13 +430,10 @@ export class Setof<Q extends Query> extends Expression {
     j: Setof<J>,
     as: A,
     type: JoinType,
-    on: (from: Q["from"], js: any) => Bool<0 | 1> | boolean
+    on: (from: Q["from"] & MakeRowNullable<Q["from"]>, js: any) => Bool<0 | 1> | boolean
   ) {
     const alias = new QueryAlias(as);
-    const row = aliasRowLike(
-      alias,
-      resultType(j.query) as RowLike
-    ) as RowLike;
+    const row = aliasRowLike(alias, resultType(j.query) as RowLike) as RowLike;
 
     return new Setof(
       this.rawFromExpr,
@@ -451,7 +449,7 @@ export class Setof<Q extends Query> extends Expression {
           [as]: {
             table: j,
             on: maybePrimitiveToSqlType(
-              on(this.query.from, {
+              on(this.query.from as Q["from"] & MakeRowNullable<Q["from"]>, {
                 ...this.joinTables(),
                 ...({ [as]: row } as { [a in A]: ResultType<J> }),
               })
@@ -495,8 +493,8 @@ export class Setof<Q extends Query> extends Expression {
       js: JoinTables<Q["joins"]> & { [a in A]: MakeRowNullable<ResultType<J>> }
     ) => Bool<0 | 1> | boolean
   ) {
-    return this.joinWithType(j, as, "LEFT JOIN", on) as Setof<
-      Q & {
+    return this.joinWithType(j, as, "LEFT JOIN", on) as unknown as Setof<
+      Omit<Q, "joins"> & {
         joins: Q["joins"] & {
           [a in A]: {
             table: Setof<J>;
@@ -519,8 +517,8 @@ export class Setof<Q extends Query> extends Expression {
       }
     ) => Bool<0 | 1> | boolean
   ) {
-    return this.joinWithType(j, as, "RIGHT JOIN", on) as Setof<
-      Q & {
+    return this.joinWithType(j, as, "RIGHT JOIN", on) as unknown as Setof<
+      Omit<Q, "from" | "joins"> & {
         from: MakeRowNullable<Q["from"]>;
         joins: MakeJoinsNullable<Q["joins"]> & {
           [a in A]: {
@@ -544,8 +542,8 @@ export class Setof<Q extends Query> extends Expression {
       }
     ) => Bool<0 | 1> | boolean
   ) {
-    return this.joinWithType(j, as, "FULL OUTER JOIN", on) as Setof<
-      Q & {
+    return this.joinWithType(j, as, "FULL OUTER JOIN", on) as unknown as Setof<
+      Omit<Q, "from" | "joins"> & {
         from: MakeRowNullable<Q["from"]>;
         joins: MakeJoinsNullable<Q["joins"]> & {
           [a in A]: {
