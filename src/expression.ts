@@ -1,5 +1,8 @@
 import { RawBuilder, sql } from "kysely";
 import type { Query, RowLike, Setof } from "./query/values";
+import type { Any } from "./types";
+import type { OrderBySpec } from "./query/order-by";
+import { compileOrderBy } from "./query/order-by";
 
 export class QueryAlias {
   constructor(public name: string) {}
@@ -252,5 +255,36 @@ export class SetOperationExpression extends SelectableExpression {
 
   compile(ctx: Context) {
     return sql`(${this.left.compile(ctx)} ${sql.raw(this.operation)} ${this.right.compile(ctx)})`;
+  }
+}
+
+export interface WindowSpec {
+  partitionBy?: Any | Any[];
+  orderBy?: OrderBySpec;
+}
+
+export class WindowExpression extends Expression {
+  constructor(
+    public func: Expression,
+    public spec?: WindowSpec,
+  ) {
+    super();
+  }
+
+  compile(ctx: Context) {
+    const parts = [
+      this.spec?.partitionBy &&
+        sql`PARTITION BY ${sql.join(
+          [this.spec.partitionBy]
+            .flat()
+            .map((p) => p.toExpression().compile(ctx)),
+        )}`,
+      this.spec?.orderBy &&
+        sql`ORDER BY ${sql.join(compileOrderBy(this.spec.orderBy, ctx))}`,
+    ].filter((x) => x != null);
+
+    return sql`${this.func.compile(ctx)} OVER (${
+      parts.length > 0 ? sql.join(parts, sql` `) : sql``
+    })`;
   }
 }

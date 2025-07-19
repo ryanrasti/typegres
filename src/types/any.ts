@@ -8,6 +8,8 @@ import {
   NotInExpression,
   ExpressionLike,
   isExpressionLike,
+  WindowExpression,
+  WindowSpec,
 } from "../expression";
 import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
@@ -195,6 +197,15 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
         this.toExpressionHelper(other),
       ]),
     ) as Types.Bool<1>;
+  }
+
+  /**
+   * SQL OVER clause - converts an aggregate function to a window function
+   * Can be used with partition by and order by specifications
+   */
+  over(spec?: WindowSpec): this {
+    const windowExpr = new WindowExpression(this.toExpression(), spec);
+    return this.getClass().new(windowExpr) as this;
   }
 
   /**

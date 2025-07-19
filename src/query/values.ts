@@ -14,7 +14,6 @@ import { Primitive, maybePrimitiveToSqlType } from "../types/primitive";
 import { row } from "../types/record";
 import { Context } from "../expression";
 import type { Typegres } from "../db";
-import invariant from "tiny-invariant";
 import { MakeNullable } from "../types/any";
 
 export type RowLike = {
@@ -215,15 +214,7 @@ const createSetOperation = <Q extends Query, Q2 extends Query>(
   ) as any;
 };
 
-type OrderByAscDesc = "asc" | "desc";
-type OrderByNulls = "nulls first" | "nulls last";
-type OrderBySuffix =
-  | OrderByAscDesc
-  | OrderByNulls
-  | `${OrderByAscDesc} ${OrderByNulls}`;
-type OrderByExpression =
-  | Any<unknown, 0 | 1>
-  | [Any<unknown, 0 | 1>, OrderBySuffix];
+import { OrderByExpression, compileOrderBy } from "./order-by";
 
 export type JoinType = "JOIN" | "LEFT JOIN" | "RIGHT JOIN" | "FULL OUTER JOIN";
 type Join = {
@@ -648,27 +639,7 @@ export class Setof<Q extends Query> extends Expression {
       : sql``;
 
     const orderBy = this.query.orderBys
-      ? sql`ORDER BY ${sql.join(
-          this.query.orderBys.map((expr) => {
-            if (Array.isArray(expr)) {
-              const [e, suffix] = expr;
-              const parts = suffix.split(" ");
-              invariant(
-                parts.length > 0 && parts.length <= 3,
-                `Invalid order by suffix: ${suffix}`,
-              );
-              invariant(
-                parts.every((p) =>
-                  ["asc", "desc", "nulls", "first", "last"].includes(p),
-                ),
-                `Invalid order by suffix: ${suffix}`,
-              );
-              return sql`${e.toExpression().compile(ctx)} ${sql.raw(suffix)}`;
-            }
-            return sql`${expr.toExpression().compile(ctx)}`;
-          }),
-          sql`, `,
-        )}`
+      ? sql`ORDER BY ${sql.join(compileOrderBy(this.query.orderBys, ctx), sql`, `)}`
       : sql``;
 
     const limit =
