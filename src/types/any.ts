@@ -252,13 +252,17 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
   in<T extends this>(list: Types.Input<T>[]): Types.Bool<N>;
   in<T extends this>(
     list: Types.Setof<
-      { from: Any | RowLike; select: T } | { from: T; select?: undefined }
+      | { from: Types.FromItem<Any | RowLike>; select: T }
+      | { from: Types.FromItem<T>; select?: undefined }
     >,
   ): Types.Bool<N>;
   in<T extends this, N2 extends number>(
     list:
       | Types.Input<T>[]
-      | Types.Setof<{ from: Any; select: T } | { from: T; select?: undefined }>,
+      | Types.Setof<
+          | { from: Types.FromItem<Any>; select: T }
+          | { from: Types.FromItem<T>; select?: undefined }
+        >,
   ): Types.Bool<N | N2> {
     return Types.Bool.new(
       new InExpression(
@@ -278,13 +282,17 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
   notIn<T extends this>(list: Types.Input<T>[]): Types.Bool<N>;
   notIn<T extends this>(
     list: Types.Setof<
-      { from: Any | RowLike; select: T } | { from: T; select?: undefined }
+      | { from: Types.FromItem<Any | RowLike>; select: T }
+      | { from: Types.FromItem<T>; select?: undefined }
     >,
   ): Types.Bool<N>;
   notIn<T extends this, N2 extends number>(
     list:
       | Types.Input<T>[]
-      | Types.Setof<{ from: Any; select: T } | { from: T; select?: undefined }>,
+      | Types.Setof<
+          | { from: Types.FromItem<Any>; select: T }
+          | { from: Types.FromItem<T>; select?: undefined }
+        >,
   ): Types.Bool<N | N2> {
     return Types.Bool.new(
       new NotInExpression(

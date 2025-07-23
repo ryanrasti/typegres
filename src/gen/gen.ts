@@ -124,7 +124,7 @@ export const asType = (
     if (runtime) {
       return `Types.Setof.ofSchema({${columns.join(", ")}})`;
     } else {
-      return `Types.Setof<{from: {${columns.join(", ")}}}>`;
+      return `Types.Setof<{from: Types.FromItem<{${columns.join(", ")}}>}>`;
     }
   }
 
