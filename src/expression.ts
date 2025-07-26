@@ -117,9 +117,11 @@ export class FunctionExpression extends Expression {
 
   compile(ctx: Context) {
     const funcName = this.isReserved ? sql.ref(this.name) : sql.raw(this.name);
-    return sql`${funcName}(${sql.join(
-      this.args.map((arg) => arg.compile(ctx)),
-    )})`;
+    return sql`${funcName}(${
+      this.args.length === 0
+        ? sql``
+        : sql.join(this.args.map((arg) => arg.compile(ctx)))
+    })`;
   }
 }
 

@@ -68,7 +68,7 @@ type InsertColumns<R extends RowLike> = {
   [key in keyof R as R[key] extends typeof Generated ? never : key]: R[key];
 };
 
-class Table<Q extends Query> extends Setof<Q> {
+export class Table<Q extends Query> extends Setof<Q> {
   constructor(
     public rawFromExpr: RawTableReferenceExpression,
     public fromAlias: QueryAlias,

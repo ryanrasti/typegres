@@ -32,6 +32,7 @@ src/gen/types/
 src/gen/functions.ts
 src/gen/functions.json
 src/gen/tables.json
+src/grammar/generated
 
 .aider*
 .envrc.secrets
