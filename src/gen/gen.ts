@@ -68,6 +68,14 @@ type FunctionsFile = {
 };
 
 const keepFunction = (name: string, definitionns: FunctionDefinition[]) => {
+  const falsePositives = [
+    // ends with `in`:
+    "sin",
+  ];
+  if (falsePositives.includes(name)) {
+    return true;
+  }
+
   return (
     // Skip functions that start with _send/recv/in/out
     !/_?(?:send|recv|in|out)$/.test(name) &&
