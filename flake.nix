@@ -52,10 +52,7 @@
                 psql -U postgres -h localhost -p 1234 < <(echo "create database test")
 
                 export PATH=$PWD/node_modules/.bin:$PATH
-                bash ./src/gen/gen.sh
-
-                #ls -lrath ./node_modules/.bin >&2
-                #exit 1
+                npm run codegen
               '';
 
               installPhase = ''
