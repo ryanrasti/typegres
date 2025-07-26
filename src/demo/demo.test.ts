@@ -7,6 +7,7 @@ describe("demo.ts examples", async () => {
     "Example 1"?: { species: string }[];
     "Example 2"?: { key: string; isNum: boolean }[];
     "Example 3"?: { personName: string; petSpecies: string; petAge: number }[];
+    "Example 4"?: { result: number }[];
   } = {};
 
   const spyConsole = vi
@@ -21,6 +22,7 @@ describe("demo.ts examples", async () => {
     "Example 1": example1,
     "Example 2": example2,
     "Example 3": example3,
+    "Example 4": example4,
   } = calls;
 
   it("example1: grouping and aggregation on pets", async () => {
@@ -62,5 +64,10 @@ describe("demo.ts examples", async () => {
       { personName: "Bob", petSpecies: "dog", petAge: 3 },
       { personName: "Charlie", petSpecies: "dog", petAge: 10 },
     ]);
+  });
+
+  it("example4: math coverage", async () => {
+    expect(Array.isArray(example4)).toBe(true);
+    expect(example4).toEqual([{ result: 1.669026835867367 }]);
   });
 });
