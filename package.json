@@ -15,7 +15,7 @@
     "format:check": "prettier --check \"**/*.{ts,js,json}\"",
     "codegen": "npm run codegen:types && npm run codegen:parsers",
     "codegen:types": "bash ./src/gen/gen.sh && kysely --no-outdated-check migrate:up -e test && bash ./src/gen/table-gen.sh",
-    "codegen:parsers": "tsx src/grammar/gen.ts",
+    "codegen:parsers": "tsx src/grammar/index.ts",
     "clean": "(rm ./src/gen/functions.ts; rm -r ./src/gen/types; rm ./src/gen/tables.json; rm ./src/gen/tables.ts) || true",
     "prepublishOnly": "npm version $(npm pkg get version | tr -d '\"')-$(git rev-parse --short HEAD) --no-git-tag-version"
   },
