@@ -6,7 +6,7 @@ const tg = await typegres({ type: "pglite" });
 const pets = values(
   { species: Text.new("cat"), age: Float8.new(2), id: Int8.new(1n) },
   { species: Text.new("dog"), age: Float8.new(3), id: Int8.new(2n) },
-  { species: Text.new("dog"), age: Float8.new(10), id: Int8.new(3n) }
+  { species: Text.new("dog"), age: Float8.new(10), id: Int8.new(3n) },
 );
 
 const example1 = await pets
@@ -41,7 +41,7 @@ console.log("Example 2", example2);
 const people = values(
   { id: Int8.new(1n), name: Text.new("Alice"), petId: Int8.new(1n) },
   { id: Int8.new(2n), name: Text.new("Bob"), petId: Int8.new(2n) },
-  { id: Int8.new(3n), name: Text.new("Charlie"), petId: Int8.new(3n) }
+  { id: Int8.new(3n), name: Text.new("Charlie"), petId: Int8.new(3n) },
 );
 
 const example3 = await people
@@ -69,8 +69,8 @@ const homework = await values({
       .power(2)
       ["+"](
         exp(Float8.new(0)["-"](y.power(2)))["*"](
-          sqrt(abs(tan(x["*"](y)))["+"](1))
-        )
+          sqrt(abs(tan(x["*"](y)))["+"](1)),
+        ),
       ),
   }))
   .debug()

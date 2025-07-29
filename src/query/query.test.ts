@@ -227,14 +227,16 @@ describe("Queries", () => {
     });
   });
 
-  it("join", async () => {
+  it("basic join", async () => {
     const strings2 = values(
       { a: Text.new("foo"), b: Numeric.new("100") },
       { a: Text.new("baz"), b: Numeric.new("200") },
     );
 
     const res = await strings
-      .join(strings2, "s2", (s1, { s2 }) => s1.a.texteq(s2.a))
+      .join(strings2, "s2", (s1, { s2 }) => {
+        return s1.a.texteq(s2.a);
+      })
       .select((s, { s2 }) => ({
         a1: s.a,
         a2: s2.a,

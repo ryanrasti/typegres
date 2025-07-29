@@ -11,7 +11,6 @@ import { Any, Bool, NumericLike, Record } from "../types";
 import { dummyDb } from "../test/db";
 import { AggregateOfRow } from "../types/aggregate";
 import { Primitive, maybePrimitiveToSqlType } from "../types/primitive";
-import { row } from "../types/record";
 import { Context } from "../expression";
 import type { Typegres } from "../db";
 import { MakeNullable } from "../types/any";
@@ -151,22 +150,12 @@ type MakeRowNullable<R> = R extends RowLike
     ? MakeNullable<R>
     : never;
 
-type MakeJoinsNullable<J extends Query["joins"]> = {
-  [K in keyof J]: NonNullable<J>[K] & {
-    row: MakeRowNullable<NonNullable<J>[K]["row"]>;
-  };
-};
-
-type JoinTables<J extends Query["joins"]> = {
-  [key in keyof J]: NonNullable<J>[key]["row"];
-};
-
 export type ResultType<Q extends Query> = Q["select"] extends RowLike | Scalar
   ? Q["select"]
-  : Q["from"];
+  : Q["from"]["from"];
 
 export const resultType = <Q extends Query>(query: Q) => {
-  return (query.select ?? query.from) as ResultType<Q>;
+  return (query.select ?? query.from.from) as ResultType<Q>;
 };
 
 export type AwaitedResultType<Q extends Query> =
@@ -176,13 +165,13 @@ export type AwaitedResultType<Q extends Query> =
       ? ScalarResult<Q["select"]>[]
       : Q["select"] extends RowLike
         ? RowLikeResult<Q["select"]>[]
-        : Q["from"] extends Scalar
-          ? ScalarResult<Q["from"]>[]
-          : RowLikeResult<Q["from"]>[];
+        : Q["from"]["from"] extends Scalar
+          ? ScalarResult<Q["from"]["from"]>[]
+          : RowLikeResult<Q["from"]["from"]>[];
 
 type SetOperationCompatible<Q extends Query> = {
   select?: ResultType<Q>;
-  from: ResultType<Q>;
+  from: FromItem<ResultType<Q>, Joins>;
 };
 
 const createSetOperation = <Q extends Query, Q2 extends Query>(
@@ -196,7 +185,7 @@ const createSetOperation = <Q extends Query, Q2 extends Query>(
     | "EXCEPT"
     | "EXCEPT ALL",
   aliasName: string,
-): Setof<{ from: ResultType<Q> }> => {
+): Setof<{ from: FromItem<ResultType<Q>, Joins> }> => {
   const alias = new QueryAlias(aliasName);
   const result = resultType(self.query);
   const schema = isScalar(result)
@@ -205,29 +194,30 @@ const createSetOperation = <Q extends Query, Q2 extends Query>(
   const aliasedResult = isScalar(result)
     ? aliasScalar(alias, result)
     : aliasRowLike(alias, result);
-  return new Setof(
-    new SetOperationExpression(self, other, operation, schema),
-    alias,
-    {},
-    { from: aliasedResult },
-    result,
-  ) as any;
+  return new Setof({
+    from: new FromItem(
+      new SetOperationExpression(self, other, operation, schema),
+      alias,
+      {},
+      aliasedResult,
+    ),
+  }) as any;
 };
 
 import { OrderByExpression, compileOrderBy } from "./order-by";
+import {
+  FromItem,
+  FromToSelectArgs,
+  Joins,
+  JoinTables,
+  MakeJoinsNullable,
+} from "./from-item";
 
 export type JoinType = "JOIN" | "LEFT JOIN" | "RIGHT JOIN" | "FULL OUTER JOIN";
-type Join = {
-  table: Setof<any>;
-  row: RowLike;
-  on: Bool<0 | 1>;
-  type: JoinType;
-};
 
 export type Query = {
   select?: RowLike | Scalar;
-  from: RowLike | Scalar;
-  joins?: { [key: string]: Join };
+  from: FromItem<RowLike | Scalar, Joins>;
   wheres?: [Bool<0 | 1>, ...Bool<0 | 1>[]];
   havings?: [Bool<0 | 1>, ...Bool<0 | 1>[]];
   groupBy?: Any<unknown, 0 | 1>[];
@@ -241,43 +231,26 @@ export type BindedSetof<Q extends Query> = typeof Setof<Q> & {
 };
 
 export type SelectArgs<Q extends Query> = Q["groupBy"] extends unknown[]
-  ? [AggregateOfRow<Q["from"]>, NonNullable<Q["groupBy"]>]
-  : [
-      Q["from"] extends RowLike ? Record<1, Q["from"]> & Q["from"] : Q["from"],
-      JoinTables<Q["joins"]>,
-    ];
+  ? [AggregateOfRow<Q["from"]["from"]>, NonNullable<Q["groupBy"]>]
+  : FromToSelectArgs<Q["from"]["from"], Q["from"]["joins"]>;
 
 export class Setof<Q extends Query> extends Expression {
-  constructor(
-    public rawFromExpr: Expression,
-    public fromAlias: QueryAlias,
-    public joinAliases: { [key: string]: QueryAlias },
-    public query: Q,
-    public fromRow: RowLike | Scalar,
-  ) {
+  constructor(public query: Q) {
     super();
   }
 
   static of<R extends RowLike>(fromRow: R) {
     return class extends Setof<{
-      from: R;
+      from: FromItem<R, Joins>;
       select: R;
       wheres: undefined;
       groupBy: undefined;
     }> {
       static new(fromExpr: Expression) {
         const alias = new QueryAlias("values");
-        return new Setof<{
-          from: R;
-        }>(
-          fromExpr,
-          alias,
-          {},
-          {
-            from: aliasRowLike(alias, fromRow),
-          },
-          fromRow,
-        );
+        return new Setof<{ from: FromItem<R, Joins> }>({
+          from: new FromItem(fromExpr, alias, {}, aliasRowLike(alias, fromRow)),
+        });
       }
     };
   }
@@ -292,189 +265,99 @@ export class Setof<Q extends Query> extends Expression {
 
   toSelectArgs(): SelectArgs<Q> {
     return Array.isArray(this.query.groupBy)
-      ? ([this.query.from, this.query.groupBy] as any)
-      : ([
-          isScalar(this.query.from)
-            ? this.query.from
-            : row(
-                this.query.from,
-                new TableReferenceExpression(this.fromAlias, this.query.from),
-              ),
-          this.joinTables(),
-        ] as any);
+      ? ([
+          this.query.from.toSelectArgs()[0],
+          this.query.groupBy,
+        ] as SelectArgs<Q>)
+      : (this.query.from.toSelectArgs() as SelectArgs<Q>);
   }
 
   select<S extends RowLikeRelaxed | ScalarRelaxed>(
     fn: (...from: SelectArgs<Q>) => S,
   ) {
-    return new Setof(
-      this.rawFromExpr,
-      this.fromAlias,
-      this.joinAliases,
-      {
-        ...this.query,
-        select: maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
-      },
-      this.fromRow,
-    );
+    return new Setof({
+      ...this.query,
+      select: maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
+    });
   }
 
   where(fn: (...from: SelectArgs<Q>) => Bool<0 | 1> | boolean) {
-    return new Setof(
-      this.rawFromExpr,
-      this.fromAlias,
-      this.joinAliases,
-      {
-        ...this.query,
-        wheres: [
-          ...(this.query.wheres ?? []),
-          maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
-        ],
-      },
-      this.fromRow,
-    );
+    return new Setof({
+      ...this.query,
+      wheres: [
+        ...(this.query.wheres ?? []),
+        maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
+      ],
+    });
   }
 
-  groupBy<G extends Any<unknown, 0 | 1>[]>(fn: (from: Q["from"]) => G) {
-    return new Setof(
-      this.rawFromExpr,
-      this.fromAlias,
-      this.joinAliases,
-      {
-        ...this.query,
-        groupBy: [...(this.query.groupBy ?? []), ...fn(this.query.from)] as [
-          ...(Q["groupBy"] extends unknown[] ? Q["groupBy"] : []),
-          ...G,
-        ],
-      },
-      this.fromRow,
-    );
+  groupBy<G extends Any<unknown, 0 | 1>[]>(fn: (...args: SelectArgs<Q>) => G) {
+    return new Setof({
+      ...this.query,
+      groupBy: [
+        ...(this.query.groupBy ?? []),
+        ...fn(...this.toSelectArgs()),
+      ] as [...(Q["groupBy"] extends unknown[] ? Q["groupBy"] : []), ...G],
+    });
   }
 
   having<H extends Bool<0 | 1> | boolean>(
     this: Setof<Q & { groupBy: unknown[] }>,
     fn: (...from: SelectArgs<Q>) => H,
   ) {
-    return new Setof(
-      this.rawFromExpr,
-      this.fromAlias,
-      this.joinAliases,
-      {
-        ...this.query,
-        havings: [
-          ...(this.query.havings ?? []),
-          maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
-        ],
-      },
-      this.fromRow,
-    );
+    return new Setof({
+      ...this.query,
+      havings: [
+        ...(this.query.havings ?? []),
+        maybePrimitiveToSqlType(fn(...this.toSelectArgs())),
+      ],
+    });
   }
 
   limit(limit: NumericLike | number) {
-    return new Setof(
-      this.rawFromExpr,
-      this.fromAlias,
-      this.joinAliases,
-      { ...this.query, limit },
-      this.fromRow,
-    );
+    return new Setof({ ...this.query, limit });
   }
 
   offset(offset: NumericLike | number) {
-    return new Setof(
-      this.rawFromExpr,
-      this.fromAlias,
-      this.joinAliases,
-      { ...this.query, offset },
-      this.fromRow,
-    );
+    return new Setof({ ...this.query, offset });
   }
 
   orderBy(...fns: Array<(...from: SelectArgs<Q>) => OrderByExpression>) {
-    return new Setof(
-      this.rawFromExpr,
-      this.fromAlias,
-      this.joinAliases,
-      {
-        ...this.query,
-        // Add new orderBys at the beginning to match user expectation
-        // Last call should be the primary sort
-        orderBys: [
-          ...(this.query.orderBys ?? []),
-          ...fns.map((fn) => fn(...this.toSelectArgs())),
-        ],
-      },
-      this.fromRow,
-    );
-  }
-
-  joinTables() {
-    return Object.fromEntries(
-      Object.entries({ ...this.query.joins }).map(([key, value]) => [
-        key,
-        value.row,
-      ]),
-    ) as JoinTables<Q["joins"]>;
-  }
-
-  joinWithType<J extends Query, A extends string>(
-    j: Setof<J>,
-    as: A,
-    type: JoinType,
-    on: (
-      from: Q["from"] & MakeRowNullable<Q["from"]>,
-      js: any,
-    ) => Bool<0 | 1> | boolean,
-  ) {
-    const alias = new QueryAlias(as);
-    const row = aliasRowLike(alias, resultType(j.query) as RowLike) as RowLike;
-
-    return new Setof(
-      this.rawFromExpr,
-      this.fromAlias,
-      {
-        ...this.joinAliases,
-        [as]: alias,
-      },
-      {
-        ...this.query,
-        joins: {
-          ...(this.query.joins as Q["joins"]),
-          [as]: {
-            table: j,
-            on: maybePrimitiveToSqlType(
-              on(this.query.from as Q["from"] & MakeRowNullable<Q["from"]>, {
-                ...this.joinTables(),
-                ...({ [as]: row } as { [a in A]: ResultType<J> }),
-              }),
-            ),
-            row,
-            type,
-          },
-        },
-      },
-      this.fromRow,
-    );
+    return new Setof({
+      ...this.query,
+      // Add new orderBys at the beginning to match user expectation
+      // Last call should be the primary sort
+      orderBys: [
+        ...(this.query.orderBys ?? []),
+        ...fns.map((fn) => fn(...this.toSelectArgs())),
+      ],
+    });
   }
 
   join<J extends Query, A extends string>(
     j: Setof<J>,
     as: A,
     on: (
-      from: Q["from"],
-      js: JoinTables<Q["joins"]> & { [a in A]: ResultType<J> },
+      from: Q["from"]["from"],
+      js: JoinTables<Q["from"]["joins"]> & { [a in A]: ResultType<J> },
     ) => Bool<0 | 1> | boolean,
   ) {
-    return this.joinWithType(j, as, "JOIN", on) as Setof<
-      Q & {
-        joins: Q["joins"] & {
-          [a in A]: {
-            table: Setof<J>;
-            on: Bool<0 | 1>;
-            row: ResultType<J>;
-            type: "JOIN";
-          };
-        };
+    return new Setof({
+      ...this.query,
+      from: this.query.from.join(j, as, on),
+    }) as unknown as Setof<
+      Omit<Q, "from"> & {
+        from: FromItem<
+          Q["from"]["from"],
+          Q["from"]["joins"] & {
+            [a in A]: {
+              table: Setof<J>;
+              on: Bool<0 | 1>;
+              row: ResultType<J>;
+              type: "RIGHT JOIN";
+            };
+          }
+        >;
       }
     >;
   }
@@ -483,20 +366,28 @@ export class Setof<Q extends Query> extends Expression {
     j: Setof<J>,
     as: A,
     on: (
-      from: Q["from"],
-      js: JoinTables<Q["joins"]> & { [a in A]: MakeRowNullable<ResultType<J>> },
+      from: Q["from"]["from"],
+      js: JoinTables<Q["from"]["joins"]> & {
+        [a in A]: MakeRowNullable<ResultType<J>>;
+      },
     ) => Bool<0 | 1> | boolean,
   ) {
-    return this.joinWithType(j, as, "LEFT JOIN", on) as unknown as Setof<
-      Omit<Q, "joins"> & {
-        joins: Q["joins"] & {
-          [a in A]: {
-            table: Setof<J>;
-            on: Bool<0 | 1>;
-            row: MakeRowNullable<ResultType<J>>;
-            type: "LEFT JOIN";
-          };
-        };
+    return new Setof({
+      ...this.query,
+      from: this.query.from.leftJoin(j, as, on),
+    }) as unknown as Setof<
+      Omit<Q, "from"> & {
+        from: FromItem<
+          Q["from"]["from"],
+          Q["from"]["joins"] & {
+            [a in A]: {
+              table: Setof<J>;
+              on: Bool<0 | 1>;
+              row: MakeRowNullable<ResultType<J>>;
+              type: "RIGHT JOIN";
+            };
+          }
+        >;
       }
     >;
   }
@@ -505,23 +396,28 @@ export class Setof<Q extends Query> extends Expression {
     j: Setof<J>,
     as: A,
     on: (
-      from: MakeRowNullable<Q["from"]>,
-      js: JoinTables<MakeJoinsNullable<Q["joins"]>> & {
+      from: Q["from"]["from"],
+      js: JoinTables<Q["from"]["joins"]> & {
         [a in A]: ResultType<J>;
       },
     ) => Bool<0 | 1> | boolean,
   ) {
-    return this.joinWithType(j, as, "RIGHT JOIN", on) as unknown as Setof<
-      Omit<Q, "from" | "joins"> & {
-        from: MakeRowNullable<Q["from"]>;
-        joins: MakeJoinsNullable<Q["joins"]> & {
-          [a in A]: {
-            table: Setof<J>;
-            on: Bool<0 | 1>;
-            row: ResultType<J>;
-            type: "RIGHT JOIN";
-          };
-        };
+    return new Setof({
+      ...this.query,
+      from: this.query.from.rightJoin(j, as, on),
+    }) as unknown as Setof<
+      Omit<Q, "from"> & {
+        from: FromItem<
+          MakeRowNullable<Q["from"]["from"]>,
+          MakeJoinsNullable<Q["from"]["joins"]> & {
+            [a in A]: {
+              table: Setof<J>;
+              on: Bool<0 | 1>;
+              row: ResultType<J>;
+              type: "RIGHT JOIN";
+            };
+          }
+        >;
       }
     >;
   }
@@ -530,74 +426,47 @@ export class Setof<Q extends Query> extends Expression {
     j: Setof<J>,
     as: A,
     on: (
-      from: MakeRowNullable<Q["from"]>,
-      js: JoinTables<MakeJoinsNullable<Q["joins"]>> & {
+      from: Q["from"]["from"],
+      js: JoinTables<Q["from"]["joins"]> & {
         [a in A]: MakeRowNullable<ResultType<J>>;
       },
     ) => Bool<0 | 1> | boolean,
   ) {
-    return this.joinWithType(j, as, "FULL OUTER JOIN", on) as unknown as Setof<
-      Omit<Q, "from" | "joins"> & {
-        from: MakeRowNullable<Q["from"]>;
-        joins: MakeJoinsNullable<Q["joins"]> & {
-          [a in A]: {
-            table: Setof<J>;
-            on: Bool<0 | 1>;
-            row: MakeRowNullable<ResultType<J>>;
-            type: "FULL OUTER JOIN";
-          };
-        };
+    return new Setof({
+      ...this.query,
+      from: this.query.from.joinWithType(j, as, "FULL OUTER JOIN", on),
+    }) as unknown as Setof<
+      Omit<Q, "from"> & {
+        from: FromItem<
+          MakeRowNullable<Q["from"]["from"]>,
+          MakeJoinsNullable<Q["from"]["joins"]> & {
+            [a in A]: {
+              table: Setof<J>;
+              on: Bool<0 | 1>;
+              row: MakeRowNullable<ResultType<J>>;
+              type: "RIGHT JOIN";
+            };
+          }
+        >;
       }
     >;
   }
 
-  subquery(): Setof<{ from: ResultType<Q> }> {
+  subquery(): Setof<{ from: FromItem<ResultType<Q>, Joins> }> {
     const alias = new QueryAlias("subquery");
     const res = resultType(this.query);
-    return new Setof(
-      new SubqueryExpression(this),
-      alias,
-      this.joinAliases,
-      {
-        from: isScalar(res)
-          ? aliasScalar(alias, res)
-          : aliasRowLike(alias, res),
-      },
-      res,
-    );
-  }
-
-  tableColumnAlias() {
-    const keys = Object.keys(this.query.from)
-      .toSorted((k1, k2) => k1.localeCompare(k2))
-      .map((key) => sql.ref(key));
-    return sql.join(keys);
+    return new Setof({
+      from: new FromItem(
+        new SubqueryExpression(this),
+        alias,
+        {},
+        isScalar(res) ? aliasScalar(alias, res) : aliasRowLike(alias, res),
+      ),
+    });
   }
 
   compile(ctxIn: Context): RawBuilder<unknown> {
-    const ctx = ctxIn.withAliases([
-      this.fromAlias,
-      ...Object.values(this.joinAliases),
-    ]);
-
-    const from = sql`FROM ${this.rawFromExpr.compile(ctxIn)} as ${sql.ref(
-      ctx.getAlias(this.fromAlias),
-    )}${
-      this.rawFromExpr instanceof ValuesExpression
-        ? sql`(${this.tableColumnAlias()})`
-        : sql``
-    }`;
-
-    const joins = this.query.joins
-      ? sql.join(
-          Object.entries(this.query.joins ?? {}).map(([alias, join]) => {
-            return sql`${sql.raw(join.type)} ${join.table.compile(ctx)} as ${sql.ref(
-              ctx.getAlias(this.joinAliases[alias]),
-            )} ON ${join.on.toExpression().compile(ctx)}`;
-          }),
-          sql` `,
-        )
-      : sql``;
+    const [ctx, from, joins] = this.query.from.compile(ctxIn);
 
     const selectEntries = this.query.select
       ? isScalar(this.query.select)
@@ -652,7 +521,7 @@ export class Setof<Q extends Query> extends Expression {
         ? sql`OFFSET ${typeof this.query.offset === "number" ? this.query.offset : this.query.offset.toExpression().compile(ctx)}`
         : sql``;
 
-    return sql`(${select} ${from} ${joins} ${where} ${groupBy} ${having} ${orderBy} ${limit} ${offset})`;
+    return sql`(${select} FROM ${from} ${joins} ${where} ${groupBy} ${having} ${orderBy} ${limit} ${offset})`;
   }
 
   debug() {
@@ -670,7 +539,7 @@ export class Setof<Q extends Query> extends Expression {
     );
     const resultRowLike = this.query.select
       ? this.query.select
-      : this.query.from;
+      : this.query.from.from;
 
     try {
       const result = await kexpr;
