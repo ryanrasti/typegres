@@ -14,6 +14,8 @@ export { default as Bool } from "./bool";
 export { default as Text } from "./text";
 export { default as Record } from "./record";
 export { Setof as Setof } from "../query/values";
+export type { RowLike } from "../query/values";
+export type { Table } from "../query/db";
 export type { FromItem } from "../query/from-item";
 export type { Aggregate } from "./aggregate";
 export type { Input } from "./serialization";

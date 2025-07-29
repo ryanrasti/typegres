@@ -180,7 +180,6 @@ describe("Queries", () => {
           t: s.c.int4Pl(1).sum(),
         };
       })
-      .debug()
       .execute(testDb);
 
     assert<
@@ -236,8 +235,6 @@ describe("Queries", () => {
 
     const res = await strings
       .join(strings2, "s2", (s1, { s2 }) => {
-        console.log("s1", s1);
-        console.log("s2", s2);
         return s1.a.texteq(s2.a);
       })
       .select((s, { s2 }) => ({
@@ -245,7 +242,6 @@ describe("Queries", () => {
         a2: s2.a,
         sum: s.c.int4Pl(s2.b.int4()),
       }))
-      .debug()
       .execute(testDb);
 
     assert<Equals<typeof res, { a1: string; a2: string; sum: number }[]>>();
