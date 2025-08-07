@@ -18,7 +18,7 @@ npm install typegres
 
 ```typescript
 // Import the typegres library
-import { typegres } from "typegres";
+import { typegres, select } from "typegres";
 // Import your schema definition
 import db from "./schema";
 
@@ -26,13 +26,16 @@ const tg = typegres({
   /* Your db connection options */
 });
 
-const activeUsers = await db.users
-  .select((u) => ({
+const activeUsers = await select(
+  (u) => ({
     upper: u.name.upper(),
     isAdult: u.age[">"](18),
-  }))
-  .where((u) => u.isActive)
-  .execute(tg);
+  }),
+  {
+    from: db.users,
+    where: (u) => u.isActive,
+  }
+).execute(tg);
 
 console.log(activeUsers);
 // Output: [{ upper: 'ALICE', isAdult: true }, { upper: 'CHARLIE', isAdult: false }]
@@ -59,21 +62,28 @@ Focus on learning Postgres itself — Typegres just gives you autocomplete, type
 
 ```typescript
 // Find all authors who have published more than 10 posts
-const prolificAuthors = await db.posts
-  .groupBy((p) => [p.author_id] as const)
-  .select((p, [author_id]) => ({
-    author_id,
+const authorCounts = select(
+  (p) => ({
+    author_id: p.author_id,
     postCount: p.id.count(),
-  }))
-  .subquery() // Create a subquery from the aggregation
-  .where((ac) => ac.postCount[">"](10)) // Filter the results of the subquery
-  .join(db.users, "u", (ac, { u }) => ac.author_id["="](u.id)) // Join back to the users table
-  .select((ac, { u }) => ({
+  }),
+  {
+    from: db.posts,
+    groupBy: (p) => [p.author_id],
+  }
+);
+
+const prolificAuthors = await select(
+  (ac, { u }) => ({
     id: u.id,
     name: u.name,
     totalPosts: ac.postCount,
-  }))
-  .execute(tg);
+  }),
+  {
+    from: authorCounts.asFromItemjoin(db.users, "u", (ac, { u }) => ac.author_id["="](u.id)),
+    where: (ac) => ac.postCount[">"](10),
+  }
+).execute(tg);
 
 // Type of prolificAuthors is { id: number; name: string; totalPosts: bigint }[]
 ```
