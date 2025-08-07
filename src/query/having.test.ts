@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { values } from "./values";
-import { Int4, Text, Numeric } from "../types";
+import { Int4, Text, Numeric, Bool } from "../types";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
+import { select } from "../grammar/generated/select";
 
 describe("HAVING clause", () => {
   it("can filter grouped results with HAVING", async () => {
@@ -15,14 +16,17 @@ describe("HAVING clause", () => {
       { customer: Text.new("Charlie"), amount: Numeric.new("400") },
     );
 
-    const result = await orders
-      .groupBy((o) => [o.customer])
-      .having((agg) => agg.amount.sum()[">="]("300"))
-      .select((agg, [customer]) => ({
-        customer,
-        totalAmount: agg.amount.sum(),
-      }))
-      .execute(testDb);
+    const result = await select(
+      (o) => ({
+        customer: o.customer,
+        totalAmount: o.amount.sum(),
+      }),
+      {
+        from: orders,
+        groupBy: (o) => [o.customer],
+        having: (o) => o.amount.sum()[">="](Numeric.new("300")),
+      },
+    ).execute(testDb);
 
     assert<
       Equals<typeof result, { customer: string; totalAmount: string | null }[]>
@@ -66,16 +70,19 @@ describe("HAVING clause", () => {
       },
     );
 
-    const result = await sales
-      .groupBy((s) => [s.product, s.price])
-      .having((agg) => agg.quantity.count()[">="](2))
-      .select((agg, [product, price]) => ({
-        product,
-        price,
-        totalQuantity: agg.quantity.sum(),
-        salesCount: agg.quantity.count(),
-      }))
-      .execute(testDb);
+    const result = await select(
+      (s) => ({
+        product: s.product,
+        price: s.price,
+        totalQuantity: s.quantity.sum(),
+        salesCount: s.quantity.count(),
+      }),
+      {
+        from: sales,
+        groupBy: (s) => [s.product, s.price],
+        having: (s) => s.quantity.count()[">="](Int4.new(2)),
+      },
+    ).execute(testDb);
 
     assert<
       Equals<
@@ -118,16 +125,22 @@ describe("HAVING clause", () => {
       { userId: Int4.new(3), amount: Numeric.new("1000") },
     );
 
-    const result = await transactions
-      .groupBy((t) => [t.userId])
-      .having((agg) => agg.amount.sum()[">="]("200"))
-      .having((agg) => agg.amount.count()[">"](1))
-      .select((agg, [userId]) => ({
-        userId,
-        totalAmount: agg.amount.sum(),
-        transactionCount: agg.amount.count(),
-      }))
-      .execute(testDb);
+    const result = await select(
+      (t) => ({
+        userId: t.userId,
+        totalAmount: t.amount.sum(),
+        transactionCount: t.amount.count(),
+      }),
+      {
+        from: transactions,
+        groupBy: (t) => [t.userId],
+        having: (t) =>
+          t.amount
+            .sum()
+            [">="](Numeric.new("200"))
+            ["and"](t.amount.count()[">"](Int4.new(1))),
+      },
+    ).execute(testDb);
 
     assert<
       Equals<
@@ -185,15 +198,18 @@ describe("HAVING clause", () => {
       },
     );
 
-    const result = await products
-      .where((p) => p.category["<>"]("Food"))
-      .groupBy((p) => [p.category])
-      .having((agg) => agg.sales.sum()[">"](200))
-      .select((agg, [category]) => ({
-        category,
-        totalSales: agg.sales.sum(),
-      }))
-      .execute(testDb);
+    const result = await select(
+      (p) => ({
+        category: p.category,
+        totalSales: p.sales.sum(),
+      }),
+      {
+        from: products,
+        where: (p) => p.category["<>"](Text.new("Food")),
+        groupBy: (p) => [p.category],
+        having: (p) => p.sales.sum()[">"](Int4.new(200)),
+      },
+    ).execute(testDb);
 
     assert<
       Equals<typeof result, { category: string; totalSales: bigint | null }[]>
@@ -254,17 +270,22 @@ describe("HAVING clause", () => {
       },
     );
 
-    const result = await scores
-      .groupBy((s) => [s.student])
-      .having((agg) =>
-        agg.score.avg()[">="]("85").and(agg.score.count()[">="](3)),
-      )
-      .select((agg, [student]) => ({
-        student,
-        avgScore: agg.score.avg().float8(),
-        subjectCount: agg.score.count(),
-      }))
-      .execute(testDb);
+    const result = await select(
+      (s) => ({
+        student: s.student,
+        avgScore: s.score.avg().float8(),
+        subjectCount: s.score.count(),
+      }),
+      {
+        from: scores,
+        groupBy: (s) => [s.student],
+        having: (s) =>
+          s.score
+            .avg()
+            [">="](Numeric.new("85"))
+            ["and"](s.score.count()[">="](Int4.new(3))),
+      },
+    ).execute(testDb);
 
     assert<
       Equals<
@@ -293,14 +314,17 @@ describe("HAVING clause", () => {
       { group: Text.new("B"), value: Int4.new(30) },
     );
 
-    const result = await data
-      .groupBy((d) => [d.group])
-      .having(() => true)
-      .select((agg, [group]) => ({
-        group,
-        sum: agg.value.sum(),
-      }))
-      .execute(testDb);
+    const result = await select(
+      (d) => ({
+        group: d.group,
+        sum: d.value.sum(),
+      }),
+      {
+        from: data,
+        groupBy: (d) => [d.group],
+        having: () => Bool.new(true),
+      },
+    ).execute(testDb);
 
     assert<Equals<typeof result, { group: string; sum: bigint | null }[]>>();
 
@@ -309,74 +333,6 @@ describe("HAVING clause", () => {
       expect.arrayContaining([
         { group: "A", sum: 30n },
         { group: "B", sum: 30n },
-      ]),
-    );
-  });
-
-  it("requires groupBy before using having", async () => {
-    const data = values(
-      { group: Text.new("A"), value: Int4.new(10) },
-      { group: Text.new("B"), value: Int4.new(20) },
-    );
-
-    // This should be a compile-time error
-    // @ts-expect-error Cannot use having without groupBy
-    data.having((agg) => agg.value.sum()[">"](10));
-  });
-
-  it("can reference grouped columns in HAVING", async () => {
-    const sales = values(
-      {
-        region: Text.new("North"),
-        salesperson: Text.new("Alice"),
-        amount: Numeric.new("1000"),
-      },
-      {
-        region: Text.new("North"),
-        salesperson: Text.new("Bob"),
-        amount: Numeric.new("1500"),
-      },
-      {
-        region: Text.new("South"),
-        salesperson: Text.new("Charlie"),
-        amount: Numeric.new("800"),
-      },
-      {
-        region: Text.new("South"),
-        salesperson: Text.new("David"),
-        amount: Numeric.new("1200"),
-      },
-    );
-
-    const result = await sales
-      .groupBy((s) => [s.region, s.salesperson])
-      .having((agg, [_, salesperson]) =>
-        salesperson["<>"]("Charlie").and(agg.amount.sum()[">="]("1000")),
-      )
-      .select((agg, [region, salesperson]) => ({
-        region,
-        salesperson,
-        totalAmount: agg.amount.sum(),
-      }))
-      .execute(testDb);
-
-    assert<
-      Equals<
-        typeof result,
-        {
-          region: string;
-          salesperson: string;
-          totalAmount: string | null;
-        }[]
-      >
-    >();
-
-    expect(result).toHaveLength(3);
-    expect(result).toEqual(
-      expect.arrayContaining([
-        { region: "North", salesperson: "Alice", totalAmount: "1000" },
-        { region: "North", salesperson: "Bob", totalAmount: "1500" },
-        { region: "South", salesperson: "David", totalAmount: "1200" },
       ]),
     );
   });

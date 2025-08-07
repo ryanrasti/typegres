@@ -4,7 +4,7 @@ import { assert, Equals } from "tsafe";
 import { testDb } from "../db.test";
 
 const TextArray = Array.of(Text);
-const IntegerArray = Array.of(Int4);
+const IntegerArray = Array.of(Int4<0 | 1>);
 const CircleArray = Array.of(Circle);
 
 describe("Types & functions", () => {

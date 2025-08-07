@@ -3,6 +3,7 @@ import { values } from "./values";
 import { Int4, Text, Numeric } from "../types";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
+import { select } from "../grammar/generated/select";
 
 describe("Outer Joins", () => {
   describe("LEFT JOIN", () => {
@@ -31,15 +32,21 @@ describe("Outer Joins", () => {
         },
       );
 
-      const result = await users
-        .leftJoin(orders, "o", (u, { o }) => u.id["="](o.userId))
-        .select((u, { o }) => ({
+      const usersWithOrders = users.leftJoin(orders, "o", (u, { o }) =>
+        u.id["="](o.userId),
+      );
+
+      const result = await select(
+        (u, { o }) => ({
           userName: u.name,
           orderId: o.id,
           orderAmount: o.amount,
-        }))
-        .orderBy((u) => u.id)
-        .execute(testDb);
+        }),
+        {
+          from: usersWithOrders,
+          orderBy: (u) => u.id,
+        },
+      ).execute(testDb);
 
       assert<
         Equals<
@@ -81,14 +88,20 @@ describe("Outer Joins", () => {
         },
       );
 
-      const result = await users
-        .leftJoin(orders, "o", (u, { o }) => u.id["="](o.userId))
-        .where((_, { o }) => o.id.isNull())
-        .select((u, { o }) => ({
+      const usersWithOrders = users.leftJoin(orders, "o", (u, { o }) =>
+        u.id["="](o.userId),
+      );
+
+      const result = await select(
+        (u, { o }) => ({
           userName: u.name,
           hasOrder: o.id.isNotNull(),
-        }))
-        .execute(testDb);
+        }),
+        {
+          from: usersWithOrders,
+          where: (_, { o }) => o.id.isNull(),
+        },
+      ).execute(testDb);
 
       assert<
         Equals<
@@ -121,16 +134,26 @@ describe("Outer Joins", () => {
         { id: Int4.new(2), userId: Int4.new(2), theme: Text.new("light") },
       );
 
-      const result = await users
-        .leftJoin(profiles, "p", (u, { p }) => u.id["="](p.userId))
-        .leftJoin(settings, "s", (u, { s }) => u.id["="](s.userId))
-        .select((u, { p, s }) => ({
+      const usersWithProfiles = users.leftJoin(profiles, "p", (u, { p }) =>
+        u.id["="](p.userId),
+      );
+      const usersWithProfilesAndSettings = usersWithProfiles.leftJoin(
+        settings,
+        "s",
+        (u, { s }) => u.id["="](s.userId),
+      );
+
+      const result = await select(
+        (u, { p, s }) => ({
           name: u.name,
           bio: p.bio,
           theme: s.theme,
-        }))
-        .orderBy((u) => u.id)
-        .execute(testDb);
+        }),
+        {
+          from: usersWithProfilesAndSettings,
+          orderBy: (u) => u.id,
+        },
+      ).execute(testDb);
 
       assert<
         Equals<
@@ -176,15 +199,21 @@ describe("Outer Joins", () => {
         { id: Int4.new(3), name: Text.new("Charlie") }, // User with no orders
       );
 
-      const result = await orders
-        .rightJoin(users, "u", (o, { u }) => o.userId["="](u.id))
-        .select((o, { u }) => ({
+      const ordersWithUsers = orders.rightJoin(users, "u", (o, { u }) =>
+        o.userId["="](u.id),
+      );
+
+      const result = await select(
+        (o, { u }) => ({
           userName: u.name,
           orderId: o.id,
           orderAmount: o.amount,
-        }))
-        .orderBy((_, { u }) => u.id)
-        .execute(testDb);
+        }),
+        {
+          from: ordersWithUsers,
+          orderBy: (_, { u }) => u.id,
+        },
+      ).execute(testDb);
 
       assert<
         Equals<
@@ -220,16 +249,22 @@ describe("Outer Joins", () => {
         { id: Int4.new(4), data: Text.new("Z") },
       );
 
-      const result = await table1
-        .fullOuterJoin(table2, "t2", (t1, { t2 }) => t1.id["="](t2.id))
-        .select((t1, { t2 }) => ({
+      const joined = table1.fullOuterJoin(table2, "t2", (t1, { t2 }) =>
+        t1.id["="](t2.id),
+      );
+
+      const result = await select(
+        (t1, { t2 }) => ({
           id1: t1.id,
           value: t1.value,
           id2: t2.id,
           data: t2.data,
-        }))
-        .orderBy((t1) => [t1.id, "nulls last"])
-        .execute(testDb);
+        }),
+        {
+          from: joined,
+          orderBy: [(t1) => t1.id, { nullsLast: true }],
+        },
+      ).execute(testDb);
 
       assert<
         Equals<
@@ -269,16 +304,21 @@ describe("Outer Joins", () => {
         { id: Int4.new(2), name: Text.new("Gadget") },
       );
 
-      const result = await users
+      const joinedTables = users
         .join(orders, "o", (u, { o }) => u.id["="](o.userId))
-        .leftJoin(products, "p", (_, { o, p }) => o.productId["="](p.id))
-        .select((u, { o, p }) => ({
+        .leftJoin(products, "p", (_, { o, p }) => o.productId["="](p.id));
+
+      const result = await select(
+        (u, { o, p }) => ({
           userName: u.name,
           orderId: o.id,
           productName: p.name,
-        }))
-        .orderBy((u) => u.id)
-        .execute(testDb);
+        }),
+        {
+          from: joinedTables,
+          orderBy: (u) => u.id,
+        },
+      ).execute(testDb);
 
       assert<
         Equals<
@@ -322,16 +362,24 @@ describe("Outer Joins", () => {
         },
       );
 
-      const result = await categories
-        .leftJoin(products, "p", (c, { p }) => c.id["="](p.categoryId))
-        .groupBy((c) => [c.id, c.name] as const)
-        .select((agg, [id, name]) => ({
-          categoryId: id,
-          categoryName: name,
-          productCount: agg.id.count(),
-        }))
-        .orderBy((_, [id]) => id)
-        .execute(testDb);
+      const categoriesWithProducts = categories.leftJoin(
+        products,
+        "p",
+        (c, { p }) => c.id["="](p.categoryId),
+      );
+
+      const result = await select(
+        (c, { p }) => ({
+          categoryId: c.id,
+          categoryName: c.name,
+          productCount: p.id.count(),
+        }),
+        {
+          from: categoriesWithProducts,
+          groupBy: (c) => [c.id, c.name],
+          orderBy: (c) => c.id,
+        },
+      ).execute(testDb);
 
       assert<
         Equals<
@@ -347,7 +395,7 @@ describe("Outer Joins", () => {
       expect(result).toEqual([
         { categoryId: 1, categoryName: "Electronics", productCount: 2n },
         { categoryId: 2, categoryName: "Books", productCount: 1n },
-        { categoryId: 3, categoryName: "Clothing", productCount: 1n },
+        { categoryId: 3, categoryName: "Clothing", productCount: 0n },
       ]);
     });
 
@@ -362,15 +410,21 @@ describe("Outer Joins", () => {
         theme: Text.new("custom"),
       });
 
-      const result = await users
-        .leftJoin(preferences, "p", (u, { p }) => u.id["="](p.userId))
-        .select((u, { p }) => ({
+      const usersWithPrefs = users.leftJoin(preferences, "p", (u, { p }) =>
+        u.id["="](p.userId),
+      );
+
+      const result = await select(
+        (u, { p }) => ({
           name: u.name,
           theme: p.theme,
           hasPreference: p.userId.isNotNull(),
-        }))
-        .orderBy((u) => u.id)
-        .execute(testDb);
+        }),
+        {
+          from: usersWithPrefs,
+          orderBy: (u) => u.id,
+        },
+      ).execute(testDb);
 
       assert<
         Equals<

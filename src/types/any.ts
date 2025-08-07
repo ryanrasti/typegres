@@ -7,7 +7,6 @@ import {
   InExpression,
   NotInExpression,
   ExpressionLike,
-  isExpressionLike,
   WindowExpression,
   WindowSpec,
 } from "../expression";
@@ -15,7 +14,6 @@ import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
 import { Typegres } from "../db";
 import * as Types from "../types";
-import { RowLike } from "../query/values";
 
 export type WithNullability<N extends number, T extends Any> = NonNullable<
   ReturnType<
@@ -61,7 +59,7 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
    * Otherwise creates a LiteralExpression with the appropriate type
    */
   private toExpressionHelper(
-    value: ExpressionLike | Expression | unknown,
+    value: ExpressionLike | Expression | unknown
   ): ExpressionLike {
     return value instanceof Any
       ? value.toExpression()
@@ -69,7 +67,7 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
         ? (value as ExpressionLike)
         : new LiteralExpression(
             value,
-            this.getClass().typeString() || "unknown",
+            this.getClass().typeString() || "unknown"
           );
   }
 
@@ -106,7 +104,7 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
     const typeString = this.getClass()?.typeString();
     if (!typeString) {
       throw new Error(
-        `Type string is not defined for ${this.constructor.name}`,
+        `Type string is not defined for ${this.constructor.name}`
       );
     }
     return new LiteralExpression(this.v, typeString);
@@ -125,13 +123,13 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
     return {
       then(
         resolve: (
-          result: N extends 0 ? null : N extends 1 ? R : R | null,
+          result: N extends 0 ? null : N extends 1 ? R : R | null
         ) => void,
-        reject: (err: unknown) => void,
+        reject: (err: unknown) => void
       ): void {
         const expr = self.toExpression();
         const kexpr = db._internal.selectNoFrom(
-          expr.compile(Context.new()).as("val"),
+          expr.compile(Context.new()).as("val")
         );
 
         kexpr
@@ -140,8 +138,8 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
             resolve(
               (result?.val != null
                 ? self.getClass().parse(result.val as string)
-                : result?.val) as unknown as any,
-            ),
+                : result?.val) as unknown as any
+            )
           )
           .catch((err) => {
             console.error("Error executing query:", kexpr.compile(), err);
@@ -163,8 +161,8 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
       new UnaryOperatorExpression(
         "IS NULL",
         this.toExpression(),
-        true, // postfix operator
-      ),
+        true // postfix operator
+      )
     ) as Types.Bool<1>;
   }
 
@@ -176,8 +174,8 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
       new UnaryOperatorExpression(
         "IS NOT NULL",
         this.toExpression(),
-        true, // postfix operator
-      ),
+        true // postfix operator
+      )
     ) as Types.Bool<1>;
   }
 
@@ -189,13 +187,13 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
    * value IS DISTINCT FROM value = false
    */
   isDistinctFrom<R2, N2 extends number>(
-    other: Types.Any<R2, N2> | Types.Input<Types.Any<R2, N2>>,
+    other: Types.Any<R2, N2> | Types.Input<Types.Any<R2, N2>>
   ): Types.Bool<1> {
     return Types.Bool.new(
       new BinaryOperatorExpression("IS DISTINCT FROM", [
         this.toExpression(),
         this.toExpressionHelper(other),
-      ]),
+      ])
     ) as Types.Bool<1>;
   }
 
@@ -216,13 +214,13 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
    * value IS NOT DISTINCT FROM value = true
    */
   isNotDistinctFrom<R2, N2 extends number>(
-    other: Types.Any<R2, N2> | Types.Input<Types.Any<R2, N2>>,
+    other: Types.Any<R2, N2> | Types.Input<Types.Any<R2, N2>>
   ): Types.Bool<1> {
     return Types.Bool.new(
       new BinaryOperatorExpression("IS NOT DISTINCT FROM", [
         this.toExpression(),
         this.toExpressionHelper(other),
-      ]),
+      ])
     ) as Types.Bool<1>;
   }
 
@@ -232,16 +230,16 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
    */
   cast<N extends number, T extends typeof Any<unknown, N>>(
     this: Any<unknown, N>,
-    targetType: T,
+    targetType: T
   ): WithNullability<N, ReturnType<T["new"]>> {
     const typeStr = targetType.typeString();
     if (!typeStr) {
       throw new Error(
-        `Cannot cast to type without typeString(): target type must be a concrete SQL type`,
+        `Cannot cast to type without typeString(): target type must be a concrete SQL type`
       );
     }
     return targetType.new(
-      new CastExpression(this.toExpression(), typeStr),
+      new CastExpression(this.toExpression(), typeStr)
     ) as WithNullability<N, ReturnType<T["new"]>>;
   }
 
@@ -250,27 +248,19 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
    * value IN (1, 2, 3) or value IN (SELECT ...)
    */
   in<T extends this>(list: Types.Input<T>[]): Types.Bool<N>;
-  in<T extends this>(
-    list: Types.Setof<
-      | { from: Types.FromItem<Any | RowLike>; select: T }
-      | { from: Types.FromItem<T>; select?: undefined }
-    >,
+  in<K extends string, T extends Any<unknown, 0 | 1>>(
+    list: Types.Select<{ [k in K]: T }>
   ): Types.Bool<N>;
-  in<T extends this, N2 extends number>(
-    list:
-      | Types.Input<T>[]
-      | Types.Setof<
-          | { from: Types.FromItem<Any>; select: T }
-          | { from: Types.FromItem<T>; select?: undefined }
-        >,
+  in<T extends Any<unknown, 0 | 1>, N2 extends number>(
+    list: Types.Input<T>[] | Types.Select<{ [k in string]: T }>
   ): Types.Bool<N | N2> {
     return Types.Bool.new(
       new InExpression(
         this.toExpression(),
-        isExpressionLike(list)
-          ? list
-          : list.map((x) => this.toExpressionHelper(x)),
-      ),
+        Array.isArray(list)
+          ? list.map((x) => this.toExpressionHelper(x))
+          : list.toExpression()
+      )
     ) as Types.Bool<N | N2>;
   }
 
@@ -280,27 +270,19 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
    */
 
   notIn<T extends this>(list: Types.Input<T>[]): Types.Bool<N>;
-  notIn<T extends this>(
-    list: Types.Setof<
-      | { from: Types.FromItem<Any | RowLike>; select: T }
-      | { from: Types.FromItem<T>; select?: undefined }
-    >,
+  notIn<K extends string, T extends Any<unknown, 0 | 1>>(
+    list: Types.Select<{ [k in K]: T }>
   ): Types.Bool<N>;
-  notIn<T extends this, N2 extends number>(
-    list:
-      | Types.Input<T>[]
-      | Types.Setof<
-          | { from: Types.FromItem<Any>; select: T }
-          | { from: Types.FromItem<T>; select?: undefined }
-        >,
+  notIn<T extends Any<unknown, 0 | 1>, N2 extends number>(
+    list: Types.Input<T>[] | Types.Select<{ [k in string]: T }>
   ): Types.Bool<N | N2> {
     return Types.Bool.new(
       new NotInExpression(
         this.toExpression(),
-        isExpressionLike(list)
-          ? list
-          : list.map((x) => this.toExpressionHelper(x)),
-      ),
+        Array.isArray(list)
+          ? list.map((x) => this.toExpressionHelper(x))
+          : list.toExpression()
+      )
     ) as Types.Bool<N | N2>;
   }
 }

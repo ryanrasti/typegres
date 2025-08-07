@@ -1,21 +1,20 @@
 import { sql } from "kysely";
 import { Expression, QueryAlias } from "../expression";
-import { Bool, Setof, Record } from "../types";
+import { Bool, Record } from "../types";
 import { maybePrimitiveToSqlType } from "../types/primitive";
 import { Context } from "../expression";
 import { MakeNullable } from "../types/any";
 import {
   aliasRowLike,
   isScalar,
-  Query,
-  ResultType,
-  resultType,
   RowLike,
   Scalar,
   TableReferenceExpression,
   ValuesExpression,
 } from "./values";
 import { row } from "../types/record";
+import invariant from "tiny-invariant";
+import type { TableSchema, TableSchemaToRowLike } from "./db";
 
 // Helper type to make all columns in a RowLike nullable
 type MakeRowNullable<R> = R extends RowLike
@@ -27,7 +26,7 @@ type MakeRowNullable<R> = R extends RowLike
 export type JoinType = "JOIN" | "LEFT JOIN" | "RIGHT JOIN" | "FULL OUTER JOIN";
 
 type Join = {
-  table: Setof<any>;
+  fromItem: FromItem<RowLike>;
   row: RowLike;
   on: Bool<0 | 1>;
   type: JoinType;
@@ -46,18 +45,62 @@ export type MakeJoinsNullable<J extends Joins> = {
 };
 
 export type FromToSelectArgs<F extends RowLike | Scalar, J extends Joins> = [
-  F extends RowLike ? Record<1, F> & F : F,
+  F,
   JoinTables<J>,
 ];
 
-export class FromItem<F extends RowLike | Scalar, J extends Joins = Joins> {
+export interface AsFromItem<
+  F extends RowLike | Scalar = RowLike,
+  J extends Joins = Joins,
+> {
+  asFromItem(): FromItem<F, J>;
+}
+
+export type FromItemFromExpressionClass = {
+  ["new"](
+    fromExpr: Expression,
+    alias?: string
+  ): FromItem<RowLike, Joins>;
+};
+
+export const isAsFromItem = (val: unknown): val is AsFromItem =>
+  val != null &&
+  typeof val === "object" &&
+  "asFromItem" in val &&
+  typeof (val as AsFromItem).asFromItem === "function";
+
+export class FromItem<
+  F extends RowLike | Scalar = RowLike,
+  J extends Joins = Joins,
+> implements AsFromItem<F, J>
+{
   constructor(
     public rawFromExpr: Expression,
     public fromAlias: QueryAlias,
     public joinAliases: { [key: string]: QueryAlias },
     public from: F,
-    public joins: J = {} as J,
+    public joins: J = {} as J
   ) {}
+
+  static ofSchema<T extends TableSchema>(columns: T) {
+    const rowLike = Object.fromEntries(
+      Object.entries(columns).map(([name, col]) => [name, col.new("")])
+    ) as TableSchemaToRowLike<T>;
+    return FromItem.of(rowLike);
+  }
+
+  static of<R extends RowLike>(fromRow: R) {
+    return class extends FromItem<R> {
+      static new(fromExpr: Expression, alias?: string) {
+        const queryAlias = new QueryAlias(alias ?? "f");
+        return new this(fromExpr, queryAlias, {}, fromRow);
+      }
+    };
+  }
+
+  asFromItem(): FromItem<F, J> {
+    return this;
+  }
 
   toSelectArgs(): FromToSelectArgs<F, J> {
     return [
@@ -65,7 +108,7 @@ export class FromItem<F extends RowLike | Scalar, J extends Joins = Joins> {
         ? this.from
         : row(
             this.from,
-            new TableReferenceExpression(this.fromAlias, this.from),
+            new TableReferenceExpression(this.fromAlias, this.from)
           )) as F extends RowLike ? Record<1, F> & F : F,
       this.joinTables(),
     ];
@@ -73,18 +116,18 @@ export class FromItem<F extends RowLike | Scalar, J extends Joins = Joins> {
 
   joinTables() {
     return Object.fromEntries(
-      Object.entries({ ...this.joins }).map(([key, value]) => [key, value.row]),
+      Object.entries({ ...this.joins }).map(([key, value]) => [key, value.row])
     ) as JoinTables<J>;
   }
 
-  joinWithType<Q extends Query, A extends string>(
-    j: Setof<Q>,
+  joinWithType<F2 extends RowLike, A extends string>(
+    j: FromItem<F2>,
     as: A,
     type: JoinType,
-    on: (from: F & MakeRowNullable<F>, js: any) => Bool<0 | 1> | boolean,
+    on: (from: F & MakeRowNullable<F>, js: any) => Bool<0 | 1> | boolean
   ) {
     const alias = new QueryAlias(as);
-    const row = aliasRowLike(alias, resultType(j.query) as RowLike);
+    const row = aliasRowLike(alias, j.from);
 
     const [from, joins] = this.toSelectArgs();
     return new FromItem(
@@ -98,34 +141,31 @@ export class FromItem<F extends RowLike | Scalar, J extends Joins = Joins> {
       {
         ...this.joins,
         [as]: {
-          table: j,
+          fromItem: j,
           on: maybePrimitiveToSqlType(
             on(from as F & MakeRowNullable<F>, {
               ...joins,
-              ...({ [as]: row } as { [a in A]: ResultType<Q> }),
-            }),
+              ...({ [as]: row } as { [a in A]: F2 }),
+            })
           ),
           row,
           type,
         },
-      },
+      }
     );
   }
 
-  join<Q extends Query, A extends string>(
-    j: Setof<Q>,
+  join<F2 extends RowLike, A extends string>(
+    j: FromItem<F2>,
     as: A,
-    on: (
-      from: F,
-      js: JoinTables<J> & { [a in A]: ResultType<Q> },
-    ) => Bool<0 | 1> | boolean,
+    on: (from: F, js: JoinTables<J> & { [a in A]: F2 }) => Bool<0 | 1> | boolean
   ): FromItem<
     F,
     J & {
       [a in A]: {
-        table: Setof<Q>;
+        fromItem: FromItem<F2>;
         on: Bool<0 | 1>;
-        row: ResultType<Q>;
+        row: F2;
         type: "JOIN";
       };
     }
@@ -133,107 +173,109 @@ export class FromItem<F extends RowLike | Scalar, J extends Joins = Joins> {
     return this.joinWithType(j, as, "JOIN", on) as any;
   }
 
-  leftJoin<Q extends Query, A extends string>(
-    j: Setof<Q>,
+  leftJoin<F2 extends RowLike, A extends string>(
+    j: FromItem<F2>,
     as: A,
     on: (
       from: F,
       js: JoinTables<J> & {
-        [a in A]: MakeRowNullable<ResultType<Q>>;
-      },
-    ) => Bool<0 | 1> | boolean,
+        [a in A]: MakeRowNullable<F2>;
+      }
+    ) => Bool<0 | 1> | boolean
   ) {
     return this.joinWithType(j, as, "LEFT JOIN", on) as FromItem<
       F,
       J & {
         [a in A]: {
-          table: Setof<Q>;
+          fromItem: FromItem<F2>;
           on: Bool<0 | 1>;
-          row: MakeRowNullable<ResultType<Q>>;
+          row: MakeRowNullable<F2>;
           type: "LEFT JOIN";
         };
       }
     >;
   }
 
-  rightJoin<Q extends Query, A extends string>(
-    j: Setof<Q>,
+  rightJoin<F2 extends RowLike, A extends string>(
+    j: FromItem<F2>,
     as: A,
     on: (
       from: F,
       js: JoinTables<MakeJoinsNullable<J>> & {
-        [a in A]: ResultType<Q>;
-      },
-    ) => Bool<0 | 1> | boolean,
+        [a in A]: F2;
+      }
+    ) => Bool<0 | 1> | boolean
   ) {
     return this.joinWithType(j, as, "RIGHT JOIN", on) as FromItem<
       MakeRowNullable<F>,
       MakeJoinsNullable<J> & {
         [a in A]: {
-          table: Setof<Q>;
+          fromItem: FromItem<F2>;
           on: Bool<0 | 1>;
-          row: ResultType<Q>;
+          row: F2;
           type: "RIGHT JOIN";
         };
       }
     >;
   }
 
-  fullOuterJoin<Q extends Query, A extends string>(
-    j: Setof<Q>,
+  fullOuterJoin<F2 extends RowLike, A extends string>(
+    j: FromItem<F2>,
     as: A,
     on: (
       from: MakeRowNullable<F>,
       js: JoinTables<MakeJoinsNullable<J>> & {
-        [a in A]: MakeRowNullable<ResultType<Q>>;
-      },
-    ) => Bool<0 | 1> | boolean,
+        [a in A]: MakeRowNullable<F2>;
+      }
+    ) => Bool<0 | 1> | boolean
   ) {
     return this.joinWithType(
       j,
       as,
       "FULL OUTER JOIN",
-      on,
+      on
     ) as unknown as FromItem<
       MakeRowNullable<F>,
       MakeJoinsNullable<J> & {
         [a in A]: {
-          table: Setof<Q>;
+          table: FromItem<F2>;
           on: Bool<0 | 1>;
-          row: MakeRowNullable<ResultType<Q>>;
+          row: MakeRowNullable<F2>;
           type: "FULL OUTER JOIN";
         };
       }
     >;
   }
 
-  compile(ctxIn: Context) {
-    const ctx = ctxIn.withAliases([
+  getContext(ctxIn: Context): Context {
+    return ctxIn.withAliases([
       this.fromAlias,
       ...Object.values(this.joinAliases),
     ]);
+  }
 
-    const from = sql`${this.rawFromExpr.compile(ctxIn)} as ${sql.ref(
-      ctx.getAlias(this.fromAlias),
+  compileJustFrom(ctx: Context, alias?: string) {
+    return sql`${this.rawFromExpr.compile(ctx)} as ${sql.ref(
+      alias ?? ctx.getAlias(this.fromAlias)
     )}${
       this.rawFromExpr instanceof ValuesExpression
         ? sql`(${this.tableColumnAlias()})`
         : sql``
     }`;
+  }
 
-    const joins =
-      Object.keys(this.joins).length > 0
-        ? sql.join(
-            Object.entries(this.joins ?? {}).map(([alias, join]) => {
-              return sql`${sql.raw(join.type)} ${join.table.compile(ctx)} as ${sql.ref(
-                ctx.getAlias(this.joinAliases[alias]),
-              )} ON ${join.on.toExpression().compile(ctx)}`;
-            }),
-            sql` `,
-          )
-        : sql``;
+  compile(ctx: Context) {
+    const from = this.compileJustFrom(ctx);
 
-    return [ctx, from, joins] as const;
+    const joins = Object.entries(this.joins ?? {}).map(([alias, join]) => {
+      invariant(
+        Object.keys(join.fromItem.joins).length === 0,
+        "Joins in expression joining to"
+      );
+      return sql`${sql.raw(join.type)} ${join.fromItem.compileJustFrom(ctx, alias)} ON ${join.on.toExpression().compile(ctx)}`;
+    });
+
+    return sql.join([from, ...joins], sql` `);
   }
 
   tableColumnAlias() {

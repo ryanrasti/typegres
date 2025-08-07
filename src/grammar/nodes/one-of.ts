@@ -4,18 +4,16 @@ export class OneOf extends Node {
   type = "oneOf";
   options: Node[];
 
-  constructor(options: Node[], optional = false, repeated = false) {
-    super(optional, repeated);
+  constructor(options: Node[], optional = false) {
+    super(optional);
     this.options = options;
-  }
-
-  toParam(): string {
-    return this.options.join(" | ");
   }
 
   toParserInfo(): ParserInfo {
     // For OneOf, we need to generate type as union and parser that tries each option
-    const optionsInfo = this.options.map((opt) => toParserInfo(opt));
+    const optionsInfo = this.options.map((opt) =>
+      toParserInfo(opt, this.isOptional),
+    );
     return {
       params: {
         type: "union",

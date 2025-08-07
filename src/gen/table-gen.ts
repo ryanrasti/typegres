@@ -50,7 +50,7 @@ const main = async () => {
 
   await output.write(`import * as Types from "../types";\n\n`);
   await output.write(`import { database } from "../query/db";\n\n`);
-  await output.write(`export const db = database({\n`);
+  await output.write(`export const makeDb = () => database({\n`);
   const tables = (input as TableGenFile)["public"];
   if (!tables) {
     throw new Error("No tables found in the input file.");
@@ -60,7 +60,7 @@ const main = async () => {
     for (const [column, definition] of Object.entries(columns)) {
       const type = canonicalType(definition.type);
       await output.write(
-        `      ${column}: ${asType(type, { nullable: !definition.not_null })},\n`,
+        `      ${column}: ${asType(type, { nullable: definition.not_null ? false : undefined })},\n`,
       );
     }
     await output.write(`    },\n`);

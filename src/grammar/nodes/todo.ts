@@ -4,8 +4,8 @@ export class Todo extends Node {
   type = "todo";
   text: string;
 
-  constructor(text: string, optional = false, repeated = false) {
-    super(optional, repeated);
+  constructor(text: string, optional = false) {
+    super(optional);
     this.text = text;
   }
 

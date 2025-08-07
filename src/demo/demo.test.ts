@@ -26,7 +26,6 @@ describe("demo.ts examples", async () => {
   } = calls;
 
   it("example1: grouping and aggregation on pets", async () => {
-    // example1 is already awaited in the module
     expect(Array.isArray(example1)).toBe(true);
     // Should group by species and aggregate
     expect(
@@ -50,6 +49,7 @@ describe("demo.ts examples", async () => {
   });
 
   it("example2: Jsonb jsonbEach and select", async () => {
+    // TODO: Set-returning functions like jsonbEach() fail with "Cannot read properties of undefined (reading 'ofSchema')"
     expect(example2).toEqual([
       { key: "a!", isNum: true },
       { key: "b!", isNum: true },
@@ -58,6 +58,7 @@ describe("demo.ts examples", async () => {
   });
 
   it("example3: join people and pets", async () => {
+    // TODO: JOIN is not supported in the new grammar yet
     expect(Array.isArray(example3)).toBe(true);
     expect(example3).toEqual([
       { personName: "Alice", petSpecies: "cat", petAge: 2 },

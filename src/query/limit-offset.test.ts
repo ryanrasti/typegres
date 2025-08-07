@@ -3,6 +3,7 @@ import { values } from "./values";
 import { Int4, Int8, Float8, Text, Numeric } from "../types";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
+import { select } from "../grammar/generated/select";
 
 describe("LIMIT and OFFSET", () => {
   it("can use LIMIT with literal number", async () => {
@@ -14,11 +15,11 @@ describe("LIMIT and OFFSET", () => {
       { id: Int4.new(5), name: Text.new("Eve") },
     );
 
-    const result = await users
-      .orderBy((u) => u.id)
-      .select((u) => ({ id: u.id, name: u.name }))
-      .limit(3)
-      .execute(testDb);
+    const result = await select((u) => ({ id: u.id, name: u.name }), {
+      from: users,
+      orderBy: (u) => u.id,
+      limit: Int4.new(3),
+    }).execute(testDb);
 
     assert<Equals<typeof result, { id: number; name: string }[]>>();
 
@@ -37,11 +38,11 @@ describe("LIMIT and OFFSET", () => {
       { id: Int4.new(3), name: Text.new("Charlie") },
     );
 
-    const result = await users
-      .orderBy((u) => u.id)
-      .select((u) => ({ id: u.id, name: u.name }))
-      .limit(Int4.new(2))
-      .execute(testDb);
+    const result = await select((u) => ({ id: u.id, name: u.name }), {
+      from: users,
+      orderBy: (u) => u.id,
+      limit: Int4.new(2),
+    }).execute(testDb);
 
     assert<Equals<typeof result, { id: number; name: string }[]>>();
 
@@ -61,11 +62,11 @@ describe("LIMIT and OFFSET", () => {
       { id: Int4.new(5), name: Text.new("Eve") },
     );
 
-    const result = await users
-      .orderBy((u) => u.id)
-      .select((u) => ({ id: u.id, name: u.name }))
-      .offset(2)
-      .execute(testDb);
+    const result = await select((u) => ({ id: u.id, name: u.name }), {
+      from: users,
+      orderBy: (u) => u.id,
+      offset: [Int4.new(2), { rows: true }],
+    }).execute(testDb);
 
     assert<Equals<typeof result, { id: number; name: string }[]>>();
 
@@ -84,11 +85,11 @@ describe("LIMIT and OFFSET", () => {
       { id: Int4.new(3), name: Text.new("Charlie") },
     );
 
-    const result = await users
-      .orderBy((u) => u.id)
-      .select((u) => ({ id: u.id, name: u.name }))
-      .offset(Int4.new(1))
-      .execute(testDb);
+    const result = await select((u) => ({ id: u.id, name: u.name }), {
+      from: users,
+      orderBy: (u) => u.id,
+      offset: [Int4.new(1), { rows: true }],
+    }).execute(testDb);
 
     assert<Equals<typeof result, { id: number; name: string }[]>>();
 
@@ -109,12 +110,12 @@ describe("LIMIT and OFFSET", () => {
       { id: Int4.new(6), name: Text.new("Frank") },
     );
 
-    const result = await users
-      .orderBy((u) => u.id)
-      .select((u) => ({ id: u.id, name: u.name }))
-      .limit(2)
-      .offset(2)
-      .execute(testDb);
+    const result = await select((u) => ({ id: u.id, name: u.name }), {
+      from: users,
+      orderBy: (u) => u.id,
+      limit: Int4.new(2),
+      offset: [Int4.new(2), { rows: true }],
+    }).execute(testDb);
 
     assert<Equals<typeof result, { id: number; name: string }[]>>();
 
@@ -150,13 +151,16 @@ describe("LIMIT and OFFSET", () => {
       },
     );
 
-    const result = await products
-      .where((p) => p.price[">"]("15.00"))
-      .orderBy((p) => p.id)
-      .select((p) => ({ id: p.id, name: p.name, price: p.price }))
-      .limit(2)
-      .offset(1)
-      .execute(testDb);
+    const result = await select(
+      (p) => ({ id: p.id, name: p.name, price: p.price }),
+      {
+        from: products,
+        where: (p) => p.price[">"](Numeric.new("15.00")),
+        orderBy: (p) => p.id,
+        limit: Int4.new(2),
+        offset: [Int4.new(1), { rows: true }],
+      },
+    ).execute(testDb);
 
     assert<
       Equals<typeof result, { id: number; name: string; price: string }[]>
@@ -178,12 +182,12 @@ describe("LIMIT and OFFSET", () => {
       { id: Int4.new(5), name: Text.new("Eve"), age: Int4.new(28) },
     );
 
-    const result = await users
-      .orderBy((u) => u.age)
-      .select((u) => ({ name: u.name, age: u.age }))
-      .limit(3)
-      .offset(1)
-      .execute(testDb);
+    const result = await select((u) => ({ name: u.name, age: u.age }), {
+      from: users,
+      orderBy: (u) => u.age,
+      limit: Int4.new(3),
+      offset: [Int4.new(1), { rows: true }],
+    }).execute(testDb);
 
     assert<Equals<typeof result, { name: string; age: number }[]>>();
 
@@ -202,10 +206,10 @@ describe("LIMIT and OFFSET", () => {
       { id: Int4.new(3), name: Text.new("Charlie"), age: Int4.new(30) },
     );
 
-    const result = await users
-      .orderBy((u) => [u.age, "desc"])
-      .select((u) => ({ name: u.name, age: u.age }))
-      .execute(testDb);
+    const result = await select((u) => ({ name: u.name, age: u.age }), {
+      from: users,
+      orderBy: [(u) => u.age, { desc: true }],
+    }).execute(testDb);
 
     assert<Equals<typeof result, { name: string; age: number }[]>>();
 
@@ -244,13 +248,16 @@ describe("LIMIT and OFFSET", () => {
       },
     );
 
-    const result = await users
-      .orderBy(
-        (u) => [u.age, "desc"],
-        (u) => u.city,
-      ) // Mix tuple and raw (implicit ASC)
-      .select((u) => ({ name: u.name, age: u.age, city: u.city }))
-      .execute(testDb);
+    const result = await select(
+      (u) => ({ name: u.name, age: u.age, city: u.city }),
+      {
+        from: users,
+        orderBy: [
+          [(u) => u.age, { desc: true }],
+          (u) => u.city, // implicit ASC
+        ],
+      },
+    ).execute(testDb);
 
     assert<
       Equals<typeof result, { name: string; age: number; city: string }[]>
@@ -274,16 +281,19 @@ describe("LIMIT and OFFSET", () => {
       { customer: Text.new("David"), amount: Numeric.new("50") },
     );
 
-    const result = await orders
-      .groupBy((o) => [o.customer])
-      .orderBy((agg) => [agg.amount.sum(), "desc"])
-      .select((agg, [customer]) => ({
-        customer,
-        totalAmount: agg.amount.sum(),
-      }))
-      .limit(2)
-      .offset(1)
-      .execute(testDb);
+    const result = await select(
+      (o) => ({
+        customer: o.customer,
+        totalAmount: o.amount.sum(),
+      }),
+      {
+        from: orders,
+        groupBy: (o) => [o.customer],
+        orderBy: [(o) => o.amount.sum(), { desc: true }],
+        limit: Int4.new(2),
+        offset: [Int4.new(1), { rows: true }],
+      },
+    ).execute(testDb);
 
     assert<
       Equals<typeof result, { customer: string; totalAmount: string | null }[]>
@@ -301,11 +311,11 @@ describe("LIMIT and OFFSET", () => {
       { id: Int4.new(2), name: Text.new("Bob") },
     );
 
-    const result = await users
-      .orderBy((u) => u.id)
-      .select((u) => ({ id: u.id, name: u.name }))
-      .limit(0)
-      .execute(testDb);
+    const result = await select((u) => ({ id: u.id, name: u.name }), {
+      from: users,
+      orderBy: (u) => u.id,
+      limit: Int4.new(0),
+    }).execute(testDb);
 
     assert<Equals<typeof result, { id: number; name: string }[]>>();
 
@@ -319,63 +329,16 @@ describe("LIMIT and OFFSET", () => {
       { id: Int4.new(2), name: Text.new("Bob") },
     );
 
-    const result = await users
-      .orderBy((u) => u.id)
-      .select((u) => ({ id: u.id, name: u.name }))
-      .offset(10)
-      .execute(testDb);
+    const result = await select((u) => ({ id: u.id, name: u.name }), {
+      from: users,
+      orderBy: (u) => u.id,
+      offset: [Int4.new(10), { rows: true }],
+    }).execute(testDb);
 
     assert<Equals<typeof result, { id: number; name: string }[]>>();
 
     expect(result).toHaveLength(0);
     expect(result).toEqual([]);
-  });
-
-  it("can chain LIMIT and OFFSET calls (last one wins)", async () => {
-    const users = values(
-      { id: Int4.new(1), name: Text.new("Alice") },
-      { id: Int4.new(2), name: Text.new("Bob") },
-      { id: Int4.new(3), name: Text.new("Charlie") },
-      { id: Int4.new(4), name: Text.new("David") },
-    );
-
-    const result = await users
-      .orderBy((u) => u.id)
-      .select((u) => ({ id: u.id, name: u.name }))
-      .limit(10)
-      .limit(2) // This should override the previous limit
-      .offset(5)
-      .offset(1) // This should override the previous offset
-      .execute(testDb);
-
-    assert<Equals<typeof result, { id: number; name: string }[]>>();
-
-    expect(result).toHaveLength(2);
-    expect(result).toEqual([
-      { id: 2, name: "Bob" },
-      { id: 3, name: "Charlie" },
-    ]);
-  });
-
-  it("can use LIMIT and OFFSET with scalar queries", async () => {
-    const numbers = values(
-      { value: Int4.new(1) },
-      { value: Int4.new(2) },
-      { value: Int4.new(3) },
-      { value: Int4.new(4) },
-      { value: Int4.new(5) },
-    );
-
-    const result = await numbers
-      .orderBy((n) => n.value)
-      .select((n) => n.value)
-      .limit(3)
-      .offset(1)
-      .execute(testDb);
-
-    assert<Equals<typeof result, number[]>>();
-
-    expect(result).toEqual([2, 3, 4]);
   });
 
   it("can use LIMIT and OFFSET with set operations", async () => {
@@ -389,12 +352,17 @@ describe("LIMIT and OFFSET", () => {
       { id: Int4.new(4), name: Text.new("David") },
     );
 
-    const result = await query1
-      .union(query2)
-      .orderBy((u) => u.id)
-      .limit(2)
-      .offset(1)
-      .execute(testDb);
+    const combinedQuery = select((u) => ({ id: u.id, name: u.name }), {
+      from: query1,
+      union: select((u) => ({ id: u.id, name: u.name }), { from: query2 }),
+    });
+
+    const result = await select((row) => ({ id: row.id, name: row.name }), {
+      from: combinedQuery,
+      orderBy: (row) => row.id,
+      limit: Int4.new(2),
+      offset: [Int4.new(1), { rows: true }],
+    }).execute(testDb);
 
     assert<Equals<typeof result, { id: number; name: string }[]>>();
 
@@ -418,12 +386,12 @@ describe("LIMIT and OFFSET", () => {
     const limitExpr = Int4.new(2)["+"](Int4.new(1)); // 2 + 1 = 3
     const offsetExpr = Int4.new(3)["-"](Int4.new(2)); // 3 - 2 = 1
 
-    const result = await users
-      .orderBy((u) => u.id)
-      .select((u) => ({ id: u.id, name: u.name }))
-      .limit(limitExpr)
-      .offset(offsetExpr)
-      .execute(testDb);
+    const result = await select((u) => ({ id: u.id, name: u.name }), {
+      from: users,
+      orderBy: (u) => u.id,
+      limit: limitExpr,
+      offset: [offsetExpr, { rows: true }],
+    }).execute(testDb);
 
     assert<Equals<typeof result, { id: number; name: string }[]>>();
 
@@ -444,30 +412,30 @@ describe("LIMIT and OFFSET", () => {
     );
 
     // Test with Int8
-    const result1 = await users
-      .orderBy((u) => u.id)
-      .select((u) => ({ id: u.id, name: u.name }))
-      .limit(Int8.new(2n))
-      .execute(testDb);
+    const result1 = await select((u) => ({ id: u.id, name: u.name }), {
+      from: users,
+      orderBy: (u) => u.id,
+      limit: Int8.new(2n),
+    }).execute(testDb);
 
     expect(result1).toHaveLength(2);
 
     // Test with Float8
-    const result2 = await users
-      .orderBy((u) => u.id)
-      .select((u) => ({ id: u.id, name: u.name }))
-      .limit(Float8.new(3.0))
-      .execute(testDb);
+    const result2 = await select((u) => ({ id: u.id, name: u.name }), {
+      from: users,
+      orderBy: (u) => u.id,
+      limit: Float8.new(3.0),
+    }).execute(testDb);
 
     expect(result2).toHaveLength(3);
 
     // Test with Numeric
-    const result3 = await users
-      .orderBy((u) => u.id)
-      .select((u) => ({ id: u.id, name: u.name }))
-      .offset(Numeric.new("1"))
-      .limit(Numeric.new("2"))
-      .execute(testDb);
+    const result3 = await select((u) => ({ id: u.id, name: u.name }), {
+      from: users,
+      orderBy: (u) => u.id,
+      offset: [Numeric.new("1"), { rows: true }],
+      limit: Numeric.new("2"),
+    }).execute(testDb);
 
     expect(result3).toHaveLength(2);
     expect(result3).toEqual([
@@ -504,13 +472,16 @@ describe("LIMIT and OFFSET", () => {
       },
     );
 
-    const result = await users
-      .orderBy(
-        (u) => [u.age, "desc"], // Single tuple with lowercase
-        (u) => u.city, // Raw value (implicit ASC)
-      )
-      .select((u) => ({ name: u.name, age: u.age, city: u.city }))
-      .execute(testDb);
+    const result = await select(
+      (u) => ({ name: u.name, age: u.age, city: u.city }),
+      {
+        from: users,
+        orderBy: [
+          [(u) => u.age, { desc: true }],
+          (u) => u.city, // Raw value (implicit ASC)
+        ],
+      },
+    ).execute(testDb);
 
     assert<
       Equals<typeof result, { name: string; age: number; city: string }[]>
@@ -524,7 +495,7 @@ describe("LIMIT and OFFSET", () => {
     ]);
   });
 
-  it("can chain ORDER BY calls (last one is primary sort)", async () => {
+  it("can have multiple ORDER BY elements", async () => {
     const users = values(
       {
         id: Int4.new(1),
@@ -552,12 +523,13 @@ describe("LIMIT and OFFSET", () => {
       },
     );
 
-    // Chain orderBy calls - last one should be the primary sort
-    const result = await users
-      .orderBy((u) => u.city) // Secondary sort
-      .orderBy((u) => u.age) // Primary sort
-      .select((u) => ({ name: u.name, age: u.age, city: u.city }))
-      .execute(testDb);
+    const result = await select(
+      (u) => ({ name: u.name, age: u.age, city: u.city }),
+      {
+        from: users,
+        orderBy: [(u) => u.age, (u) => u.city],
+      },
+    ).execute(testDb);
 
     assert<
       Equals<typeof result, { name: string; age: number; city: string }[]>
@@ -572,24 +544,6 @@ describe("LIMIT and OFFSET", () => {
     ]);
   });
 
-  it("can use ORDER BY with scalar queries", async () => {
-    const numbers = values(
-      { value: Int4.new(3) },
-      { value: Int4.new(1) },
-      { value: Int4.new(4) },
-      { value: Int4.new(2) },
-    );
-
-    const result = await numbers
-      .orderBy((n) => [n.value, "desc"])
-      .select((n) => n.value)
-      .execute(testDb);
-
-    assert<Equals<typeof result, number[]>>();
-
-    expect(result).toEqual([4, 3, 2, 1]);
-  });
-
   it("can use subquery expressions for LIMIT", async () => {
     const config = values({ key: Text.new("page_size"), value: Int4.new(3) });
 
@@ -602,16 +556,16 @@ describe("LIMIT and OFFSET", () => {
     );
 
     // Use a subquery to get the limit value
-    const limitValue = config
-      .where((c) => c.key["="]("page_size"))
-      .select((c) => c.value)
-      .scalar();
+    const limitValue = select((c) => ({ val: c.value }), {
+      from: config,
+      where: (c) => c.key["="]("page_size"),
+    }).scalar();
 
-    const result = await users
-      .orderBy((u) => u.id)
-      .select((u) => ({ id: u.id, name: u.name }))
-      .limit(limitValue)
-      .execute(testDb);
+    const result = await select((u) => ({ id: u.id, name: u.name }), {
+      from: users,
+      orderBy: (u) => u.id,
+      limit: limitValue,
+    }).execute(testDb);
 
     assert<Equals<typeof result, { id: number; name: string }[]>>();
 

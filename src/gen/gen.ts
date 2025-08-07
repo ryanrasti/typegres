@@ -122,9 +122,9 @@ export const asType = (
   );
   if (set && set.is_retset && columns) {
     if (runtime) {
-      return `Types.Setof.ofSchema({${columns.join(", ")}})`;
+      return `Types.FromItem.ofSchema({${columns.join(", ")}})`;
     } else {
-      return `Types.Setof<{from: Types.FromItem<{${columns.join(", ")}}>}>`;
+      return `Types.FromItem<{${columns.join(", ")}}>`;
     }
   }
 

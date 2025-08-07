@@ -1,6 +1,8 @@
-import { RawBuilder } from "kysely";
+import { RawBuilder, sql } from "kysely";
 import camelCase from "camelcase";
-import invariant from "tiny-invariant";
+import { ParsedClause } from "./clause";
+import { Context as ExpressionContext } from "../../expression";
+import { inspect } from "cross-inspect";
 
 export type ObjectParam = {
   type: "object";
@@ -11,13 +13,19 @@ export type Params =
   | { type: "identifier"; value: string }
   | { type: "atom"; value: string }
   // A list of parameters
-  | { type: "array"; value: Params[]; minLength?: number; maxLength?: number }
+  | {
+      type: "array";
+      value: Params[];
+      minLength?: number;
+      maxLength?: number;
+      optionalAt?: number;
+    }
   // A clause with the key as the name and value as its parameters
   | ObjectParam
   | { type: "union"; value: Params[]; exclusive?: boolean }
   | { type: "intersection"; value: Params[] };
 
-const paramsToType = (params: Params): string => {
+export const paramsToType = (params: Params): string => {
   switch (params.type) {
     case "identifier":
       return params.value;
@@ -44,8 +52,16 @@ const paramsToType = (params: Params): string => {
         }
         return `[${types.join(", ")}][]`;
       } else {
-        // Regular array
-        return `[${params.value.map(paramsToType).join(", ")}]`;
+        // Array literal:
+        return `[${params.value
+          .map((val, idx) => {
+            const type = paramsToType(val);
+            if (params.optionalAt != null && idx >= params.optionalAt) {
+              return `(${type})?`;
+            }
+            return type;
+          })
+          .join(", ")}]`;
       }
     case "object":
       const entries = Object.entries(params.value).map(
@@ -58,18 +74,24 @@ const paramsToType = (params: Params): string => {
       );
       return `{${entries.join(", ")}}`;
     case "union":
-      return `(${params.value.map(paramsToType).join(" | ")})`;
+      return `(${params.value.map((x) => `(${paramsToType(x)})`).join(" | ")})`;
     case "intersection":
       // For better dx, merge all simple objects in the intersection:
-      return params.value.map(paramsToType).join(" & ");
+      return params.value.map((x) => `(${paramsToType(x)})`).join(" & ");
   }
 };
 
+const isObject = (params: Params): params is ObjectParam => {
+  return (
+    params.type === "object" ||
+    (params.type === "intersection" && params.value.every(isObject)) ||
+    (params.type === "union" && params.value.every(isObject))
+  );
+};
+
 export type ParsedNodeType =
-  // Normal parsed node (or optional, non-repeated that is present)
+  // Normal parsed node (or optional that is present)
   | ParsedNode<Node, unknown>
-  // Repeated parsed nodes (or optional, repeated that is present)
-  | ParsedNode<Node, unknown>[]
   // Optional parsed node (that is not present)
   | undefined;
 
@@ -80,51 +102,22 @@ export type ParserInfo = {
   params: Params;
 };
 
-export const toParserInfo = (node: Node): ParserInfo => {
-  const raw = node.toParserInfo();
-  if (node.isOptional || node.isRepeated) {
-    return {
-      params: {
-        type: "array",
-        value: [raw.params],
-        minLength: node.isOptional ? 0 : 1,
-        maxLength: node.isRepeated ? Infinity : 1,
-      },
-      parse: (value: any) => {
-        if (!Array.isArray(value)) {
-          return null; // Expected an array
-        }
-        if (value.length === 0 && node.isOptional) {
-          return [];
-        }
-        if (value.length > 1 && !node.isRepeated) {
-          return null; // Too many values for a non-repeated node
-        }
-        const parsed: ParsedNode<Node, unknown>[] = [];
-        for (const item of value) {
-          const parsedItem = raw.parse(item);
-          if (parsedItem === null) {
-            return null; // Parsing failed for this item
-          }
-          // TODO: not correctly handling the case of nested optional/repeated
-          //    nodes
-          invariant(parsedItem instanceof ParsedNode);
-          parsed.push(parsedItem);
-        }
-        return parsed;
-      },
-    };
+export const toParserInfo = (
+  node: Node,
+  preferObject?: boolean,
+): ParserInfo => {
+  const raw = node.toParserInfo(preferObject);
+  if (node.isOptional && !isObject(raw.params) && !(node instanceof Repeated)) {
+    return new Repeated(node, node.isOptional).toParserInfo(preferObject);
   }
   return raw;
 };
 
 export abstract class Node {
   isOptional: boolean;
-  isRepeated: boolean;
 
-  constructor(isOptional = false, isRepeated = false) {
+  constructor(isOptional = false) {
     this.isOptional = isOptional;
-    this.isRepeated = isRepeated;
   }
 
   copy(): this {
@@ -137,15 +130,22 @@ export abstract class Node {
     return copy;
   }
 
-  repeated(): this {
-    const copy = this.copy();
-    copy.isRepeated = true;
-    return copy;
+  repeated() {
+    return new Repeated<this>(this, this.isOptional);
   }
 
   // Generate both type parameter and parser function
-  abstract toParserInfo(): ParserInfo;
+  abstract toParserInfo(preferObject?: boolean): ParserInfo;
+
+  toString(): string {
+    return `${inspect(this)}(${this.isOptional ? "optional" : ""})`;
+  }
 }
+
+export type ParserContext = {
+  topLevelClause: ParsedClause;
+  expressionContext: ExpressionContext;
+};
 
 export abstract class ParsedNode<N extends Node, T> {
   constructor(
@@ -160,5 +160,64 @@ export abstract class ParsedNode<N extends Node, T> {
     throw new Error("Not implemented");
   }
 
-  abstract compile(): RawBuilder<any>;
+  abstract compile(ctx: ParserContext): RawBuilder<any>;
+}
+
+// Repeated:
+
+export class Repeated<N extends Node = Node> extends Node {
+  type = "repeated";
+  child: N;
+
+  constructor(child: N, optional = false) {
+    super(optional);
+    this.child = child;
+  }
+
+  toParserInfo(preferObject?: boolean): ParserInfo {
+    return ParsedRepeated.toParserInfo(this, preferObject);
+  }
+}
+
+export class ParsedRepeated extends ParsedNode<
+  Repeated,
+  ParsedNode<Node, unknown>[]
+> {
+  constructor(grammar: Repeated, value: ParsedNode<Node, unknown>[]) {
+    super(grammar, value);
+  }
+
+  static toParserInfo(grammar: Repeated, preferObject?: boolean): ParserInfo {
+    const raw = grammar.child.toParserInfo(preferObject);
+
+    return {
+      params: {
+        type: "identifier",
+        value: `Types.Repeated<${paramsToType(raw.params)}>${grammar.isOptional ? " | []" : ""}`,
+      },
+      parse: (valueRaw: any) => {
+        const tryParse = (value: any) => {
+          if (!Array.isArray(value)) {
+            return null; // Expected an array
+          }
+          const parsed: ParsedNode<Node, unknown>[] = [];
+          for (const item of value) {
+            const parsedItem = raw.parse(item);
+            if (parsedItem == null) {
+              return parsedItem; // Parsing failed for this item
+            }
+            parsed.push(parsedItem);
+          }
+          return new ParsedRepeated(grammar, parsed);
+        };
+
+        return tryParse(valueRaw) ?? tryParse([valueRaw]);
+      },
+    };
+  }
+
+  compile(ctx: ParserContext): RawBuilder<any> {
+    const compiled = this.value.map((item) => item.compile(ctx));
+    return compiled.length === 0 ? sql`` : sql.join(compiled);
+  }
 }

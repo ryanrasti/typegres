@@ -4,6 +4,8 @@ import {
   Params,
   ParsedNode,
   ParsedNodeType,
+  ParsedRepeated,
+  ParserContext,
   ParserInfo,
   toParserInfo,
 } from "./node";
@@ -37,8 +39,8 @@ export class Group extends Node {
   type = "group";
   nodes: Node[];
 
-  constructor(nodes: Node[], optional = false, repeated = false) {
-    super(optional, repeated);
+  constructor(nodes: Node[], optional = false) {
+    super(optional);
     this.nodes = nodes;
   }
 
@@ -58,16 +60,10 @@ export class ParsedGroup extends ParsedNode<Group, ParsedNodeType[]> {
 
   static toParserInfo(grammar: Group): ParserInfo {
     const argsInfo = grammar.nodes.map(
-      (arg) =>
-        // Don't wrap optional clauses, we'll handle them separately
-        [
-          arg,
-          !arg.isRepeated && isTransitivelyClause(arg)
-            ? arg.toParserInfo()
-            : toParserInfo(arg),
-        ] as const,
+      (arg) => [arg, toParserInfo(arg, arg.isOptional)] as const,
     );
 
+    // 1. Merge all adjacent objects
     const mergedInfo: [[Node, ParserInfo], ...[Node, ParserInfo][]][] = [];
     for (const [arg, info] of argsInfo) {
       const prev = mergedInfo.at(-1);
@@ -83,42 +79,89 @@ export class ParsedGroup extends ParsedNode<Group, ParsedNodeType[]> {
       }
     }
 
-    return {
-      params: {
-        type: "array",
-        value: mergedInfo.map((merged) => {
-          const [first, ...rest] = merged;
-          if (rest.length > 0) {
-            return {
-              type: "intersection",
-              value: [
-                mergeObjects(
-                  merged
-                    .map(([, info]) => info.params)
-                    .filter((p) => p.type === "object"),
-                ),
-                ...merged
-                  .filter(([, info]) => info.params.type !== "object")
-                  .map(([, info]) => info.params),
-              ],
-            };
-          }
-          return first[1].params;
-        }),
-      },
-      parse: (value: any) => {
-        if (!Array.isArray(value)) {
-          return null; // Expected an array of arguments
-        }
+    // 2. And move all grouped objects to the end if they are all optional:
+    const isOptionalObjects = (
+      merged: [[Node, ParserInfo], ...[Node, ParserInfo][]],
+    ) => {
+      return merged.every(
+        ([node, info]) => node.isOptional && isObject(info.params),
+      );
+    };
+    const positionalArgs = mergedInfo.filter(
+      (merged) => !isOptionalObjects(merged),
+    );
+    const optionalArg = mergedInfo.filter(isOptionalObjects).flat();
+    const hasOptionalArgs = optionalArg.length > 0;
+    const args = [...positionalArgs, ...(hasOptionalArgs ? [optionalArg] : [])];
 
-        if (value.length !== mergedInfo.length) {
+    const rawParams: Params = {
+      type: "array",
+      value: args.map((merged) => {
+        const [first, ...rest] = merged;
+        if (rest.length > 0) {
+          return {
+            type: "intersection",
+            value: [
+              mergeObjects(
+                merged
+                  .map(([, info]) => info.params)
+                  .filter((p) => p.type === "object"),
+              ),
+              ...merged
+                .filter(([, info]) => info.params.type !== "object")
+                .map(([, info]) => info.params),
+            ],
+          };
+        }
+        return first[1].params;
+      }),
+      optionalAt: hasOptionalArgs ? args.length - 1 : undefined,
+    };
+
+    // console.log(
+    //   `ParsedGroup.toParserInfo: ${args.length} args, hasOptionalArgs: ${hasOptionalArgs}`,
+    //   positionalArgs.length,
+    //   args[0],
+    //   [rawParams.value[0], rawParams.value[0], rawParams]
+    // );
+
+    return {
+      params:
+        positionalArgs.length === 1
+          ? {
+              type: "union",
+              value: [
+                rawParams.value[0],
+                rawParams.value.length > 1 ? rawParams : rawParams.value[0],
+              ],
+            }
+          : rawParams,
+      parse: (valueRaw: any) => {
+        const value = Array.isArray(valueRaw) ? valueRaw : [valueRaw];
+
+        const valueWithOptional =
+          value.length < args.length && hasOptionalArgs
+            ? [...value, undefined]
+            : value;
+        if (valueWithOptional.length !== args.length) {
           return null; // Number of arguments does not match
         }
 
         const parsedArgs: ParsedNodeType[] = [];
+        let i = 0;
 
-        for (const [i, merged] of mergedInfo.entries()) {
-          const val = value[i];
+        for (const merged of mergedInfo) {
+          // Parse againt the merged info (which might be the last item if it is optional)
+          let val: unknown;
+          if (isOptionalObjects(merged)) {
+            // If the merged info is optional, we can use the last value
+            val = valueWithOptional[valueWithOptional.length - 1];
+          } else {
+            // Otherwise, use the current value
+            val = valueWithOptional[i];
+            i++;
+          }
+
           for (const [arg, info] of merged) {
             // If we're parsing a normal argument, `infos` will have only one item
             // If we're parsing an object with multiple keys, `infos` will have multiple
@@ -135,10 +178,16 @@ export class ParsedGroup extends ParsedNode<Group, ParsedNodeType[]> {
     };
   }
 
-  compile(): RawBuilder<any> {
+  compile(ctx: ParserContext): RawBuilder<any> {
     const sqlParts = this.value
-      .flatMap((item) => (item === undefined ? [] : item))
-      .map((item) => item.compile());
+      .flatMap((item) =>
+        // skip over optional (but absent items) and repeated items with 0 values:
+        item === undefined ||
+        (item instanceof ParsedRepeated && item.value.length === 0)
+          ? []
+          : item,
+      )
+      .map((item) => item.compile(ctx));
 
     return sqlParts.length > 0 ? sql.join(sqlParts, sql` `) : sql``;
   }
