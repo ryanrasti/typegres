@@ -26,6 +26,15 @@ ${clause.generateParser()}
     console.log(`Generated ${name}.ts`);
   }
 
+  // Write index file to re-export all generated parsers:
+  const indexContent = `// Auto-generated index file for parsers
+${Object.keys(grammars)
+  .map((name) => `export {${name}} from './${name}';`)
+  .join("\n")}
+    `;
+  fs.writeFileSync(path.join(outputDir, "index.ts"), indexContent);
+  console.log("Generated index.ts");
+
   // Format generated files with prettier
   console.log("Formatting generated files...");
   try {

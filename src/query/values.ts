@@ -1,9 +1,5 @@
 import { sql } from "kysely";
-import {
-  Expression,
-  QueryAlias,
-  SelectableExpression,
-} from "../expression";
+import { Expression, QueryAlias, SelectableExpression } from "../expression";
 import { Any } from "../types";
 import { Primitive } from "../types/primitive";
 import { Context } from "../expression";
@@ -60,7 +56,7 @@ export type RowLikeResult<R extends RowLike | Scalar> = R extends Scalar
 export class TableReferenceExpression extends SelectableExpression {
   constructor(
     public table: QueryAlias,
-    schema: RowLike
+    schema: RowLike,
   ) {
     super(schema);
   }
@@ -82,28 +78,28 @@ export class ValuesExpression extends SelectableExpression {
           sql`(${sql.join(
             Object.entries(value)
               .toSorted(([k1], [k2]) => k1.localeCompare(k2))
-              .map(([, value]) => sql`${value.toExpression().compile(ctx)}`)
-          )})`
-      )
+              .map(([, value]) => sql`${value.toExpression().compile(ctx)}`),
+          )})`,
+      ),
     )})`;
   }
 }
 
 export const aliasRowLike = <R extends RowLike>(
   queryAlias: QueryAlias,
-  row: R
+  row: R,
 ) => {
   return Object.fromEntries(
     Object.entries(row).map(([key, value]) => [
       key,
       value.getClass().new(new ColumnAliasExpression(queryAlias, key)),
-    ])
+    ]),
   ) as R;
 };
 
 export const aliasScalar = <S extends Scalar>(
   queryAlias: QueryAlias,
-  scalar: S
+  scalar: S,
 ) => {
   return scalar.getClass().new(new ColumnAliasExpression(queryAlias, "value"));
 };
@@ -111,7 +107,7 @@ export const aliasScalar = <S extends Scalar>(
 export class ColumnAliasExpression extends Expression {
   constructor(
     public alias: QueryAlias,
-    public column: string
+    public column: string,
   ) {
     super();
   }
@@ -123,13 +119,13 @@ export class ColumnAliasExpression extends Expression {
 
 export const parseRowLike = <R extends RowLike>(
   rowLike: RowLike,
-  result: RowLikeRawResult<RowLike>
+  result: RowLikeRawResult<RowLike>,
 ) => {
   return Object.fromEntries(
     Object.entries(rowLike).map(([key, value]) => {
       const res = result[key];
       return [key, res === null ? res : value.getClass().parse(res)];
-    })
+    }),
   ) as RowLikeResult<R>;
 };
 
@@ -142,7 +138,6 @@ export const values = <R extends RowLike>(...input: [R, ...R[]]) => {
     new ValuesExpression(input),
     alias,
     {},
-    aliasRowLike(alias, input[0])
+    aliasRowLike(alias, input[0]),
   );
 };
-

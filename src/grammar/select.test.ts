@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { select } from "./generated/select";
-import {  Expression } from "../expression";
+import { Expression } from "../expression";
 import { Int4, Text, Bool } from "../types";
 import { sql } from "kysely";
 import { dummyDb, withDb } from "../test/db";

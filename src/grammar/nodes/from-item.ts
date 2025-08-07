@@ -1,7 +1,6 @@
 import { RawBuilder } from "kysely";
 import { RowLike } from "../../types";
 import { FromItem, isAsFromItem } from "../../query/from-item";
-import { Context as ExpressionContext } from "../../expression";
 import { ParsedNode, ParserInfo, Node, ParserContext } from "./node";
 
 export class FromItemNode extends Node {
@@ -42,22 +41,7 @@ export class ParsedFromItem extends ParsedNode<
     };
   }
 
-  todoApplyUpdateContext(ctx: ParserContext): ExpressionContext {
-    // A hack to make sure the expression context in an UPDATE clause
-    //   passes from the UPDATE to the FROM item.
-    // const [maybeUpdate, maybeFrom] = extractUpdateAndFromItemAsSelectArgs(
-    //   ctx.topLevelClause,
-    // );
-    // if (maybeUpdate && maybeFrom) {
-    //   return pipeContextThroughExpressionContext(ctx.expressionContext, [
-    //     maybeUpdate,
-    //     undefined,
-    //   ]);
-    // }
-    return ctx.expressionContext;
-  }
-
   compile(ctx: ParserContext): RawBuilder<any> {
-    return this.value.compile(this.todoApplyUpdateContext(ctx));
+    return this.value.compile(ctx.expressionContext);
   }
 }

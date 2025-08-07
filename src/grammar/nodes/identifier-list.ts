@@ -6,11 +6,7 @@ export class IdentifierList extends Node {
   name: string;
   typeParam: string;
 
-  constructor(
-    name: string,
-    typeParam: string,
-    optional = false,
-  ) {
+  constructor(name: string, typeParam: string, optional = false) {
     super(optional);
     this.name = name;
     this.typeParam = typeParam;

@@ -9,10 +9,6 @@ import invariant from "tiny-invariant";
 import { Context } from "../expression";
 export type { ParsedClause } from "./nodes";
 
-export { select } from "./generated/select";
-export { update } from "./generated/update";
-export { insert } from "./generated/insert";
-
 // Export grammar definitions for generated files
 export const grammars = {
   update: updateGrammar,

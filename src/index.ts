@@ -16,4 +16,4 @@ export * from "./gen/functions";
 export * from "./gen/tables";
 export { typegres } from "./db";
 export type { Typegres } from "./db";
-export { select, insert, update } from "./grammar/index";
+export { select, insert, update } from "./grammar/generated";

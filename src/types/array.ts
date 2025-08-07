@@ -25,7 +25,9 @@ export default class Array<N extends number, T extends Any> extends PgArray<
   N,
   T
 > {
-  static of<C extends typeof Any<unknown, 0 | 1>>(subtype: C): ArrayClass<0 | 1, InstanceType<C>> {
+  static of<C extends typeof Any<unknown, 0 | 1>>(
+    subtype: C,
+  ): ArrayClass<0 | 1, InstanceType<C>> {
     return class ArrayImpl<N extends number> extends Array<N, InstanceType<C>> {
       static resultType: InstanceType<C>["resultType"][];
       static typeString(): string {

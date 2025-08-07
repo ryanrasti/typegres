@@ -32,7 +32,7 @@ const extractContextToSelectArgs = (ctx: ExtractedContext) => {
 
 export const pipeExpressionContext = (
   ctx: ExpressionContext,
-  fromItems: FromItem[]
+  fromItems: FromItem[],
 ) => {
   return fromItems.reduce((acc, fromItem) => fromItem.getContext(acc), ctx);
 };
@@ -51,7 +51,7 @@ export class Context extends Node {
     extractor: (tlc: ParsedClause) => ExtractedContext,
     child: Node,
     expressionOnly = false,
-    optional = false
+    optional = false,
   ) {
     super(optional);
     this.extractor = extractor;
@@ -71,7 +71,7 @@ export class ParsedContext extends ParsedNode<
 > {
   constructor(
     grammar: Context,
-    value: { fn: Function; parserInfo: ParserInfo }
+    value: { fn: Function; parserInfo: ParserInfo },
   ) {
     super(grammar, value);
   }
@@ -96,7 +96,7 @@ export class ParsedContext extends ParsedNode<
     const extracted = this.grammar.extractor(clause);
     // If no fromItem, call the function with no arguments
     const resolvedChild = this.value.fn(
-      ...extractContextToSelectArgs(extracted)
+      ...extractContextToSelectArgs(extracted),
     );
     const parsedChild = this.value.parserInfo.parse(resolvedChild);
     if (!parsedChild) {
@@ -104,7 +104,7 @@ export class ParsedContext extends ParsedNode<
     }
     invariant(
       parsedChild instanceof ParsedNode,
-      `Parsed child is not an instance of ParsedNode: ${JSON.stringify(parsedChild)}`
+      `Parsed child is not an instance of ParsedNode: ${JSON.stringify(parsedChild)}`,
     );
     return parsedChild;
   }
@@ -116,7 +116,7 @@ export class ParsedContext extends ParsedNode<
 
 export const extractParsedClause = (
   tlc: ParsedClause,
-  clauseName: string
+  clauseName: string,
 ): ParsedNode<Node, unknown> | undefined => {
   return tlc.args.value
     .flatMap((c) => (c == null ? [] : c))
@@ -124,18 +124,18 @@ export const extractParsedClause = (
 };
 
 export const extractFromItemAsSelectArgs = (
-  tlc: ParsedClause
+  tlc: ParsedClause,
 ): ExtractedContext => {
   const fromClause = extractParsedClause(tlc, "FROM");
   if (fromClause && fromClause instanceof ParsedClause) {
     const [parsedFromItem, ...rest] = fromClause.args.value;
     invariant(
       parsedFromItem instanceof ParsedFromItem,
-      `Expected ParsedFromItem in FROM clause, but got ${parsedFromItem}`
+      `Expected ParsedFromItem in FROM clause, but got ${parsedFromItem}`,
     );
     invariant(
       rest.length === 0,
-      `Expected only one FromItem in FROM clause, but got ${rest.length}`
+      `Expected only one FromItem in FROM clause, but got ${rest.length}`,
     );
 
     return [parsedFromItem.value];
@@ -161,11 +161,11 @@ export const extractReturnValue =
         const [ctx, ...rest] = clause.args.value;
         invariant(
           ctx instanceof ParsedContext,
-          `Expected ExpressionList as return clause, but got ${ctx}`
+          `Expected ExpressionList as return clause, but got ${ctx}`,
         );
         invariant(
           rest.length === 0,
-          `Expected only one ExpressionList as return clause, but got ${rest.length}`
+          `Expected only one ExpressionList as return clause, but got ${rest.length}`,
         );
         context = ctx;
       }
@@ -177,7 +177,7 @@ export const extractReturnValue =
     const ret = context.resolve(tlc);
     invariant(
       ret instanceof ParsedExpressionList,
-      `Expected ParsedExpressionList, but got ${ret}`
+      `Expected ParsedExpressionList, but got ${ret}`,
     );
     return ret.value;
   };

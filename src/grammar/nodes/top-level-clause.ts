@@ -50,7 +50,10 @@ export class TopLevelClause extends Clause {
     if (this.args instanceof Group) {
       this.args.nodes.forEach(processNode);
     } else if (this.args instanceof Repeated) {
-      invariant(this.args.child instanceof Group, "Expected Repeated child to be a Group");
+      invariant(
+        this.args.child instanceof Group,
+        "Expected Repeated child to be a Group",
+      );
       this.args.child.nodes.forEach(processNode);
     } else {
       this.args satisfies never;

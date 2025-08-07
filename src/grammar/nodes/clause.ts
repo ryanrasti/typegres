@@ -12,7 +12,7 @@ import {
   ParsedRepeated,
 } from "./node";
 import { parseRowLike, RowLikeResult } from "../../query/values";
-import { Expression, Typegres } from "typegres";
+import { Typegres } from "../../db";
 import { RowLike } from "../../types";
 import { Context as ExpressionContext } from "../../expression";
 import { TopLevelClause } from "./top-level-clause";
@@ -23,7 +23,11 @@ import { QueryAlias } from "../../expression";
 import { dummyDb } from "../../test/db";
 import { inspect } from "cross-inspect";
 import { Bool } from "../../gen/types";
-import { ExistsExpression, NotExistsExpression } from "../../expression";
+import {
+  ExistsExpression,
+  NotExistsExpression,
+  Expression,
+} from "../../expression";
 
 export class Clause extends Node {
   type = "clause";
@@ -33,7 +37,7 @@ export class Clause extends Node {
   constructor(
     name: string,
     args: Node[] | Group | Repeated<Group>,
-    optional = false
+    optional = false,
   ) {
     super(optional);
     this.name = name;
@@ -52,7 +56,7 @@ export class ParsedClause<R extends RowLike = RowLike>
 {
   constructor(
     grammar: Clause,
-    public args: ParsedGroup | ParsedRepeated
+    public args: ParsedGroup | ParsedRepeated,
   ) {
     super(grammar, args);
   }
@@ -88,7 +92,7 @@ export class ParsedClause<R extends RowLike = RowLike>
         invariant(
           parsedGroup instanceof ParsedGroup ||
             parsedGroup instanceof ParsedRepeated,
-          `Expected ParsedGroup, got ${inspect(parsedGroup)}`
+          `Expected ParsedGroup, got ${inspect(parsedGroup)}`,
         );
         return new ParsedClause(clause, parsedGroup);
       },
@@ -120,14 +124,14 @@ export class ParsedClause<R extends RowLike = RowLike>
     if (!ctx) {
       invariant(
         this.grammar instanceof TopLevelClause,
-        "Only top-level clauses can be compiled without an explicit context"
+        "Only top-level clauses can be compiled without an explicit context",
       );
 
       return this.compile({
         topLevelClause: this.asGenericParsedClause(),
         expressionContext: pipeExpressionContext(
           ExpressionContext.new(),
-          this.fromItems().map((item) => item.value)
+          this.fromItems().map((item) => item.value),
         ),
       });
     }
@@ -140,37 +144,35 @@ export class ParsedClause<R extends RowLike = RowLike>
 
   scalar(): R extends RowLike ? R[keyof R] : unknown {
     const returnShape = (this.grammar as TopLevelClause).returnShapeExtractor(
-      this.asGenericParsedClause()
+      this.asGenericParsedClause(),
     );
     invariant(
       returnShape != null,
-      "Expected a return shape for scalar extraction"
+      "Expected a return shape for scalar extraction",
     );
     const [val, ...rest] = Object.values(returnShape);
     invariant(
       rest.length === 0,
-      `Expected a single scalar return shape, got: ${inspect(returnShape)}`
+      `Expected a single scalar return shape, got: ${inspect(returnShape)}`,
     );
-    return val
-      .getClass()
-      .new(this.toExpression()) as R extends RowLike
+    return val.getClass().new(this.toExpression()) as R extends RowLike
       ? R[keyof R]
       : unknown;
   }
 
   asFromItem(): FromItem<R> {
     const returnShape = (this.grammar as TopLevelClause).returnShapeExtractor(
-      this.asGenericParsedClause()
+      this.asGenericParsedClause(),
     );
     invariant(
       returnShape != null,
-      "Expected a return shape for FromItem extraction"
+      "Expected a return shape for FromItem extraction",
     );
     return new FromItem(
       this.toExpression(),
       new QueryAlias(this.grammar.name),
       {},
-      returnShape as RowLike
+      returnShape as RowLike,
     ) as FromItem<R>;
   }
 
@@ -180,7 +182,7 @@ export class ParsedClause<R extends RowLike = RowLike>
   }
 
   async execute(
-    typegres: Typegres
+    typegres: Typegres,
   ): Promise<R extends RowLike ? RowLikeResult<R>[] : unknown> {
     const compiled = this.compile();
     const compiledRaw = compiled.compile(typegres._internal);
@@ -192,19 +194,19 @@ export class ParsedClause<R extends RowLike = RowLike>
       console.error(
         "Error executing query: ",
         compiledRaw.sql,
-        compiledRaw.parameters
+        compiledRaw.parameters,
       );
       throw error;
     }
     const returnShape = (this.grammar as TopLevelClause).returnShapeExtractor(
-      this.asGenericParsedClause()
+      this.asGenericParsedClause(),
     );
     return (
       returnShape
         ? raw.rows.map((row) => {
             invariant(
               typeof row === "object" && row !== null,
-              "Expected each row to be an object"
+              "Expected each row to be an object",
             );
             return parseRowLike(returnShape, row);
           })
@@ -242,7 +244,7 @@ export class SubselectExpression extends Expression {
     const compiled = this.clause.compile({
       expressionContext: pipeExpressionContext(
         ctx,
-        this.clause.fromItems().map((item) => item.value)
+        this.clause.fromItems().map((item) => item.value),
       ),
       topLevelClause: this.clause,
     });
