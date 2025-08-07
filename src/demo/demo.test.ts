@@ -26,7 +26,6 @@ describe("demo.ts examples", async () => {
   } = calls;
 
   it("example1: grouping and aggregation on pets", async () => {
-    // example1 is already awaited in the module
     expect(Array.isArray(example1)).toBe(true);
     // Should group by species and aggregate
     expect(

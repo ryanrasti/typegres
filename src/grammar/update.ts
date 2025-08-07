@@ -1,12 +1,21 @@
+import invariant from "tiny-invariant";
 import {
   TopLevelClause,
   Clause,
   ExpressionList,
   FromItem,
-  Identifier,
   Literal,
   Condition,
+  Context,
+  ParsedClause,
+  ParsedFromItem,
+  Node,
 } from "./nodes";
+import {
+  ExtractedContext,
+  extractFromItemAsSelectArgs,
+  extractReturnValue,
+} from "./nodes/context";
 
 /*
 https://www.postgresql.org/docs/current/sql-update.html
@@ -22,22 +31,42 @@ UPDATE [ ONLY ] table_name [ * ] [ [ AS ] alias ]
     [ RETURNING { * | output_expression [ [ AS ] output_name ] } [, ...] ]
 */
 
+export const extractUpdateAndFromItemAsSelectArgs = (
+  tlc: ParsedClause,
+): ExtractedContext => {
+  const [fromItem] = extractFromItemAsSelectArgs(tlc);
+  if (tlc.grammar.name === "UPDATE") {
+    const updateTable = tlc.args.value[1];
+    invariant(
+      updateTable instanceof ParsedFromItem,
+      `Expected ParsedFromItem of type 'table' in UPDATE clause, but got ${updateTable}`,
+    );
+
+    return [updateTable.value, fromItem];
+  }
+  return [undefined, fromItem];
+};
+
+const withContext = (node: Node): Node =>
+  new Context(
+    "[updateRow: Types.FromToSelectArgs<U, {}>[0], ...Types.FromToSelectArgs<ReturnType<FR['asFromItem']>['from'], ReturnType<FR['asFromItem']>['joins']>]",
+    extractUpdateAndFromItemAsSelectArgs,
+    node,
+  );
+
 export const updateGrammar = new TopLevelClause(
   "UPDATE",
-  // TODO: `U extends string` should be `U extends Types.Table` to power
-  //  context-awareness
-  "<U extends string, F extends FromItem, R extends Types.RowLike>",
+  "<U extends Types.RowLike, F extends Types.RowLike, J extends Types.Joins, FR extends Types.AsFromItem<F, J>, R extends Types.RowLike>",
   "R",
+  extractReturnValue("RETURNING"),
   [
     new Literal("ONLY").optional(),
-    new Identifier("table_name", "U", true),
-    new Clause("SET", [
-      new ExpressionList(["MergeSelectArgs<U, F>"], "assignment"),
-    ]),
-    new Clause("FROM", [new FromItem("F").repeated()]).optional(),
-    new Clause("WHERE", [new Condition(["MergeSelectArgs<U, F>"])]).optional(),
+    new FromItem("Types.Table<U>"),
+    new Clause("SET", [withContext(new ExpressionList("assignment"))]),
+    new Clause("FROM", [new FromItem("FR")]).optional(),
+    new Clause("WHERE", [withContext(new Condition())]).optional(),
     new Clause("RETURNING", [
-      new ExpressionList(["MergeSelectArgs<U, F>", "R"], "alias"),
+      withContext(new ExpressionList("alias", "R")),
     ]).optional(),
   ],
 );

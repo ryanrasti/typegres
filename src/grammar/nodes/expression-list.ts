@@ -1,24 +1,21 @@
 import { RawBuilder, sql } from "kysely";
 import invariant from "tiny-invariant";
-import { Any } from "../../types";
-import { Context } from "../../expression";
-import { ParsedNode, ParserInfo, Node } from "./node";
+import { Any, RowLike } from "../../types";
+import { ParsedNode, ParserInfo, Node, ParserContext } from "./node";
 
 export class ExpressionList extends Node {
   type = "expressionList";
-  context: string;
   returnTypeParam: string;
-  format: "alias" | "assignment" | "bare";
+  format: "alias" | "assignment" | "bare" | "values";
 
   constructor(
-    contextAndReturnTypeParam: [string] | [string, string],
-    format: "alias" | "assignment" | "bare",
+    format: "alias" | "assignment" | "bare" | "values",
+    returnTypeParam?: string,
     optional = false,
-    repeated = false,
   ) {
-    super(optional, repeated);
-    this.context = contextAndReturnTypeParam[0];
-    this.returnTypeParam = contextAndReturnTypeParam[1] ?? "Types.RowLike";
+    super(optional);
+    this.returnTypeParam =
+      returnTypeParam ?? (format === "bare" ? "Types.Any[]" : "Types.RowLike");
     this.format = format;
   }
 
@@ -27,11 +24,8 @@ export class ExpressionList extends Node {
   }
 }
 
-export class ParsedExpressionList<T = any> extends ParsedNode<
-  ExpressionList,
-  T
-> {
-  constructor(grammar: ExpressionList, value: T) {
+export class ParsedExpressionList extends ParsedNode<ExpressionList, RowLike> {
+  constructor(grammar: ExpressionList, value: RowLike) {
     super(grammar, value);
   }
 
@@ -39,14 +33,10 @@ export class ParsedExpressionList<T = any> extends ParsedNode<
     return {
       params: {
         type: "identifier",
-        value: grammar.context.includes("<")
-          ? `(args: ${grammar.context}) => ${grammar.returnTypeParam}`
-          : grammar.context === ""
-            ? `() => ${grammar.returnTypeParam}`
-            : `(arg: ${grammar.context}) => ${grammar.returnTypeParam}`,
+        value: grammar.returnTypeParam,
       },
       parse: (value: any) => {
-        if (typeof value !== "function") {
+        if (typeof value !== "object") {
           return null; // Expected a function for expression list
         }
         return new ParsedExpressionList(grammar, value);
@@ -54,27 +44,25 @@ export class ParsedExpressionList<T = any> extends ParsedNode<
     };
   }
 
-  compile(): RawBuilder<any> {
-    // TODO: we will need to pass a context here and look up the arguments
-    //    from the context. For now just call the function directly.
-    if (typeof this.value !== "function") {
-      throw new Error("ExpressionList value is not a function");
-    }
-    const result = this.value();
+  compile(ctx: ParserContext): RawBuilder<any> {
     if (
       this.grammar.format === "alias" ||
       this.grammar.format === "assignment"
     ) {
       invariant(
-        typeof result === "object" && result != null,
+        typeof this.value === "object" && this.value != null,
         "ExpressionList must return an object",
       );
       return sql.join(
-        Object.entries(result).map(([key, value]) => {
+        Object.entries(this.value).map(([key, value]) => {
           // Handle Any types by converting to expression
-          invariant(value instanceof Any, "Value must be an instance of Any");
-          const todoContext = Context.new();
-          const compiledValue = value.toExpression().compile(todoContext);
+          invariant(
+            value instanceof Any,
+            `Value must be an instance of Any, got: ${value}`,
+          );
+          const compiledValue = value
+            .toExpression()
+            .compile(ctx.expressionContext);
 
           return this.grammar.format === "alias"
             ? sql`${compiledValue} AS ${sql.ref(key)}`
@@ -82,11 +70,12 @@ export class ParsedExpressionList<T = any> extends ParsedNode<
         }),
       );
     }
-    // bare: it should just be a list:
+    // TODO: bare: it should just be a list -- but we don't parse correctly yet, so it's just
+    //   a single value:
     invariant(
-      Array.isArray(result),
-      "ExpressionList in bare format must return an array",
+      this.value instanceof Any,
+      "Bare expression must be an instance of Any",
     );
-    return sql.join(result.map((value) => sql`${value}`));
+    return this.value.toExpression().compile(ctx.expressionContext);
   }
 }

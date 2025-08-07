@@ -1,14 +1,14 @@
 import { RawBuilder } from "kysely";
-import { Setof } from "../../types";
-import { Context } from "../../expression";
-import { ParsedNode, ParserInfo, Node } from "./node";
+import { RowLike } from "../../types";
+import { FromItem, isAsFromItem } from "../../query/from-item";
+import { ParsedNode, ParserInfo, Node, ParserContext } from "./node";
 
-export class FromItem extends Node {
+export class FromItemNode extends Node {
   type = "fromItem";
   typeParam: string;
 
-  constructor(typeParam: string, optional = false, repeated = false) {
-    super(optional, repeated);
+  constructor(typeParam: string, optional = false) {
+    super(optional);
     this.typeParam = typeParam;
   }
 
@@ -21,25 +21,27 @@ export class FromItem extends Node {
   }
 }
 
-export class ParsedFromItem extends ParsedNode<FromItem, Setof<any>> {
-  constructor(grammar: FromItem, value: Setof<any>) {
+export class ParsedFromItem extends ParsedNode<
+  FromItemNode,
+  FromItem<RowLike>
+> {
+  constructor(grammar: FromItemNode, value: FromItem<RowLike>) {
     super(grammar, value);
   }
 
-  static toParserInfo(grammar: FromItem): ParserInfo {
+  static toParserInfo(grammar: FromItemNode): ParserInfo {
     return {
       params: { type: "identifier", value: grammar.typeParam },
       parse: (arg: any) => {
-        if (!(arg instanceof Setof)) {
+        if (!isAsFromItem(arg)) {
           return null; // Expected a Setof type for FromItem
         }
-        return new ParsedFromItem(grammar, arg);
+        return new ParsedFromItem(grammar, arg.asFromItem());
       },
     };
   }
 
-  compile(): RawBuilder<any> {
-    const todoContext = Context.new();
-    return this.value.compile(todoContext);
+  compile(ctx: ParserContext): RawBuilder<any> {
+    return this.value.compile(ctx.expressionContext);
   }
 }

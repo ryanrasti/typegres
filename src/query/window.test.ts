@@ -3,6 +3,7 @@ import { values } from "./values";
 import { Int4, Text, Numeric } from "../types";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
+import { select } from "../grammar/generated/select";
 
 describe("Window Functions", () => {
   it("can use aggregate functions with OVER()", async () => {
@@ -29,18 +30,18 @@ describe("Window Functions", () => {
       },
     );
 
-    const result = await sales
-      .select((s) => ({
+    const result = await select(
+      (s) => ({
         department: s.department,
         employee: s.employee,
         amount: s.amount,
         totalSales: s.amount.sum().over(),
-      }))
-      .orderBy(
-        (s) => s.department,
-        (s) => s.employee,
-      )
-      .execute(testDb);
+      }),
+      {
+        from: sales,
+        orderBy: (s) => s.department,
+      },
+    ).execute(testDb);
 
     assert<
       Equals<
@@ -107,17 +108,19 @@ describe("Window Functions", () => {
       },
     );
 
-    const result = await sales
-      .select((s) => ({
+    const result = await select(
+      (s) => ({
         department: s.department,
         employee: s.employee,
         amount: s.amount,
         deptTotal: s.amount.sum().over({ partitionBy: s.department }),
         deptAvg: s.amount.avg().over({ partitionBy: s.department }),
-      }))
-      .orderBy((s) => s.department)
-      .orderBy((s) => s.employee)
-      .execute(testDb);
+      }),
+      {
+        from: sales,
+        orderBy: (s) => s.department,
+      },
+    ).execute(testDb);
 
     expect(result).toEqual([
       {
@@ -159,14 +162,17 @@ describe("Window Functions", () => {
       { date: Text.new("2024-01-04"), amount: Int4.new(300) },
     );
 
-    const result = await transactions
-      .select((t) => ({
+    const result = await select(
+      (t) => ({
         date: t.date,
         amount: t.amount,
         runningTotal: t.amount.sum().over({ orderBy: t.date }) as any,
-      }))
-      .orderBy((t) => t.date)
-      .execute(testDb);
+      }),
+      {
+        from: transactions,
+        orderBy: (t) => t.date,
+      },
+    ).execute(testDb);
 
     expect(result).toEqual([
       { date: "2024-01-01", amount: 100, runningTotal: 100n },
@@ -210,8 +216,8 @@ describe("Window Functions", () => {
       },
     );
 
-    const result = await sales
-      .select((s) => ({
+    const result = await select(
+      (s) => ({
         department: s.department,
         month: s.month,
         amount: s.amount,
@@ -219,10 +225,12 @@ describe("Window Functions", () => {
           partitionBy: s.department,
           orderBy: s.month,
         }),
-      }))
-      .orderBy((s) => s.department)
-      .orderBy((s) => s.month)
-      .execute(testDb);
+      }),
+      {
+        from: sales,
+        orderBy: (s) => s.department,
+      },
+    ).execute(testDb);
 
     expect(result).toEqual([
       {
@@ -298,18 +306,20 @@ describe("Window Functions", () => {
       },
     );
 
-    const result = await scores
-      .select((s) => ({
+    const result = await select(
+      (s) => ({
         student: s.student,
         subject: s.subject,
         score: s.score,
         studentAvg: s.score.avg().over({ partitionBy: s.student }),
         subjectAvg: s.score.avg().over({ partitionBy: s.subject }),
         overallAvg: s.score.avg().over(),
-      }))
-      .orderBy((s) => s.student)
-      .orderBy((s) => s.subject)
-      .execute(testDb);
+      }),
+      {
+        from: scores,
+        orderBy: (s) => s.student,
+      },
+    ).execute(testDb);
 
     expect(result[0].student).toBe("Alice");
     expect(result[0].subject).toBe("Math");
@@ -327,16 +337,19 @@ describe("Window Functions", () => {
       { month: Int4.new(4), amount: Numeric.new("2000") },
     );
 
-    const result = await sales
-      .select((s) => ({
+    const result = await select(
+      (s) => ({
         month: s.month,
         amount: s.amount,
         reverseRunningTotal: s.amount.sum().over({
           orderBy: [s.month, "desc"],
         }),
-      }))
-      .orderBy((s) => s.month)
-      .execute(testDb);
+      }),
+      {
+        from: sales,
+        orderBy: (s) => s.month,
+      },
+    ).execute(testDb);
 
     expect(result).toEqual([
       { month: 1, amount: "1000", reverseRunningTotal: "5300" },
@@ -355,18 +368,20 @@ describe("Window Functions", () => {
       { customer: Text.new("Bob"), product: Text.new("Gadget") },
     );
 
-    const result = await orders
-      .select((o) => ({
+    const result = await select(
+      (o) => ({
         customer: o.customer,
         product: o.product,
         customerOrderCount: o.customer
           .count()
           .over({ partitionBy: o.customer }),
         totalOrderCount: o.customer.count().over(),
-      }))
-      .orderBy((o) => o.customer)
-      .orderBy((o) => o.product)
-      .execute(testDb);
+      }),
+      {
+        from: orders,
+        orderBy: [(o) => o.customer, (o) => o.product],
+      },
+    ).execute(testDb);
 
     expect(result).toEqual([
       {
@@ -411,8 +426,8 @@ describe("Window Functions", () => {
       { student: Text.new("Eve"), score: Int4.new(78) },
     );
 
-    const result = await scores
-      .select((s) => ({
+    const result = await select(
+      (s) => ({
         student: s.student,
         score: s.score,
         rankWithNullsLast: s.student.count().over({
@@ -421,9 +436,12 @@ describe("Window Functions", () => {
         rankWithNullsFirst: s.student.count().over({
           orderBy: [s.score, "desc nulls first"],
         }),
-      }))
-      .orderBy((s) => s.student)
-      .execute(testDb);
+      }),
+      {
+        from: scores,
+        orderBy: (s) => s.student,
+      },
+    ).execute(testDb);
 
     // With nulls last, NULL values should come after all non-NULL values
     const nullsLast = result.filter((r) => r.score === null);

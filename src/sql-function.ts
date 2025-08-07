@@ -4,10 +4,11 @@ import {
   FunctionExpression,
   LiteralUnknownExpression,
 } from "./expression";
-import type { BindedSetof, RowLike } from "./query/values";
-import { Any, Setof } from "./types";
+import type { RowLike } from "./query/values";
+import { Any } from "./types";
 import { Schema } from "./types/any";
 import { Context, SelectableExpression } from "./expression";
+import type { FromItem, FromItemFromExpressionClass } from "./query/from-item";
 
 const Sentinel = class Sentinel {
   static typeString() {
@@ -90,13 +91,13 @@ export class SelectableFunctionExpression extends SelectableExpression {
 
 type TypedFunctionDefinition =
   | {
-      ret: typeof Any<unknown, number> | BindedSetof<any>;
+      ret: typeof Any<unknown, number> | FromItemFromExpressionClass;
       args: (typeof Any<unknown>)[];
       isOperator: boolean;
       isReserved?: boolean;
     }
-  | ((args: { T: typeof Any<unknown, number>; R: Schema }) => {
-      ret: typeof Any<unknown, number> | BindedSetof<any>;
+  | ((args: { T: typeof Any<unknown, 0 | 1>; R: Schema }) => {
+      ret: typeof Any<unknown, number> | FromItemFromExpressionClass;
       args: (typeof Any<unknown, number>)[];
       isOperator: boolean;
       isReserved?: boolean;
@@ -106,7 +107,7 @@ export const sqlFunction = (
   name: string,
   defn: TypedFunctionDefinition[],
   args: unknown[],
-): Any | Setof<any> => {
+): Any | FromItem<RowLike> => {
   const [{ matchingDef, RetType }] = defn.flatMap((def) => {
     const RetType = getRetType(args, def);
     return RetType

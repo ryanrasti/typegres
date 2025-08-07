@@ -10,8 +10,8 @@ export type ClassType<T> = {
   prototype: T;
 };
 
-export type ArrayClass<T extends Any> = {
-  new (v: string): Array<number, T>;
+export type ArrayClass<N extends number, T extends Any> = {
+  new (v: string): Array<N, T>;
   ["new"](v: string): Array<1, T>;
   ["new"](v: null): Array<0, T>;
   ["new"](v: Expression): Array<0 | 1, T>;
@@ -25,9 +25,11 @@ export default class Array<N extends number, T extends Any> extends PgArray<
   N,
   T
 > {
-  static of<C extends ClassType<Any>>(subtype: C): ArrayClass<C["prototype"]> {
-    return class ArrayImpl<N extends number> extends Array<N, C["prototype"]> {
-      static resultType: C["prototype"]["resultType"][];
+  static of<C extends typeof Any<unknown, 0 | 1>>(
+    subtype: C,
+  ): ArrayClass<0 | 1, InstanceType<C>> {
+    return class ArrayImpl<N extends number> extends Array<N, InstanceType<C>> {
+      static resultType: InstanceType<C>["resultType"][];
       static typeString(): string {
         return `${subtype.typeString()}[]`;
       }
@@ -38,7 +40,7 @@ export default class Array<N extends number, T extends Any> extends PgArray<
         };
       }
 
-      static parse(v: string): C["prototype"]["resultType"][] {
+      static parse(v: string): InstanceType<C>["resultType"][] {
         return array.parse(v, subtype.parse);
       }
 

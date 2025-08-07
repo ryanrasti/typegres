@@ -5,6 +5,8 @@
 //   anyarray
 
 import { Int2, Int4, Int8, Float4, Float8, Numeric } from "../gen/types";
+import { ParsedClause } from "../grammar";
+import { RowLike } from "../query/values";
 
 //     all arrays
 export * from "../gen/types";
@@ -13,12 +15,14 @@ export { default as Array } from "./array";
 export { default as Bool } from "./bool";
 export { default as Text } from "./text";
 export { default as Record } from "./record";
-export { Setof as Setof } from "../query/values";
+export type { ParsedClause } from "../grammar/nodes/clause";
 export type { RowLike } from "../query/values";
 export type { Table } from "../query/db";
-export type { FromItem } from "../query/from-item";
 export type { Aggregate } from "./aggregate";
 export type { Input } from "./serialization";
+export type { FromToSelectArgs, Joins, AsFromItem } from "../query/from-item";
+export { FromItem } from "../query/from-item";
+export type Select<T extends RowLike = RowLike> = ParsedClause<T>;
 
 export type NumericLike =
   | Int4<0 | 1>
@@ -27,3 +31,5 @@ export type NumericLike =
   | Float4<0 | 1>
   | Float8<0 | 1>
   | Numeric<0 | 1>;
+
+export type Repeated<T> = T | [T, ...T[]];

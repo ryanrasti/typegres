@@ -1,8 +1,9 @@
 export { Node, ParsedNode } from "./node";
 export { ExpressionList, ParsedExpressionList } from "./expression-list";
 export { Expression, ParsedExpression, Condition } from "./expression";
-export { FromItem, ParsedFromItem } from "./from-item";
+export { FromItemNode as FromItem, ParsedFromItem } from "./from-item";
 export { Identifier, ParsedIdentifier } from "./identifier";
+export { IdentifierList, ParsedIdentifierList } from "./identifier-list";
 export { Recursive } from "./recursive";
 export { TopLevelClause } from "./top-level-clause";
 export { Clause, ParsedClause } from "./clause";
@@ -11,3 +12,4 @@ export { OneOf } from "./one-of";
 export { default as camelCase } from "camelcase";
 export { Todo } from "./todo";
 export { Literal } from "./literal";
+export { Context, ParsedContext, extractFromItemAsSelectArgs } from "./context";

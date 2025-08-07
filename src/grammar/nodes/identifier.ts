@@ -12,9 +12,8 @@ export class Identifier extends Node {
     typeParam: string,
     withAlias = false,
     optional = false,
-    repeated = false,
   ) {
-    super(optional, repeated);
+    super(optional);
     this.name = name;
     this.withAlias = withAlias;
     this.typeParam = typeParam;

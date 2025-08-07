@@ -7,7 +7,6 @@ import {
   InExpression,
   NotInExpression,
   ExpressionLike,
-  isExpressionLike,
   WindowExpression,
   WindowSpec,
 } from "../expression";
@@ -15,7 +14,6 @@ import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
 import { Typegres } from "../db";
 import * as Types from "../types";
-import { RowLike } from "../query/values";
 
 export type WithNullability<N extends number, T extends Any> = NonNullable<
   ReturnType<
@@ -250,26 +248,18 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
    * value IN (1, 2, 3) or value IN (SELECT ...)
    */
   in<T extends this>(list: Types.Input<T>[]): Types.Bool<N>;
-  in<T extends this>(
-    list: Types.Setof<
-      | { from: Types.FromItem<Any | RowLike>; select: T }
-      | { from: Types.FromItem<T>; select?: undefined }
-    >,
+  in<K extends string, T extends Any<unknown, 0 | 1>>(
+    list: Types.Select<{ [k in K]: T }>,
   ): Types.Bool<N>;
-  in<T extends this, N2 extends number>(
-    list:
-      | Types.Input<T>[]
-      | Types.Setof<
-          | { from: Types.FromItem<Any>; select: T }
-          | { from: Types.FromItem<T>; select?: undefined }
-        >,
+  in<T extends Any<unknown, 0 | 1>, N2 extends number>(
+    list: Types.Input<T>[] | Types.Select<{ [k in string]: T }>,
   ): Types.Bool<N | N2> {
     return Types.Bool.new(
       new InExpression(
         this.toExpression(),
-        isExpressionLike(list)
-          ? list
-          : list.map((x) => this.toExpressionHelper(x)),
+        Array.isArray(list)
+          ? list.map((x) => this.toExpressionHelper(x))
+          : list.toExpression(),
       ),
     ) as Types.Bool<N | N2>;
   }
@@ -280,26 +270,18 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
    */
 
   notIn<T extends this>(list: Types.Input<T>[]): Types.Bool<N>;
-  notIn<T extends this>(
-    list: Types.Setof<
-      | { from: Types.FromItem<Any | RowLike>; select: T }
-      | { from: Types.FromItem<T>; select?: undefined }
-    >,
+  notIn<K extends string, T extends Any<unknown, 0 | 1>>(
+    list: Types.Select<{ [k in K]: T }>,
   ): Types.Bool<N>;
-  notIn<T extends this, N2 extends number>(
-    list:
-      | Types.Input<T>[]
-      | Types.Setof<
-          | { from: Types.FromItem<Any>; select: T }
-          | { from: Types.FromItem<T>; select?: undefined }
-        >,
+  notIn<T extends Any<unknown, 0 | 1>, N2 extends number>(
+    list: Types.Input<T>[] | Types.Select<{ [k in string]: T }>,
   ): Types.Bool<N | N2> {
     return Types.Bool.new(
       new NotInExpression(
         this.toExpression(),
-        isExpressionLike(list)
-          ? list
-          : list.map((x) => this.toExpressionHelper(x)),
+        Array.isArray(list)
+          ? list.map((x) => this.toExpressionHelper(x))
+          : list.toExpression(),
       ),
     ) as Types.Bool<N | N2>;
   }

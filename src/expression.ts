@@ -1,5 +1,5 @@
 import { RawBuilder, sql } from "kysely";
-import type { Query, RowLike, Setof } from "./query/values";
+import type { RowLike } from "./query/values";
 import type { Any } from "./types";
 import type { OrderBySpec } from "./query/order-by";
 import { compileOrderBy } from "./query/order-by";
@@ -186,7 +186,7 @@ export abstract class SelectableExpression extends Expression {
 export class InExpression extends Expression {
   constructor(
     public value: Expression,
-    public list: Expression[] | Expression | Setof<Query>,
+    public list: Expression[] | Expression,
   ) {
     super();
   }
@@ -204,7 +204,7 @@ export class InExpression extends Expression {
 export class NotInExpression extends Expression {
   constructor(
     public value: Expression,
-    public list: Expression[] | Expression | Setof<Query>,
+    public list: Expression[] | Expression,
   ) {
     super();
   }

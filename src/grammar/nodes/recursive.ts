@@ -1,21 +1,45 @@
-import { ParserInfo, Node } from "./node";
+import { ParserInfo, Node, ParsedNode, ParserContext } from "./node";
+import type { ParsedClause } from "./clause";
+import { sql } from "kysely";
 
 export class Recursive extends Node {
   type = "recursive";
-  rule: () => Node;
+  params: string;
 
-  constructor(rule: () => Node, optional = false, repeated = false) {
-    super(optional, repeated);
-    this.rule = rule;
+  constructor(params: string, optional = false) {
+    super(optional);
+    this.params = params;
   }
 
   toParserInfo(): ParserInfo {
-    // Avoid infinite recursion - just return a placeholder for recursive rules
+    return ParsedRecursive.toParserInfo(this);
+  }
+}
+
+export class ParsedRecursive extends ParsedNode<Recursive, ParsedClause> {
+  constructor(grammar: Recursive, value: ParsedClause) {
+    super(grammar, value);
+  }
+
+  static toParserInfo(grammar: Recursive): ParserInfo {
     return {
-      params: { type: "identifier", value: "never" },
-      parse: () => {
-        throw new Error("TODO: Recursive parsing not implemented yet");
+      params: { type: "identifier", value: grammar.params },
+      parse: (value: unknown) => {
+        if (value instanceof ParsedNode) {
+          return new ParsedRecursive(
+            grammar,
+            // TODO: doing a cast here because importing `ParsedClause` directly causes circular dependencies
+            value as ParsedClause,
+          );
+        }
+        return null;
       },
     };
+  }
+
+  compile(_ctx: ParserContext) {
+    // Note that we intentionally do not propagate the context here,
+    // as the recursive node should have its own context.
+    return sql`(${this.value.compile()})`;
   }
 }

@@ -4,6 +4,7 @@ import { values } from "../query/values";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
 import { caseWhen } from "../sql-case";
+import { select } from "../grammar/generated/select";
 
 describe("Keyword operators", () => {
   describe("isNull and isNotNull", () => {
@@ -13,12 +14,15 @@ describe("Keyword operators", () => {
         { name: Types.Text.new(null), age: Types.Int4.new(25) },
       );
 
-      const result = await data
-        .select((row) => ({
+      const result = await select(
+        (row) => ({
           nameIsNull: row.name.isNull(),
           ageIsNull: row.age.isNull(),
-        }))
-        .execute(testDb);
+        }),
+        {
+          from: data,
+        },
+      ).execute(testDb);
 
       assert<
         Equals<typeof result, { nameIsNull: boolean; ageIsNull: boolean }[]>
@@ -60,12 +64,13 @@ describe("Keyword operators", () => {
         { name: Types.Text.new(null), age: Types.Int4.new(25) },
       );
 
-      const result = await data
-        .select((row) => ({
+      const result = await select(
+        (row) => ({
           nameIsNotNull: row.name.isNotNull(),
           ageIsNotNull: row.age.isNotNull(),
-        }))
-        .execute(testDb);
+        }),
+        { from: data },
+      ).execute(testDb);
 
       expect(result).toEqual([
         { nameIsNotNull: true, ageIsNotNull: false },
@@ -132,13 +137,14 @@ describe("Keyword operators", () => {
         { a: Types.Bool.new(null), b: Types.Bool.new(null) },
       );
 
-      const result = await data
-        .select((row) => ({
+      const result = await select(
+        (row) => ({
           a: row.a,
           b: row.b,
           result: row.a.and(row.b),
-        }))
-        .execute(testDb);
+        }),
+        { from: data },
+      ).execute(testDb);
 
       // AND truth table:
       // true AND true = true
@@ -177,13 +183,14 @@ describe("Keyword operators", () => {
         { a: Types.Bool.new(null), b: Types.Bool.new(null) },
       );
 
-      const result = await data
-        .select((row) => ({
+      const result = await select(
+        (row) => ({
           a: row.a,
           b: row.b,
           result: row.a.or(row.b),
-        }))
-        .execute(testDb);
+        }),
+        { from: data },
+      ).execute(testDb);
 
       // OR truth table:
       // true OR true = true
@@ -215,12 +222,13 @@ describe("Keyword operators", () => {
         { a: Types.Bool.new(null) },
       );
 
-      const result = await data
-        .select((row) => ({
+      const result = await select(
+        (row) => ({
           a: row.a,
           result: row.a.not(),
-        }))
-        .execute(testDb);
+        }),
+        { from: data },
+      ).execute(testDb);
 
       // NOT truth table:
       // NOT true = false
@@ -286,12 +294,13 @@ describe("Keyword operators", () => {
         { name: Types.Text.new("Bob Johnson") },
       );
 
-      const result = await data
-        .select((row) => ({
+      const result = await select(
+        (row) => ({
           name: row.name,
           hasJohn: row.name.like("%John%"),
-        }))
-        .execute(testDb);
+        }),
+        { from: data },
+      ).execute(testDb);
 
       expect(result).toEqual([
         { name: "John Smith", hasJohn: true },
@@ -307,12 +316,13 @@ describe("Keyword operators", () => {
         { name: Types.Text.new("BOB JOHNSON") },
       );
 
-      const result = await data
-        .select((row) => ({
+      const result = await select(
+        (row) => ({
           name: row.name,
           hasJohn: row.name.ilike("%john%"),
-        }))
-        .execute(testDb);
+        }),
+        { from: data },
+      ).execute(testDb);
 
       expect(result).toEqual([
         { name: "John Smith", hasJohn: true },
@@ -328,12 +338,13 @@ describe("Keyword operators", () => {
         { name: Types.Text.new("Bob Johnson") },
       );
 
-      const result = await data
-        .select((row) => ({
+      const result = await select(
+        (row) => ({
           name: row.name,
           notJohn: row.name.notlike("%John%"),
-        }))
-        .execute(testDb);
+        }),
+        { from: data },
+      ).execute(testDb);
 
       expect(result).toEqual([
         { name: "John Smith", notJohn: false },
@@ -349,12 +360,13 @@ describe("Keyword operators", () => {
         { name: Types.Text.new("BOB JOHNSON") },
       );
 
-      const result = await data
-        .select((row) => ({
+      const result = await select(
+        (row) => ({
           name: row.name,
           notJohn: row.name.notilike("%john%"),
-        }))
-        .execute(testDb);
+        }),
+        { from: data },
+      ).execute(testDb);
 
       expect(result).toEqual([
         { name: "John Smith", notJohn: false },
@@ -405,8 +417,8 @@ describe("Keyword operators", () => {
         { a: Types.Int4.new(null), b: Types.Int4.new(null) },
       );
 
-      const result = await data
-        .select((row) => ({
+      const result = await select(
+        (row) => ({
           a: row.a,
           b: row.b,
           isDistinct: row.a.isDistinctFrom(row.b),
@@ -414,8 +426,9 @@ describe("Keyword operators", () => {
           // For comparison, regular equality
           isEqual: row.a["="](row.b),
           isNotEqual: row.a["<>"](row.b),
-        }))
-        .execute(testDb);
+        }),
+        { from: data },
+      ).execute(testDb);
 
       expect(result).toEqual([
         {
@@ -482,11 +495,14 @@ describe("Keyword operators", () => {
         },
       );
 
-      const result = await users
-        .where((u) =>
-          u.active.and(u.age.isNotNull()).and(u.age[">"](Types.Int4.new(20))),
-        )
-        .execute(testDb);
+      const result = await select(
+        (u) => ({ name: u.name, age: u.age, active: u.active }),
+        {
+          from: users,
+          where: (u) =>
+            u.active.and(u.age.isNotNull()).and(u.age[">"](Types.Int4.new(20))),
+        },
+      ).execute(testDb);
 
       expect(result.length).toBe(1);
       expect(result[0].name).toBe("John");
@@ -522,10 +538,10 @@ describe("Keyword operators", () => {
       );
 
       // Find users whose age has changed (including null transitions)
-      const changedUsers = await users
-        .where((u) => u.previousAge.isDistinctFrom(u.currentAge))
-        .select((u) => ({ id: u.id }))
-        .execute(testDb);
+      const changedUsers = await select((u) => ({ id: u.id }), {
+        from: users,
+        where: (u) => u.previousAge.isDistinctFrom(u.currentAge),
+      }).execute(testDb);
 
       expect(changedUsers).toEqual([
         { id: 1 }, // 25 -> 26
@@ -534,10 +550,10 @@ describe("Keyword operators", () => {
       ]);
 
       // Find users whose age hasn't changed (including null -> null)
-      const unchangedUsers = await users
-        .where((u) => u.previousAge.isNotDistinctFrom(u.currentAge))
-        .select((u) => ({ id: u.id }))
-        .execute(testDb);
+      const unchangedUsers = await select((u) => ({ id: u.id }), {
+        from: users,
+        where: (u) => u.previousAge.isNotDistinctFrom(u.currentAge),
+      }).execute(testDb);
 
       expect(unchangedUsers).toEqual([
         { id: 2 }, // 30 -> 30
@@ -553,16 +569,17 @@ describe("Keyword operators", () => {
         num: Types.Int4.new(456),
       });
 
-      const result = await data
-        .select((row) => ({
+      const result = await select(
+        (row) => ({
           textToInt: row.text.cast(Types.Int4),
           numToText: row.num.cast(Types.Text),
           numToFloat: row.num.cast(Types.Float8),
           nullableText: (Types.Text.new("456") as Types.Text<0 | 1>).cast(
             Types.Numeric,
           ), // nullable cast
-        }))
-        .execute(testDb);
+        }),
+        { from: data },
+      ).execute(testDb);
 
       assert<
         Equals<
@@ -586,12 +603,13 @@ describe("Keyword operators", () => {
         num: Types.Int4.new(null),
       });
 
-      const result = await data
-        .select((row) => ({
+      const result = await select(
+        (row) => ({
           textToInt: row.text.cast(Types.Int4),
           numToText: row.num.cast(Types.Text),
-        }))
-        .execute(testDb);
+        }),
+        { from: data },
+      ).execute(testDb);
 
       expect(result[0].textToInt).toBe(null);
       expect(result[0].numToText).toBe(null);
@@ -650,16 +668,17 @@ describe("Keyword operators", () => {
         { name: Types.Text.new("Bob"), age: Types.Int4.new(70) },
       );
 
-      const result = await users
-        .select((u) => ({
+      const result = await select(
+        (u) => ({
           name: u.name,
           ageGroup: caseWhen(
             { when: u.age["<"](18), then: Types.Text.new("minor") },
             { when: u.age["<"](65), then: Types.Text.new("adult") },
             Types.Text.new("senior"), // ELSE
           ),
-        }))
-        .execute(testDb);
+        }),
+        { from: users },
+      ).execute(testDb);
 
       assert<Equals<typeof result, { name: string; ageGroup: string }[]>>();
       expect(result).toEqual([
@@ -677,8 +696,8 @@ describe("Keyword operators", () => {
         { student: Types.Text.new("David"), score: Types.Int4.new(65) },
       );
 
-      const result = await scores
-        .select((s) => ({
+      const result = await select(
+        (s) => ({
           student: s.student,
           grade: caseWhen(
             {
@@ -695,8 +714,9 @@ describe("Keyword operators", () => {
             },
             // No ELSE - scores below 70 will get NULL
           ),
-        }))
-        .execute(testDb);
+        }),
+        { from: scores },
+      ).execute(testDb);
 
       // Check that grade can be null
       // The type is Any<string, 0 | 1> which may include undefined in the result due to TypeScript inference
@@ -728,8 +748,8 @@ describe("Keyword operators", () => {
         },
       );
 
-      const result = await products
-        .select((p) => ({
+      const result = await select(
+        (p) => ({
           name: p.name,
           status: caseWhen(
             {
@@ -746,8 +766,9 @@ describe("Keyword operators", () => {
             },
             Types.Text.new("Premium"),
           ),
-        }))
-        .execute(testDb);
+        }),
+        { from: products },
+      ).execute(testDb);
 
       expect(result).toEqual([
         { name: "Widget", status: "Budget" },
@@ -763,8 +784,8 @@ describe("Keyword operators", () => {
         { id: Types.Int4.new(3), value: Types.Int4.new(30) },
       );
 
-      const result = await data
-        .select((d) => ({
+      const result = await select(
+        (d) => ({
           id: d.id,
           category: caseWhen(
             { when: d.value.isNull(), then: Types.Text.new("No Value") },
@@ -774,8 +795,9 @@ describe("Keyword operators", () => {
             },
             Types.Text.new("High"),
           ),
-        }))
-        .execute(testDb);
+        }),
+        { from: data },
+      ).execute(testDb);
 
       expect(result).toEqual([
         { id: 1, category: "Low" },
@@ -791,8 +813,8 @@ describe("Keyword operators", () => {
         { id: Types.Int4.new(3), status: Types.Text.new("inactive") },
       );
 
-      const result = await data
-        .select((d) => ({
+      const result = await select(
+        (d) => ({
           id: d.id,
           label: caseWhen(
             {
@@ -806,8 +828,9 @@ describe("Keyword operators", () => {
             },
             Types.Text.new("Unknown"),
           ),
-        }))
-        .execute(testDb);
+        }),
+        { from: data },
+      ).execute(testDb);
 
       assert<Equals<typeof result, { id: number; label: string | null }[]>>();
 

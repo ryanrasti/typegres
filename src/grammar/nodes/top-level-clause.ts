@@ -1,73 +1,28 @@
 import camelCase from "camelcase";
 import invariant from "tiny-invariant";
-import { Clause } from "./clause";
-import { Node, Params } from "./node";
+import { Clause, ParsedClause } from "./clause";
+import { Node, paramsToType, Repeated } from "./node";
 import { Group } from "./group";
-
-const paramsToType = (params: Params): string => {
-  switch (params.type) {
-    case "identifier":
-      return params.value;
-    case "atom":
-      // Convert ALL_CAPS to camelCase for string literals
-      const camelCased = camelCase(params.value);
-      return `"${camelCased}"`;
-    case "array":
-      if (params.minLength === 0 && params.maxLength === 1) {
-        // Optional: [X] | []
-        return `[${params.value.map(paramsToType).join(", ")}] | []`;
-      } else if (params.minLength === 1 && params.maxLength === Infinity) {
-        // Repeated: [X, ...X[]]
-        const types = params.value.map(paramsToType);
-        if (types.length === 1) {
-          return `[${types[0]}, ...(${types[0]})[]]`;
-        }
-        return `[${types.join(", ")}]`;
-      } else if (params.minLength === 0 && params.maxLength === Infinity) {
-        // Optional repeated: X[]
-        const types = params.value.map(paramsToType);
-        if (types.length === 1) {
-          return `${types[0]}[]`;
-        }
-        return `[${types.join(", ")}][]`;
-      } else {
-        // Regular array
-        return `[${params.value.map(paramsToType).join(", ")}]`;
-      }
-    case "object":
-      const entries = Object.entries(params.value).map(
-        ([key, { value, optional }]) => {
-          // Convert object keys to camelCase
-          const camelKey = camelCase(key);
-          const valueType = paramsToType(value);
-          return `${camelKey}${optional ? "?" : ""}: ${valueType}`;
-        },
-      );
-      return `{${entries.join(", ")}}`;
-    case "union":
-      return `(${params.value.map(paramsToType).join(" | ")})`;
-    case "intersection":
-      // For better dx, merge all simple objects in the intersection:
-      return params.value.map(paramsToType).join(" & ");
-  }
-};
+import { RowLike } from "../../types";
 
 export class TopLevelClause extends Clause {
   type = "topLevelClause";
   typeParams: string;
   returnType: string;
+  returnShapeExtractor: (tlc: ParsedClause) => RowLike | undefined;
 
   constructor(
     name: string,
     typeParams: string,
     returnType: string,
+    returnShapeExtractor: (tlc: ParsedClause) => RowLike | undefined,
     args: Node[],
     optional = false,
-    repeated = false,
   ) {
-    super(name, args, optional, repeated);
+    super(name, args, optional);
     this.typeParams = typeParams;
     this.returnType = returnType;
+    this.returnShapeExtractor = returnShapeExtractor;
   }
 
   generateParserTypes(): string {
@@ -92,7 +47,17 @@ export class TopLevelClause extends Clause {
       }
     };
 
-    this.args.nodes.forEach(processNode);
+    if (this.args instanceof Group) {
+      this.args.nodes.forEach(processNode);
+    } else if (this.args instanceof Repeated) {
+      invariant(
+        this.args.child instanceof Group,
+        "Expected Repeated child to be a Group",
+      );
+      this.args.child.nodes.forEach(processNode);
+    } else {
+      this.args satisfies never;
+    }
 
     // Generate constructor parameters
     const constructorParams = args
@@ -123,13 +88,30 @@ export class TopLevelClause extends Clause {
     const funcName = camelCase(this.name);
     // Collect all parameters in order
     const info = this.args.toParserInfo();
-    const { params } = info;
-    invariant(params.type === "array", "Expected params to be an array");
+    const { params: paramsRaw } = info;
+
+    const params =
+      paramsRaw.type === "array"
+        ? paramsRaw
+        : paramsRaw.type === "union"
+          ? paramsRaw.value.find((p) => p.type === "array")
+          : paramsRaw;
+    invariant(
+      params && params.type === "array",
+      `Expected params to be an array: ${JSON.stringify(params)}`,
+    );
+
+    const bareReturnType = this.returnType.split(" ")[0];
 
     // Generate the function overload and implementation
     return `export function ${funcName}${this.typeParams}(
-  ${params.value.map((p, idx) => `arg${idx}: ${paramsToType(p)}`).join(",\n  ")}
-): ParsedClause;
+  ${params.value
+    .map((p, idx) => {
+      const optional = params.optionalAt != null && idx >= params.optionalAt;
+      return `arg${idx}${optional ? "?" : ""}: ${paramsToType(p)}`;
+    })
+    .join(",\n  ")}
+): ParsedClause<${bareReturnType}>;
 export function ${funcName}(...args: any[]) {
   // TopLevelClause expects the args wrapped in an object with the clause name (camelCase)
   const wrappedArgs = { "${funcName}": args };
