@@ -20,6 +20,7 @@
     "prepublishOnly": "npm version $(npm pkg get version | tr -d '\"')-$(git rev-parse --short HEAD) --no-git-tag-version"
   },
   "devDependencies": {
+    "@anthropic-ai/claude-code": "^1.0.72",
     "@rollup/plugin-alias": "^5.1.1",
     "@rollup/plugin-commonjs": "^28.0.6",
     "@rollup/plugin-node-resolve": "^16.0.1",
