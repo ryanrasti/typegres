@@ -1,44 +1,26 @@
 import { RawBuilder, sql } from "kysely";
-import { Node, ParsedNode, ParserInfo } from "./node";
+import { Node, ParsedNode } from "./node";
 
-export class Identifier extends Node {
+export class Identifier<T extends string = string> extends Node {
   type = "identifier";
-  name: string;
-  withAlias: boolean;
-  typeParam: string;
+  name: T;
 
-  constructor(
-    name: string,
-    typeParam: string,
-    withAlias = false,
-    optional = false,
-  ) {
+  constructor(name: T, optional = false) {
     super(optional);
     this.name = name;
-    this.withAlias = withAlias;
-    this.typeParam = typeParam;
   }
 
-  toParserInfo(): ParserInfo {
-    return ParsedIdentifier.toParserInfo(this, this.typeParam);
+  parse(arg: T) {
+    if (typeof arg !== "string") {
+      return null; // Ensure the argument is a string
+    }
+    return new ParsedIdentifier(this, arg);
   }
 }
 
-export class ParsedIdentifier<T = any> extends ParsedNode<Identifier, T> {
-  constructor(grammar: Identifier, value: T) {
+export class ParsedIdentifier<I extends Identifier> extends ParsedNode<Identifier, I['name']> {
+  constructor(grammar: Identifier, value: I['name']) {
     super(grammar, value);
-  }
-
-  static toParserInfo(grammar: Identifier, _value: any): ParserInfo {
-    return {
-      params: { type: "identifier", value: grammar.typeParam },
-      parse: (arg: any) => {
-        if (typeof arg !== "string") {
-          return null; // Expected a string identifier
-        }
-        return new ParsedIdentifier(grammar, arg);
-      },
-    };
   }
 
   compile(): RawBuilder<any> {

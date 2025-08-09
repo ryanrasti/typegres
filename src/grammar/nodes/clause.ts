@@ -1,15 +1,14 @@
 import camelCase from "camelcase";
 import { QueryResult, RawBuilder, sql } from "kysely";
 import invariant from "tiny-invariant";
-import { Group, ParsedGroup } from "./group";
+import { Group } from "./group";
 import {
   ParsedNode,
   Node,
-  ParserInfo,
-  toParserInfo,
   ParserContext,
   Repeated,
-  ParsedRepeated,
+  ParseInputType,
+  ParseReturnType,
 } from "./node";
 import { parseRowLike, RowLikeResult } from "../../query/values";
 import { Typegres } from "../../db";
@@ -29,74 +28,78 @@ import {
   Expression,
 } from "../../expression";
 
-export class Clause extends Node {
-  type = "clause";
-  name: string;
-  args: Group | Repeated<Group>;
+type ToPascalCase<T extends string> = T extends `${infer P1} ${infer P2}`
+  ? `${Capitalize<Lowercase<P1>>}${ToPascalCase<P2>}`
+  : Capitalize<Lowercase<T>>;
 
-  constructor(
-    name: string,
-    args: Node[] | Group | Repeated<Group>,
-    optional = false,
-  ) {
+export type ToCamelCase<T extends string> = Uncapitalize<ToPascalCase<T>>;
+
+export const toCamelCase = <T extends string>(str: T): ToCamelCase<T> => {
+  return camelCase(str) as ToCamelCase<T>;
+};
+
+export class Clause<
+  N extends string = string,
+  G extends Group | Repeated<Group> = Group | Repeated<Group>,
+> extends Node {
+  type = "clause";
+  name: N;
+  args: G;
+
+  constructor(name: N, args: G, optional = false) {
     super(optional);
     this.name = name;
-    this.args = Array.isArray(args) ? new Group(args) : args;
+    this.args = (Array.isArray(args) ? new Group(args) : args) as G;
   }
 
-  toParserInfo(): ParserInfo {
-    return ParsedClause.toParserInfo(this);
+  static new<N extends string, A extends Node[]>(
+    name: N,
+    args: A
+  ): Clause<N, Group<A>>;
+  static new<
+    N extends string,
+    G extends Group | Repeated<Group>,
+  >(name: N, args: G): Clause<N, G>;
+  static new(name: string, arg: Node[] | Group | Repeated<Group>) {
+    return Array.isArray(arg)
+      ? new Clause(name, new Group(arg))
+      : new Clause(name, arg);
+  }
+
+  parse(value: { [k in ToCamelCase<N>]: ParseInputType<G> }): ParsedClause<
+    RowLike,
+    this
+  > | null {
+    if (typeof value !== "object" || value === null) {
+      return null; // Expected an object with a key: clause.name
+    }
+    // Check for camelCase match
+    const camelKey = toCamelCase(this.name);
+    const rawArgs = value[camelKey];
+    if (rawArgs == null) {
+      return null; // Clause name not found
+    }
+    const parsedGroup = this.args.parse(rawArgs);
+    if (parsedGroup === null) {
+      return null; // Parsing failed for the group
+    }
+    return new ParsedClause(this, parsedGroup);
   }
 }
 
 // Parsed AST nodes (without optional/repeated/oneof concepts)
-export class ParsedClause<R extends RowLike = RowLike>
-  extends ParsedNode<Clause, ParsedGroup | ParsedRepeated>
+export class ParsedClause<
+    R extends RowLike = RowLike,
+    C extends Clause = Clause,
+  >
+  extends ParsedNode<C, ParseReturnType<C["args"]>>
   implements AsFromItem<R>
 {
   constructor(
-    grammar: Clause,
-    public args: ParsedGroup | ParsedRepeated,
+    grammar: C,
+    public args: ParseReturnType<C["args"]>
   ) {
     super(grammar, args);
-  }
-
-  static toParserInfo(clause: Clause): ParserInfo {
-    const groupInfo = toParserInfo(clause.args);
-
-    return {
-      params: {
-        type: "object",
-
-        value: {
-          [clause.name]: {
-            value: groupInfo.params,
-            optional: clause.isOptional,
-          },
-        },
-      },
-      parse: (value: any) => {
-        if (typeof value !== "object" || value === null) {
-          return null; // Expected an object with a key: clause.name
-        }
-        // Check for camelCase match
-        const camelKey = camelCase(clause.name);
-        const rawArgs = value[camelKey];
-        if (rawArgs == null) {
-          return null; // Clause name not found
-        }
-        const parsedGroup = groupInfo.parse(rawArgs);
-        if (parsedGroup === null) {
-          return null; // Parsing failed for the group
-        }
-        invariant(
-          parsedGroup instanceof ParsedGroup ||
-            parsedGroup instanceof ParsedRepeated,
-          `Expected ParsedGroup, got ${inspect(parsedGroup)}`,
-        );
-        return new ParsedClause(clause, parsedGroup);
-      },
-    };
   }
 
   fromItems(): ParsedFromItem[] {
@@ -124,14 +127,14 @@ export class ParsedClause<R extends RowLike = RowLike>
     if (!ctx) {
       invariant(
         this.grammar instanceof TopLevelClause,
-        "Only top-level clauses can be compiled without an explicit context",
+        "Only top-level clauses can be compiled without an explicit context"
       );
 
       return this.compile({
         topLevelClause: this.asGenericParsedClause(),
         expressionContext: pipeExpressionContext(
           ExpressionContext.new(),
-          this.fromItems().map((item) => item.value),
+          this.fromItems().map((item) => item.value)
         ),
       });
     }
@@ -144,16 +147,16 @@ export class ParsedClause<R extends RowLike = RowLike>
 
   scalar(): R extends RowLike ? R[keyof R] : unknown {
     const returnShape = (this.grammar as TopLevelClause).returnShapeExtractor(
-      this.asGenericParsedClause(),
+      this.asGenericParsedClause()
     );
     invariant(
       returnShape != null,
-      "Expected a return shape for scalar extraction",
+      "Expected a return shape for scalar extraction"
     );
     const [val, ...rest] = Object.values(returnShape);
     invariant(
       rest.length === 0,
-      `Expected a single scalar return shape, got: ${inspect(returnShape)}`,
+      `Expected a single scalar return shape, got: ${inspect(returnShape)}`
     );
     return val.getClass().new(this.toExpression()) as R extends RowLike
       ? R[keyof R]
@@ -162,17 +165,17 @@ export class ParsedClause<R extends RowLike = RowLike>
 
   asFromItem(): FromItem<R> {
     const returnShape = (this.grammar as TopLevelClause).returnShapeExtractor(
-      this.asGenericParsedClause(),
+      this.asGenericParsedClause()
     );
     invariant(
       returnShape != null,
-      "Expected a return shape for FromItem extraction",
+      "Expected a return shape for FromItem extraction"
     );
     return new FromItem(
       this.toExpression(),
       new QueryAlias(this.grammar.name),
       {},
-      returnShape as RowLike,
+      returnShape as RowLike
     ) as FromItem<R>;
   }
 
@@ -182,7 +185,7 @@ export class ParsedClause<R extends RowLike = RowLike>
   }
 
   async execute(
-    typegres: Typegres,
+    typegres: Typegres
   ): Promise<R extends RowLike ? RowLikeResult<R>[] : unknown> {
     const compiled = this.compile();
     const compiledRaw = compiled.compile(typegres._internal);
@@ -194,19 +197,19 @@ export class ParsedClause<R extends RowLike = RowLike>
       console.error(
         "Error executing query: ",
         compiledRaw.sql,
-        compiledRaw.parameters,
+        compiledRaw.parameters
       );
       throw error;
     }
     const returnShape = (this.grammar as TopLevelClause).returnShapeExtractor(
-      this.asGenericParsedClause(),
+      this.asGenericParsedClause()
     );
     return (
       returnShape
         ? raw.rows.map((row) => {
             invariant(
               typeof row === "object" && row !== null,
-              "Expected each row to be an object",
+              "Expected each row to be an object"
             );
             return parseRowLike(returnShape, row);
           })
@@ -244,7 +247,7 @@ export class SubselectExpression extends Expression {
     const compiled = this.clause.compile({
       expressionContext: pipeExpressionContext(
         ctx,
-        this.clause.fromItems().map((item) => item.value),
+        this.clause.fromItems().map((item) => item.value)
       ),
       topLevelClause: this.clause,
     });

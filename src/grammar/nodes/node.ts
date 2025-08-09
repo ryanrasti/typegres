@@ -70,7 +70,7 @@ export const paramsToType = (params: Params): string => {
           const camelKey = camelCase(key);
           const valueType = paramsToType(value);
           return `${camelKey}${optional ? "?" : ""}: ${valueType}`;
-        },
+        }
       );
       return `{${entries.join(", ")}}`;
     case "union":
@@ -102,19 +102,14 @@ export type ParserInfo = {
   params: Params;
 };
 
-export const toParserInfo = (
-  node: Node,
-  preferObject?: boolean,
-): ParserInfo => {
-  const raw = node.toParserInfo(preferObject);
-  if (node.isOptional && !isObject(raw.params) && !(node instanceof Repeated)) {
-    return new Repeated(node, node.isOptional).toParserInfo(preferObject);
-  }
-  return raw;
-};
+export type ParseInputType<N extends Node> = Parameters<N["parse"]>[0];
+export type ParseReturnType<N extends Node> = NonNullable<
+  ReturnType<N["parse"]>
+>;
 
 export abstract class Node {
   isOptional: boolean;
+  abstract type: string;
 
   constructor(isOptional = false) {
     this.isOptional = isOptional;
@@ -124,22 +119,27 @@ export abstract class Node {
     return Object.assign(Object.create(Object.getPrototypeOf(this)), this);
   }
 
-  optional(): this {
+  optional(): this & { isOptional: true } {
     const copy = this.copy();
     copy.isOptional = true;
-    return copy;
+    return copy as this & { isOptional: true };
   }
 
-  repeated() {
-    return new Repeated<this>(this, this.isOptional);
+  repeated(joiner?: (raw: RawBuilder<any>[]) => RawBuilder<any>) {
+    return new Repeated<this>(
+      this,
+      joiner ??
+        ((raw: RawBuilder<any>[]) =>
+          raw.length === 0 ? sql`` : sql.join(raw)),
+      this.isOptional
+    );
   }
-
-  // Generate both type parameter and parser function
-  abstract toParserInfo(preferObject?: boolean): ParserInfo;
 
   toString(): string {
     return `${inspect(this)}(${this.isOptional ? "optional" : ""})`;
   }
+
+  abstract parse(value: unknown): ParsedNode<Node, unknown> | null;
 }
 
 export type ParserContext = {
@@ -150,12 +150,12 @@ export type ParserContext = {
 export abstract class ParsedNode<N extends Node, T> {
   constructor(
     public grammar: N,
-    public value: T,
+    public value: T
   ) {}
 
   static parse<N extends Node, T>(
     _grammar: N,
-    _value: any,
+    _value: any
   ): ParsedNode<Node, T> | null {
     throw new Error("Not implemented");
   }
@@ -168,14 +168,36 @@ export abstract class ParsedNode<N extends Node, T> {
 export class Repeated<N extends Node = Node> extends Node {
   type = "repeated";
   child: N;
+  joiner: (raw: RawBuilder<any>[]) => RawBuilder<any>;
 
-  constructor(child: N, optional = false) {
+  constructor(
+    child: N,
+    joiner: (raw: RawBuilder<any>[]) => RawBuilder<any>,
+    optional = false
+  ) {
     super(optional);
     this.child = child;
+    this.joiner = joiner;
   }
 
-  toParserInfo(preferObject?: boolean): ParserInfo {
-    return ParsedRepeated.toParserInfo(this, preferObject);
+  parse(valueRaw: ParseInputType<N>) {
+    const tryParse = (value: any) => {
+      if (!Array.isArray(value)) {
+        return null; // Expected an array
+      }
+
+      const parsed: ParsedNode<Node, unknown>[] = [];
+      for (const item of value) {
+        const parsedItem = this.child.parse(item);
+        if (parsedItem == null) {
+          return parsedItem; // Parsing failed for this item
+        }
+        parsed.push(parsedItem);
+      }
+      return new ParsedRepeated(this, parsed);
+    };
+
+    return tryParse(valueRaw) ?? tryParse([valueRaw]);
   }
 }
 
@@ -187,37 +209,7 @@ export class ParsedRepeated extends ParsedNode<
     super(grammar, value);
   }
 
-  static toParserInfo(grammar: Repeated, preferObject?: boolean): ParserInfo {
-    const raw = grammar.child.toParserInfo(preferObject);
-
-    return {
-      params: {
-        type: "identifier",
-        value: `Types.Repeated<${paramsToType(raw.params)}>${grammar.isOptional ? " | []" : ""}`,
-      },
-      parse: (valueRaw: any) => {
-        const tryParse = (value: any) => {
-          if (!Array.isArray(value)) {
-            return null; // Expected an array
-          }
-          const parsed: ParsedNode<Node, unknown>[] = [];
-          for (const item of value) {
-            const parsedItem = raw.parse(item);
-            if (parsedItem == null) {
-              return parsedItem; // Parsing failed for this item
-            }
-            parsed.push(parsedItem);
-          }
-          return new ParsedRepeated(grammar, parsed);
-        };
-
-        return tryParse(valueRaw) ?? tryParse([valueRaw]);
-      },
-    };
-  }
-
   compile(ctx: ParserContext): RawBuilder<any> {
-    const compiled = this.value.map((item) => item.compile(ctx));
-    return compiled.length === 0 ? sql`` : sql.join(compiled);
+    return this.grammar.joiner(this.value.map((item) => item.compile(ctx)));
   }
 }

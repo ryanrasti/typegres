@@ -1,11 +1,9 @@
 import { RawBuilder } from "kysely";
 import {
   Node,
-  paramsToType,
   ParsedNode,
   ParserContext,
-  ParserInfo,
-  toParserInfo,
+  ParseReturnType,
 } from "./node";
 import { ParsedClause } from "./clause";
 import invariant from "tiny-invariant";
@@ -32,80 +30,58 @@ const extractContextToSelectArgs = (ctx: ExtractedContext) => {
 
 export const pipeExpressionContext = (
   ctx: ExpressionContext,
-  fromItems: FromItem[],
+  fromItems: FromItem[]
 ) => {
   return fromItems.reduce((acc, fromItem) => fromItem.getContext(acc), ctx);
 };
 
 // Represents wrapping a node in a context -- represented as a TS function where the args
 // are the context parameters and the body is the child node's parameter.
-export class Context extends Node {
+export class Context<
+  A extends unknown[] = unknown[],
+  C extends Node = Node,
+> extends Node {
   type = "context";
-  extractor: (tlc: ParsedClause) => ExtractedContext;
-  expressionOnly: boolean;
+  extractor: (tlc: ParsedClause) => A;
   param: string;
-  child: Node;
+  child: C;
 
   constructor(
     param: string,
-    extractor: (tlc: ParsedClause) => ExtractedContext,
-    child: Node,
-    expressionOnly = false,
-    optional = false,
+    extractor: (tlc: ParsedClause) => A,
+    child: C,
+    optional = false
   ) {
     super(optional);
     this.extractor = extractor;
     this.param = param;
     this.child = child;
-    this.expressionOnly = expressionOnly;
   }
 
-  toParserInfo() {
-    return ParsedContext.toParserInfo(this);
+  parse(arg: (...args: A) => ParseReturnType<C>): ParsedContext<this> | null {
+    return new ParsedContext(this, arg);
   }
 }
 
-export class ParsedContext extends ParsedNode<
-  Context,
-  { fn: Function; parserInfo: ParserInfo }
+export class ParsedContext<C extends Context> extends ParsedNode<
+  C,
+  (...args: ReturnType<C["extractor"]>) => ParseReturnType<C["child"]>
 > {
   constructor(
-    grammar: Context,
-    value: { fn: Function; parserInfo: ParserInfo },
+    grammar: C,
+    value: (...args: ReturnType<C["extractor"]>) => ParseReturnType<C["child"]>
   ) {
     super(grammar, value);
   }
 
-  static toParserInfo(grammar: Context): ParserInfo {
-    const child = toParserInfo(grammar.child);
-    return {
-      params: {
-        type: "identifier",
-        value: `(...arg: ${grammar.param}) => ${paramsToType(child.params)}`,
-      },
-      parse: (arg: any) => {
-        if (typeof arg !== "function") {
-          return null; // Not a function
-        }
-        return new ParsedContext(grammar, { parserInfo: child, fn: arg });
-      },
-    };
-  }
-
   resolve(clause: ParsedClause): ParsedNode<Node, unknown> {
-    const extracted = this.grammar.extractor(clause);
+    const extracted = this.grammar.extractor(clause) as ReturnType<C["extractor"]>;
     // If no fromItem, call the function with no arguments
-    const resolvedChild = this.value.fn(
-      ...extractContextToSelectArgs(extracted),
-    );
-    const parsedChild = this.value.parserInfo.parse(resolvedChild);
+    const resolvedChild = this.value(...extracted);
+    const parsedChild = this.grammar.child.parse(resolvedChild);
     if (!parsedChild) {
       throw new Error(`Failed to parse child node with args: ${extracted}`);
     }
-    invariant(
-      parsedChild instanceof ParsedNode,
-      `Parsed child is not an instance of ParsedNode: ${JSON.stringify(parsedChild)}`,
-    );
     return parsedChild;
   }
 
@@ -116,7 +92,7 @@ export class ParsedContext extends ParsedNode<
 
 export const extractParsedClause = (
   tlc: ParsedClause,
-  clauseName: string,
+  clauseName: string
 ): ParsedNode<Node, unknown> | undefined => {
   return tlc.args.value
     .flatMap((c) => (c == null ? [] : c))
@@ -124,18 +100,18 @@ export const extractParsedClause = (
 };
 
 export const extractFromItemAsSelectArgs = (
-  tlc: ParsedClause,
+  tlc: ParsedClause
 ): ExtractedContext => {
   const fromClause = extractParsedClause(tlc, "FROM");
   if (fromClause && fromClause instanceof ParsedClause) {
     const [parsedFromItem, ...rest] = fromClause.args.value;
     invariant(
       parsedFromItem instanceof ParsedFromItem,
-      `Expected ParsedFromItem in FROM clause, but got ${parsedFromItem}`,
+      `Expected ParsedFromItem in FROM clause, but got ${parsedFromItem}`
     );
     invariant(
       rest.length === 0,
-      `Expected only one FromItem in FROM clause, but got ${rest.length}`,
+      `Expected only one FromItem in FROM clause, but got ${rest.length}`
     );
 
     return [parsedFromItem.value];
@@ -161,11 +137,11 @@ export const extractReturnValue =
         const [ctx, ...rest] = clause.args.value;
         invariant(
           ctx instanceof ParsedContext,
-          `Expected ExpressionList as return clause, but got ${ctx}`,
+          `Expected ExpressionList as return clause, but got ${ctx}`
         );
         invariant(
           rest.length === 0,
-          `Expected only one ExpressionList as return clause, but got ${rest.length}`,
+          `Expected only one ExpressionList as return clause, but got ${rest.length}`
         );
         context = ctx;
       }
@@ -177,7 +153,7 @@ export const extractReturnValue =
     const ret = context.resolve(tlc);
     invariant(
       ret instanceof ParsedExpressionList,
-      `Expected ParsedExpressionList, but got ${ret}`,
+      `Expected ParsedExpressionList, but got ${ret}`
     );
     return ret.value;
   };

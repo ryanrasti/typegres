@@ -1,181 +1,125 @@
 import { RawBuilder, sql } from "kysely";
 import {
-  ObjectParam,
-  Params,
   ParsedNode,
   ParsedNodeType,
   ParsedRepeated,
+  ParseInputType,
   ParserContext,
-  ParserInfo,
-  toParserInfo,
 } from "./node";
 import { Clause } from "./clause";
-import { OneOf } from "./one-of";
 import { Node } from "./node";
+import { Literal } from "./literal";
+import invariant from "tiny-invariant";
 
-const isObject = (params: Params) => {
+type ParsesFromObject = Group<Node[], true> | Clause | Literal;
+const isParsesFromObject = (n: Node): n is ParsesFromObject => {
   return (
-    params.type === "object" ||
-    (params.type === "union" && params.value.every(isObject)) ||
-    (params.type === "intersection" && params.value.every(isObject))
+    (n instanceof Group && n.parsesAsObject) ||
+    n instanceof Clause ||
+    n instanceof Literal
   );
 };
 
-const mergeObjects = (objects: ObjectParam[]): ObjectParam => {
-  return {
-    type: "object",
-    value: Object.fromEntries(
-      objects.flatMap((obj) =>
-        Object.entries(obj.value).map(([key, { value, optional }]) => [
-          key,
-          { value, optional: optional ?? false },
-        ]),
-      ),
-    ),
-  };
-};
+type TupleToIntersection<T extends any[]> = T extends [infer F, ...infer R]
+  ? F & TupleToIntersection<R>
+  : unknown;
 
-export class Group extends Node {
+type GroupParseInputType<G extends Group> =
+  G extends Group<infer N, true>
+    ? // If it parses as an object, then it's an intersection of all items:
+      TupleToIntersection<{ [k in keyof N]: ParseInputType<N[k]> }>
+    : G extends Group<infer N, boolean>
+      ? N extends [...infer F, infer L]
+        ? // If it parses as an array, then it's a tuple of items:
+          {
+            [k in keyof F]: ParseInputType<F[k] extends Node ? F[k] : never>;
+          } & (L extends Group<Node[], true> & { isOptional: true }
+            ? // If the last item is optional and parses as an object,
+              // then it can be omitted:
+              {
+                [k in keyof L]?: ParseInputType<
+                  L[k] extends Node ? L[k] : never
+                >;
+              }
+            : {
+                [k in keyof L]: ParseInputType<
+                  L[k] extends Node ? L[k] : never
+                >;
+              })
+        : { [k in keyof N]: ParseInputType<N[k]> }
+      : never;
+
+export class Group<
+  N extends Node[] = Node[],
+  O extends boolean = false,
+> extends Node {
   type = "group";
-  nodes: Node[];
+  nodes: N;
+  parsesAsObject: O;
 
-  constructor(nodes: Node[], optional = false) {
+  constructor(nodes: N, parsesAsObject: O, optional = false) {
     super(optional);
     this.nodes = nodes;
+    this.parsesAsObject = parsesAsObject;
   }
 
-  toParserInfo(): ParserInfo {
-    return ParsedGroup.toParserInfo(this);
-  }
-}
-
-const isTransitivelyClause = (n: Node) =>
-  n instanceof Clause ||
-  (n instanceof OneOf && n.options.every(isTransitivelyClause));
-
-export class ParsedGroup extends ParsedNode<Group, ParsedNodeType[]> {
-  constructor(grammar: Group, items: ParsedNodeType[]) {
-    super(grammar, items);
-  }
-
-  static toParserInfo(grammar: Group): ParserInfo {
-    const argsInfo = grammar.nodes.map(
-      (arg) => [arg, toParserInfo(arg, arg.isOptional)] as const,
+  static new<N extends (ParsesFromObject & { isOptional: true })[]>(
+    nodes: N
+  ): Group<N, true> & { isOptional: true };
+  static new<N extends Node[]>(nodes: N): Group<N>;
+  static new(nodes: Node[]) {
+    return new Group(
+      nodes,
+      nodes.every(isParsesFromObject),
+      nodes.every((n) => n.isOptional)
     );
+  }
 
-    // 1. Merge all adjacent objects
-    const mergedInfo: [[Node, ParserInfo], ...[Node, ParserInfo][]][] = [];
-    for (const [arg, info] of argsInfo) {
-      const prev = mergedInfo.at(-1);
-      if (
-        isObject(info.params) &&
-        prev?.every(([_, p]) => isObject(p.params))
-      ) {
-        // Merge with previous object if it has the same type
-        prev.push([arg, info]);
-      } else {
-        // Start a new entry for this info
-        mergedInfo.push([[arg, info]]);
+  parse<G extends Group>(this: G, input: GroupParseInputType<G>) {
+    const parsedNodes: ParsedNodeType[] = [];
+
+    if (Array.isArray(input)) {
+      if (input.length > this.nodes.length) {
+        return null; // Too many items in the input
+      }
+      for (const [i, node] of this.nodes.entries()) {
+        if (i >= input.length) {
+          if (i == this.nodes.length - 1 && node.isOptional) {
+            // If the last node is optional, we can skip it if no input is provided
+            parsedNodes.push(undefined);
+          } else {
+            return null; // Not enough items in the input
+          }
+        }
+        const parsed = node.parse(input[i]);
+        if (parsed === null) {
+          return null; // Parsing failed for this node
+        }
+        parsedNodes.push(parsed);
+      }
+    } else {
+      if (typeof input !== "object" || input !== null) {
+        return null; // Expected an object for parsing
+      }
+      for (const node of this.nodes) {
+        const parsed = node.parse(input);
+        if (parsed === null) {
+          return null; // Parsing failed for this node
+        }
+        parsedNodes.push(parsed);
       }
     }
 
-    // 2. And move all grouped objects to the end if they are all optional:
-    const isOptionalObjects = (
-      merged: [[Node, ParserInfo], ...[Node, ParserInfo][]],
-    ) => {
-      return merged.every(
-        ([node, info]) => node.isOptional && isObject(info.params),
-      );
-    };
-    const positionalArgs = mergedInfo.filter(
-      (merged) => !isOptionalObjects(merged),
-    );
-    const optionalArg = mergedInfo.filter(isOptionalObjects).flat();
-    const hasOptionalArgs = optionalArg.length > 0;
-    const args = [...positionalArgs, ...(hasOptionalArgs ? [optionalArg] : [])];
+    return new ParsedGroup(this, parsedNodes);
+  }
+}
 
-    const rawParams: Params = {
-      type: "array",
-      value: args.map((merged) => {
-        const [first, ...rest] = merged;
-        if (rest.length > 0) {
-          return {
-            type: "intersection",
-            value: [
-              mergeObjects(
-                merged
-                  .map(([, info]) => info.params)
-                  .filter((p) => p.type === "object"),
-              ),
-              ...merged
-                .filter(([, info]) => info.params.type !== "object")
-                .map(([, info]) => info.params),
-            ],
-          };
-        }
-        return first[1].params;
-      }),
-      optionalAt: hasOptionalArgs ? args.length - 1 : undefined,
-    };
-
-    // console.log(
-    //   `ParsedGroup.toParserInfo: ${args.length} args, hasOptionalArgs: ${hasOptionalArgs}`,
-    //   positionalArgs.length,
-    //   args[0],
-    //   [rawParams.value[0], rawParams.value[0], rawParams]
-    // );
-
-    return {
-      params:
-        positionalArgs.length === 1
-          ? {
-              type: "union",
-              value: [
-                rawParams.value[0],
-                rawParams.value.length > 1 ? rawParams : rawParams.value[0],
-              ],
-            }
-          : rawParams,
-      parse: (valueRaw: any) => {
-        const value = Array.isArray(valueRaw) ? valueRaw : [valueRaw];
-
-        const valueWithOptional =
-          value.length < args.length && hasOptionalArgs
-            ? [...value, undefined]
-            : value;
-        if (valueWithOptional.length !== args.length) {
-          return null; // Number of arguments does not match
-        }
-
-        const parsedArgs: ParsedNodeType[] = [];
-        let i = 0;
-
-        for (const merged of mergedInfo) {
-          // Parse againt the merged info (which might be the last item if it is optional)
-          let val: unknown;
-          if (isOptionalObjects(merged)) {
-            // If the merged info is optional, we can use the last value
-            val = valueWithOptional[valueWithOptional.length - 1];
-          } else {
-            // Otherwise, use the current value
-            val = valueWithOptional[i];
-            i++;
-          }
-
-          for (const [arg, info] of merged) {
-            // If we're parsing a normal argument, `infos` will have only one item
-            // If we're parsing an object with multiple keys, `infos` will have multiple
-            //   items but the nice thing is that `val` will still have the key
-            const parsed = info.parse(val) ?? undefined;
-            if (parsed == null && !arg.isOptional) {
-              return null; // Parsing failed for this argument
-            }
-            parsedArgs.push(parsed);
-          }
-        }
-        return new ParsedGroup(grammar, parsedArgs);
-      },
-    };
+export class ParsedGroup<N extends Node[]> extends ParsedNode<
+  Group<N>,
+  ParsedNodeType[]
+> {
+  constructor(grammar: Group<N>, items: ParsedNodeType[]) {
+    super(grammar, items);
   }
 
   compile(ctx: ParserContext): RawBuilder<any> {
@@ -185,7 +129,7 @@ export class ParsedGroup extends ParsedNode<Group, ParsedNodeType[]> {
         item === undefined ||
         (item instanceof ParsedRepeated && item.value.length === 0)
           ? []
-          : item,
+          : item
       )
       .map((item) => item.compile(ctx));
 

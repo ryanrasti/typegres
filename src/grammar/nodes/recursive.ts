@@ -2,44 +2,35 @@ import { ParserInfo, Node, ParsedNode, ParserContext } from "./node";
 import type { ParsedClause } from "./clause";
 import { sql } from "kysely";
 
-export class Recursive extends Node {
+export class Recursive<
+  T extends ParsedNode<Node, unknown> = ParsedNode<Node, unknown>,
+> extends Node {
   type = "recursive";
-  params: string;
 
-  constructor(params: string, optional = false) {
+  constructor(optional = false) {
     super(optional);
-    this.params = params;
   }
 
-  toParserInfo(): ParserInfo {
-    return ParsedRecursive.toParserInfo(this);
+  parse(value: T) {
+    if (value instanceof ParsedNode) {
+      return new ParsedRecursive(this, value);
+    }
+    return null;
   }
 }
 
-export class ParsedRecursive extends ParsedNode<Recursive, ParsedClause> {
-  constructor(grammar: Recursive, value: ParsedClause) {
+export class ParsedRecursive<
+  T extends ParsedNode<Node, unknown>,
+  R extends Recursive<T>,
+> extends ParsedNode<R, T> {
+  constructor(grammar: R, value: T) {
     super(grammar, value);
   }
 
-  static toParserInfo(grammar: Recursive): ParserInfo {
-    return {
-      params: { type: "identifier", value: grammar.params },
-      parse: (value: unknown) => {
-        if (value instanceof ParsedNode) {
-          return new ParsedRecursive(
-            grammar,
-            // TODO: doing a cast here because importing `ParsedClause` directly causes circular dependencies
-            value as ParsedClause,
-          );
-        }
-        return null;
-      },
-    };
-  }
-
-  compile(_ctx: ParserContext) {
-    // Note that we intentionally do not propagate the context here,
-    // as the recursive node should have its own context.
-    return sql`(${this.value.compile()})`;
+  compile(ctx: ParserContext) {
+    if (this.value.grammar.type === 'topLevelClause') {
+      return sql`(${(this.value as unknown as ParsedClause).compile()})`;
+    }
+    return sql`(${this.value.compile(ctx)})`;
   }
 }

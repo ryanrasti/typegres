@@ -1,3 +1,4 @@
+import { RawBuilder, sql } from "kysely";
 import {
   TopLevelClause,
   Node,
@@ -15,6 +16,7 @@ import {
   extractFromItemAsSelectArgs,
 } from "./nodes";
 import { extractReturnValue } from "./nodes/context";
+import { Joins, RowLike } from "../types";
 
 /*
 https://www.postgresql.org/docs/current/sql-select.html
@@ -39,8 +41,14 @@ const withContext = (node: Node): Node =>
   new Context(
     "Types.FromToSelectArgs<F, J>",
     extractFromItemAsSelectArgs,
-    node,
+    node
   );
+
+const expressionListJoiner = (raw: RawBuilder<any>[]) => {
+  return sql`(${raw.length === 0 ? sql`` : sql.join(raw)})`;
+};
+
+const bareExpressionList = new Expression().repeated(expressionListJoiner);
 
 /*
 and grouping_element can be one of:
@@ -54,17 +62,21 @@ and grouping_element can be one of:
 */
 
 const groupingElement: Node = new OneOf([
-  new ExpressionList("bare"),
-  new Clause("ROLLUP", [new ExpressionList("bare")]),
-  new Clause("CUBE", [new ExpressionList("bare")]),
+  bareExpressionList,
+  Clause.new("ROLLUP", [bareExpressionList]),
+  Clause.new("CUBE", [bareExpressionList]),
   // TODO: technically GROUPING SETS is a list of grouping elements,
   // but we treat it as a single grouping element for simplicity. To handle
   // this case we need to modify the codegen to emit type definitions for
   // grouping element (so it can be recursively defined).
-  new Clause("GROUPING SETS", [new ExpressionList("bare")]),
+  Clause.new("GROUPING SETS", [bareExpressionList]),
 ]);
 
-export const selectGrammar = () =>
+export const selectGrammar = <
+  F extends RowLike,
+  J extends Joins,
+  S extends RowLike,
+>() =>
   new TopLevelClause(
     "SELECT",
     "<F extends Types.RowLike, J extends Types.Joins, S extends Types.RowLike>",
@@ -74,76 +86,76 @@ export const selectGrammar = () =>
       new OneOf([
         new Literal("ALL"),
         new Literal("DISTINCT"),
-        new Clause("DISTINCT ON", [new ExpressionList("bare")]),
+        Clause.new("DISTINCT ON", [bareExpressionList]),
       ]).optional(),
-      withContext(new ExpressionList("alias", "S")),
-      new Clause("FROM", [new FromItem("Types.AsFromItem<F, J>")]).optional(),
-      new Clause("WHERE", [withContext(new Condition())]).optional(),
-      new Clause("GROUP BY", [
-        new OneOf([new Literal("ALL"), new Literal("DISTINCT")]).optional(),
-        withContext(groupingElement.repeated()),
-      ]).optional(),
-      new Clause("HAVING", [withContext(new Condition())]).optional(),
-      new Clause("WINDOW", [
-        withContext(new ExpressionList("bare")),
-      ]).optional(),
-      new OneOf([
-        new Clause("UNION", [new Recursive("Types.ParsedClause<S>")]),
-        new Clause("UNION ALL", [new Recursive("Types.ParsedClause<S>")]),
-        new Clause("INTERSECT", [new Recursive("Types.ParsedClause<S>")]),
-        new Clause("INTERSECT ALL", [new Recursive("Types.ParsedClause<S>")]),
-        new Clause("EXCEPT", [new Recursive("Types.ParsedClause<S>")]),
-        new Clause("EXCEPT ALL", [new Recursive("Types.ParsedClause<S>")]),
-      ]).optional(),
-      new Clause(
-        "ORDER BY",
-        new Group([
-          withContext(new Expression("Types.Any<unknown, 0 | 1>")),
+      withContext(new ExpressionList<S>("alias")),
+      Group.new([
+        Clause.new("FROM", [new FromItem("Types.AsFromItem<F, J>")]).optional(),
+        Clause.new("WHERE", [withContext(new Condition())]).optional(),
+        Clause.new("GROUP BY", [
+          new OneOf([new Literal("ALL"), new Literal("DISTINCT")]).optional(),
+          withContext(groupingElement.repeated()),
+        ]).optional(),
+        Clause.new("HAVING", [withContext(new Condition())]).optional(),
+        Clause.new("WINDOW", [withContext(bareExpressionList)]).optional(),
+        new OneOf([
+          Clause.new("UNION", [new Recursive("Types.ParsedClause<S>")]),
+          Clause.new("UNION ALL", [new Recursive("Types.ParsedClause<S>")]),
+          Clause.new("INTERSECT", [new Recursive("Types.ParsedClause<S>")]),
+          Clause.new("INTERSECT ALL", [new Recursive("Types.ParsedClause<S>")]),
+          Clause.new("EXCEPT", [new Recursive("Types.ParsedClause<S>")]),
+          Clause.new("EXCEPT ALL", [new Recursive("Types.ParsedClause<S>")]),
+        ]).optional(),
+        Clause.new(
+          "ORDER BY",
+          Group.new([
+            withContext(new Expression("Types.Any<unknown, 0 | 1>")),
+            new OneOf([
+              new Literal("ASC"),
+              new Literal("DESC"),
+              Clause.new("USING", [new Identifier("operator", "string")]),
+            ]).optional(),
+            new OneOf([
+              new Literal("NULLS FIRST"),
+              new Literal("NULLS LAST"),
+            ]).optional(),
+          ]).repeated()
+        ).optional(),
+        Clause.new("LIMIT", [
           new OneOf([
-            new Literal("ASC"),
-            new Literal("DESC"),
-            new Clause("USING", [new Identifier("operator", "string")]),
+            new Expression("Types.NumericLike", "count"),
+            new Literal("ALL"),
+          ]),
+        ]).optional(),
+        Clause.new("OFFSET", [
+          new Expression("Types.NumericLike", "start"),
+          new OneOf([new Literal("ROW"), new Literal("ROWS")]).optional(),
+        ]).optional(),
+        Clause.new("FETCH", [
+          new OneOf([new Literal("FIRST"), new Literal("NEXT")]),
+          new OneOf([
+            new Expression("Types.NumericLike", "count"),
+            new Literal("ALL"),
+          ]).optional(),
+          new OneOf([new Literal("ROW"), new Literal("ROWS")]).optional(),
+          new OneOf([new Literal("ONLY"), new Literal("WITH TIES")]).optional(),
+        ]).optional(),
+        Clause.new("FOR", [
+          new OneOf([
+            new Literal("UPDATE"),
+            new Literal("NO KEY UPDATE"),
+            new Literal("SHARE"),
+            new Literal("KEY SHARE"),
+          ]),
+          Group.new([
+            new Literal("OF"),
+            new Expression("Types.Table<any>").repeated(),
           ]).optional(),
           new OneOf([
-            new Literal("NULLS FIRST"),
-            new Literal("NULLS LAST"),
+            new Literal("NOWAIT"),
+            new Literal("SKIP LOCKED"),
           ]).optional(),
-        ]).repeated(),
-      ).optional(),
-      new Clause("LIMIT", [
-        new OneOf([
-          new Expression("Types.NumericLike", "count"),
-          new Literal("ALL"),
-        ]),
-      ]).optional(),
-      new Clause("OFFSET", [
-        new Expression("Types.NumericLike", "start"),
-        new OneOf([new Literal("ROW"), new Literal("ROWS")]).optional(),
-      ]).optional(),
-      new Clause("FETCH", [
-        new OneOf([new Literal("FIRST"), new Literal("NEXT")]),
-        new OneOf([
-          new Expression("Types.NumericLike", "count"),
-          new Literal("ALL"),
         ]).optional(),
-        new OneOf([new Literal("ROW"), new Literal("ROWS")]).optional(),
-        new OneOf([new Literal("ONLY"), new Literal("WITH TIES")]).optional(),
-      ]).optional(),
-      new Clause("FOR", [
-        new OneOf([
-          new Literal("UPDATE"),
-          new Literal("NO KEY UPDATE"),
-          new Literal("SHARE"),
-          new Literal("KEY SHARE"),
-        ]),
-        new Group([
-          new Literal("OF"),
-          new Expression("Types.Table<any>").repeated(),
-        ]).optional(),
-        new OneOf([
-          new Literal("NOWAIT"),
-          new Literal("SKIP LOCKED"),
-        ]).optional(),
-      ]).optional(),
-    ],
+      ]),
+    ]
   );
