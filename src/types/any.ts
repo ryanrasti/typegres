@@ -14,6 +14,7 @@ import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
 import { Typegres } from "../db";
 import * as Types from "../types";
+import { Select } from "../grammar/select";
 
 export type WithNullability<N extends number, T extends Any> = NonNullable<
   ReturnType<
@@ -249,10 +250,10 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
    */
   in<T extends this>(list: Types.Input<T>[]): Types.Bool<N>;
   in<K extends string, T extends Any<unknown, 0 | 1>>(
-    list: Types.Select<{ [k in K]: T }>,
+    list: Select<{ [k in K]: T }>,
   ): Types.Bool<N>;
   in<T extends Any<unknown, 0 | 1>, N2 extends number>(
-    list: Types.Input<T>[] | Types.Select<{ [k in string]: T }>,
+    list: Types.Input<T>[] | Select<{ [k in string]: T }>,
   ): Types.Bool<N | N2> {
     return Types.Bool.new(
       new InExpression(
@@ -271,10 +272,10 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
 
   notIn<T extends this>(list: Types.Input<T>[]): Types.Bool<N>;
   notIn<K extends string, T extends Any<unknown, 0 | 1>>(
-    list: Types.Select<{ [k in K]: T }>,
+    list: Select<{ [k in K]: T }>,
   ): Types.Bool<N>;
   notIn<T extends Any<unknown, 0 | 1>, N2 extends number>(
-    list: Types.Input<T>[] | Types.Select<{ [k in string]: T }>,
+    list: Types.Input<T>[] | Select<{ [k in string]: T }>,
   ): Types.Bool<N | N2> {
     return Types.Bool.new(
       new NotInExpression(

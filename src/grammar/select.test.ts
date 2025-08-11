@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { select } from "./generated/select";
+import { select } from "./select";
 import { Expression } from "../expression";
 import { Int4, Text, Bool } from "../types";
 import { sql } from "kysely";
@@ -90,7 +90,7 @@ describe("SELECT parser", () => {
       }),
       {
         all: true,
-        orderBy: [() => Int4.new(ref("id")), { desc: true, nullsLast: true }],
+        orderBy: [() => Int4.new(ref("id")), { desc: true, nulls: "last" }],
         limit: Int4.new(50),
         offset: [Int4.new(10), { rows: true }],
       },
@@ -363,7 +363,7 @@ describe("SELECT parser", () => {
 
       const expectedValues = `(VALUES (cast($1 as int4), cast($2 as text)), (cast($3 as int4), cast($4 as text)))`;
       expect(result.sql).toBe(
-        `SELECT "values"."category" AS "category", sum("values"."amount") AS "total" FROM ${expectedValues} as "values"("amount", "category") GROUP BY "values"."category"`,
+        `SELECT "values"."category" AS "category", sum("values"."amount") AS "total" FROM ${expectedValues} as "values"("amount", "category") GROUP BY ("values"."category")`,
       );
       expect(result.parameters).toEqual([10, "A", 20, "B"]);
     });
@@ -431,7 +431,7 @@ describe("SELECT parser", () => {
 
       const expectedValues = `(VALUES (cast($1 as int4), cast($2 as text), cast($3 as text)), (cast($4 as int4), cast($5 as text), cast($6 as text)))`;
       expect(result.sql).toEqual(
-        `SELECT "values"."category" AS "category", "values"."subcategory" AS "subcategory", sum("values"."amount") AS "total" FROM ${expectedValues} as "values"("amount", "category", "subcategory") GROUP BY "values"."category", "values"."subcategory"`,
+        `SELECT "values"."category" AS "category", "values"."subcategory" AS "subcategory", sum("values"."amount") AS "total" FROM ${expectedValues} as "values"("amount", "category", "subcategory") GROUP BY ("values"."category", "values"."subcategory")`,
       );
       expect(result.parameters).toEqual([10, "A", "X", 20, "B", "Y"]);
     });

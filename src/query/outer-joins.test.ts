@@ -3,7 +3,7 @@ import { values } from "./values";
 import { Int4, Text, Numeric } from "../types";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
-import { select } from "../grammar/generated/select";
+import { select } from "../grammar";
 
 describe("Outer Joins", () => {
   describe("LEFT JOIN", () => {
@@ -262,7 +262,7 @@ describe("Outer Joins", () => {
         }),
         {
           from: joined,
-          orderBy: [(t1) => t1.id, { nullsLast: true }],
+          orderBy: [(t1) => t1.id, { nulls: "last" }],
         },
       ).execute(testDb);
 

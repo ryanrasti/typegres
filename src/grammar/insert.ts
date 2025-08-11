@@ -1,24 +1,13 @@
-import {
-  TopLevelClause,
-  Clause,
-  ExpressionList,
-  FromItem,
-  Literal,
-  Context,
-  ParsedClause,
-  ParsedFromItem,
-  Node,
-  OneOf,
-  IdentifierList,
-  Todo,
-  Recursive,
-} from "./nodes";
-import { ExtractedContext, extractReturnValue } from "./nodes/context";
+import { QueryResult, sql } from "kysely";
+import { Context } from "../expression";
+import * as Types from "../types";
+import { Typegres } from "../db";
+import { parseRowLike, RowLikeResult, Values } from "../query/values";
 import invariant from "tiny-invariant";
+import { sqlJoin, compileClauses } from "./utils";
+import { Select } from "./select";
 
 /*
-https://www.postgresql.org/docs/current/sql-insert.html
-
 [ WITH [ RECURSIVE ] with_query [, ...] ]
 INSERT INTO table_name [ AS alias ] [ ( column_name [, ...] ) ]
     [ OVERRIDING { SYSTEM | USER } VALUE ]
@@ -41,54 +30,126 @@ and conflict_action is one of:
               [ WHERE condition ]
 */
 
-export const extractInsertTableAsSelectArgs = (
-  tlc: ParsedClause,
-): ExtractedContext => {
-  if (tlc.grammar.name === "INSERT") {
-    const insertTable = tlc.args.value[1];
-    invariant(
-      insertTable instanceof ParsedFromItem,
-      `Expected ParsedFromItem of type 'table' in INSERT clause, but got ${insertTable}`,
+export class Insert<
+  I extends Types.RowLike = Types.RowLike,
+  K extends keyof I = keyof I,
+  S extends Pick<I, K> = Pick<I, K>,
+  R extends Types.RowLike = I,
+> {
+  constructor(public clause: Parameters<typeof insert<I, K, S, R>>) {}
+
+  compile(ctxIn = Context.new()) {
+    const [
+      { into, columns, overriding },
+      values,
+      { onConflict, returning } = {},
+    ] = this.clause;
+
+    const ctx = into.getContext(ctxIn);
+
+    const clauses = compileClauses(
+      {
+        into,
+        columns,
+        overriding,
+        values,
+        onConflict,
+        returning,
+      },
+      {
+        into: (table) => {
+          // For INSERT, we just need the table name, not a full FROM item compilation
+          return sql`INTO ${table.rawFromExpr.compile(ctx)}`;
+        },
+        columns: (cols) =>
+          sql`(${sqlJoin(cols.map((col) => sql.ref(col as string)))})`,
+        overriding: ([systemOrUser, _value]) =>
+          sql`OVERRIDING ${systemOrUser === "system" ? sql`SYSTEM` : sql`USER`} VALUE`,
+        values: (vals) => {
+          if (vals === "defaultValues") {
+            return sql`DEFAULT VALUES`;
+          }
+          return sql`(${vals.compile(ctx)})`;
+        },
+        onConflict: ([_target, _action]) => {
+          // TODO: Implement conflict handling
+          throw new Error("ON CONFLICT not yet implemented");
+        },
+        returning: (fn) => {
+          const returnList = fn(into.toSelectArgs()[0]);
+          return sql`RETURNING ${sqlJoin(
+            Object.entries(returnList).map(
+              ([alias, v]) =>
+                sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`,
+            ),
+          )}`;
+        },
+      },
     );
 
-    return [insertTable.value, undefined];
+    return sql`INSERT ${clauses}`;
   }
-  return [undefined, undefined];
+
+  async execute(typegres: Typegres): Promise<RowLikeResult<R>[]> {
+    const compiled = this.compile();
+    const compiledRaw = compiled.compile(typegres._internal);
+
+    let raw: QueryResult<any>;
+    try {
+      raw = await typegres._internal.executeQuery(compiledRaw);
+    } catch (error) {
+      console.error(
+        "Error executing query: ",
+        compiledRaw.sql,
+        compiledRaw.parameters,
+      );
+      throw error;
+    }
+
+    // If there's a RETURNING clause, parse the returned rows
+    const [{ into }, , opts] = this.clause;
+    if (opts?.returning) {
+      const insertRowArgs = [into.toSelectArgs()[0]] as const;
+      const returnShape = opts.returning(...insertRowArgs);
+
+      return raw.rows.map((row) => {
+        invariant(
+          typeof row === "object" && row !== null,
+          "Expected each row to be an object",
+        );
+        return parseRowLike(returnShape, row);
+      }) as RowLikeResult<R>[];
+    }
+
+    return raw.rows as RowLikeResult<R>[];
+  }
+}
+
+// Type for the VALUES clause - either literal values, VALUES clause, or a subquery
+type ValuesInput<S extends Types.RowLike> =
+  | "defaultValues"
+  | Values<S>
+  | Select<any, any, S>;
+
+export const insert = <
+  I extends Types.RowLike,
+  K extends keyof I = keyof I,
+  S extends Pick<I, K> = Pick<I, K>,
+  R extends Types.RowLike = I,
+>(
+  tableClause: {
+    into: Types.Table<I>;
+    columns?: K[];
+    overriding?: ["system" | "user", "value"];
+  },
+  values: ValuesInput<S>,
+  opts?: {
+    onConflict?: [
+      target?: never, // TODO: implement conflict target
+      action?: never, // TODO: implement conflict action
+    ];
+    returning?: (insertRow: I) => R;
+  },
+) => {
+  return new Insert<I, K, S, R>([tableClause, values, opts]);
 };
-
-const withContext = (node: Node): Node =>
-  new Context(
-    "[insertRow: Types.FromToSelectArgs<I, {}>[0]]",
-    extractInsertTableAsSelectArgs,
-    node,
-  );
-
-const conflictTarget = new Todo("conflictTarget");
-const conflictAction = new Todo("conflictAction");
-
-export const insertGrammar = new TopLevelClause(
-  "INSERT",
-  "<I extends Types.RowLike, K extends keyof I, S extends Pick<I, K>, R extends Types.RowLike>",
-  "R",
-  extractReturnValue("RETURNING"),
-  [
-    new Literal("INTO"),
-    new FromItem("Types.Table<I>"),
-    new IdentifierList("column_names", "K").optional(),
-    new Clause("OVERRIDING", [
-      new OneOf([new Literal("SYSTEM"), new Literal("USER")]),
-      new Literal("VALUE"),
-    ]).optional(),
-    new OneOf([
-      new Literal("DEFAULT VALUES"),
-      new Recursive("Types.ParsedClause<S>"),
-    ]),
-    new Clause("ON CONFLICT", [
-      conflictTarget.optional(),
-      conflictAction,
-    ]).optional(),
-    new Clause("RETURNING", [
-      withContext(new ExpressionList("alias", "R")),
-    ]).optional(),
-  ],
-);

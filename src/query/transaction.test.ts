@@ -4,9 +4,7 @@ import { Int4, Text } from "../types";
 import { testDb } from "../db.test";
 import { TypegresTransaction } from "../db";
 import { database } from "./db";
-import { select } from "../grammar/generated/select";
-import { insert } from "../grammar/generated/insert";
-import { update } from "../grammar/generated/update";
+import { select, insert, update } from "../grammar";
 
 // Define the schema for our test tables
 const db = database({
@@ -51,11 +49,8 @@ describe("Transactions", () => {
         );
 
         await insert(
-          "into",
-          db.test_users,
-          [["name", "balance"]],
+          { into: db.test_users, columns: ["name", "balance"] },
           selectQuery,
-          {},
         ).execute(tx);
       });
 
@@ -87,11 +82,8 @@ describe("Transactions", () => {
           );
 
           await insert(
-            "into",
-            db.test_users,
-            [["name", "balance"]],
+            { into: db.test_users, columns: ["name", "balance"] },
             selectQuery,
-            {},
           ).execute(tx);
 
           throw new Error("Transaction error");
@@ -108,11 +100,8 @@ describe("Transactions", () => {
           );
 
           await insert(
-            "into",
-            db.test_users,
-            [["name", "balance"]],
+            { into: db.test_users, columns: ["name", "balance"] },
             selectQuery2,
-            {},
           ).execute(tx);
         });
       } catch (e) {
@@ -142,11 +131,8 @@ describe("Transactions", () => {
         );
 
         await insert(
-          "into",
-          db.test_users,
-          [["name", "balance"]],
+          { into: db.test_users, columns: ["name", "balance"] },
           selectQuery,
-          {},
         ).execute(tx);
 
         // Query using new select syntax
@@ -186,9 +172,7 @@ describe("Transactions", () => {
         );
 
         const result = await insert(
-          "into",
-          db.test_users,
-          [["name", "balance"]],
+          { into: db.test_users, columns: ["name", "balance"] },
           selectQuery,
           {
             returning: (u) => ({
@@ -235,11 +219,8 @@ describe("Transactions", () => {
       );
 
       await insert(
-        "into",
-        db.test_users,
-        [["name", "balance"]],
+        { into: db.test_users, columns: ["name", "balance"] },
         selectQuery,
-        {},
       ).execute(testDb);
 
       // Use transaction to update
@@ -280,11 +261,8 @@ describe("Transactions", () => {
         );
 
         await insert(
-          "into",
-          db.test_users,
-          [["name", "balance"]],
+          { into: db.test_users, columns: ["name", "balance"] },
           selectQuery,
-          {},
         ).execute(tx);
 
         // Complex query within transaction

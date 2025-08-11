@@ -3,7 +3,7 @@ import { values } from "./values";
 import { Int4, Int8, Float8, Text, Numeric } from "../types";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
-import { select } from "../grammar/generated/select";
+import { select } from "../grammar";
 
 describe("LIMIT and OFFSET", () => {
   it("can use LIMIT with literal number", async () => {
