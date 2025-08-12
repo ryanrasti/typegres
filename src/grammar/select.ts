@@ -68,16 +68,22 @@ SELECT [ ALL | DISTINCT [ ON ( expression [, ...] ) ] ]
 */
 
 export class Select<
-  F extends Types.RowLike = Types.RowLike,
-  J extends Types.Joins = Types.Joins,
-  S extends Types.RowLike = Types.RowLike,
+  S extends Types.RowLike = any,
+  F extends Types.RowLike = any,
+  J extends Types.Joins = any,
 > implements Types.AsFromItem<S, {}>
 {
-  private fromItem: Types.FromItem<F, J> | undefined;
+  private _fromItem: Types.FromItem<F, J> | undefined;
 
-  constructor(private _clause: Parameters<typeof select<F, J, S>>) {
-    // Save `fromItem` since `new QueryAlias()` should only be called once
-    this.fromItem = this.clause[1]?.from?.asFromItem();
+  constructor(private _clause: Parameters<typeof select<S, F, J>>) {
+    // Don't resolve fromItem here - defer to avoid triggering the select callback
+  }
+
+  private get fromItem(): Types.FromItem<F, J> | undefined {
+    if (!this._fromItem) {
+      this._fromItem = this.clause[1]?.from?.asFromItem();
+    }
+    return this._fromItem;
   }
 
   selectArgs() {
@@ -93,7 +99,7 @@ export class Select<
 
   where(fn: (...args: Types.FromToSelectArgs<F, J>) => Types.Bool<0 | 1>) {
     const [select, { where, ...rest }] = this.clause;
-    return new Select<F, J, S>([
+    return new Select<S, F, J>([
       select,
       {
         ...rest,
@@ -105,9 +111,9 @@ export class Select<
     ]);
   }
 
-  orderBy(orderBy: OrderByInput<F, J>): Select<F, J, S> {
+  orderBy(orderBy: OrderByInput<F, J>): Select<S, F, J> {
     const [select, { orderBy: existingOrderBy, ...rest }] = this.clause;
-    return new Select<F, J, S>([
+    return new Select<S, F, J>([
       select,
       {
         ...rest,
@@ -118,18 +124,18 @@ export class Select<
     ]);
   }
 
-  limit(limit: Types.NumericLike | "all"): Select<F, J, S> {
+  limit(limit: Types.NumericLike | "all"): Select<S, F, J> {
     const [select, { limit: _existingLimit, ...rest }] = this.clause;
-    return new Select<F, J, S>([select, { ...rest, limit }]);
+    return new Select([select, { ...rest, limit }]);
   }
 
   offset(
     offset:
       | Types.NumericLike
       | [Types.NumericLike, { row?: true; rows?: true }],
-  ): Select<F, J, S> {
+  ): Select<S, F, J> {
     const [select, { offset: _existingOffset, ...rest }] = this.clause;
-    return new Select<F, J, S>([select, { ...rest, offset }]);
+    return new Select([select, { ...rest, offset }]);
   }
 
   fetch(
@@ -139,9 +145,9 @@ export class Select<
       "row" | "rows",
       "only" | "withTies",
     ],
-  ): Select<F, J, S> {
+  ): Select<S, F, J> {
     const [select, { fetch: _existingFetch, ...rest }] = this.clause;
-    return new Select<F, J, S>([select, { ...rest, fetch }]);
+    return new Select([select, { ...rest, fetch }]);
   }
 
   compile(ctxIn = Context.new()) {
@@ -281,6 +287,10 @@ export class Select<
     return sqlJoin([sql`SELECT`, clauses], sql` `);
   }
 
+  getRowLike(): S {
+    return this.clause[0](...this.selectArgs());
+  }
+
   async execute(typegres: Typegres): Promise<RowLikeResult<S>[]> {
     const compiled = this.compile();
     const compiledRaw = compiled.compile(typegres._internal);
@@ -296,7 +306,7 @@ export class Select<
       );
       throw error;
     }
-    const returnShape = this.clause[0](...this.selectArgs());
+    const returnShape = this.getRowLike();
     return (
       returnShape
         ? raw.rows.map((row) => {
@@ -364,9 +374,9 @@ export class Select<
 }
 
 export const select = <
+  S extends Types.RowLike,
   F extends Types.RowLike,
   J extends Types.Joins,
-  S extends Types.RowLike,
 >(
   select: (...args: Types.FromToSelectArgs<F, J>) => S,
   opts?: XOR<
@@ -404,16 +414,16 @@ export const select = <
       ];
     },
 ) => {
-  return new Select<F, J, S>([select, opts]);
+  return new Select<S, F, J>([select, opts]);
 };
 
 type SetOps<S extends Types.RowLike> = XOR<
-  { union?: Select<any, Types.Joins, S> },
-  { unionAll?: Select<any, Types.Joins, S> },
-  { intersect?: Select<any, Types.Joins, S> },
-  { intersectAll?: Select<any, Types.Joins, S> },
-  { except?: Select<any, Types.Joins, S> },
-  { exceptAll?: Select<any, Types.Joins, S> }
+  { union?: Select<S, any, Types.Joins> },
+  { unionAll?: Select<S, any, Types.Joins> },
+  { intersect?: Select<S, any, Types.Joins> },
+  { intersectAll?: Select<S, any, Types.Joins> },
+  { except?: Select<S, any, Types.Joins> },
+  { exceptAll?: Select<S, any, Types.Joins> }
 >;
 
 type OrderByInput<F extends Types.RowLike, J extends Types.Joins> =

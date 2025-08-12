@@ -299,6 +299,9 @@ export class Values<R extends RowLike = RowLike> extends FromItem<R> {
     super(new ValuesExpression(rows), alias, {}, aliasRowLike(alias, rows[0]));
   }
 
+  getRowLike(): R {
+    return this.from;
+  }
   // Helper to identify Values instances
   static isValues(value: unknown): value is Values<any> {
     return value instanceof Values;
