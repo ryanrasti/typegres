@@ -60,7 +60,9 @@ export type FromItemFromExpressionClass = {
   ["new"](fromExpr: Expression, alias?: string): FromItem<RowLike, Joins>;
 };
 
-export const isAsFromItem = (val: unknown): val is AsFromItem =>
+export const isAsFromItem = <F extends RowLike, J extends Joins>(
+  val: unknown,
+): val is AsFromItem<F, J> =>
   val != null &&
   typeof val === "object" &&
   "asFromItem" in val &&
@@ -87,7 +89,7 @@ export class FromItem<
   }
 
   static of<R extends RowLike>(fromRow: R) {
-    return class extends FromItem<R> {
+    return class extends this {
       static new(fromExpr: Expression, alias?: string) {
         const queryAlias = new QueryAlias(alias ?? "f");
         return new this(fromExpr, queryAlias, {}, fromRow);
@@ -283,5 +285,22 @@ export class FromItem<
       .toSorted((k1, k2) => k1.localeCompare(k2))
       .map((key) => sql.ref(key));
     return sql.join(keys);
+  }
+}
+
+/**
+ * Values represents a VALUES clause in SQL
+ * It extends FromItem so it can be used in FROM clauses,
+ * but is a distinct type so we can match on it specifically for INSERT
+ */
+export class Values<R extends RowLike = RowLike> extends FromItem<R> {
+  constructor(public rows: [R, ...R[]]) {
+    const alias = new QueryAlias("values");
+    super(new ValuesExpression(rows), alias, {}, aliasRowLike(alias, rows[0]));
+  }
+
+  // Helper to identify Values instances
+  static isValues(value: unknown): value is Values<any> {
+    return value instanceof Values;
   }
 }

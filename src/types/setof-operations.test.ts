@@ -3,7 +3,7 @@ import { values } from "../query/values";
 import { Int4, Text } from "../types";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
-import { select } from "../grammar/generated/select";
+import { select } from "../grammar";
 
 describe("IN/NOT IN operations", () => {
   it("can use IN with value list", async () => {

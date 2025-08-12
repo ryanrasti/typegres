@@ -1,21 +1,10 @@
+import { QueryResult, sql } from "kysely";
+import { Context } from "../expression";
+import * as Types from "../types";
+import { Typegres } from "../db";
+import { parseRowLike, RowLikeResult } from "../query/values";
 import invariant from "tiny-invariant";
-import {
-  TopLevelClause,
-  Clause,
-  ExpressionList,
-  FromItem,
-  Literal,
-  Condition,
-  Context,
-  ParsedClause,
-  ParsedFromItem,
-  Node,
-} from "./nodes";
-import {
-  ExtractedContext,
-  extractFromItemAsSelectArgs,
-  extractReturnValue,
-} from "./nodes/context";
+import { sqlJoin, compileClauses } from "./utils";
 
 /*
 https://www.postgresql.org/docs/current/sql-update.html
@@ -31,42 +20,145 @@ UPDATE [ ONLY ] table_name [ * ] [ [ AS ] alias ]
     [ RETURNING { * | output_expression [ [ AS ] output_name ] } [, ...] ]
 */
 
-export const extractUpdateAndFromItemAsSelectArgs = (
-  tlc: ParsedClause,
-): ExtractedContext => {
-  const [fromItem] = extractFromItemAsSelectArgs(tlc);
-  if (tlc.grammar.name === "UPDATE") {
-    const updateTable = tlc.args.value[1];
-    invariant(
-      updateTable instanceof ParsedFromItem,
-      `Expected ParsedFromItem of type 'table' in UPDATE clause, but got ${updateTable}`,
+// Helper type to construct the proper argument types based on whether FROM is provided
+type UpdateArgs<
+  U extends Types.RowLike,
+  F extends Types.RowLike,
+  J extends Types.Joins,
+> = [U, ...Types.FromToSelectArgs<F, J>]; // Always [updateRow, ...fromSelectArgs]
+
+export class Update<
+  U extends Types.RowLike = Types.RowLike,
+  F extends Types.RowLike = U,
+  J extends Types.Joins = {},
+  R extends Types.RowLike = U,
+> {
+  private fromItem: Types.FromItem<F, J> | undefined;
+
+  constructor(
+    public clause: [
+      { table: Types.Table<U>; only?: true },
+      {
+        set: (...args: UpdateArgs<U, F, J>) => Partial<U>;
+        from?: Types.AsFromItem<F, J>;
+        where?: (...args: UpdateArgs<U, F, J>) => Types.Bool<0 | 1>;
+        returning?: (...args: UpdateArgs<U, F, J>) => R;
+      },
+    ],
+  ) {
+    this.fromItem = clause[1].from?.asFromItem();
+  }
+
+  private updateAndFromArgs(): UpdateArgs<U, F, J> {
+    const [{ table }] = this.clause;
+    return [
+      table.toSelectArgs()[0],
+      ...(this.fromItem?.toSelectArgs() ?? []),
+    ] as UpdateArgs<U, F, J>;
+  }
+
+  compile(ctxIn = Context.new()) {
+    const [{ table, only }, { set, from, where, returning }] = this.clause;
+
+    const ctx = this.fromItem
+      ? this.fromItem.getContext(table.getContext(ctxIn))
+      : table.getContext(ctxIn);
+
+    const clauses = compileClauses(
+      {
+        only,
+        table,
+        set,
+        from,
+        where,
+        returning,
+      },
+      {
+        only: () => sql`ONLY`,
+        table: (table) => {
+          return sql`${table.rawFromExpr.compile(ctx)} as ${sql.ref(
+            ctx.getAlias(table.fromAlias),
+          )}`;
+        },
+        set: (fn) => {
+          const assignments = fn(...this.updateAndFromArgs());
+          return sql`SET ${sqlJoin(
+            Object.entries(assignments).map(
+              ([col, val]) =>
+                sql`${sql.ref(col)} = ${val.toExpression().compile(ctx)}`,
+            ),
+          )}`;
+        },
+        from: () => sql`FROM ${this.fromItem?.compile(ctx)}`,
+        where: (fn) =>
+          sql`WHERE ${fn(...this.updateAndFromArgs())
+            .toExpression()
+            .compile(ctx)}`,
+        returning: (fn) => {
+          const returnList = fn(...this.updateAndFromArgs());
+          return sql`RETURNING ${sqlJoin(
+            Object.entries(returnList).map(
+              ([alias, v]) =>
+                sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`,
+            ),
+          )}`;
+        },
+      },
     );
 
-    return [updateTable.value, fromItem];
+    return sqlJoin([sql`UPDATE`, clauses], sql` `);
   }
-  return [undefined, fromItem];
-};
 
-const withContext = (node: Node): Node =>
-  new Context(
-    "[updateRow: Types.FromToSelectArgs<U, {}>[0], ...Types.FromToSelectArgs<ReturnType<FR['asFromItem']>['from'], ReturnType<FR['asFromItem']>['joins']>]",
-    extractUpdateAndFromItemAsSelectArgs,
-    node,
-  );
+  async execute(typegres: Typegres): Promise<RowLikeResult<R>[]> {
+    const compiled = this.compile();
+    const compiledRaw = compiled.compile(typegres._internal);
 
-export const updateGrammar = new TopLevelClause(
-  "UPDATE",
-  "<U extends Types.RowLike, F extends Types.RowLike, J extends Types.Joins, FR extends Types.AsFromItem<F, J>, R extends Types.RowLike>",
-  "R",
-  extractReturnValue("RETURNING"),
-  [
-    new Literal("ONLY").optional(),
-    new FromItem("Types.Table<U>"),
-    new Clause("SET", [withContext(new ExpressionList("assignment"))]),
-    new Clause("FROM", [new FromItem("FR")]).optional(),
-    new Clause("WHERE", [withContext(new Condition())]).optional(),
-    new Clause("RETURNING", [
-      withContext(new ExpressionList("alias", "R")),
-    ]).optional(),
-  ],
-);
+    let raw: QueryResult<any>;
+    try {
+      raw = await typegres._internal.executeQuery(compiledRaw);
+    } catch (error) {
+      console.error(
+        "Error executing query: ",
+        compiledRaw.sql,
+        compiledRaw.parameters,
+      );
+      throw error;
+    }
+
+    // If there's a RETURNING clause, parse the returned rows
+    const [, { returning }] = this.clause;
+    if (returning) {
+      const returnShape = returning(...this.updateAndFromArgs());
+
+      return raw.rows.map((row) => {
+        invariant(
+          typeof row === "object" && row !== null,
+          "Expected each row to be an object",
+        );
+        return parseRowLike(returnShape, row);
+      }) as RowLikeResult<R>[];
+    }
+
+    return raw.rows as RowLikeResult<R>[];
+  }
+}
+
+export function update<
+  U extends Types.RowLike,
+  F extends Types.RowLike = U,
+  J extends Types.Joins = {},
+  R extends Types.RowLike = U,
+>(
+  table: Types.Table<U>,
+  clauses: {
+    set: (...args: UpdateArgs<U, F, J>) => Partial<U>;
+    from?: Types.AsFromItem<F, J>;
+    where?: (...args: UpdateArgs<U, F, J>) => Types.Bool<0 | 1>;
+    returning?: (...args: UpdateArgs<U, F, J>) => R;
+  },
+  opts?: {
+    only?: true;
+  },
+): Update<U, F, J, R> {
+  return new Update([{ table, only: opts?.only }, clauses]);
+}

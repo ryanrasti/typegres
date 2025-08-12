@@ -4,7 +4,7 @@ import { values } from "../query/values";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
 import { caseWhen } from "../sql-case";
-import { select } from "../grammar/generated/select";
+import { select } from "../grammar";
 
 describe("Keyword operators", () => {
   describe("isNull and isNotNull", () => {

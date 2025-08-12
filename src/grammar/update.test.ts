@@ -1,21 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { update } from "./generated/update";
+import { update } from "./update";
 import { Int4, Text } from "../types";
 import { dummyDb, withDb } from "../test/db";
 import { makeDb } from "../gen/tables";
 import { testDb } from "../db.test";
-import { now } from "../gen/functions";
 
 const db = makeDb();
 
 describe("UPDATE parser", () => {
   it("should parse and compile a basic UPDATE statement", () => {
-    const parsed = update(
-      db.users, // table reference
-      {
-        set: () => ({ name: Text.new("John") }), // SET clause
-      },
-    );
+    const parsed = update(db.users, {
+      set: () => ({ name: Text.new("John") }),
+    });
 
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
@@ -30,18 +26,16 @@ describe("UPDATE parser", () => {
     const parsed = update(
       db.users,
       {
-        set: () => ({ status: Text.new("active") }),
+        set: () => ({ role: Text.new("active") }),
       },
-      {
-        only: true,
-      },
+      { only: true },
     );
 
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
 
     expect(result.sql).toBe(
-      'UPDATE ONLY "users" as "users" SET "status" = cast($1 as text)',
+      'UPDATE ONLY "users" as "users" SET "role" = cast($1 as text)',
     );
     expect(result.parameters).toEqual(["active"]);
   });
@@ -63,7 +57,7 @@ describe("UPDATE parser", () => {
 
   it("should parse UPDATE with RETURNING clause", () => {
     const parsed = update(db.users, {
-      set: () => ({ updated_at: now() }),
+      set: () => ({ email: Text.new("updated@example.com") }),
       returning: (updateRow) => ({ id: updateRow.id, name: updateRow.name }),
     });
 
@@ -71,9 +65,9 @@ describe("UPDATE parser", () => {
     const result = compiled.compile(dummyDb);
 
     expect(result.sql).toBe(
-      'UPDATE "users" as "users" SET "updated_at" = now() RETURNING "users"."id" AS "id", "users"."name" AS "name"',
+      'UPDATE "users" as "users" SET "email" = cast($1 as text) RETURNING "users"."id" AS "id", "users"."name" AS "name"',
     );
-    expect(result.parameters).toEqual([]);
+    expect(result.parameters).toEqual(["updated@example.com"]);
   });
 
   it("should parse UPDATE with multiple SET assignments", () => {
@@ -100,7 +94,7 @@ describe("UPDATE parser", () => {
       {
         set: () => ({
           email: Text.new("updated@example.com"),
-          updated_at: now(),
+          active: Int4.new(1),
         }),
         where: (u) => u.active["="](1).and(u.role["="]("admin")),
         returning: (u) => ({ id: u.id, email: u.email }),
@@ -112,15 +106,15 @@ describe("UPDATE parser", () => {
     const result = compiled.compile(dummyDb);
 
     expect(result.sql).toBe(
-      'UPDATE ONLY "users" as "users" SET "email" = cast($1 as text), "updated_at" = now() WHERE (("users"."active" = $2) AND ("users"."role" = $3)) RETURNING "users"."id" AS "id", "users"."email" AS "email"',
+      'UPDATE ONLY "users" as "users" SET "email" = cast($1 as text), "active" = cast($2 as int4) WHERE (("users"."active" = $3) AND ("users"."role" = $4)) RETURNING "users"."id" AS "id", "users"."email" AS "email"',
     );
-    expect(result.parameters).toEqual(["updated@example.com", 1, "admin"]);
+    expect(result.parameters).toEqual(["updated@example.com", 1, 1, "admin"]);
   });
 
   describe("with FROM clause", () => {
     it("should parse UPDATE with FROM joining another table", () => {
       const parsed = update(db.users, {
-        set: () => ({ status: Text.new("inactive") }),
+        set: () => ({ role: Text.new("inactive") }),
         from: db.person,
         where: (updateRow, fromRow) => updateRow.name["="](fromRow.firstName),
       });
@@ -142,7 +136,6 @@ describe("UPDATE parser", () => {
           petRow.ownerId["="](personRow.id).and(
             personRow.firstName["="](Text.new("John")),
           ),
-
         returning: (petRow, personRow) => ({
           petId: petRow.id,
           petName: petRow.name,
@@ -258,12 +251,10 @@ describe("UPDATE parser", () => {
               name: Text.new("UpdatedPet"),
               age: Int4.new(5),
             }),
-
             where: (updateRow) =>
               updateRow.species["="](Text.new("dog")).and(
                 updateRow.ownerId["="](Int4.new(ownerId)),
               ),
-
             returning: (updateRow) => ({
               name: updateRow.name,
               species: updateRow.species,

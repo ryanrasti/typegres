@@ -3,6 +3,9 @@ import { Expression, QueryAlias, SelectableExpression } from "../expression";
 import { Any } from "../types";
 import { Primitive } from "../types/primitive";
 import { Context } from "../expression";
+import { Values } from "./from-item";
+import invariant from "tiny-invariant";
+export { Values } from "./from-item";
 
 export type RowLike = {
   [key: string]: Any<unknown, 0 | 1>;
@@ -129,15 +132,7 @@ export const parseRowLike = <R extends RowLike>(
   ) as RowLikeResult<R>;
 };
 
-import { FromItem } from "./from-item";
-import invariant from "tiny-invariant";
-
-export const values = <R extends RowLike>(...input: [R, ...R[]]) => {
-  const alias = new QueryAlias("values");
-  return new FromItem(
-    new ValuesExpression(input),
-    alias,
-    {},
-    aliasRowLike(alias, input[0]),
-  );
+// Convenience function to create Values
+export const values = <R extends RowLike>(...rows: [R, ...R[]]): Values<R> => {
+  return new Values(rows);
 };

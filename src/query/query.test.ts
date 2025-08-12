@@ -14,9 +14,7 @@ import { assert, Equals } from "tsafe";
 import { withDb } from "../test/db";
 import { makeDb } from "../gen/tables";
 import { testDb } from "../db.test";
-import { select } from "../grammar/generated/select";
-import { insert } from "../grammar/generated/insert";
-import { update } from "../grammar/generated/update";
+import { select, insert, update } from "../grammar";
 
 const db = makeDb();
 
@@ -371,9 +369,10 @@ describe("Mutations", async () => {
       );
 
       const res = await insert(
-        "into",
-        db.pet,
-        [["ownerId", "name", "age", "species"]],
+        {
+          into: db.pet,
+          columns: ["ownerId", "name", "age", "species"],
+        },
         selectQuery,
         {
           returning: (insertRow) => ({

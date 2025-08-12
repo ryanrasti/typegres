@@ -239,27 +239,6 @@ export class NotExistsExpression extends Expression {
   }
 }
 
-export class SetOperationExpression extends SelectableExpression {
-  constructor(
-    public left: Expression,
-    public right: Expression,
-    public operation:
-      | "UNION"
-      | "UNION ALL"
-      | "INTERSECT"
-      | "INTERSECT ALL"
-      | "EXCEPT"
-      | "EXCEPT ALL",
-    schema: RowLike,
-  ) {
-    super(schema);
-  }
-
-  compile(ctx: Context) {
-    return sql`(${this.left.compile(ctx)} ${sql.raw(this.operation)} ${this.right.compile(ctx)})`;
-  }
-}
-
 export interface WindowSpec {
   partitionBy?: Any | Any[];
   orderBy?: OrderBySpec;
