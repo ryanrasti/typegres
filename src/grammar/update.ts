@@ -109,6 +109,14 @@ export class Update<
     return sqlJoin([sql`UPDATE`, clauses], sql` `);
   }
 
+  getRowLike(): R | undefined {
+    const [, { returning }] = this.clause;
+    if (returning) {
+      return returning(...this.updateAndFromArgs());
+    }
+    return undefined; // No RETURNING clause, so no specific row shape
+  }
+
   async execute(typegres: Typegres): Promise<RowLikeResult<R>[]> {
     const compiled = this.compile();
     const compiledRaw = compiled.compile(typegres._internal);
@@ -126,10 +134,8 @@ export class Update<
     }
 
     // If there's a RETURNING clause, parse the returned rows
-    const [, { returning }] = this.clause;
-    if (returning) {
-      const returnShape = returning(...this.updateAndFromArgs());
-
+    const returnShape = this.getRowLike();
+    if (returnShape) {
       return raw.rows.map((row) => {
         invariant(
           typeof row === "object" && row !== null,

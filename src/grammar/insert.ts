@@ -69,6 +69,9 @@ export class Insert<
           if (vals === "defaultValues") {
             return sql`DEFAULT VALUES`;
           }
+          if (vals instanceof Values) {
+            return sql`${vals.rawFromExpr.compile(ctx)}`;
+          }
           return sql`(${vals.compile(ctx)})`;
         },
         onConflict: ([_target, _action]) => {
@@ -90,6 +93,15 @@ export class Insert<
     return sql`INSERT ${clauses}`;
   }
 
+  getRowLike(): R | undefined {
+    const [{ into }, , opts] = this.clause;
+    if (opts?.returning) {
+      const insertRowArgs = [into.toSelectArgs()[0]] as const;
+      return opts.returning(...insertRowArgs);
+    }
+    return undefined; // No RETURNING clause, so no specific row shape
+  }
+
   async execute(typegres: Typegres): Promise<RowLikeResult<R>[]> {
     const compiled = this.compile();
     const compiledRaw = compiled.compile(typegres._internal);
@@ -107,11 +119,8 @@ export class Insert<
     }
 
     // If there's a RETURNING clause, parse the returned rows
-    const [{ into }, , opts] = this.clause;
-    if (opts?.returning) {
-      const insertRowArgs = [into.toSelectArgs()[0]] as const;
-      const returnShape = opts.returning(...insertRowArgs);
-
+    const returnShape = this.getRowLike();
+    if (returnShape) {
       return raw.rows.map((row) => {
         invariant(
           typeof row === "object" && row !== null,
@@ -129,11 +138,11 @@ export class Insert<
 type ValuesInput<S extends Types.RowLike> =
   | "defaultValues"
   | Values<S>
-  | Select<any, any, S>;
+  | Select<S, any, any>;
 
 export const insert = <
   I extends Types.RowLike,
-  K extends keyof I = keyof I,
+  K extends keyof I,
   S extends Pick<I, K> = Pick<I, K>,
   R extends Types.RowLike = I,
 >(

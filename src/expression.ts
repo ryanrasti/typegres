@@ -34,6 +34,10 @@ export class Context {
   withAliases(aliases: QueryAlias[]) {
     const newNamespace = new Map(this.namespace);
     for (const alias of aliases) {
+      if (newNamespace.has(alias)) {
+        // Alias might already exist (e.g., a `with` clause)
+        continue;
+      }
       let aliasName = alias.name;
       if (this.usedAliases.has(alias.name)) {
         for (const i of Array(100).keys()) {
