@@ -6,6 +6,7 @@ import { makeDb } from "../gen/tables";
 import { testDb } from "../db.test";
 import { with_ } from "./with";
 import { values } from "../query/values";
+import { assert, Equals } from "tsafe";
 
 const db = makeDb();
 
@@ -190,6 +191,16 @@ describe("DELETE parser", () => {
 
           const result = await parsed.execute(kdb);
 
+          assert<
+            Equals<
+              typeof result,
+              {
+                firstName: string;
+                lastName: string | null;
+              }[]
+            >
+          >();
+
           expect(result).toEqual([
             {
               firstName: "DeleteMe",
@@ -237,6 +248,16 @@ describe("DELETE parser", () => {
           });
 
           const result = await parsed.execute(kdb);
+
+          assert<
+            Equals<
+              typeof result,
+              {
+                name: string;
+                species: string;
+              }[]
+            >
+          >();
 
           expect(result).toHaveLength(2);
           expect(result).toContainEqual({ name: "DeletePet1", species: "dog" });
@@ -298,6 +319,16 @@ describe("DELETE parser", () => {
           });
 
           const result = await parsed.execute(kdb);
+
+          assert<
+            Equals<
+              typeof result,
+              {
+                commentContent: string;
+                userName: string;
+              }[]
+            >
+          >();
 
           expect(result).toHaveLength(2);
           expect(result).toContainEqual({
@@ -384,6 +415,17 @@ describe("DELETE parser", () => {
           });
 
           const result = await parsed.execute(kdb);
+
+          assert<
+            Equals<
+              typeof result,
+              {
+                commentContent: string;
+                userName: string;
+                postTitle: string;
+              }[]
+            >
+          >();
 
           // Only the comment by banned user on their own unpublished post should be deleted
           expect(result).toEqual([
@@ -473,6 +515,16 @@ describe("DELETE parser", () => {
         );
 
         const result = await query.execute(kdb);
+
+        assert<
+          Equals<
+            typeof result,
+            {
+              deletedId: number;
+              deletedName: string;
+            }[]
+          >
+        >();
 
         expect(result).toHaveLength(2);
         expect(result).toContainEqual({ deletedId: 102, deletedName: "User2" });

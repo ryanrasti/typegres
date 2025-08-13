@@ -4,6 +4,7 @@ import { Int4, Text } from "../types";
 import { dummyDb, withDb } from "../test/db";
 import { makeDb } from "../gen/tables";
 import { testDb } from "../db.test";
+import { assert, Equals } from "tsafe";
 
 const db = makeDb();
 
@@ -221,6 +222,16 @@ describe("UPDATE parser", () => {
 
           const result = await parsed.execute(kdb);
 
+          assert<
+            Equals<
+              typeof result,
+              {
+                firstName: string;
+                lastName: string | null;
+              }[]
+            >
+          >();
+
           expect(result).toEqual([
             {
               firstName: "UpdatedFirst",
@@ -264,6 +275,18 @@ describe("UPDATE parser", () => {
           });
 
           const result = await parsed.execute(kdb);
+
+          assert<
+            Equals<
+              typeof result,
+              {
+                name: string;
+                species: string;
+                age: number;
+                ownerId: number;
+              }[]
+            >
+          >();
 
           expect(result).toEqual([
             {
@@ -311,6 +334,19 @@ describe("UPDATE parser", () => {
           });
 
           const result = await parsed.execute(kdb);
+
+          assert<
+            Equals<
+              typeof result,
+              {
+                petId: number;
+                petName: string;
+                petAge: number;
+                ownerFirstName: string;
+                ownerLastName: string | null;
+              }[]
+            >
+          >();
 
           expect(result).toHaveLength(1);
           expect(result[0]).toMatchObject({
@@ -392,6 +428,19 @@ describe("UPDATE parser", () => {
           });
 
           const result = await parsed.execute(kdb);
+
+          assert<
+            Equals<
+              typeof result,
+              {
+                postId: number;
+                postTitle: string;
+                published: number | null;
+                userName: string;
+                commentContent: string;
+              }[]
+            >
+          >();
 
           // Only post2 should be updated because only it has an "approve" comment
           expect(result).toEqual([
