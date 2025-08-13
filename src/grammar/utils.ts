@@ -17,7 +17,7 @@ export type SubCompiler<C extends { [k in string]: unknown }> = {
 // Helper for compiling clauses
 export const compileClauses = <C extends { [k in string]: unknown }>(
   clause: C,
-  sub: SubCompiler<C>,
+  sub: SubCompiler<Required<C>>,
 ): RawBuilder<any> | undefined => {
   const mapped = Object.entries(sub).flatMap(([key, compile]) => {
     const value = clause[key];

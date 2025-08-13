@@ -3,6 +3,7 @@ import { with_, Cte } from "./with";
 import { select } from "./select";
 import { insert } from "./insert";
 import { update } from "./update";
+import { merge } from "./merge";
 import { values } from "../query/values";
 import { Int4, Text } from "../types";
 import { dummyDb, withDb } from "../test/db";
@@ -510,6 +511,56 @@ describe("WITH (CTE) parser", () => {
 
         expect((checkResult[0] as any).firstName).toBe("UpdatedCTE");
       });
+    });
+
+    it("should parse CTE with MERGE", () => {
+      const sourceData = values(
+        { id: Int4.new(1), name: Text.new("Updated1") },
+        { id: Int4.new(2), name: Text.new("Updated2") },
+      );
+
+      const query = with_(
+        (cte) => ({
+          source_data: cte(sourceData),
+        }),
+        ({ source_data }) =>
+          merge(
+            {
+              into: db.users,
+              using: source_data,
+              on: (target, source) => target.id["="](source.id),
+            },
+            [
+              {
+                whenMatchedThenUpdateSet: (_, source) => ({
+                  name: source.name,
+                }),
+              },
+              {
+                whenNotMatchedThenInsert: {
+                  values: (_, source) => ({
+                    id: source.id,
+                    name: source.name,
+                  }),
+                },
+              },
+            ],
+            {
+              returning: (target) => ({
+                id: target.id,
+                name: target.name,
+              }),
+            },
+          ),
+      );
+
+      const compiled = query.compile();
+      const result = compiled.compile(dummyDb);
+
+      expect(result.sql).toBe(
+        'WITH "source_data"("id", "name") AS (VALUES (cast($1 as int4), cast($2 as text)), (cast($3 as int4), cast($4 as text))) MERGE INTO "users" as "users" USING "source_data" as "source_data" ON ("users"."id" = "source_data"."id") WHEN MATCHED THEN UPDATE SET "name" = "source_data"."name" WHEN NOT MATCHED THEN INSERT ("id", "name") VALUES ("source_data"."id", "source_data"."name") RETURNING "users"."id" AS "id", "users"."name" AS "name"',
+      );
+      expect(result.parameters).toEqual([1, "Updated1", 2, "Updated2"]);
     });
   });
 });
