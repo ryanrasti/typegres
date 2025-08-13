@@ -6,6 +6,7 @@ import { Int4, Text } from "../types";
 import { dummyDb, withDb } from "../test/db";
 import { makeDb } from "../gen/tables";
 import { testDb } from "../db.test";
+import { assert, Equals } from "tsafe";
 
 const db = makeDb();
 
@@ -276,6 +277,18 @@ describe("INSERT parser", () => {
 
           const result = await parsed.execute(kdb);
 
+          assert<
+            Equals<
+              typeof result,
+              {
+                id: number;
+                name: string;
+                species: string;
+                ownerId: number;
+              }[]
+            >
+          >();
+
           expect(result).toHaveLength(1);
           expect(result[0]).toMatchObject({
             name: "InsertedPet",
@@ -320,6 +333,17 @@ describe("INSERT parser", () => {
           );
 
           const result = await parsed.execute(kdb);
+
+          assert<
+            Equals<
+              typeof result,
+              {
+                id: number;
+                title: string;
+                user_id: number;
+              }[]
+            >
+          >();
 
           expect(result).toHaveLength(1);
           expect(result[0]).toMatchObject({
