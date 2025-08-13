@@ -8,6 +8,7 @@ import { sqlJoin, compileClauses } from "./utils";
 import { select, Select } from "./select";
 import { Insert } from "./insert";
 import { Update } from "./update";
+import { Delete } from "./delete";
 import { XOR } from "ts-xor";
 import { FromItem, RowLike, Text } from "../types";
 
@@ -30,7 +31,7 @@ class With<R extends RowLike, W extends WithQueryTables> {
     const [ctes] = this.clause;
     const raw = ctes(
       <T extends RowLike>(
-        expr: Values<T> | Select<T> | Insert<T> | Update<T>,
+        expr: Values<T> | Select<T> | Insert<T> | Update<T> | Delete<T>,
         options?: CteArgs[0],
       ) => Cte.new(expr, options),
     );
@@ -120,12 +121,19 @@ class With<R extends RowLike, W extends WithQueryTables> {
       Object.values(this.resolvedCtes).map((cte) => cte.fromAlias),
     );
 
+    const thenQuery = then(this.resolvedCtes);
+    const needsParens = !(
+      thenQuery instanceof Insert ||
+      thenQuery instanceof Update ||
+      thenQuery instanceof Delete
+    );
+
     return sqlJoin(
       [
         sql`WITH`,
         recursive ? sql`RECURSIVE` : undefined,
         ...Object.values(this.resolvedCtes).map((cte) => cte.compileCte(ctx)),
-        sql`(${then(this.resolvedCtes).compile(ctx)})`,
+        needsParens ? sql`(${thenQuery.compile(ctx)})` : thenQuery.compile(ctx),
       ],
       sql` `,
     );
@@ -187,7 +195,12 @@ type CteArgs = [
 export class Cte<R extends RowLike> extends FromItem<R> {
   constructor(
     alias: QueryAlias,
-    public expression: Values<R> | Select<R> | Insert<R> | Update<R>,
+    public expression:
+      | Values<R>
+      | Select<R>
+      | Insert<R>
+      | Update<R>
+      | Delete<R>,
     public args: CteArgs,
   ) {
     super(
@@ -203,7 +216,7 @@ export class Cte<R extends RowLike> extends FromItem<R> {
   }
 
   static new<R extends RowLike>(
-    expression: Values<R> | Select<R> | Insert<R> | Update<R>,
+    expression: Values<R> | Select<R> | Insert<R> | Update<R> | Delete<R>,
     options?: CteArgs[0],
   ): Cte<R> {
     return new Cte(new QueryAlias("cte"), expression, [options]);
@@ -261,7 +274,8 @@ export const with_ = <R extends RowLike, W extends WithQueryTables>(
         | Values<T>
         | Select<T>
         | Insert<any, any, any, T>
-        | Update<any, any, any, T>,
+        | Update<any, any, any, T>
+        | Delete<any, any, any, T>,
       options?: CteArgs[0],
     ) => Cte<T>,
   ) => W,
@@ -271,7 +285,8 @@ export const with_ = <R extends RowLike, W extends WithQueryTables>(
     | Select<R>
     | Values<R>
     | Insert<any, any, any, R>
-    | Update<any, any, any, R>,
+    | Update<any, any, any, R>
+    | Delete<any, any, any, R>,
   opts?: {
     recursive?: true;
   },
