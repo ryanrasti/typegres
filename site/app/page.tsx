@@ -1,10 +1,7 @@
 "use client";
 
-import { CodeBlock } from "@/components/CodeBlock";
-import { UnderConstructionBanner } from "@/components/UnderConstructionBanner";
-import { InlineCodeExample } from "@/components/InlineCodeExample";
 import { motion } from "framer-motion";
-import { ArrowRight, Bot, Code, Database, Shield, Github } from "lucide-react";
+import { Code, Database, Shield, Github } from "lucide-react";
 
 import { DarkModeToggle } from '@/components/DarkModeToggle';
 
@@ -79,9 +76,7 @@ export default function HomePage() {
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-typegres-dark dark:text-white mb-4">
                   PostgreSQL,
                   <br />
-                  <span className="relative">
-                    <span className="gradient-text">expressed in TypeScript</span>
-                  </span>
+                  <span className="text-typegres-blue">expressed in TypeScript</span>
                 </h1>
 
                 <motion.p
@@ -170,19 +165,13 @@ export default function HomePage() {
               >
                 <div className="absolute inset-0 bg-typegres-blue rounded-2xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity" />
                 <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-10 border border-gray-200 dark:border-gray-700 shadow-sm h-full">
-                  <Database className="w-14 h-14 text-typegres-blue mb-6" />
+                  <Shield className="w-14 h-14 text-typegres-blue mb-6" />
                   <h3 className="text-2xl font-semibold text-typegres-dark dark:text-white mb-4">
-                    Not an ORM
+                    Type-Safe Query Composition
                   </h3>
-                  <p className="text-base text-typegres-gray dark:text-gray-400 mb-4">
-                    Every Postgres function exists as a TypeScript method - no abstraction layer.
+                  <p className="text-base text-typegres-gray dark:text-gray-400">
+                    Every PostgreSQL expression is typed and composable. Build complex queries from typed primitives - from individual columns to CTEs.
                   </p>
-                  <InlineCodeExample code={`await Jsonb.new('{"a":1,"b":2}')
-  .jsonbEach()
-  .select(({ key, value }) => ({
-    key: key.textcat("!"),
-    type: value.jsonbTypeof()
-  }))`} />
                 </div>
               </motion.div>
 
@@ -193,21 +182,13 @@ export default function HomePage() {
               >
                 <div className="absolute inset-0 bg-typegres-blue rounded-2xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity" />
                 <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-10 border border-gray-200 dark:border-gray-700 shadow-sm h-full">
-                  <Shield className="w-14 h-14 text-typegres-blue mb-6" />
+                  <Code className="w-14 h-14 text-typegres-blue mb-6" />
                   <h3 className="text-2xl font-semibold text-typegres-dark dark:text-white mb-4">
                     Zero SQL Strings
                   </h3>
-                  <p className="text-base text-typegres-gray dark:text-gray-400 mb-4">
-                    Write complex queries as pure TypeScript with complete type inference.
+                  <p className="text-base text-typegres-gray dark:text-gray-400">
+                    Full support for 3000+ PostgreSQL built-in functions. Write complex queries as pure TypeScript.
                   </p>
-                  <InlineCodeExample code={`await pets
-  .groupBy(p => [p.species])
-  .select((p, [species]) => ({
-    species,
-    avgAge: p.age.avg(),
-    stddev: p.age.stddevPop(),
-    total: p.id.count()
-  }))`} />
                 </div>
               </motion.div>
 
@@ -218,23 +199,13 @@ export default function HomePage() {
               >
                 <div className="absolute inset-0 bg-typegres-blue rounded-2xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity" />
                 <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-10 border border-gray-200 dark:border-gray-700 shadow-sm h-full">
-                  <Bot className="w-14 h-14 text-typegres-blue mb-6" />
+                  <Database className="w-14 h-14 text-typegres-blue mb-6" />
                   <h3 className="text-2xl font-semibold text-typegres-dark dark:text-white mb-4">
-                    One Language
+                    Learn PostgreSQL, Not Your ORM
                   </h3>
-                  <p className="text-base text-typegres-gray dark:text-gray-400 mb-4">
-                    Query and transform data without context switching between SQL and code.
+                  <p className="text-base text-typegres-gray dark:text-gray-400">
+                    Master PostgreSQL's actual capabilities instead of an abstraction layer. Your knowledge transfers directly to raw SQL.
                   </p>
-                  <InlineCodeExample code={`db.users
-  .join(db.posts, 'p', (u, { p }) => 
-    u.id['='](p.author_id))
-  .select((u, { p }) => ({
-    username: u.email
-      .regexpReplace('@.*$', '')
-      .lower(),
-    postTitle: p.title,
-  }))
-  .where((u) => u.is_active)`} />
                 </div>
               </motion.div>
             </motion.div>
