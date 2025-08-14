@@ -100,6 +100,32 @@ export const aliasRowLike = <R extends RowLike>(
   ) as R;
 };
 
+export const rawAliasRowLike = <R extends RowLike>(alias: string, row: R) => {
+  return Object.fromEntries(
+    Object.entries(row)
+      // TODO: we're doing this `.filter` becasue `row` might be a `Record` with
+      //   values tacked onto it. We should have a more robust way to handle this.
+      .filter(([_, value]) => value instanceof Any)
+      .map(([key, value]) => [
+        key,
+        value.getClass().new(new RawColumnAliasExpression(alias, key)),
+      ]),
+  ) as R;
+};
+
+export const bareRowLike = <R extends RowLike>(row: R) => {
+  return Object.fromEntries(
+    Object.entries(row)
+      // TODO: we're doing this `.filter` becasue `row` might be a `Record` with
+      //   values tacked onto it. We should have a more robust way to handle this.
+      .filter(([_, value]) => value instanceof Any)
+      .map(([key, value]) => [
+        key,
+        value.getClass().new(new BareColumnExpression(key)),
+      ]),
+  ) as R;
+};
+
 export const aliasScalar = <S extends Scalar>(
   queryAlias: QueryAlias,
   scalar: S,
@@ -117,6 +143,29 @@ export class ColumnAliasExpression extends Expression {
 
   compile(ctx: Context) {
     return sql.ref(`${ctx.getAlias(this.alias)}.${this.column}`);
+  }
+}
+
+export class RawColumnAliasExpression extends Expression {
+  constructor(
+    public alias: string,
+    public column: string,
+  ) {
+    super();
+  }
+
+  compile(_ctx: Context) {
+    return sql.ref(`${this.alias}.${this.column}`);
+  }
+}
+
+export class BareColumnExpression extends Expression {
+  constructor(public column: string) {
+    super();
+  }
+
+  compile(_ctx: Context) {
+    return sql.ref(this.column);
   }
 }
 
