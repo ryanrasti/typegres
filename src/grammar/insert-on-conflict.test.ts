@@ -29,7 +29,7 @@ describe("INSERT ON CONFLICT tests", () => {
       const result = compiled.compile(dummyDb);
 
       expect(result.sql).toBe(
-        'INSERT INTO "users" ("id", "name", "email") (VALUES (cast($1 as text), cast($2 as int4), cast($3 as text))) ON CONFLICT DO NOTHING',
+        'INSERT INTO "users" ("email", "id", "name") (VALUES (cast($1 as text), cast($2 as int4), cast($3 as text))) ON CONFLICT DO NOTHING',
       );
       expect(result.parameters).toEqual(["john@example.com", 1, "John"]);
     });
@@ -54,7 +54,7 @@ describe("INSERT ON CONFLICT tests", () => {
       const result = compiled.compile(dummyDb);
 
       expect(result.sql).toBe(
-        'INSERT INTO "users" ("id", "name", "email") (VALUES (cast($1 as text), cast($2 as int4), cast($3 as text))) ON CONFLICT ("id") DO NOTHING',
+        'INSERT INTO "users" ("email", "id", "name") (VALUES (cast($1 as text), cast($2 as int4), cast($3 as text))) ON CONFLICT ("id") DO NOTHING',
       );
       expect(result.parameters).toEqual(["john@example.com", 1, "John"]);
     });
@@ -79,7 +79,7 @@ describe("INSERT ON CONFLICT tests", () => {
       const result = compiled.compile(dummyDb);
 
       expect(result.sql).toBe(
-        'INSERT INTO "users" ("id", "name", "email") (VALUES (cast($1 as text), cast($2 as int4), cast($3 as text))) ON CONFLICT ("name", "email") DO NOTHING',
+        'INSERT INTO "users" ("email", "id", "name") (VALUES (cast($1 as text), cast($2 as int4), cast($3 as text))) ON CONFLICT ("name", "email") DO NOTHING',
       );
       expect(result.parameters).toEqual(["john@example.com", 1, "John"]);
     });
@@ -106,7 +106,7 @@ describe("INSERT ON CONFLICT tests", () => {
       const result = compiled.compile(dummyDb);
 
       expect(result.sql).toBe(
-        'INSERT INTO "users" ("id", "name", "email", "active") (VALUES (cast($1 as int4), cast($2 as text), cast($3 as int4), cast($4 as text))) ON CONFLICT ("id") WHERE ("users"."active" = $5) DO NOTHING',
+        'INSERT INTO "users" ("active", "email", "id", "name") (VALUES (cast($1 as int4), cast($2 as text), cast($3 as int4), cast($4 as text))) ON CONFLICT ("id") WHERE ("users"."active" = $5) DO NOTHING',
       );
       expect(result.parameters).toEqual([1, "john@example.com", 1, "John", 1]);
     });
@@ -131,7 +131,7 @@ describe("INSERT ON CONFLICT tests", () => {
       const result = compiled.compile(dummyDb);
 
       expect(result.sql).toBe(
-        'INSERT INTO "users" ("id", "name", "email") (VALUES (cast($1 as text), cast($2 as int4), cast($3 as text))) ON CONFLICT ON CONSTRAINT users_pkey DO NOTHING',
+        'INSERT INTO "users" ("email", "id", "name") (VALUES (cast($1 as text), cast($2 as int4), cast($3 as text))) ON CONFLICT ON CONSTRAINT users_pkey DO NOTHING',
       );
       expect(result.parameters).toEqual(["john@example.com", 1, "John"]);
     });
@@ -159,7 +159,7 @@ describe("INSERT ON CONFLICT tests", () => {
       const result = compiled.compile(dummyDb);
 
       expect(result.sql).toBe(
-        'INSERT INTO "users" ("id", "name", "email") (VALUES (cast($1 as text), cast($2 as int4), cast($3 as text))) ON CONFLICT ("id") DO UPDATE SET "name" = "excluded"."name", "email" = "excluded"."email"',
+        'INSERT INTO "users" ("email", "id", "name") (VALUES (cast($1 as text), cast($2 as int4), cast($3 as text))) ON CONFLICT ("id") DO UPDATE SET "name" = "excluded"."name", "email" = "excluded"."email"',
       );
       expect(result.parameters).toEqual(["john@example.com", 1, "John"]);
     });
@@ -193,7 +193,7 @@ describe("INSERT ON CONFLICT tests", () => {
       const result = compiled.compile(dummyDb);
 
       expect(result.sql).toBe(
-        'INSERT INTO "users" ("id", "name", "email", "active") (VALUES (cast($1 as int4), cast($2 as text), cast($3 as int4), cast($4 as text))) ON CONFLICT ("id") DO UPDATE SET "name" = "excluded"."name", "email" = "excluded"."email" WHERE ("excluded"."active" = cast($5 as int4))',
+        'INSERT INTO "users" ("active", "email", "id", "name") (VALUES (cast($1 as int4), cast($2 as text), cast($3 as int4), cast($4 as text))) ON CONFLICT ("id") DO UPDATE SET "name" = "excluded"."name", "email" = "excluded"."email" WHERE ("excluded"."active" = cast($5 as int4))',
       );
       expect(result.parameters).toEqual([1, "john@example.com", 1, "John", 1]);
     });

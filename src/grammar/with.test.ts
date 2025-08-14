@@ -191,9 +191,9 @@ describe("WITH (CTE) parser", () => {
       const result = compiled.compile(dummyDb);
 
       expect(result.sql).toBe(
-        'WITH RECURSIVE "fib" AS (SELECT cast($1 as int4) AS "n", cast($2 as int4) AS "fib", cast($3 as int4) AS "nextfib" UNION ALL SELECT ("fib"."n" + cast($4 as int4)) AS "n", "fib"."nextfib" AS "fib", ("fib"."fib" + "fib"."nextfib") AS "nextfib" FROM "fib" as "fib" WHERE ("fib"."n" < cast($5 as int4))) (SELECT "fib"."n" AS "n", "fib"."fib" AS "value" FROM "fib" as "fib")',
+        'WITH RECURSIVE "fib" AS (SELECT cast($1 as int4) AS "fib", cast($2 as int4) AS "n", cast($3 as int4) AS "nextfib" UNION ALL SELECT "fib"."nextfib" AS "fib", ("fib"."n" + cast($4 as int4)) AS "n", ("fib"."fib" + "fib"."nextfib") AS "nextfib" FROM "fib" as "fib" WHERE ("fib"."n" < cast($5 as int4))) (SELECT "fib"."n" AS "n", "fib"."fib" AS "value" FROM "fib" as "fib")',
       );
-      expect(result.parameters).toEqual([1, 0, 1, 1, 10]);
+      expect(result.parameters).toEqual([0, 1, 1, 1, 10]);
     });
   });
 
@@ -223,7 +223,7 @@ describe("WITH (CTE) parser", () => {
       const result = compiled.compile(dummyDb);
 
       expect(result.sql).toBe(
-        'WITH "inserted" AS (INSERT INTO "users" ("name", "email") (VALUES (cast($1 as text), cast($2 as text))) RETURNING "users"."id" AS "id", "users"."name" AS "name") (SELECT "inserted"."id" AS "userId", "inserted"."name" AS "userName" FROM "inserted" as "inserted")',
+        'WITH "inserted" AS (INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text))) RETURNING "users"."id" AS "id", "users"."name" AS "name") (SELECT "inserted"."id" AS "userId", "inserted"."name" AS "userName" FROM "inserted" as "inserted")',
       );
       expect(result.parameters).toEqual(["alice@example.com", "Alice"]);
     });
@@ -249,7 +249,7 @@ describe("WITH (CTE) parser", () => {
       const result = compiled.compile(dummyDb);
 
       expect(result.sql).toBe(
-        'WITH "updated" AS (UPDATE "users" as "users" SET "email" = cast($1 as text) WHERE ("users"."active" = cast($2 as int4)) RETURNING "users"."id" AS "id", "users"."email" AS "email") (SELECT "updated"."id" AS "userId", "updated"."email" AS "newEmail" FROM "updated" as "updated")',
+        'WITH "updated" AS (UPDATE "users" as "users" SET "email" = cast($1 as text) WHERE ("users"."active" = cast($2 as int4)) RETURNING "users"."id" AS "id", "users"."email" AS "email") (SELECT "updated"."email" AS "newEmail", "updated"."id" AS "userId" FROM "updated" as "updated")',
       );
       expect(result.parameters).toEqual(["updated@example.com", 0]);
     });
@@ -329,7 +329,7 @@ describe("WITH (CTE) parser", () => {
       const result = compiled.compile(dummyDb);
 
       expect(result.sql).toBe(
-        'WITH "users"("id", "name") AS (VALUES (cast($1 as int4), cast($2 as text)), (cast($3 as int4), cast($4 as text))) "orders"("amount", "id", "userId") AS (VALUES (cast($5 as int4), cast($6 as int4), cast($7 as int4)), (cast($8 as int4), cast($9 as int4), cast($10 as int4)), (cast($11 as int4), cast($12 as int4), cast($13 as int4))) (SELECT "users"."name" AS "userName", "o"."id" AS "orderId", "o"."amount" AS "amount" FROM "users" as "users" JOIN "orders" as "o" ON ("users"."id" = "o"."userId"))',
+        'WITH "users"("id", "name") AS (VALUES (cast($1 as int4), cast($2 as text)), (cast($3 as int4), cast($4 as text))) "orders"("amount", "id", "userId") AS (VALUES (cast($5 as int4), cast($6 as int4), cast($7 as int4)), (cast($8 as int4), cast($9 as int4), cast($10 as int4)), (cast($11 as int4), cast($12 as int4), cast($13 as int4))) (SELECT "o"."amount" AS "amount", "o"."id" AS "orderId", "users"."name" AS "userName" FROM "users" as "users" JOIN "orders" as "o" ON ("users"."id" = "o"."userId"))',
       );
       expect(result.parameters).toEqual([
         1,

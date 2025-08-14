@@ -170,10 +170,12 @@ export class Select<
           sql`DISTINCT ON (${compileExpressionList(fn(...args), ctx)})`,
         select: (fn) =>
           sqlJoin(
-            Object.entries(fn(...args)).map(
-              ([alias, v]) =>
-                sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`,
-            ),
+            Object.entries(fn(...args))
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(
+                ([alias, v]) =>
+                  sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`,
+              ),
           ),
         from: () => sql`FROM ${this.fromItem?.compile(ctx)}`,
         where: (fn) =>
