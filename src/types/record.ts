@@ -5,12 +5,14 @@ import array from "postgres-array";
 import { RawBuilder, sql } from "kysely";
 import {
   ColumnAliasExpression,
+  RawColumnAliasExpression,
   RowLike,
   RowLikeRelaxed,
   TableReferenceExpression,
 } from "../query/values";
 import { MaybePrimitiveToSqlType, maybePrimitiveToSqlType } from "./primitive";
 import { Context } from "../expression";
+import { RawTableReferenceExpression } from "../query/db";
 
 export class LiteralRecordExpression extends Expression {
   constructor(
@@ -136,7 +138,9 @@ export default abstract class Record<
               ? // This is the case where we're using reference to a table, so we don't use
                 // parens around the expression to access the column:
                 new ColumnAliasExpression(this.v.table, key)
-              : new RecordAccessExpression(this.toExpression(), key),
+              : this.v instanceof RawTableReferenceExpression
+                ? new RawColumnAliasExpression(this.v.table, key)
+                : new RecordAccessExpression(this.toExpression(), key),
           );
         }
       }

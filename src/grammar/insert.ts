@@ -1,11 +1,21 @@
-import { QueryResult, sql } from "kysely";
+import { QueryResult, RawBuilder, sql } from "kysely";
 import { Context } from "../expression";
 import * as Types from "../types";
 import { Typegres } from "../db";
-import { parseRowLike, RowLikeResult, Values } from "../query/values";
+import {
+  bareRowLike,
+  parseRowLike,
+  rawAliasRowLike,
+  RowLikeResult,
+  Values,
+} from "../query/values";
 import invariant from "tiny-invariant";
 import { sqlJoin, compileClauses } from "./utils";
 import { Select } from "./select";
+import { Repeated } from "../types";
+import { XOR } from "ts-xor";
+import { RawTableReferenceExpression } from "../query/db";
+import { row } from "../types/record";
 
 /*
 [ WITH [ RECURSIVE ] with_query [, ...] ]
@@ -74,10 +84,8 @@ export class Insert<
           }
           return sql`(${vals.compile(ctx)})`;
         },
-        onConflict: ([_target, _action]) => {
-          // TODO: Implement conflict handling
-          throw new Error("ON CONFLICT not yet implemented");
-        },
+        onConflict: (input) =>
+          compileOnConflictInput(input, into.toSelectArgs()[0], ctx),
         returning: (fn) => {
           const returnList = fn(into.toSelectArgs()[0]);
           return sql`RETURNING ${sqlJoin(
@@ -134,6 +142,105 @@ export class Insert<
   }
 }
 
+type ConflictTarget<I extends Types.RowLike> = XOR<
+  {
+    target: Repeated<
+      | ((row: I) => Types.Any)
+      | [
+          index: (row: I) => Types.Any,
+          {
+            collate?: RawBuilder<unknown>;
+            opclass?: RawBuilder<unknown>;
+          }?,
+        ]
+    >;
+    where?: (insertRow: I) => Types.Bool<0 | 1>;
+  },
+  { onConstraint: RawBuilder<unknown> }
+>;
+
+const compileConflictTarget = <I extends Types.RowLike>(
+  target: ConflictTarget<I>["target"],
+  args: I,
+  ctx: Context,
+): RawBuilder<any> => {
+  const flat = [target].flat(2);
+  const list = flat.map((x, idx) => {
+    const index = typeof x === "function" ? x : undefined;
+    if (!index) {
+      return undefined;
+    }
+    const next = flat[idx + 1];
+    const opts = typeof next === "function" ? {} : next;
+    return compileClauses(
+      { index, ...opts },
+      {
+        index: (index) => index(bareRowLike(args)).toExpression().compile(ctx),
+        collate: (collate) => sql`COLLATE ${collate}`,
+        opclass: (opclass) => sql`OPERATOR CLASS ${opclass}`,
+      },
+    );
+  });
+  return sqlJoin(list, sql`, `);
+};
+
+type OnConflictInput<I extends Types.RowLike> = XOR<
+  { doNothing: true },
+  ConflictTarget<I> &
+    XOR<
+      { doNothing: true },
+      {
+        doUpdateSet:
+          | ((insertRow: I, excluded: I) => Partial<I>)
+          | [
+              (insertRow: I, excluded: I) => Partial<I>,
+              { where?: (insertRow: I, excluded: I) => Types.Bool<0 | 1> }?,
+            ];
+      }
+    >
+>;
+
+const compileOnConflictInput = <I extends Types.RowLike>(
+  onConflict: OnConflictInput<I>,
+  args: I,
+  ctx: Context,
+) => {
+  const ret = compileClauses(onConflict, {
+    target: (target) => sql`(${compileConflictTarget(target, args, ctx)})`,
+    onConstraint: (constraintName) => sql`ON CONSTRAINT ${constraintName}`,
+    where: (whereFn) => sql`WHERE ${whereFn(args).toExpression().compile(ctx)}`,
+    doNothing: () => sql`DO NOTHING`,
+    doUpdateSet: (updateSet) => {
+      const normalized = Array.isArray(updateSet)
+        ? updateSet
+        : ([updateSet] as const);
+      const [setFn, opts] = normalized;
+
+      const schema = rawAliasRowLike("excluded", args);
+      const excluded = row(
+        schema,
+        new RawTableReferenceExpression("excluded", schema),
+      ) as unknown as I;
+
+      const setClause = sql`SET ${sqlJoin(
+        Object.entries(setFn(args, excluded)).map(
+          ([col, val]) =>
+            sql`${sql.ref(col)} = ${val.toExpression().compile(ctx)}`,
+        ),
+      )}`;
+      return sql`DO UPDATE ${sqlJoin(
+        [
+          setClause,
+          opts?.where &&
+            sql`WHERE ${opts.where(args, excluded).toExpression().compile(ctx)}`,
+        ].filter(Boolean),
+        sql` `,
+      )}`;
+    },
+  });
+  return sql`ON CONFLICT ${ret}`;
+};
+
 // Type for the VALUES clause - either literal values, VALUES clause, or a subquery
 type ValuesInput<S extends Types.RowLike> =
   | "defaultValues"
@@ -153,10 +260,7 @@ export const insert = <
   },
   values: ValuesInput<S>,
   opts?: {
-    onConflict?: [
-      target?: never, // TODO: implement conflict target
-      action?: never, // TODO: implement conflict action
-    ];
+    onConflict?: OnConflictInput<I>;
     returning?: (insertRow: I) => R;
   },
 ) => {
