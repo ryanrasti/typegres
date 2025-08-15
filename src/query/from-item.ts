@@ -1,32 +1,23 @@
 import { sql } from "kysely";
 import { Expression, QueryAlias } from "../expression";
-import { Bool, Record } from "../types";
+import { Bool } from "../types";
 import { maybePrimitiveToSqlType } from "../types/primitive";
 import { Context } from "../expression";
-import { MakeNullable } from "../types/any";
-import {
-  aliasRowLike,
-  isScalar,
-  RowLike,
-  Scalar,
-  TableReferenceExpression,
-  ValuesExpression,
-} from "./values";
-import { row } from "../types/record";
+import Any, { MakeNullable } from "../types/any";
+import { aliasRowLike, RowLike, ValuesExpression } from "./values";
 import invariant from "tiny-invariant";
 import type { TableSchema, TableSchemaToRowLike } from "./db";
+import { withMixinProxy } from "./mixin";
 
 // Helper type to make all columns in a RowLike nullable
-type MakeRowNullable<R> = R extends RowLike
-  ? { [K in keyof R]: MakeNullable<R[K]> }
-  : R extends Scalar
-    ? MakeNullable<R>
-    : never;
+type MakeRowNullable<R extends RowLike> = {
+  [K in keyof R]: R[K] extends Any ? MakeNullable<R[K]> : R[K];
+};
 
 export type JoinType = "JOIN" | "LEFT JOIN" | "RIGHT JOIN" | "FULL OUTER JOIN";
 
 type Join = {
-  fromItem: FromItem<RowLike>;
+  fromItem: WithFromItem<RowLike>;
   row: RowLike;
   on: Bool<0 | 1>;
   type: JoinType;
@@ -44,34 +35,48 @@ export type MakeJoinsNullable<J extends Joins> = {
   };
 };
 
-export type FromToSelectArgs<F extends RowLike | Scalar, J extends Joins> = [
+export type FromToSelectArgs<F extends RowLike, J extends Joins> = [
   F,
   JoinTables<J>,
 ];
 
-export interface AsFromItem<
-  F extends RowLike | Scalar = RowLike,
-  J extends Joins = Joins,
-> {
+const methods = [
+  "toSelectArgs",
+  "joinTables",
+  "joinWithType",
+  "join",
+  "leftJoin",
+  "rightJoin",
+  "fullOuterJoin",
+  "getContext",
+  "rawFromExpr",
+  "fromAlias",
+  "from",
+  "joinAliases",
+  "joins",
+  "compileJustFrom",
+  "compile",
+  "tableColumnAlias",
+] as const;
+
+export const asFromItem = <T extends { asFromItem: () => FromItem }>(base: T) =>
+  withMixinProxy(() => base.asFromItem(), base, methods);
+
+export type AsFromItem<F extends RowLike = RowLike, J extends Joins = Joins> = {
   asFromItem(): FromItem<F, J>;
-}
+};
+
+export type WithFromItem<
+  F extends RowLike = RowLike,
+  J extends Joins = any,
+> = AsFromItem<F, J> & Pick<FromItem<F, J>, (typeof methods)[number]>;
 
 export type FromItemFromExpressionClass = {
   ["new"](fromExpr: Expression, alias?: string): FromItem<RowLike, Joins>;
 };
 
-export const isAsFromItem = <F extends RowLike, J extends Joins>(
-  val: unknown,
-): val is AsFromItem<F, J> =>
-  val != null &&
-  typeof val === "object" &&
-  "asFromItem" in val &&
-  typeof (val as AsFromItem).asFromItem === "function";
-
-export class FromItem<
-  F extends RowLike | Scalar = RowLike,
-  J extends Joins = Joins,
-> implements AsFromItem<F, J>
+export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
+  implements WithFromItem<F, J>
 {
   constructor(
     public rawFromExpr: Expression,
@@ -92,7 +97,12 @@ export class FromItem<
     return class extends this {
       static new(fromExpr: Expression, alias?: string) {
         const queryAlias = new QueryAlias(alias ?? "f");
-        return new this(fromExpr, queryAlias, {}, fromRow);
+        return new this(
+          fromExpr,
+          queryAlias,
+          {},
+          aliasRowLike(queryAlias, fromRow),
+        );
       }
     };
   }
@@ -102,15 +112,7 @@ export class FromItem<
   }
 
   toSelectArgs(): FromToSelectArgs<F, J> {
-    return [
-      (isScalar(this.from)
-        ? this.from
-        : row(
-            this.from,
-            new TableReferenceExpression(this.fromAlias, this.from),
-          )) as F extends RowLike ? Record<1, F> & F : F,
-      this.joinTables(),
-    ];
+    return [this.from, this.joinTables()];
   }
 
   joinTables() {
@@ -120,7 +122,7 @@ export class FromItem<
   }
 
   joinWithType<F2 extends RowLike, A extends string>(
-    j: FromItem<F2>,
+    j: WithFromItem<F2>,
     as: A,
     type: JoinType,
     on: (from: F & MakeRowNullable<F>, js: any) => Bool<0 | 1> | boolean,
@@ -155,7 +157,7 @@ export class FromItem<
   }
 
   join<F2 extends RowLike, A extends string>(
-    j: FromItem<F2>,
+    j: WithFromItem<F2>,
     as: A,
     on: (
       from: F,
@@ -165,7 +167,7 @@ export class FromItem<
     F,
     J & {
       [a in A]: {
-        fromItem: FromItem<F2>;
+        fromItem: WithFromItem<F2>;
         on: Bool<0 | 1>;
         row: F2;
         type: "JOIN";
@@ -176,7 +178,7 @@ export class FromItem<
   }
 
   leftJoin<F2 extends RowLike, A extends string>(
-    j: FromItem<F2>,
+    j: WithFromItem<F2>,
     as: A,
     on: (
       from: F,
@@ -189,7 +191,7 @@ export class FromItem<
       F,
       J & {
         [a in A]: {
-          fromItem: FromItem<F2>;
+          fromItem: WithFromItem<F2>;
           on: Bool<0 | 1>;
           row: MakeRowNullable<F2>;
           type: "LEFT JOIN";
@@ -199,7 +201,7 @@ export class FromItem<
   }
 
   rightJoin<F2 extends RowLike, A extends string>(
-    j: FromItem<F2>,
+    j: WithFromItem<F2>,
     as: A,
     on: (
       from: F,
@@ -207,12 +209,22 @@ export class FromItem<
         [a in A]: F2;
       },
     ) => Bool<0 | 1> | boolean,
-  ) {
+  ): FromItem<
+    MakeRowNullable<F>,
+    MakeJoinsNullable<J> & {
+      [a in A]: {
+        fromItem: WithFromItem<F2>;
+        on: Bool<0 | 1>;
+        row: F2;
+        type: "RIGHT JOIN";
+      };
+    }
+  > {
     return this.joinWithType(j, as, "RIGHT JOIN", on) as FromItem<
       MakeRowNullable<F>,
       MakeJoinsNullable<J> & {
         [a in A]: {
-          fromItem: FromItem<F2>;
+          fromItem: WithFromItem<F2>;
           on: Bool<0 | 1>;
           row: F2;
           type: "RIGHT JOIN";
@@ -222,7 +234,8 @@ export class FromItem<
   }
 
   fullOuterJoin<F2 extends RowLike, A extends string>(
-    j: FromItem<F2>,
+    this: WithFromItem<F, J>,
+    j: WithFromItem<F2>,
     as: A,
     on: (
       from: MakeRowNullable<F>,
@@ -240,7 +253,7 @@ export class FromItem<
       MakeRowNullable<F>,
       MakeJoinsNullable<J> & {
         [a in A]: {
-          table: FromItem<F2>;
+          table: WithFromItem<F2>;
           on: Bool<0 | 1>;
           row: MakeRowNullable<F2>;
           type: "FULL OUTER JOIN";

@@ -13,13 +13,13 @@ export { default as Array } from "./array";
 export { default as Bool } from "./bool";
 export { default as Text } from "./text";
 export { default as Record } from "./record";
-export type { RowLike } from "../query/values";
+export type { RowLike, RowLikeStrict } from "../query/values";
 export type { Table } from "../query/db";
-export type { Aggregate } from "./aggregate";
 export type { Input } from "./serialization";
 export type {
   FromToSelectArgs,
   Joins,
+  WithFromItem,
   AsFromItem,
   JoinTables,
 } from "../query/from-item";

@@ -71,8 +71,7 @@ export class Select<
   S extends Types.RowLike = any,
   F extends Types.RowLike = any,
   J extends Types.Joins = any,
-> implements Types.AsFromItem<S, {}>
-{
+> {
   private _fromItem: Types.FromItem<F, J> | undefined;
 
   constructor(private _clause: Parameters<typeof select<S, F, J>>) {

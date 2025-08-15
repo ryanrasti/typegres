@@ -31,16 +31,8 @@ class With<R extends RowLike, W extends WithQueryTables> {
   resolveCtes(): W {
     const [ctes] = this.clause;
     const raw = ctes(
-      <T extends RowLike>(
-        expr:
-          | Values<T>
-          | Select<T>
-          | Insert<T>
-          | Update<T>
-          | Delete<T>
-          | Merge<T>,
-        options?: CteArgs[0],
-      ) => Cte.new(expr, options),
+      <T extends RowLike>(expr: Withable<T>, options?: CteArgs[0]) =>
+        Cte.new(expr, options),
     );
     const props = Object.getOwnPropertyDescriptors(raw);
 
@@ -203,13 +195,7 @@ type CteArgs = [
 export class Cte<R extends RowLike> extends FromItem<R> {
   constructor(
     alias: QueryAlias,
-    public expression:
-      | Values<R>
-      | Select<R>
-      | Insert<R>
-      | Update<R>
-      | Delete<R>
-      | Merge<R>,
+    public expression: Withable<R>,
     public args: CteArgs,
   ) {
     super(
@@ -225,13 +211,7 @@ export class Cte<R extends RowLike> extends FromItem<R> {
   }
 
   static new<R extends RowLike>(
-    expression:
-      | Values<R>
-      | Select<R>
-      | Insert<R>
-      | Update<R>
-      | Delete<R>
-      | Merge<R>,
+    expression: Withable<R>,
     options?: CteArgs[0],
   ): Cte<R> {
     return new Cte(new QueryAlias("cte"), expression, [options]);
@@ -282,28 +262,19 @@ type WithQueryTables = {
   [k in string]: Cte<any>;
 };
 
+type Withable<T extends RowLike> =
+  | Values<T>
+  | Select<T>
+  | Insert<any, any, any, T>
+  | Update<any, any, any, T>
+  | Delete<any, any, any, T>
+  | Merge<any, any, any, T>;
+
 export const with_ = <R extends RowLike, W extends WithQueryTables>(
   ctes: (
-    cte: <T extends RowLike>(
-      expr:
-        | Values<T>
-        | Select<T>
-        | Insert<any, any, any, T>
-        | Update<any, any, any, T>
-        | Delete<any, any, any, T>
-        | Merge<any, any, any, T>,
-      options?: CteArgs[0],
-    ) => Cte<T>,
+    cte: <T extends RowLike>(expr: Withable<T>, options?: CteArgs[0]) => Cte<T>,
   ) => W,
-  then: (
-    args: W,
-  ) =>
-    | Select<R>
-    | Values<R>
-    | Insert<any, any, any, R>
-    | Update<any, any, any, R>
-    | Delete<any, any, any, R>
-    | Merge<any, any, any, R>,
+  then: (args: W) => Withable<R>,
   opts?: {
     recursive?: true;
   },
