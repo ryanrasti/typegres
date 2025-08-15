@@ -26,9 +26,9 @@ describe("INSERT parser", () => {
     const result = compiled.compile(dummyDb);
 
     expect(result.sql).toBe(
-      'INSERT INTO "users" ("name", "email") (SELECT cast($1 as text) AS "name", cast($2 as text) AS "email")',
+      'INSERT INTO "users" ("email", "name") (SELECT cast($1 as text) AS "email", cast($2 as text) AS "name")',
     );
-    expect(result.parameters).toEqual(["John", "john@example.com"]);
+    expect(result.parameters).toEqual(["john@example.com", "John"]);
   });
 
   it("should parse and compile a basic INSERT statement with VALUES", () => {
@@ -44,7 +44,7 @@ describe("INSERT parser", () => {
     const result = compiled.compile(dummyDb);
 
     expect(result.sql).toBe(
-      'INSERT INTO "users" ("name", "email") (VALUES (cast($1 as text), cast($2 as text)), (cast($3 as text), cast($4 as text)))',
+      'INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text)), (cast($3 as text), cast($4 as text)))',
     );
     expect(result.parameters).toEqual([
       "john@example.com",
@@ -72,9 +72,9 @@ describe("INSERT parser", () => {
     const result = compiled.compile(dummyDb);
 
     expect(result.sql).toBe(
-      'INSERT INTO "users" ("name", "email") (SELECT cast($1 as text) AS "name", cast($2 as text) AS "email") RETURNING "users"."id" AS "id", "users"."name" AS "name"',
+      'INSERT INTO "users" ("email", "name") (SELECT cast($1 as text) AS "email", cast($2 as text) AS "name") RETURNING "users"."id" AS "id", "users"."name" AS "name"',
     );
-    expect(result.parameters).toEqual(["Jane", "jane@example.com"]);
+    expect(result.parameters).toEqual(["jane@example.com", "Jane"]);
   });
 
   it("should parse INSERT with SELECT FROM another table", () => {
@@ -95,7 +95,7 @@ describe("INSERT parser", () => {
     const result = compiled.compile(dummyDb);
 
     expect(result.sql).toBe(
-      'INSERT INTO "users" ("name", "email") (SELECT "update_test_users"."name" AS "name", "update_test_users"."email" AS "email" FROM "update_test_users" as "update_test_users")',
+      'INSERT INTO "users" ("email", "name") (SELECT "update_test_users"."email" AS "email", "update_test_users"."name" AS "name" FROM "update_test_users" as "update_test_users")',
     );
     expect(result.parameters).toEqual([]);
   });
@@ -116,7 +116,7 @@ describe("INSERT parser", () => {
 
     expect(result.sql).toContain('INSERT INTO "users"');
     expect(result.sql).toContain("SELECT");
-    expect(result.parameters).toEqual(["Test", "test@example.com"]);
+    expect(result.parameters).toEqual(["test@example.com", "Test"]);
   });
 
   it("should parse INSERT with DEFAULT VALUES", () => {
@@ -149,20 +149,18 @@ describe("INSERT parser", () => {
     const result = compiled.compile(dummyDb);
 
     expect(result.sql).toBe(
-      'INSERT INTO "users" ("id", "name", "email") OVERRIDING SYSTEM VALUE (SELECT cast($1 as int4) AS "id", cast($2 as text) AS "name", cast($3 as text) AS "email")',
+      'INSERT INTO "users" ("email", "id", "name") OVERRIDING SYSTEM VALUE (SELECT cast($1 as text) AS "email", cast($2 as int4) AS "id", cast($3 as text) AS "name")',
     );
     expect(result.parameters).toEqual([
+      "override@example.com",
       999,
       "Override User",
-      "override@example.com",
     ]);
   });
 
   describe("e2e tests", () => {
     describe("with tables", () => {
-      // TODO(TYP-129): values sorts its keys but `insert` expects them in the
-      //   order specified:
-      it.skip("should execute INSERT on person table", async () => {
+      it("should execute INSERT on person table", async () => {
         await withDb(testDb, async (kdb) => {
           const parsed = insert(
             { into: db.person, columns: ["firstName", "lastName", "gender"] },

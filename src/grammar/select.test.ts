@@ -100,7 +100,7 @@ describe("SELECT parser", () => {
     const result = compiled.compile(dummyDb);
 
     expect(result.sql).toBe(
-      'SELECT ALL "id" AS "id", "name" AS "name", "active" AS "active" ORDER BY "id" DESC NULLS LAST LIMIT cast($1 as int4) OFFSET cast($2 as int4) ROWS',
+      'SELECT ALL "active" AS "active", "id" AS "id", "name" AS "name" ORDER BY "id" DESC NULLS LAST LIMIT cast($1 as int4) OFFSET cast($2 as int4) ROWS',
     );
     expect(result.parameters).toEqual([50, 10]);
   });
@@ -123,7 +123,7 @@ describe("SELECT parser", () => {
       const result = compiled.compile(dummyDb);
 
       expect(result.sql).toBe(
-        'SELECT "users"."id" AS "id2", "users"."name" AS "name2", "users"."active" AS "active2" FROM "users" as "users"',
+        'SELECT "users"."active" AS "active2", "users"."id" AS "id2", "users"."name" AS "name2" FROM "users" as "users"',
       );
       expect(result.parameters).toEqual([]);
     });

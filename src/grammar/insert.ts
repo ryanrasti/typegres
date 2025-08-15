@@ -72,7 +72,7 @@ export class Insert<
           return sql`INTO ${table.rawFromExpr.compile(ctx)}`;
         },
         columns: (cols) =>
-          sql`(${sqlJoin(cols.map((col) => sql.ref(col as string)))})`,
+          sql`(${sqlJoin(cols.toSorted().map((col) => sql.ref(col as string)))})`,
         overriding: ([systemOrUser, _value]) =>
           sql`OVERRIDING ${systemOrUser === "system" ? sql`SYSTEM` : sql`USER`} VALUE`,
         values: (vals) => {
