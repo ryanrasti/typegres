@@ -2,7 +2,7 @@ import { QueryResult, sql } from "kysely";
 import { Context } from "../expression";
 import * as Types from "../types";
 import { Typegres } from "../db";
-import { parseRowLike, RowLikeResult } from "../query/values";
+import { parseRowLike, PickAny, RowLikeResult } from "../query/values";
 import invariant from "tiny-invariant";
 import { compileClauses, sqlJoin } from "./utils";
 import type { XOR } from "ts-xor";
@@ -31,7 +31,7 @@ type MergeUpdate<
   T extends Types.RowLike,
   S extends Types.RowLike,
   J extends Types.Joins,
-> = (...args: MergeArgs<T, S, J>) => Partial<T>;
+> = (...args: MergeArgs<T, S, J>) => Partial<PickAny<T>>;
 
 // merge_insert is:
 // INSERT [( column_name [, ...] )]
@@ -43,7 +43,7 @@ type MergeInsert<
   J extends Types.Joins,
 > = {
   columns?: (keyof T)[];
-  values: (...args: MergeArgs<T, S, J>) => Partial<T>;
+  values: (...args: MergeArgs<T, S, J>) => Partial<PickAny<T>>;
   overriding?: ["system" | "user", "value"];
 };
 
@@ -121,7 +121,7 @@ const normalizeWhenClause = <
 };
 
 const compileWhenClause = <
-  T extends Types.RowLike,
+  T extends Types.RowLikeStrict,
   S extends Types.RowLike,
   J extends Types.Joins,
 >(
@@ -160,10 +160,13 @@ const compileWhenClause = <
         thenUpdateSet: (set) => {
           const assignments = set(...args);
           return sql`UPDATE SET ${sqlJoin(
-            Object.entries(assignments).map(
-              ([col, val]) =>
-                sql`${sql.ref(col)} = ${val.toExpression().compile(ctx)}`,
-            ),
+            Object.entries(assignments).map(([col, val]) => {
+              invariant(
+                val instanceof Types.Any,
+                `Expected value for column ${col} to be an instance of Any`,
+              );
+              return sql`${sql.ref(col)} = ${val.toExpression().compile(ctx)}`;
+            }),
           )}`;
         },
         thenDelete: () => sql`DELETE`,
@@ -210,7 +213,7 @@ type DataSource<
 > = Types.AsFromItem<S, J>;
 
 export class Merge<
-  T extends Types.RowLike = Types.RowLike,
+  T extends Types.RowLikeStrict = Types.RowLikeStrict,
   S extends Types.RowLike = T,
   J extends Types.Joins = {},
   R extends Types.RowLike = T,
@@ -305,7 +308,7 @@ export class Merge<
 }
 
 export const merge = <
-  T extends Types.RowLike,
+  T extends Types.RowLikeStrict,
   S extends Types.RowLike = T,
   J extends Types.Joins = {},
   R extends Types.RowLike = T,

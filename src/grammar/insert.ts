@@ -5,6 +5,8 @@ import { Typegres } from "../db";
 import {
   bareRowLike,
   parseRowLike,
+  PickAny,
+  pickAny,
   rawAliasRowLike,
   RowLikeResult,
   Values,
@@ -14,8 +16,6 @@ import { sqlJoin, compileClauses } from "./utils";
 import { Select } from "./select";
 import { Repeated } from "../types";
 import { XOR } from "ts-xor";
-import { RawTableReferenceExpression } from "../query/db";
-import { row } from "../types/record";
 
 /*
 [ WITH [ RECURSIVE ] with_query [, ...] ]
@@ -41,7 +41,7 @@ and conflict_action is one of:
 */
 
 export class Insert<
-  I extends Types.RowLike = Types.RowLike,
+  I extends Types.RowLikeStrict = Types.RowLikeStrict,
   K extends keyof I = keyof I,
   S extends Pick<I, K> = Pick<I, K>,
   R extends Types.RowLike = I,
@@ -191,9 +191,9 @@ type OnConflictInput<I extends Types.RowLike> = XOR<
       { doNothing: true },
       {
         doUpdateSet:
-          | ((insertRow: I, excluded: I) => Partial<I>)
+          | ((insertRow: I, excluded: I) => Partial<PickAny<I>>)
           | [
-              (insertRow: I, excluded: I) => Partial<I>,
+              (insertRow: I, excluded: I) => Partial<PickAny<I>>,
               { where?: (insertRow: I, excluded: I) => Types.Bool<0 | 1> }?,
             ];
       }
@@ -216,17 +216,17 @@ const compileOnConflictInput = <I extends Types.RowLike>(
         : ([updateSet] as const);
       const [setFn, opts] = normalized;
 
-      const schema = rawAliasRowLike("excluded", args);
-      const excluded = row(
-        schema,
-        new RawTableReferenceExpression("excluded", schema),
-      ) as unknown as I;
+      const pickedArgs = pickAny(args);
+      const excluded = rawAliasRowLike("excluded", pickedArgs);
 
       const setClause = sql`SET ${sqlJoin(
-        Object.entries(setFn(args, excluded)).map(
-          ([col, val]) =>
-            sql`${sql.ref(col)} = ${val.toExpression().compile(ctx)}`,
-        ),
+        Object.entries(setFn(pickedArgs, excluded)).map(([col, val]) => {
+          invariant(
+            val instanceof Types.Any,
+            `Expected value for column ${col} to be an instance of Any`,
+          );
+          return sql`${sql.ref(col)} = ${val.toExpression().compile(ctx)}`;
+        }),
       )}`;
       return sql`DO UPDATE ${sqlJoin(
         [
@@ -248,7 +248,7 @@ type ValuesInput<S extends Types.RowLike> =
   | Select<S, any, any>;
 
 export const insert = <
-  I extends Types.RowLike,
+  I extends Types.RowLikeStrict,
   K extends keyof I,
   S extends Pick<I, K> = Pick<I, K>,
   R extends Types.RowLike = I,

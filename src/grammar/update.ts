@@ -2,7 +2,7 @@ import { QueryResult, sql } from "kysely";
 import { Context } from "../expression";
 import * as Types from "../types";
 import { Typegres } from "../db";
-import { parseRowLike, RowLikeResult } from "../query/values";
+import { parseRowLike, pickAny, RowLikeResult } from "../query/values";
 import invariant from "tiny-invariant";
 import { sqlJoin, compileClauses } from "./utils";
 
@@ -28,7 +28,7 @@ type UpdateArgs<
 > = [U, ...Types.FromToSelectArgs<F, J>]; // Always [updateRow, ...fromSelectArgs]
 
 export class Update<
-  U extends Types.RowLike = Types.RowLike,
+  U extends Types.RowLikeStrict = Types.RowLikeStrict,
   F extends Types.RowLike = U,
   J extends Types.Joins = {},
   R extends Types.RowLike = U,
@@ -83,7 +83,7 @@ export class Update<
         set: (fn) => {
           const assignments = fn(...this.updateAndFromArgs());
           return sql`SET ${sqlJoin(
-            Object.entries(assignments).map(
+            Object.entries(pickAny(assignments)).map(
               ([col, val]) =>
                 sql`${sql.ref(col)} = ${val.toExpression().compile(ctx)}`,
             ),
@@ -150,7 +150,7 @@ export class Update<
 }
 
 export function update<
-  U extends Types.RowLike,
+  U extends Types.RowLikeStrict,
   F extends Types.RowLike = U,
   J extends Types.Joins = {},
   R extends Types.RowLike = U,

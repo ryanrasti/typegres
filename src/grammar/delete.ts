@@ -23,7 +23,7 @@ type DeleteArgs<
 > = [D, ...Types.FromToSelectArgs<U, J>];
 
 export class Delete<
-  D extends Types.RowLike = Types.RowLike,
+  D extends Types.RowLikeStrict = Types.RowLikeStrict,
   U extends Types.RowLike = D,
   J extends Types.Joins = {},
   R extends Types.RowLike = D,
@@ -124,7 +124,7 @@ export class Delete<
 }
 
 export const delete_ = <
-  D extends Types.RowLike,
+  D extends Types.RowLikeStrict,
   U extends Types.RowLike = D,
   J extends Types.Joins = {},
   R extends Types.RowLike = D,

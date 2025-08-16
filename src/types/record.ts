@@ -6,11 +6,8 @@ import { RawBuilder, sql } from "kysely";
 import {
   ColumnAliasExpression,
   RawColumnAliasExpression,
-  RowLike,
-  RowLikeRelaxed,
   TableReferenceExpression,
 } from "../query/values";
-import { MaybePrimitiveToSqlType, maybePrimitiveToSqlType } from "./primitive";
 import { Context } from "../expression";
 import { RawTableReferenceExpression } from "../query/db";
 
@@ -77,12 +74,14 @@ export type RecordClass<T extends { [key in string]: Any<unknown, 0 | 1> }> = {
   parse(v: string): { [key in keyof T]: T[key]["resultType"] };
 };
 
-export type RecordInstance<N extends number, T extends RowLike> = Record<N, T> &
-  T;
+export type RecordInstance<
+  N extends number,
+  T extends { [k in string]: Any<unknown, 0 | 1> },
+> = Record<N, T> & T;
 
 export default abstract class Record<
   N extends number,
-  T extends RowLike,
+  T extends { [k in string]: Any<unknown, 0 | 1> },
 > extends PgRecord<N, T> {
   public abstract schema: { [K in keyof T]: ReturnType<T[K]["getClass"]> };
 
@@ -168,21 +167,3 @@ export default abstract class Record<
     } as RecordClass<SchemaPrototype<S>>;
   }
 }
-
-export const row = <R extends RowLikeRelaxed>(
-  row: R,
-  expression: Expression,
-): Record<1, { [K in keyof R]: MaybePrimitiveToSqlType<R[K]> }> => {
-  const rowLike = maybePrimitiveToSqlType(row) as RowLike;
-  return Record.of(
-    Object.fromEntries(
-      Object.entries(rowLike).map(([key, value]) => [
-        key,
-        (value as Any).getClass(),
-      ]),
-    ) as Schema,
-  ).new(expression) as Record<
-    1,
-    { [K in keyof R]: MaybePrimitiveToSqlType<R[K]> }
-  >;
-};
