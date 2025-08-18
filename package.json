@@ -3,7 +3,9 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "vite",
-    "build": "tsup src/index.ts --format esm,cjs --dts --out-dir dist",
+    "build": "npm run build:lib && npm run build:cli",
+    "build:lib": "tsup src/index.ts --format esm,cjs --dts --out-dir dist",
+    "build:cli": "tsup src/cli/main.ts --format cjs --no-dts --out-dir dist --entry.tg src/cli/main.ts --platform node --minify --target node20",
     "build:bundle": "rollup -c",
     "build:tsgo": "tsgo",
     "preview": "vite preview",
@@ -14,19 +16,25 @@
     "format": "prettier --write \"**/*.{ts,js,json}\" --log-level warn",
     "format:check": "prettier --check \"**/*.{ts,js,json}\"",
     "check": "npm test && npm run typecheck && npm run lint && npm run format:check",
-    "codegen": "bash ./src/gen/gen.sh && kysely --no-outdated-check migrate:latest -e test && bash ./src/gen/table-gen.sh",
+    "codegen": "bash ./src/gen/gen.sh && kysely --no-outdated-check migrate:latest -e test && npm run codegen:tables",
+    "codegen:tables": "./bin/tg introspect -d postgres://postgres:postgres@localhost:1234/test > ./src/gen/tables.ts",
     "clean": "(rm ./src/gen/functions.ts; rm -r ./src/gen/types; rm ./src/gen/tables.json; rm ./src/gen/tables.ts) || true",
     "prepublishOnly": "npm version $(npm pkg get version | tr -d '\"')-$(git rev-parse --short HEAD) --no-git-tag-version"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "^1.0.77",
+    "@effect/cli": "^0.69.0",
+    "@effect/platform": "^0.90.3",
+    "@effect/platform-node": "^0.96.0",
     "@rollup/plugin-alias": "^5.1.1",
     "@rollup/plugin-commonjs": "^28.0.6",
+    "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-typescript": "^12.1.4",
     "@types/pg": "^8.11.6",
     "@typescript/native-preview": "^7.0.0-dev.20250626.1",
     "cross-inspect": "^1.0.1",
+    "effect": "^3.17.7",
     "eslint": "^8.42.0",
     "kysely-ctl": "^0.9.0",
     "npm": "^10.9.0",
@@ -58,6 +66,9 @@
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "bin": {
+    "tg": "./dist/tg.js"
+  },
   "files": [
     "./dist"
   ],
