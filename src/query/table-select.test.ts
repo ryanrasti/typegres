@@ -48,7 +48,7 @@ describe("compile tests", () => {
       id: p.id,
       firstName: p.firstName,
     }))
-      .orderBy([(p) => p.createdAt, { desc: true }])
+      .orderBy((p) => p.createdAt, { desc: true })
       .limit(Types.Int4.new(10));
     const compiled = query.compile();
     const result = compiled.compile(dummyDb);
@@ -198,7 +198,7 @@ describe("e2e tests", () => {
     await withDb(testDb, async (kdb) => {
       // Test select with ORDER BY and LIMIT on Pet table
       const query = db.Pet.select((p) => ({ name: p.name, age: p.age }))
-        .orderBy([(p) => p.age, { desc: true }])
+        .orderBy((p) => p.age, { desc: true })
         .limit(Types.Int4.new(2));
 
       const result = await query.execute(kdb);

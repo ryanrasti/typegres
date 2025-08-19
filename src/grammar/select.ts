@@ -96,6 +96,42 @@ export class Select<
     return [this._clause[0], this._clause[1] ?? {}] as const;
   }
 
+  select<S2 extends Types.RowLike>(
+    fn: (...args: Types.FromToSelectArgs<F, J>) => S2,
+  ): Select<S2, F, J> {
+    const [, ...opts] = this.clause;
+    const {
+      union,
+      unionAll,
+      intersect,
+      intersectAll,
+      except,
+      exceptAll,
+      ...rest
+    } = opts[0] ?? {};
+    invariant(
+      !union &&
+        !unionAll &&
+        !intersect &&
+        !intersectAll &&
+        !except &&
+        !exceptAll,
+      "Cannot dynamically change select() after a set operation (union, unionAll, intersect, intersectAll, except, exceptAll) has been applied",
+    );
+
+    return new Select<S2, F, J>([fn, rest]);
+  }
+
+  selectMerge<S2 extends Types.RowLike>(
+    fn: (...args: Types.FromToSelectArgs<F, J>) => S2,
+  ): Select<S & S2, F, J> {
+    const [select] = this.clause;
+    return this.select((...args) => ({
+      ...select(...args),
+      ...fn(...args),
+    }));
+  }
+
   where(fn: (...args: Types.FromToSelectArgs<F, J>) => Types.Bool<0 | 1>) {
     const [select, { where, ...rest }] = this.clause;
     return new Select<S, F, J>([
@@ -110,15 +146,45 @@ export class Select<
     ]);
   }
 
-  orderBy(orderBy: OrderByInput<F, J>): Select<S, F, J> {
+  orderBy(...input: OrderByInputElement<F, J>): Select<S, F, J> {
     const [select, { orderBy: existingOrderBy, ...rest }] = this.clause;
     return new Select<S, F, J>([
       select,
       {
         ...rest,
         orderBy: existingOrderBy
-          ? [...normalizeOrderBy(existingOrderBy), ...normalizeOrderBy(orderBy)]
-          : orderBy,
+          ? [...normalizeOrderBy(existingOrderBy), ...normalizeOrderBy(input)]
+          : input,
+      },
+    ]);
+  }
+
+  groupBy(...input: GroupByInputNormalized<F, J>[0]): Select<S, F, J> {
+    const [select, { groupBy: existingGroupBy, ...rest }] = this.clause;
+    const [existingGb, existingOpts] = normalizeGroupBy(existingGroupBy ?? [() => []]);
+    const [newGb, newOpts] = normalizeGroupBy(input);
+
+    return new Select<S, F, J>([
+      select,
+      {
+        ...rest,
+        groupBy: existingGroupBy
+          ? [[...existingGb, ...newGb], existingOpts ?? newOpts ?? {}]
+          : input,
+      },
+    ]);
+  }
+
+  having(fn: (...args: Types.FromToSelectArgs<F, J>) => Types.Bool<0 | 1>) {
+    const [select, { having, ...rest }] = this.clause;
+    return new Select<S, F, J>([
+      select,
+      {
+        ...rest,
+        having: having
+          ? (...args: Types.FromToSelectArgs<F, J>) =>
+              fn(...args).and(having(...args))
+          : fn,
       },
     ]);
   }
@@ -147,6 +213,14 @@ export class Select<
   ): Select<S, F, J> {
     const [select, { fetch: _existingFetch, ...rest }] = this.clause;
     return new Select([select, { ...rest, fetch }]);
+  }
+
+  as(alias: string = 'select'): FromItem<S, {}> {
+    return this.asFromItem().as(alias);
+  }
+
+  subquery(alias: string = 'subquery'): FromItem<S, {}> {
+    return this.as(alias);
   }
 
   compile(ctxIn = Context.new()) {
@@ -518,18 +592,24 @@ type GroupByInputNormalized<F extends Types.RowLike, J extends Types.Joins> = [
   ({ all?: true } | { distinct?: true })?,
 ];
 
-const compileGroupBy = <F extends Types.RowLike, J extends Types.Joins>(
+const normalizeGroupBy = <F extends Types.RowLike, J extends Types.Joins>(
   groupBy: GroupByInput<F, J>,
-  args: Types.FromToSelectArgs<F, J>,
-  ctx: Context,
-): RawBuilder<any> => {
-  const normalized = (
+): GroupByInputNormalized<F, J> => {
+  return (
     Array.isArray(groupBy)
       ? Array.isArray(groupBy[0])
         ? groupBy
         : [groupBy]
       : [[groupBy]]
   ) as GroupByInputNormalized<F, J>;
+};
+
+const compileGroupBy = <F extends Types.RowLike, J extends Types.Joins>(
+  groupBy: GroupByInput<F, J>,
+  args: Types.FromToSelectArgs<F, J>,
+  ctx: Context,
+): RawBuilder<any> => {
+  const normalized =  normalizeGroupBy(groupBy);
 
   const [elements, opts] = normalized;
 
