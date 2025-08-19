@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { CodeEditor, CodeEditorWithOutput } from "@/components/CodeEditor";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { Github, Code, Terminal, Database } from "lucide-react";
+import { Github, Code, Terminal, Database, Share2, Check } from "lucide-react";
 import dynamic from "next/dynamic";
 import inspect from "object-inspect";
 import { format } from "sql-formatter";
@@ -12,6 +12,11 @@ import {
   setupMonacoWithTypegres,
   transformCodeWithEsbuild,
 } from "@/lib/monaco-typegres-integration";
+import {
+  getCodeFromURL,
+  updateURLWithCode,
+  copyShareURL,
+} from "@/lib/share-utils";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -33,12 +38,26 @@ function MobilePlayground({ initialCode }: { initialCode: string }) {
   const [sqlOutput, setSqlOutput] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [isRunning, setIsRunning] = useState(false);
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied'>('idle');
 
   useEffect(() => {
     if (initialCode && initialCode !== code) {
       setCode(initialCode);
     }
   }, [initialCode]);
+
+  const handleShare = async () => {
+    try {
+      setShareStatus('copying');
+      await copyShareURL(code);
+      updateURLWithCode(code);
+      setShareStatus('copied');
+      setTimeout(() => setShareStatus('idle'), 2000);
+    } catch (error) {
+      console.error('Failed to share:', error);
+      setShareStatus('idle');
+    }
+  };
 
   const runCode = useCallback(async () => {
     setOutput("");
@@ -176,14 +195,15 @@ function MobilePlayground({ initialCode }: { initialCode: string }) {
 
   return (
     <div className="flex flex-col h-[calc(100dvh-64px)] relative">
-      {/* Floating Run Button - Only visible on Code tab */}
+      {/* Floating Action Buttons - Only visible on Code tab */}
       {activeTab === 'code' && (
         <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
-          <button
-            onClick={runCode}
-            disabled={isRunning}
-            className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg shadow-sm hover:bg-blue-600 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
+          <div className="flex gap-2">
+            <button
+              onClick={runCode}
+              disabled={isRunning}
+              className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg shadow-sm hover:bg-blue-600 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
           {isRunning ? (
             <>
               <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -200,7 +220,18 @@ function MobilePlayground({ initialCode }: { initialCode: string }) {
               Run Code
             </>
           )}
-          </button>
+            </button>
+            <button
+              onClick={handleShare}
+              className="px-4 py-3 bg-gray-700 text-white rounded-lg shadow-sm hover:bg-gray-600 flex items-center justify-center gap-2 transition-all"
+            >
+              {shareStatus === 'copied' ? (
+                <Check className="w-5 h-5" />
+              ) : (
+                <Share2 className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
       )}
       
@@ -315,10 +346,21 @@ export default function PlaygroundPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [hasRunOnce, setHasRunOnce] = useState(false);
   const [initialCode, setInitialCode] = useState("");
+  const [currentCode, setCurrentCode] = useState("");
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied'>('idle');
   const isMobile = useIsMobile();
 
   // Load initial code
   useEffect(() => {
+    // First check if there's code in the URL
+    const sharedCode = getCodeFromURL();
+    if (sharedCode) {
+      setInitialCode(sharedCode);
+      setCurrentCode(sharedCode);
+      return;
+    }
+
+    // Otherwise load the demo code
     fetch("/demo.ts.static")
       .then((response) => {
         if (!response.ok) {
@@ -328,11 +370,27 @@ export default function PlaygroundPage() {
         }
         return response.text();
       })
-      .then((text) => setInitialCode(text))
+      .then((text) => {
+        setInitialCode(text);
+        setCurrentCode(text);
+      })
       .catch((error) => {
         console.error("Error fetching initial code:", error);
       });
   }, []);
+
+  const handleShare = async (code: string) => {
+    try {
+      setShareStatus('copying');
+      await copyShareURL(code);
+      updateURLWithCode(code);
+      setShareStatus('copied');
+      setTimeout(() => setShareStatus('idle'), 2000);
+    } catch (error) {
+      console.error('Failed to share:', error);
+      setShareStatus('idle');
+    }
+  };
 
 
   return (
@@ -376,10 +434,12 @@ export default function PlaygroundPage() {
         <CodeEditorWithOutput
           initialCode={initialCode}
           height="calc(100vh - 64px)"
+          onCodeChange={setCurrentCode}
           onRunCode={(fn) => {
             setRunCode(() => fn);
           }}
           customRunButton={(runFn, running) => (
+          <div className="flex items-center gap-2">
           <button
             onClick={async () => {
               if (!running) {
@@ -413,6 +473,18 @@ export default function PlaygroundPage() {
               </div>
             )}
           </button>
+            <button
+              onClick={() => handleShare(currentCode)}
+              className={`${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} bg-gray-700 text-white rounded hover:bg-gray-600 flex items-center gap-2 transition-all`}
+            >
+              {shareStatus === 'copied' ? (
+                <Check className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+              ) : (
+                <Share2 className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+              )}
+              {shareStatus === 'copied' ? 'Copied!' : 'Share'}
+            </button>
+          </div>
           )}
         />
       )}
