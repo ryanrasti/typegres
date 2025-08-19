@@ -66,8 +66,10 @@ describe("compile tests", () => {
         return this.name.textcat(this.name);
       }
 
-      static select<S extends Types.RowLike>(selectCb?: (t: ActiveUsers) => S) {
-        return select(selectCb ?? ((t: ActiveUsers) => t as S), {
+      static select<S extends Types.RowLike>(
+        selectCb?: (t: ActiveUsers, _j: any) => S,
+      ) {
+        return select(selectCb ?? ((t: ActiveUsers, _j: any) => t as S), {
           from: this,
           where: (t) => t.active["="](1),
         });
@@ -89,13 +91,6 @@ describe("compile tests", () => {
   });
 
   it("should work with joins", () => {
-    // For joins, we need to use select directly with the joined from item
-    const joinedFrom = db.Users.asFromItem().join(
-      db.Posts,
-      "posts",
-      (u, { posts }) => u.id["="](posts.user_id),
-    );
-
     // Use the select function directly with the joined from
     const query = select(
       (u, { posts }) => ({
@@ -103,7 +98,9 @@ describe("compile tests", () => {
         postTitle: posts.title,
       }),
       {
-        from: joinedFrom,
+        from: db.Users.asFromItem().join(db.Posts, "posts", (u, { posts }) =>
+          u.id["="](posts.user_id),
+        ),
       },
     );
 

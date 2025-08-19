@@ -7,7 +7,6 @@ import {
 } from "./values";
 import { QueryAlias } from "../expression";
 import { FromItem, withFromItem, WithFromItem } from "./from-item";
-import { select } from "../grammar";
 
 export type InstanceType<C> = C extends { new (...args: any[]): infer R }
   ? R extends Any
@@ -26,9 +25,6 @@ export type TableSchemaToRowLike<T extends TableSchema> = {
 export type Table<R extends RowLikeStrict, E extends RowLike = any> = {
   new (data: AnyOrParsed<R>): R & RowImpl<R>;
   extend<E2 extends object>(): Table<R, E2>;
-  select<S extends RowLike>(
-    cb?: (x: E) => S,
-  ): ReturnType<typeof select<S, E, {}>>;
 } & WithFromItem<R & E, {}>;
 
 type Expand<T> = T extends object ? { [K in keyof T]: T[K] } : T;
@@ -81,10 +77,6 @@ class RowImpl<R extends RowLikeStrict> {
 
   static extend() {
     return this;
-  }
-
-  static select(this: typeof RowImpl, cb?: (x: RowImpl<any>) => object) {
-    return select(cb ?? ((x) => x), { from: this });
   }
 }
 

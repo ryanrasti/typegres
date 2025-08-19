@@ -80,7 +80,9 @@ export class Select<
 
   private get fromItem(): Types.FromItem<F, J> | undefined {
     if (!this._fromItem) {
-      this._fromItem = this.clause[1]?.from?.asFromItem();
+      this._fromItem = this.clause[1]?.from?.asFromItem() as
+        | Types.FromItem<F, J>
+        | undefined;
     }
     return this._fromItem;
   }
@@ -161,7 +163,9 @@ export class Select<
 
   groupBy(...input: GroupByInputNormalized<F, J>[0]): Select<S, F, J> {
     const [select, { groupBy: existingGroupBy, ...rest }] = this.clause;
-    const [existingGb, existingOpts] = normalizeGroupBy(existingGroupBy ?? [() => []]);
+    const [existingGb, existingOpts] = normalizeGroupBy(
+      existingGroupBy ?? [() => []],
+    );
     const [newGb, newOpts] = normalizeGroupBy(input);
 
     return new Select<S, F, J>([
@@ -215,11 +219,11 @@ export class Select<
     return new Select([select, { ...rest, fetch }]);
   }
 
-  as(alias: string = 'select'): FromItem<S, {}> {
+  as(alias: string = "select"): FromItem<S, {}> {
     return this.asFromItem().as(alias);
   }
 
-  subquery(alias: string = 'subquery'): FromItem<S, {}> {
+  subquery(alias: string = "subquery"): FromItem<S, {}> {
     return this.as(alias);
   }
 
@@ -609,7 +613,7 @@ const compileGroupBy = <F extends Types.RowLike, J extends Types.Joins>(
   args: Types.FromToSelectArgs<F, J>,
   ctx: Context,
 ): RawBuilder<any> => {
-  const normalized =  normalizeGroupBy(groupBy);
+  const normalized = normalizeGroupBy(groupBy);
 
   const [elements, opts] = normalized;
 

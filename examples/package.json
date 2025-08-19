@@ -9,11 +9,11 @@
     "example:basic": "tsx basic-example.ts",
     "example:advanced": "tsx advanced-example.ts",
     "test": "vitest run",
-    "setup": "cd .. && npm run build && npm pack --pack-destination examples && cd examples && npm install"
+    "setup": "cd .. && npm run build && cd examples && npm install"
   },
   "dependencies": {
     "tsafe": "^1.8.5",
-    "typegres": "file:./typegres-0.0.1.tgz"
+    "typegres": "file:.."
   },
   "devDependencies": {
     "@types/node": "^24.0.12",

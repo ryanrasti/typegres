@@ -27,16 +27,14 @@ const example1 = await select(
 
 console.log("Example 1", example1);
 
-// Example 2: Jsonb & Set Returning
-const example2 = await select(
-  ({ key, value }) => ({
+// Example 2: Query builder with Jsonb & Set Returning
+const example2 = await Jsonb.new('{"a":1,"b":2, "c": [1, 2, 3]}')
+  .jsonbEach()
+  .select(({ key, value }) => ({
     key: key.textcat("!"),
     isNum: value.jsonbTypeof()["="]("number"),
-  }),
-  {
-    from: Jsonb.new('{"a":1,"b":2, "c": [1, 2, 3]}').jsonbEach(),
-  },
-).execute(tg);
+  }))
+  .execute(tg);
 
 console.log("Example 2", example2);
 

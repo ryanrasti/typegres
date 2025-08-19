@@ -536,7 +536,7 @@ describe("Select Builder Methods", () => {
         'SELECT "users"."active" AS "active", "users"."email" AS "email", "users"."id" AS "id", "users"."name" AS "name", "users"."role" AS "role" FROM "users" as "users"',
       );
       expect(originalResult.parameters).toEqual([]);
-      
+
       expect(modifiedResult.sql).toBe(
         'SELECT "users"."active" AS "active", "users"."email" AS "email", "users"."id" AS "id", "users"."name" AS "name", "users"."role" AS "role" FROM "users" as "users" WHERE ("users"."active" = cast($1 as int4)) LIMIT cast($2 as int4)',
       );
@@ -590,7 +590,17 @@ describe("Select Builder Methods", () => {
       expect(result.sql).toBe(
         'SELECT (("values"."age" / cast($1 as int4)) * cast($2 as int4)) AS "ageGroup", "values"."name" AS "name" FROM (VALUES (cast($3 as int4), cast($4 as text)), (cast($5 as int4), cast($6 as text)), (cast($7 as int4), cast($8 as text))) as "values"("age", "name") WHERE ("values"."age" >= cast($9 as int4)) ORDER BY "values"."age"',
       );
-      expect(result.parameters).toEqual([10, 10, 25, "Alice", 30, "Bob", 35, "Charlie", 30]);
+      expect(result.parameters).toEqual([
+        10,
+        10,
+        25,
+        "Alice",
+        30,
+        "Bob",
+        35,
+        "Charlie",
+        30,
+      ]);
     });
   });
 });
