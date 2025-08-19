@@ -1,22 +1,13 @@
-import { sql } from "kysely";
 import { Any, RowLikeStrict } from "../types";
-import { aliasRowLike, RowLike, ScalarResult } from "./values";
-import { Context, QueryAlias, SelectableExpression } from "../expression";
+import {
+  aliasRowLike,
+  RawTableReferenceExpression,
+  RowLike,
+  ScalarResult,
+} from "./values";
+import { QueryAlias } from "../expression";
 import { FromItem, withFromItem, WithFromItem } from "./from-item";
-
-// Like `TableReferenceExpression` but referencing a table directly (not an alias)
-export class RawTableReferenceExpression extends SelectableExpression {
-  constructor(
-    public table: string,
-    schema: RowLike,
-  ) {
-    super(schema);
-  }
-
-  compile(_ctx: Context) {
-    return sql.ref(this.table);
-  }
-}
+import { select } from "../grammar";
 
 export type InstanceType<C> = C extends { new (...args: any[]): infer R }
   ? R extends Any
@@ -35,6 +26,9 @@ export type TableSchemaToRowLike<T extends TableSchema> = {
 export type Table<R extends RowLikeStrict, E extends RowLike = any> = {
   new (data: AnyOrParsed<R>): R & RowImpl<R>;
   extend<E2 extends object>(): Table<R, E2>;
+  select<S extends RowLike>(
+    cb?: (x: E) => S,
+  ): ReturnType<typeof select<S, E, {}>>;
 } & WithFromItem<R & E, {}>;
 
 type Expand<T> = T extends object ? { [K in keyof T]: T[K] } : T;
@@ -87,6 +81,10 @@ class RowImpl<R extends RowLikeStrict> {
 
   static extend() {
     return this;
+  }
+
+  static select(this: typeof RowImpl, cb?: (x: RowImpl<any>) => object) {
+    return select(cb ?? ((x) => x), { from: this });
   }
 }
 

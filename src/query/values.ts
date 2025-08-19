@@ -62,6 +62,20 @@ export class TableReferenceExpression extends SelectableExpression {
   }
 }
 
+// Like `TableReferenceExpression` but referencing a table directly (not an alias)
+export class RawTableReferenceExpression extends SelectableExpression {
+  constructor(
+    public table: string,
+    schema: RowLike,
+  ) {
+    super(schema);
+  }
+
+  compile(_ctx: Context) {
+    return sql.ref(this.table);
+  }
+}
+
 export class ValuesExpression extends SelectableExpression {
   constructor(public values: [RowLike, ...RowLike[]]) {
     super(values[0]);

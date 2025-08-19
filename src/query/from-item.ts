@@ -41,6 +41,7 @@ export type FromToSelectArgs<F extends RowLike, J extends Joins> = [
 ];
 
 const methods = [
+  "as",
   "toSelectArgs",
   "joinTables",
   "joinWithType",
@@ -106,6 +107,17 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
         );
       }
     };
+  }
+
+  as<A extends string>(alias: A): FromItem<F, J> {
+    const queryAlias = new QueryAlias(alias);
+    return new FromItem(
+      this.rawFromExpr,
+      queryAlias,
+      this.joinAliases,
+      aliasRowLike(queryAlias, this.from),
+      this.joins,
+    );
   }
 
   asFromItem(): FromItem<F, J> {
