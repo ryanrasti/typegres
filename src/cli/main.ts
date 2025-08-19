@@ -118,14 +118,14 @@ const introspectCommand = Command.make(
               .join("");
 
             return [
-              `export class ${className} extends Table("${tableName}", {`,
+              `export const ${className} = Table("${tableName}", {`,
               ...Object.entries(columns as TableGenFile[string][string]).map(
                 ([column, definition]) =>
                   `  ${column}: ${asType(canonicalType(definition.type), {
                     nullable: definition.not_null ? false : undefined,
                   })},`,
               ),
-              `}) {}`,
+              `});`,
               ``,
             ];
           }),

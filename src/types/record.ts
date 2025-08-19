@@ -6,10 +6,10 @@ import { RawBuilder, sql } from "kysely";
 import {
   ColumnAliasExpression,
   RawColumnAliasExpression,
+  RawTableReferenceExpression,
   TableReferenceExpression,
 } from "../query/values";
 import { Context } from "../expression";
-import { RawTableReferenceExpression } from "../query/db";
 
 export class LiteralRecordExpression extends Expression {
   constructor(
