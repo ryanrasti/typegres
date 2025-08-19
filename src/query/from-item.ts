@@ -8,6 +8,7 @@ import { aliasRowLike, RowLike, ValuesExpression } from "./values";
 import invariant from "tiny-invariant";
 import type { TableSchema, TableSchemaToRowLike } from "./db";
 import { withMixinProxy } from "./mixin";
+import { Select, select } from "../grammar/select";
 
 // Helper type to make all columns in a RowLike nullable
 type MakeRowNullable<R extends RowLike> = {
@@ -17,7 +18,7 @@ type MakeRowNullable<R extends RowLike> = {
 export type JoinType = "JOIN" | "LEFT JOIN" | "RIGHT JOIN" | "FULL OUTER JOIN";
 
 type Join = {
-  fromItem: WithFromItem<RowLike>;
+  fromItem: WithFromItem<any>;
   row: RowLike;
   on: Bool<0 | 1>;
   type: JoinType;
@@ -58,6 +59,7 @@ const methods = [
   "compileJustFrom",
   "compile",
   "tableColumnAlias",
+  "select",
 ] as const;
 
 export const withFromItem = <T extends { asFromItem: () => FromItem }>(
@@ -139,7 +141,7 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
     as: A,
     type: JoinType,
     on: (from: F & MakeRowNullable<F>, js: any) => Bool<0 | 1> | boolean,
-  ) {
+  ): FromItem<any, any> {
     const alias = new QueryAlias(as);
     const row = aliasRowLike(alias, j.from);
 
@@ -166,7 +168,7 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
           type,
         },
       },
-    );
+    ) as any;
   }
 
   join<F2 extends RowLike, A extends string>(
@@ -178,9 +180,9 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
     ) => Bool<0 | 1> | boolean,
   ): FromItem<
     F,
-    J & {
+    {
       [a in A]: {
-        fromItem: WithFromItem<F2>;
+        fromItem: WithFromItem<F2, Joins>;
         on: Bool<0 | 1>;
         row: F2;
         type: "JOIN";
@@ -199,18 +201,18 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
         [a in A]: MakeRowNullable<F2>;
       },
     ) => Bool<0 | 1> | boolean,
-  ) {
-    return this.joinWithType(j, as, "LEFT JOIN", on) as FromItem<
-      F,
-      J & {
-        [a in A]: {
-          fromItem: WithFromItem<F2>;
-          on: Bool<0 | 1>;
-          row: MakeRowNullable<F2>;
-          type: "LEFT JOIN";
-        };
-      }
-    >;
+  ): FromItem<
+    F,
+    J & {
+      [a in A]: {
+        fromItem: WithFromItem<F2>;
+        on: Bool<0 | 1>;
+        row: MakeRowNullable<F2>;
+        type: "LEFT JOIN";
+      };
+    }
+  > {
+    return this.joinWithType(j, as, "LEFT JOIN", on);
   }
 
   rightJoin<F2 extends RowLike, A extends string>(
@@ -256,23 +258,18 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
         [a in A]: MakeRowNullable<F2>;
       },
     ) => Bool<0 | 1> | boolean,
-  ) {
-    return this.joinWithType(
-      j,
-      as,
-      "FULL OUTER JOIN",
-      on,
-    ) as unknown as FromItem<
-      MakeRowNullable<F>,
-      MakeJoinsNullable<J> & {
-        [a in A]: {
-          table: WithFromItem<F2>;
-          on: Bool<0 | 1>;
-          row: MakeRowNullable<F2>;
-          type: "FULL OUTER JOIN";
-        };
-      }
-    >;
+  ): FromItem<
+    MakeRowNullable<F>,
+    MakeJoinsNullable<J> & {
+      [a in A]: {
+        table: WithFromItem<F2>;
+        on: Bool<0 | 1>;
+        row: MakeRowNullable<F2>;
+        type: "FULL OUTER JOIN";
+      };
+    }
+  > {
+    return this.joinWithType(j, as, "FULL OUTER JOIN", on);
   }
 
   getContext(ctxIn: Context): Context {
@@ -311,6 +308,23 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
       .toSorted((k1, k2) => k1.localeCompare(k2))
       .map((key) => sql.ref(key));
     return sql.join(keys);
+  }
+
+  select<S extends RowLike>(
+    this: WithFromItem<F, J>,
+    cb?: (f: F, j: JoinTables<J>) => S,
+  ): Select<S, F, J>;
+  select<S extends RowLike>(
+    this: WithFromItem<F, J>,
+    cb?: (f: F) => S,
+  ): Select<S, F, J>;
+  select<S extends RowLike>(
+    this: WithFromItem<F, J>,
+    cb?: ((f: F, j: JoinTables<J>) => S) | ((f: F) => S),
+  ): Select<S, F, J> {
+    return select<S, F, J>(cb ?? ((f: F) => f as unknown as S), {
+      from: this,
+    }) as Select<S, F, J>;
   }
 }
 

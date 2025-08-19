@@ -48,7 +48,7 @@ describe("compile tests", () => {
       id: p.id,
       firstName: p.firstName,
     }))
-      .orderBy([(p) => p.createdAt, { desc: true }])
+      .orderBy((p) => p.createdAt, { desc: true })
       .limit(Types.Int4.new(10));
     const compiled = query.compile();
     const result = compiled.compile(dummyDb);
@@ -66,8 +66,10 @@ describe("compile tests", () => {
         return this.name.textcat(this.name);
       }
 
-      static select<S extends Types.RowLike>(selectCb?: (t: ActiveUsers) => S) {
-        return select(selectCb ?? ((t: ActiveUsers) => t as S), {
+      static select<S extends Types.RowLike>(
+        selectCb?: (t: ActiveUsers, _j: any) => S,
+      ) {
+        return select(selectCb ?? ((t: ActiveUsers, _j: any) => t as S), {
           from: this,
           where: (t) => t.active["="](1),
         });
@@ -89,13 +91,6 @@ describe("compile tests", () => {
   });
 
   it("should work with joins", () => {
-    // For joins, we need to use select directly with the joined from item
-    const joinedFrom = db.Users.asFromItem().join(
-      db.Posts,
-      "posts",
-      (u, { posts }) => u.id["="](posts.user_id),
-    );
-
     // Use the select function directly with the joined from
     const query = select(
       (u, { posts }) => ({
@@ -103,7 +98,9 @@ describe("compile tests", () => {
         postTitle: posts.title,
       }),
       {
-        from: joinedFrom,
+        from: db.Users.asFromItem().join(db.Posts, "posts", (u, { posts }) =>
+          u.id["="](posts.user_id),
+        ),
       },
     );
 
@@ -198,7 +195,7 @@ describe("e2e tests", () => {
     await withDb(testDb, async (kdb) => {
       // Test select with ORDER BY and LIMIT on Pet table
       const query = db.Pet.select((p) => ({ name: p.name, age: p.age }))
-        .orderBy([(p) => p.age, { desc: true }])
+        .orderBy((p) => p.age, { desc: true })
         .limit(Types.Int4.new(2));
 
       const result = await query.execute(kdb);

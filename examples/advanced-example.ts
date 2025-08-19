@@ -53,32 +53,21 @@ export const main = async () => {
   const postsCount = await samplePosts(tg);
 
   // Find all authors who have published more than 10 posts
-  // First, create a subquery for post counts
-  const postCounts = select(
-    (p) => ({
-      author_id: p.author_id,
-      postCount: p.id.count(),
-    }),
-    {
-      from: Posts,
-      groupBy: (p) => [p.author_id],
-    },
-  );
-
-  // Then join with users and filter
-  const prolificAuthors = await select(
-    (pc, { u }) => ({
+  const prolificAuthors = await Posts.select((p) => ({
+    author_id: p.author_id,
+    postCount: p.id.count(),
+  }))
+    .groupBy((p) => [p.author_id])
+    .subquery() // Create a subquery from the aggregation
+    .join(Users, "u", (ac, { u }) => ac.author_id["="](u.id)) // Join back to the users table
+    .select((ac, { u }) => ({
       id: u.id,
       name: u.name,
-      totalPosts: pc.postCount,
-    }),
-    {
-      from: postCounts
-        .asFromItem()
-        .join(Users, "u", (pc, { u }) => pc.author_id["="](u.id)),
-      where: (pc) => pc.postCount[">"](10),
-    },
-  ).execute(tg);
+      totalPosts: ac.postCount,
+    }))
+    .where((ac) => ac.postCount[">"](10)) // Filter the results of the subquery
+
+    .execute(tg);
 
   console.log("Prolific authors (more than 10 posts):");
   console.log(prolificAuthors);

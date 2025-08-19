@@ -107,7 +107,7 @@ export const sqlFunction = (
   name: string,
   defn: TypedFunctionDefinition[],
   args: unknown[],
-): Any | FromItem<RowLike> => {
+): Any | FromItem<any> => {
   const [{ matchingDef, RetType }] = defn.flatMap((def) => {
     const RetType = getRetType(args, def);
     return RetType
