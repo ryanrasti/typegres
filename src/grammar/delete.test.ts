@@ -2,17 +2,15 @@ import { describe, it, expect } from "vitest";
 import { delete_ } from "./delete";
 import { Int4, Text } from "../types";
 import { dummyDb, withDb } from "../test/db";
-import { makeDb } from "../gen/tables";
+import * as db from "../gen/tables";
 import { testDb } from "../db.test";
 import { with_ } from "./with";
 import { values } from "../query/values";
 import { assert, Equals } from "tsafe";
 
-const db = makeDb();
-
 describe("DELETE parser", () => {
   it("should parse and compile a basic DELETE statement", () => {
-    const parsed = delete_({ from: db.users });
+    const parsed = delete_({ from: db.Users });
 
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
@@ -22,7 +20,7 @@ describe("DELETE parser", () => {
   });
 
   it("should parse DELETE with ONLY", () => {
-    const parsed = delete_({ from: db.users, only: true });
+    const parsed = delete_({ from: db.Users, only: true });
 
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
@@ -33,7 +31,7 @@ describe("DELETE parser", () => {
 
   it("should parse DELETE with WHERE clause", () => {
     const parsed = delete_({
-      from: db.users,
+      from: db.Users,
       where: (deleteRow) => deleteRow.id["="](Int4.new(1)),
     });
 
@@ -48,7 +46,7 @@ describe("DELETE parser", () => {
 
   it("should parse DELETE with RETURNING clause", () => {
     const parsed = delete_({
-      from: db.users,
+      from: db.Users,
       returning: (deleteRow) => ({ id: deleteRow.id, name: deleteRow.name }),
     });
 
@@ -63,7 +61,7 @@ describe("DELETE parser", () => {
 
   it("should parse DELETE with WHERE and RETURNING", () => {
     const parsed = delete_({
-      from: db.users,
+      from: db.Users,
       where: (deleteRow) => deleteRow.active["="](0),
       returning: (deleteRow) => ({ id: deleteRow.id, email: deleteRow.email }),
     });
@@ -79,7 +77,7 @@ describe("DELETE parser", () => {
 
   it("should parse DELETE with all features combined", () => {
     const parsed = delete_({
-      from: db.users,
+      from: db.Users,
       where: (u) => u.active["="](0).and(u.role["="]("inactive")),
       returning: (u) => ({ id: u.id, name: u.name }),
       only: true,
@@ -97,8 +95,8 @@ describe("DELETE parser", () => {
   describe("with USING clause", () => {
     it("should parse DELETE with USING another table", () => {
       const parsed = delete_({
-        from: db.comments,
-        using: db.users,
+        from: db.Comments,
+        using: db.Users,
         where: (commentRow, userRow) =>
           commentRow.user_id["="](userRow.id).and(
             userRow.active["="](Int4.new(0)),
@@ -116,8 +114,8 @@ describe("DELETE parser", () => {
 
     it("should parse DELETE with USING table (two tables)", () => {
       const parsed = delete_({
-        from: db.posts,
-        using: db.users,
+        from: db.Posts,
+        using: db.Users,
         where: (postRow, userRow) =>
           postRow.user_id["="](userRow.id).and(
             userRow.role["="](Text.new("deleted")),
@@ -139,12 +137,12 @@ describe("DELETE parser", () => {
     });
 
     it("should parse DELETE with USING joined table (true 3 tables)", () => {
-      const usersJoinPosts = db.users.join(db.posts, "p", (u, { p }) =>
+      const usersJoinPosts = db.Users.join(db.Posts, "p", (u, { p }) =>
         u.id["="](p.user_id),
       );
 
       const parsed = delete_({
-        from: db.comments,
+        from: db.Comments,
         using: usersJoinPosts,
         where: (commentRow, userRow, joins) =>
           commentRow.user_id["="](userRow.id)
@@ -180,7 +178,7 @@ describe("DELETE parser", () => {
           `.execute();
 
           const parsed = delete_({
-            from: db.person,
+            from: db.Person,
             where: (deleteRow) =>
               deleteRow.lastName["="](Text.new("TestDelete")),
             returning: (deleteRow) => ({
@@ -236,7 +234,7 @@ describe("DELETE parser", () => {
           `.execute();
 
           const parsed = delete_({
-            from: db.pet,
+            from: db.Pet,
             where: (deleteRow) =>
               deleteRow.species["="](Text.new("dog")).and(
                 deleteRow.ownerId["="](Int4.new(ownerId)),
@@ -308,8 +306,8 @@ describe("DELETE parser", () => {
 
           // Delete comments from inactive users
           const parsed = delete_({
-            from: db.comments,
-            using: db.users,
+            from: db.Comments,
+            using: db.Users,
             where: (commentRow, userRow) =>
               commentRow.user_id["="](userRow.id).and(userRow.active["="](0)),
             returning: (commentRow, userRow) => ({
@@ -392,15 +390,15 @@ describe("DELETE parser", () => {
               (${publishedPostId}, ${goodUserId}, 'Comment on published by good')
           `.execute();
 
-          const usersJoinPosts = db.users.join(
-            db.posts,
+          const usersJoinPosts = db.Users.join(
+            db.Posts,
             "post",
             (u, { post }) => u.id["="](post.user_id),
           );
 
           // Delete comments on unpublished posts by inactive users
           const parsed = delete_({
-            from: db.comments,
+            from: db.Comments,
             using: usersJoinPosts,
             where: (commentRow, userRow, joins) =>
               commentRow.user_id["="](userRow.id)
@@ -464,7 +462,7 @@ describe("DELETE parser", () => {
         }),
         ({ toDelete }) =>
           delete_({
-            from: db.users,
+            from: db.Users,
             using: toDelete,
             where: (userRow, deleteRow) => userRow.id["="](deleteRow.id),
             returning: (userRow) => ({
@@ -504,7 +502,7 @@ describe("DELETE parser", () => {
           }),
           ({ inactiveIds }) =>
             delete_({
-              from: db.users,
+              from: db.Users,
               using: inactiveIds,
               where: (userRow, inactiveRow) => userRow.id["="](inactiveRow.id),
               returning: (userRow) => ({

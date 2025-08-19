@@ -1,7 +1,4 @@
-1. Always run `npm test` to validate your changes.
-1. Always run `npm run typecheck` to validate your changes.
-1. Always run `npm run format` to validate your changes.
-1. Always run `npm run lint` to validate your changes.
+1. Always run `npm run check` to validate your changes. Under the hood that command runs:
 1. Prefer concise code -- take extra time to see if you can turn verbose code you generate into something more concise and readable.
 1. Prefer inlining variables/functions when used less than 3 times. Exceptions when logic is complex or for readability.
   * Yardstick: Prefer 3-4 levels of inline nesting to creating variables to pass around.
@@ -14,3 +11,6 @@
   * A generator function
 
 1. The goal of the project is to be TYPE-SAFE and expressive. Don't just remove type checks/tests because the "functionality works" (i.e., at runtime). Proper typing is as import as runtime correctness.
+
+
+1. After you make non-trivial additions, add 2 additional clean-up tasks to scour the code for readability improvements (removing net-negative redundancy, etc.). We want concise code with great quailty.

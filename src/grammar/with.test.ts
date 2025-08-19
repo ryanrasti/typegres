@@ -8,10 +8,8 @@ import { values } from "../query/values";
 import { Int4, Text } from "../types";
 import { dummyDb, withDb } from "../test/db";
 import { testDb } from "../db.test";
-import { makeDb } from "../gen/tables";
+import * as db from "../gen/tables";
 import { assert, Equals } from "tsafe";
-
-const db = makeDb();
 
 describe("WITH (CTE) parser", () => {
   describe("Basic CTEs", () => {
@@ -200,7 +198,7 @@ describe("WITH (CTE) parser", () => {
   describe("CTEs with DML", () => {
     it("should support INSERT with RETURNING in CTE", () => {
       const inserted = insert(
-        { into: db.users, columns: ["name", "email"] },
+        { into: db.Users, columns: ["name", "email"] },
         values({
           name: Text.new("Alice"),
           email: Text.new("alice@example.com"),
@@ -232,7 +230,7 @@ describe("WITH (CTE) parser", () => {
       const query = with_(
         (cte) => ({
           updated: cte(
-            update(db.users, {
+            update(db.Users, {
               set: () => ({ email: Text.new("updated@example.com") }),
               where: (u) => u.active["="](Int4.new(0)),
               returning: (u) => ({ id: u.id, email: u.email }),
@@ -466,7 +464,7 @@ describe("WITH (CTE) parser", () => {
         const query = with_(
           (cte) => ({
             updated: cte(
-              update(db.person, {
+              update(db.Person, {
                 set: () => ({ firstName: Text.new("UpdatedCTE") }),
                 where: (p) => p.firstName["="](Text.new("TestCTE")),
                 returning: (p) => ({
@@ -526,7 +524,7 @@ describe("WITH (CTE) parser", () => {
         ({ source_data }) =>
           merge(
             {
-              into: db.users,
+              into: db.Users,
               using: source_data,
               on: (target, source) => target.id["="](source.id),
             },

@@ -4,11 +4,9 @@ import { select } from "./select";
 import { values } from "../query/values";
 import { Int4, Text } from "../types";
 import { dummyDb, withDb } from "../test/db";
-import { makeDb } from "../gen/tables";
+import * as db from "../gen/tables";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
-
-const db = makeDb();
 
 describe("INSERT parser", () => {
   it("should parse and compile a basic INSERT statement with SELECT", () => {
@@ -18,7 +16,7 @@ describe("INSERT parser", () => {
     }));
 
     const parsed = insert(
-      { into: db.users, columns: ["name", "email"] },
+      { into: db.Users, columns: ["name", "email"] },
       selectQuery,
     );
 
@@ -33,7 +31,7 @@ describe("INSERT parser", () => {
 
   it("should parse and compile a basic INSERT statement with VALUES", () => {
     const parsed = insert(
-      { into: db.users, columns: ["name", "email"] },
+      { into: db.Users, columns: ["name", "email"] },
       values(
         { name: Text.new("John"), email: Text.new("john@example.com") },
         { name: Text.new("Jane"), email: Text.new("jane@example.com") },
@@ -61,7 +59,7 @@ describe("INSERT parser", () => {
     }));
 
     const parsed = insert(
-      { into: db.users, columns: ["name", "email"] },
+      { into: db.Users, columns: ["name", "email"] },
       selectQuery,
       {
         returning: (insertRow) => ({ id: insertRow.id, name: insertRow.name }),
@@ -83,11 +81,11 @@ describe("INSERT parser", () => {
         name: u.name,
         email: u.email,
       }),
-      { from: db.update_test_users },
+      { from: db.UpdateTestUsers },
     );
 
     const parsed = insert(
-      { into: db.users, columns: ["name", "email"] },
+      { into: db.Users, columns: ["name", "email"] },
       selectQuery,
     );
 
@@ -107,7 +105,7 @@ describe("INSERT parser", () => {
     }));
 
     const parsed = insert(
-      { into: db.users, columns: ["name", "email"] },
+      { into: db.Users, columns: ["name", "email"] },
       selectQuery,
     );
 
@@ -120,7 +118,7 @@ describe("INSERT parser", () => {
   });
 
   it("should parse INSERT with DEFAULT VALUES", () => {
-    const parsed = insert({ into: db.users }, "defaultValues");
+    const parsed = insert({ into: db.Users }, "defaultValues");
 
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
@@ -138,7 +136,7 @@ describe("INSERT parser", () => {
 
     const parsed = insert(
       {
-        into: db.users,
+        into: db.Users,
         columns: ["id", "name", "email"],
         overriding: ["system", "value"],
       },
@@ -163,7 +161,7 @@ describe("INSERT parser", () => {
       it("should execute INSERT on person table", async () => {
         await withDb(testDb, async (kdb) => {
           const parsed = insert(
-            { into: db.person, columns: ["firstName", "lastName", "gender"] },
+            { into: db.Person, columns: ["firstName", "lastName", "gender"] },
             values({
               firstName: Text.new("InsertTest"),
               lastName: Text.new("User"),
@@ -220,7 +218,7 @@ describe("INSERT parser", () => {
           );
 
           const parsed = insert(
-            { into: db.person, columns: ["firstName", "lastName", "gender"] },
+            { into: db.Person, columns: ["firstName", "lastName", "gender"] },
             selectQuery,
             {
               returning: (insertRow) => ({
@@ -261,7 +259,7 @@ describe("INSERT parser", () => {
           }));
 
           const parsed = insert(
-            { into: db.pet, columns: ["name", "ownerId", "species", "age"] },
+            { into: db.Pet, columns: ["name", "ownerId", "species", "age"] },
             selectQuery,
             {
               returning: (insertRow) => ({
@@ -317,7 +315,7 @@ describe("INSERT parser", () => {
 
           const parsed = insert(
             {
-              into: db.posts,
+              into: db.Posts,
               columns: ["title", "content", "user_id", "published"],
             },
             selectQuery,
@@ -370,13 +368,13 @@ describe("INSERT parser", () => {
               email: u.email,
             }),
             {
-              from: db.update_test_users,
+              from: db.UpdateTestUsers,
               where: (u) => u.name["="](Text.new(`CopyUser1_${timestamp}`)),
             },
           );
 
           const parsed = insert(
-            { into: db.users, columns: ["name", "email"] },
+            { into: db.Users, columns: ["name", "email"] },
             selectQuery,
             {
               returning: (insertRow) => ({

@@ -59,8 +59,9 @@ const methods = [
   "tableColumnAlias",
 ] as const;
 
-export const asFromItem = <T extends { asFromItem: () => FromItem }>(base: T) =>
-  withMixinProxy(() => base.asFromItem(), base, methods);
+export const withFromItem = <T extends { asFromItem: () => FromItem }>(
+  base: T,
+) => withMixinProxy(() => base.asFromItem(), base, methods);
 
 export type AsFromItem<F extends RowLike = RowLike, J extends Joins = Joins> = {
   asFromItem(): FromItem<F, J>;

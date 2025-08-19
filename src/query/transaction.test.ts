@@ -3,17 +3,15 @@ import { values } from "./values";
 import { Int4, Text } from "../types";
 import { testDb } from "../db.test";
 import { TypegresTransaction } from "../db";
-import { database } from "./db";
+import { Table } from "./db";
 import { select, insert, update } from "../grammar";
 
 // Define the schema for our test tables
-const db = database({
-  test_users: {
-    id: Int4<1>,
-    name: Text<1>,
-    balance: Int4<1>,
-  },
-});
+class TestUsers extends Table("test_users", {
+  id: Int4<1>,
+  name: Text<1>,
+  balance: Int4<0 | 1>,
+}) {}
 
 describe("Transactions", () => {
   // Helper to create test tables
@@ -49,7 +47,7 @@ describe("Transactions", () => {
         );
 
         await insert(
-          { into: db.test_users, columns: ["name", "balance"] },
+          { into: TestUsers, columns: ["name", "balance"] },
           selectQuery,
         ).execute(tx);
       });
@@ -57,7 +55,7 @@ describe("Transactions", () => {
       const users = await select(
         (u) => ({ name: u.name, balance: u.balance }),
         {
-          from: db.test_users,
+          from: TestUsers,
           orderBy: (u) => u.name,
         },
       ).execute(testDb);
@@ -82,7 +80,7 @@ describe("Transactions", () => {
           );
 
           await insert(
-            { into: db.test_users, columns: ["name", "balance"] },
+            { into: TestUsers, columns: ["name", "balance"] },
             selectQuery,
           ).execute(tx);
 
@@ -100,7 +98,7 @@ describe("Transactions", () => {
           );
 
           await insert(
-            { into: db.test_users, columns: ["name", "balance"] },
+            { into: TestUsers, columns: ["name", "balance"] },
             selectQuery2,
           ).execute(tx);
         });
@@ -111,7 +109,7 @@ describe("Transactions", () => {
       const users = await select(
         (u) => ({ name: u.name, balance: u.balance }),
         {
-          from: db.test_users,
+          from: TestUsers,
         },
       ).execute(testDb);
       expect(users).toHaveLength(0);
@@ -131,7 +129,7 @@ describe("Transactions", () => {
         );
 
         await insert(
-          { into: db.test_users, columns: ["name", "balance"] },
+          { into: TestUsers, columns: ["name", "balance"] },
           selectQuery,
         ).execute(tx);
 
@@ -139,7 +137,7 @@ describe("Transactions", () => {
         const txResult = await select(
           (u) => ({ name: u.name, balance: u.balance }),
           {
-            from: db.test_users,
+            from: TestUsers,
             where: (u) => u.balance[">="](Int4.new(50)),
           },
         ).execute(tx);
@@ -150,7 +148,7 @@ describe("Transactions", () => {
         const mainResult = await select(
           (u) => ({ name: u.name, balance: u.balance }),
           {
-            from: db.test_users,
+            from: TestUsers,
             where: (u) => u.balance[">="](Int4.new(50)),
           },
         ).execute(testDb);
@@ -172,7 +170,7 @@ describe("Transactions", () => {
         );
 
         const result = await insert(
-          { into: db.test_users, columns: ["name", "balance"] },
+          { into: TestUsers, columns: ["name", "balance"] },
           selectQuery,
           {
             returning: (u) => ({
@@ -192,7 +190,7 @@ describe("Transactions", () => {
       const user = await select(
         (u) => ({ id: u.id, name: u.name, balance: u.balance }),
         {
-          from: db.test_users,
+          from: TestUsers,
           where: (u) => u.id["="](Int4.new(users[0].id)),
         },
       ).execute(testDb);
@@ -219,13 +217,13 @@ describe("Transactions", () => {
       );
 
       await insert(
-        { into: db.test_users, columns: ["name", "balance"] },
+        { into: TestUsers, columns: ["name", "balance"] },
         selectQuery,
       ).execute(testDb);
 
       // Use transaction to update
       await testDb.transaction(async (tx) => {
-        await update(db.test_users, {
+        await update(TestUsers, {
           set: (u) => ({ balance: u.balance["+"](Int4.new(50)) }),
           where: (u) => u.name["="](Text.new("Alice")),
         }).execute(tx);
@@ -234,7 +232,7 @@ describe("Transactions", () => {
       const alice = await select(
         (u) => ({ name: u.name, balance: u.balance }),
         {
-          from: db.test_users,
+          from: TestUsers,
           where: (u) => u.name["="](Text.new("Alice")),
         },
       ).execute(testDb);
@@ -261,7 +259,7 @@ describe("Transactions", () => {
         );
 
         await insert(
-          { into: db.test_users, columns: ["name", "balance"] },
+          { into: TestUsers, columns: ["name", "balance"] },
           selectQuery,
         ).execute(tx);
 
@@ -273,7 +271,7 @@ describe("Transactions", () => {
             isRich: u.balance[">="](Int4.new(150)),
           }),
           {
-            from: db.test_users,
+            from: TestUsers,
             where: (u) => u.balance[">="](Int4.new(100)),
             orderBy: [(u) => u.balance, { desc: true }],
           },

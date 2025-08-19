@@ -2,15 +2,13 @@ import { describe, it, expect } from "vitest";
 import { update } from "./update";
 import { Int4, Text } from "../types";
 import { dummyDb, withDb } from "../test/db";
-import { makeDb } from "../gen/tables";
+import * as db from "../gen/tables";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
 
-const db = makeDb();
-
 describe("UPDATE parser", () => {
   it("should parse and compile a basic UPDATE statement", () => {
-    const parsed = update(db.users, {
+    const parsed = update(db.Users, {
       set: () => ({ name: Text.new("John") }),
     });
 
@@ -25,7 +23,7 @@ describe("UPDATE parser", () => {
 
   it("should parse UPDATE with ONLY", () => {
     const parsed = update(
-      db.users,
+      db.Users,
       {
         set: () => ({ role: Text.new("active") }),
       },
@@ -42,7 +40,7 @@ describe("UPDATE parser", () => {
   });
 
   it("should parse UPDATE with WHERE clause", () => {
-    const parsed = update(db.users, {
+    const parsed = update(db.Users, {
       set: () => ({ name: Text.new("Jane") }),
       where: (updateRow) => updateRow.id["="](Int4.new(1)),
     });
@@ -57,7 +55,7 @@ describe("UPDATE parser", () => {
   });
 
   it("should parse UPDATE with RETURNING clause", () => {
-    const parsed = update(db.users, {
+    const parsed = update(db.Users, {
       set: () => ({ email: Text.new("updated@example.com") }),
       returning: (updateRow) => ({ id: updateRow.id, name: updateRow.name }),
     });
@@ -72,7 +70,7 @@ describe("UPDATE parser", () => {
   });
 
   it("should parse UPDATE with multiple SET assignments", () => {
-    const parsed = update(db.users, {
+    const parsed = update(db.Users, {
       set: () => ({
         name: Text.new("John Doe"),
         email: Text.new("john@example.com"),
@@ -91,7 +89,7 @@ describe("UPDATE parser", () => {
 
   it("should parse UPDATE with all features combined", () => {
     const parsed = update(
-      db.users,
+      db.Users,
       {
         set: () => ({
           email: Text.new("updated@example.com"),
@@ -114,9 +112,9 @@ describe("UPDATE parser", () => {
 
   describe("with FROM clause", () => {
     it("should parse UPDATE with FROM joining another table", () => {
-      const parsed = update(db.users, {
+      const parsed = update(db.Users, {
         set: () => ({ role: Text.new("inactive") }),
-        from: db.person,
+        from: db.Person,
         where: (updateRow, fromRow) => updateRow.name["="](fromRow.firstName),
       });
 
@@ -130,9 +128,9 @@ describe("UPDATE parser", () => {
 
     it("should parse UPDATE with FROM table (two tables)", () => {
       // Simple UPDATE with FROM - two tables
-      const parsed = update(db.pet, {
+      const parsed = update(db.Pet, {
         set: () => ({ age: Int4.new(10) }),
-        from: db.person,
+        from: db.Person,
         where: (petRow, personRow) =>
           petRow.ownerId["="](personRow.id).and(
             personRow.firstName["="](Text.new("John")),
@@ -160,11 +158,11 @@ describe("UPDATE parser", () => {
 
     it("should parse UPDATE with FROM joined table (true 3 tables)", () => {
       // Create a FROM item with joined table
-      const usersJoinComments = db.users.join(db.comments, "c", (u, { c }) =>
+      const usersJoinComments = db.Users.join(db.Comments, "c", (u, { c }) =>
         u.id["="](c.user_id),
       );
 
-      const parsed = update(db.posts, {
+      const parsed = update(db.Posts, {
         set: () => ({ published: Int4.new(1) }),
         from: usersJoinComments,
         where: (postRow, userRow, joins) =>
@@ -211,7 +209,7 @@ describe("UPDATE parser", () => {
             VALUES ('TestFirst', 'TestLast', 'male')
           `.execute();
 
-          const parsed = update(db.person, {
+          const parsed = update(db.Person, {
             set: () => ({ firstName: Text.new("UpdatedFirst") }),
             where: (updateRow) => updateRow.lastName["="](Text.new("TestLast")),
             returning: (updateRow) => ({
@@ -257,7 +255,7 @@ describe("UPDATE parser", () => {
             VALUES ('TestPet', ${ownerId}, 'dog', 3)
           `.execute();
 
-          const parsed = update(db.pet, {
+          const parsed = update(db.Pet, {
             set: () => ({
               name: Text.new("UpdatedPet"),
               age: Int4.new(5),
@@ -317,9 +315,9 @@ describe("UPDATE parser", () => {
           `.execute();
 
           // Update pets owned by Johnny
-          const parsed = update(db.pet, {
+          const parsed = update(db.Pet, {
             set: () => ({ age: Int4.new(10) }),
-            from: db.person,
+            from: db.Person,
             where: (petRow, personRow) =>
               petRow.ownerId["="](personRow.id).and(
                 personRow.firstName["="]("Johnny"),
@@ -403,14 +401,14 @@ describe("UPDATE parser", () => {
           `.execute();
 
           // Create a FROM item with joined table
-          const usersJoinComments = db.users.join(
-            db.comments,
+          const usersJoinComments = db.Users.join(
+            db.Comments,
             "comment",
             (u, { comment }) => u.id["="](comment.user_id),
           );
 
           // Update posts where the user has made an approving comment
-          const parsed = update(db.posts, {
+          const parsed = update(db.Posts, {
             set: () => ({ published: Int4.new(1) }),
             from: usersJoinComments,
             where: (postRow, userRow, joins) =>

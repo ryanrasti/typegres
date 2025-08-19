@@ -2,12 +2,10 @@ import { describe, it, expect } from "vitest";
 import { merge } from "./merge";
 import { Int4, Text } from "../types";
 import { dummyDb, withDb } from "../test/db";
-import { makeDb } from "../gen/tables";
+import * as db from "../gen/tables";
 import { testDb } from "../db.test";
 import { values } from "../query/values";
 import { assert, Equals } from "tsafe";
-
-const db = makeDb();
 
 describe("MERGE parser", () => {
   it("should parse and compile a basic MERGE with UPDATE", () => {
@@ -18,7 +16,7 @@ describe("MERGE parser", () => {
 
     const parsed = merge(
       {
-        into: db.users,
+        into: db.Users,
         using: sourceData,
         on: (target, source) => target.id["="](source.id),
       },
@@ -45,7 +43,7 @@ describe("MERGE parser", () => {
 
     const parsed = merge(
       {
-        into: db.users,
+        into: db.Users,
         using: sourceData,
         on: (target, source) => target.id["="](source.id),
       },
@@ -72,8 +70,8 @@ describe("MERGE parser", () => {
   it("should parse MERGE with DELETE when matched with condition", () => {
     const parsed = merge(
       {
-        into: db.users,
-        using: db.posts,
+        into: db.Users,
+        using: db.Posts,
         on: (user, post) => user.id["="](post.user_id),
       },
       [
@@ -103,7 +101,7 @@ describe("MERGE parser", () => {
 
     const parsed = merge(
       {
-        into: db.users,
+        into: db.Users,
         using: sourceData,
         on: (target, source) => target.id["="](source.id),
       },
@@ -136,7 +134,7 @@ describe("MERGE parser", () => {
 
     const parsed = merge(
       {
-        into: db.users,
+        into: db.Users,
         using: sourceData,
         on: (target, source) => target.id["="](source.id),
       },
@@ -163,8 +161,8 @@ describe("MERGE parser", () => {
   it("should parse MERGE with DO NOTHING action", () => {
     const parsed = merge(
       {
-        into: db.users,
-        using: db.posts,
+        into: db.Users,
+        using: db.Posts,
         on: (user, post) => user.id["="](post.user_id),
       },
       {
@@ -189,7 +187,7 @@ describe("MERGE parser", () => {
 
     const parsed = merge(
       {
-        into: db.users,
+        into: db.Users,
         only: true,
         using: sourceData,
         on: (target, source) => target.id["="](source.id),
@@ -216,7 +214,7 @@ describe("MERGE parser", () => {
 
     const parsed = merge(
       {
-        into: db.users,
+        into: db.Users,
         using: sourceData,
         on: (target, source) => target.id["="](source.id),
       },
@@ -250,7 +248,7 @@ describe("MERGE parser", () => {
 
     const parsed = merge(
       {
-        into: db.users,
+        into: db.Users,
         using: sourceData,
         on: (target, source) => target.id["="](source.id),
       },
@@ -288,7 +286,7 @@ describe("MERGE parser", () => {
 
     const parsed = merge(
       {
-        into: db.users,
+        into: db.Users,
         using: sourceData,
         on: (target, source) => target.id["="](source.id),
       },
@@ -368,7 +366,7 @@ describe("MERGE parser", () => {
 
         const parsed = merge(
           {
-            into: db.users,
+            into: db.Users,
             using: sourceData,
             on: (target, source) => target.id["="](source.id),
           },
@@ -463,7 +461,7 @@ describe("MERGE parser", () => {
 
         const parsed = merge(
           {
-            into: db.users,
+            into: db.Users,
             using: sourceData,
             on: (target, source) => target.id["="](source.id),
           },

@@ -1,21 +1,20 @@
 // Shared schema definition and setup for examples
-import { Typegres, Text, Int4, Bool, database } from "typegres";
+import { Typegres, Text, Int4, Bool, Table } from "typegres";
 
-// Define the database schema
-export const db = database({
-  users: {
-    id: Int4<1>,
-    name: Text<1>,
-    age: Int4<1>,
-    isActive: Bool<1>,
-  },
-  posts: {
-    id: Int4<1>,
-    author_id: Int4<1>,
-    title: Text<1>,
-    created_at: Text<1>, // Treating timestamp as text for simplicity
-  },
-});
+// Define the database schema using the new Table pattern
+export class Users extends Table("users", {
+  id: Int4<1>,
+  name: Text<1>,
+  age: Int4<1>,
+  isActive: Bool<1>,
+}) {}
+
+export class Posts extends Table("posts", {
+  id: Int4<1>,
+  author_id: Int4<1>,
+  title: Text<1>,
+  created_at: Text<1>, // Treating timestamp as text for simplicity
+}) {}
 
 // Create tables using raw SQL
 export const createSchema = async (tg: Typegres) => {

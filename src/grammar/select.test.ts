@@ -4,12 +4,10 @@ import { Expression } from "../expression";
 import { Int4, Text, Bool } from "../types";
 import { sql } from "kysely";
 import { dummyDb, withDb } from "../test/db";
-import { makeDb } from "../gen/tables";
+import * as db from "../gen/tables";
 import { values } from "../query/values";
 import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
-
-const db = makeDb();
 
 // Create a simple reference expression class
 class RefExpression extends Expression {
@@ -115,7 +113,7 @@ describe("SELECT parser", () => {
         }),
 
         {
-          from: db.users,
+          from: db.Users,
         },
       );
 
@@ -276,7 +274,7 @@ describe("SELECT parser", () => {
             }),
 
             {
-              from: db.person,
+              from: db.Person,
               where: (p) => p.id["<="](Int4.new(2)),
             },
           );
@@ -314,7 +312,7 @@ describe("SELECT parser", () => {
             }),
             {
               distinct: true,
-              from: db.pet,
+              from: db.Pet,
               orderBy: (p) => p.species,
             },
           );

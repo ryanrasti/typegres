@@ -1,6 +1,14 @@
 // Advanced example demonstrating joins and aggregations
-import { typegres, values, Text, Int4, Typegres } from "typegres";
-import { db, createSchema } from "./schema";
+import {
+  typegres,
+  values,
+  Text,
+  Int4,
+  Typegres,
+  select,
+  insert,
+} from "typegres";
+import { Users, Posts, createSchema } from "./schema";
 
 const samplePosts = async (tg: Typegres) => {
   // Insert sample posts using typegres with functional style
@@ -24,9 +32,12 @@ const samplePosts = async (tg: Typegres) => {
   ];
 
   // Insert all posts
-  await db.posts
-    .insert(values(postsData[0], ...postsData.slice(1)))
-    .execute(tg);
+  await insert(
+    { into: Posts, columns: ["author_id", "title"] },
+    select((v) => ({ author_id: v.author_id, title: v.title }), {
+      from: values(postsData[0], ...postsData.slice(1)),
+    }),
+  ).execute(tg);
 
   console.log(`Inserted ${postsData.length} posts`);
   return postsData.length;
@@ -42,21 +53,32 @@ export const main = async () => {
   const postsCount = await samplePosts(tg);
 
   // Find all authors who have published more than 10 posts
-  const prolificAuthors = await db.posts
-    .groupBy((p) => [p.author_id] as const)
-    .select((p, [author_id]) => ({
-      author_id,
+  // First, create a subquery for post counts
+  const postCounts = select(
+    (p) => ({
+      author_id: p.author_id,
       postCount: p.id.count(),
-    }))
-    .subquery() // Create a subquery from the aggregation
-    .where((ac) => ac.postCount[">"](10)) // Filter the results of the subquery
-    .join(db.users, "u", (ac, { u }) => ac.author_id["="](u.id)) // Join back to the users table
-    .select((ac, { u }) => ({
+    }),
+    {
+      from: Posts,
+      groupBy: (p) => [p.author_id],
+    },
+  );
+
+  // Then join with users and filter
+  const prolificAuthors = await select(
+    (pc, { u }) => ({
       id: u.id,
       name: u.name,
-      totalPosts: ac.postCount,
-    }))
-    .execute(tg);
+      totalPosts: pc.postCount,
+    }),
+    {
+      from: postCounts
+        .asFromItem()
+        .join(Users, "u", (pc, { u }) => pc.author_id["="](u.id)),
+      where: (pc) => pc.postCount[">"](10),
+    },
+  ).execute(tg);
 
   console.log("Prolific authors (more than 10 posts):");
   console.log(prolificAuthors);

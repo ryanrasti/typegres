@@ -3,14 +3,12 @@ import { Int4, Text } from "../types/index";
 import { values } from "./values";
 import { assert, Equals } from "tsafe";
 import { withDb } from "../test/db";
-import { makeDb } from "../gen/tables";
+import * as db from "../gen/tables";
 import { testDb } from "../db.test";
 import { select, insert } from "../grammar";
 
-const db = makeDb();
-
 describe("Extending table classes", () => {
-  class User extends db.users.extend<User>() {
+  class User extends db.Users.extend<User>() {
     static all() {
       return select((u) => u, {
         from: User,
@@ -28,7 +26,7 @@ describe("Extending table classes", () => {
 
     comments() {
       return select((c) => c, {
-        from: db.comments,
+        from: db.Comments,
         where: (c) => c.user_id["="](this.id),
       });
     }
@@ -107,7 +105,7 @@ describe("Extending table classes", () => {
       // Insert test users with different active statuses
       await insert(
         {
-          into: db.users,
+          into: db.Users,
           columns: ["name", "email", "role", "active"],
         },
         select(
@@ -168,7 +166,7 @@ describe("Extending table classes", () => {
       // Insert users
       const users = await insert(
         {
-          into: db.users,
+          into: User,
           columns: ["name", "email", "role", "active"],
         },
         select(
@@ -203,7 +201,7 @@ describe("Extending table classes", () => {
       // Insert posts first
       const posts = await insert(
         {
-          into: db.posts,
+          into: db.Posts,
           columns: ["user_id", "title", "content", "published"],
         },
         select(
@@ -244,7 +242,7 @@ describe("Extending table classes", () => {
       // Insert comments for power user
       await insert(
         {
-          into: db.comments,
+          into: db.Comments,
           columns: ["user_id", "post_id", "content"],
         },
         select(
@@ -301,7 +299,7 @@ describe("Extending table classes", () => {
       // Insert a user
       const [userData] = await insert(
         {
-          into: db.users,
+          into: db.Users,
           columns: ["name", "email", "role", "active"],
         },
         select(
@@ -334,7 +332,7 @@ describe("Extending table classes", () => {
       // Create posts
       const posts = await insert(
         {
-          into: db.posts,
+          into: db.Posts,
           columns: ["user_id", "title", "content", "published"],
         },
         select(
@@ -374,7 +372,7 @@ describe("Extending table classes", () => {
       // Add some comments
       await insert(
         {
-          into: db.comments,
+          into: db.Comments,
           columns: ["user_id", "post_id", "content"],
         },
         select(
@@ -427,7 +425,7 @@ describe("Extending table classes", () => {
       // Insert test data
       const [author] = await insert(
         {
-          into: db.users,
+          into: db.Users,
           columns: ["name", "email", "role", "active"],
         },
         select(
@@ -454,7 +452,7 @@ describe("Extending table classes", () => {
       // Insert posts and comments
       const [post] = await insert(
         {
-          into: db.posts,
+          into: db.Posts,
           columns: ["user_id", "title", "content", "published"],
         },
         select(
@@ -480,7 +478,7 @@ describe("Extending table classes", () => {
 
       await insert(
         {
-          into: db.comments,
+          into: db.Comments,
           columns: ["user_id", "post_id", "content"],
         },
         select(
@@ -521,7 +519,7 @@ describe("Extending table classes", () => {
         {
           from: activeAdmins
             .asFromItem()
-            .join(db.posts, "p", (u, { p }) =>
+            .join(db.Posts, "p", (u, { p }) =>
               u.id["="](p.user_id).and(p.published["="](1)),
             ),
         },

@@ -1,5 +1,5 @@
-import { typegres } from "typegres";
-import { db, createSchema } from "./schema";
+import { typegres, select } from "typegres";
+import { Users, createSchema } from "./schema";
 
 export const main = async () => {
   const tg = await typegres({
@@ -10,13 +10,16 @@ export const main = async () => {
   await createSchema(tg);
 
   // Run the query from the README
-  const activeUsers = await db.users
-    .select((u) => ({
+  const activeUsers = await select(
+    (u) => ({
       upper: u.name.upper(),
       isAdult: u.age[">"](18),
-    }))
-    .where((u) => u.isActive)
-    .execute(tg);
+    }),
+    {
+      from: Users,
+      where: (u) => u.isActive,
+    },
+  ).execute(tg);
 
   console.log("\nActive users:");
   console.log(activeUsers);

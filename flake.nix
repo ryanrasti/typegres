@@ -10,7 +10,7 @@
           pkgs = import nixpkgs {
             inherit system;
           };
-          node = pkgs.nodejs_20;
+          node = pkgs.nodejs_22;
           buildModulesSite = pkgs.runCommand "node_modules" { } ''
             mkdir $out; cd $out
             cp ${./site/package.json} package.json
@@ -25,22 +25,21 @@
               echo "Patching shebangs done" >&2
             '';
           });
+          buildModules = pkgs.runCommand "node_modules" { } ''
+            mkdir $out; cd $out
+            cp ${./package.json} package.json
+            ${pkgs.node2nix}/bin/node2nix -d -l ${./package-lock.json}
+          '';
+          generated = import buildModules { pkgs = pkgs; nodejs = node; };
           bootstrapped =
-            let
-              buildModules = pkgs.runCommand "node_modules" { } ''
-                mkdir $out; cd $out
-                cp ${./package.json} package.json
-                ${pkgs.node2nix}/bin/node2nix -d -l ${./package-lock.json}
-              '';
-              generated = import buildModules { pkgs = pkgs; nodejs = node; };
-
-
-            in
             pkgs.stdenv.mkDerivation {
               name = "bootstrapped.tar";
               buildInputs = [ pkgs.nodejs pkgs.postgresql pkgs.jq ];
               src = pkgs.nix-gitignore.gitignoreSourcePure [ ./.gitignore ] ./.;
               buildPhase = ''
+                export PATH=$PWD/node_modules/.bin:$PWD/bin:$PATH
+                patchShebangs ./bin
+
                 bash ./start_postgres.sh
 
                 cp -rT --no-preserve=ownership ${generated.nodeDependencies}/lib/node_modules ./node_modules
@@ -66,18 +65,20 @@
         {
           devShells.default = pkgs.mkShell {
             buildInputs = [ node pkgs.postgresql pkgs.jq pkgs.nixfmt-classic ];
+            shellHook = ''
+              export PATH="$PWD/bin:$PATH"
+            '';
           };
           formatter = pkgs.nixfmt-classic;
 
           packages = rec {
             typegres =
-
               pkgs.stdenv.mkDerivation {
                 name = "typegres";
                 buildInputs = [ pkgs.nodejs pkgs.postgresql pkgs.jq ];
                 src = bootstrapped;
                 buildPhase = ''
-                  export PATH=$PWD/node_modules/.bin:$PATH
+                  export PATH=$PWD/node_modules/.bin:$PWD/bin:$PATH
                   npm run build
 
                   npm run typecheck
@@ -91,8 +92,9 @@
                 '';
 
                 installPhase = ''
+                  export HOME=$(mktemp -d)
                   mkdir $out
-                  mv ./dist $out/lib
+                  npm pack --pack-destination $out
                 '';
               };
 
@@ -109,6 +111,32 @@
                 '';
                 installPhase = ''
                   mv ./out $out
+                '';
+              };
+
+            typegres-examples =
+              pkgs.stdenv.mkDerivation {
+                name = "typegres-examples";
+                buildInputs = [ pkgs.nodejs ];
+                src = pkgs.nix-gitignore.gitignoreSourcePure [ ./.gitignore ] ./examples;
+                buildPhase = ''
+                  # Create a tarball from the built typegres dist folder
+                  # Install dependencies
+                  cp -rT --no-preserve=ownership ${generated.nodeDependencies}/lib/node_modules ./node_modules
+                  chmod -R u+rw ./node_modules
+                  
+                  # Install typegres
+                  echo "Installing typegres from tarball" >&2
+                  mkdir ./node_modules/typegres
+                  tar -xf ${typegres}/typegres-*.tgz --strip-components=1 -C ./node_modules/typegres
+
+                  echo "Running example tests" >&2
+                  # Run example tests (which use PGLite)
+                  npm test
+                '';
+                installPhase = ''
+                  mkdir $out
+                  echo "Examples tested successfully" > $out/result.txt
                 '';
               };
 

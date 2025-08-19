@@ -12,11 +12,9 @@ import {
 import { values } from "./values";
 import { assert, Equals } from "tsafe";
 import { withDb } from "../test/db";
-import { makeDb } from "../gen/tables";
+import * as db from "../gen/tables";
 import { testDb } from "../db.test";
 import { select, insert, update } from "../grammar";
-
-const db = makeDb();
 
 const strings = values(
   { a: Text.new("foo"), b: Numeric.new(1.1), c: Int4.new(1) },
@@ -75,7 +73,7 @@ describe("Queries", () => {
           age: p.age.int4Pl(1),
         }),
         {
-          from: db.pet,
+          from: db.Pet,
         },
       ).execute(kdb);
 
@@ -99,7 +97,7 @@ describe("Queries", () => {
           age: p.age.numeric().numericAdd(Numeric.new("1")),
         }),
         {
-          from: db.pet,
+          from: db.Pet,
           where: (p) => p.age.numeric().numericGt(Numeric.new("1")),
         },
       ).execute(kdb);
@@ -338,7 +336,7 @@ describe("Mutations", async () => {
           createdAt: p.createdAt,
         }),
         {
-          from: db.person,
+          from: db.Person,
           where: (p) => p.firstName.texteq(Text.new("John")),
         },
       ).execute(kdb);
@@ -370,7 +368,7 @@ describe("Mutations", async () => {
 
       const res = await insert(
         {
-          into: db.pet,
+          into: db.Pet,
           columns: ["ownerId", "name", "age", "species"],
         },
         selectQuery,
@@ -417,12 +415,12 @@ describe("Mutations", async () => {
           createdAt: p.createdAt,
         }),
         {
-          from: db.person,
+          from: db.Person,
           where: (p) => p.firstName.texteq(Text.new("John")),
         },
       ).execute(kdb);
 
-      const res = await update(db.pet, {
+      const res = await update(db.Pet, {
         set: (p) => ({
           name: p.name.textcat(Text.new(" II")),
           species: p.species.textcat(Text.new(" II")),
@@ -468,12 +466,12 @@ describe("Mutations", async () => {
           createdAt: p.createdAt,
         }),
         {
-          from: db.person,
+          from: db.Person,
           where: (p) => p.firstName.texteq(Text.new("John")),
         },
       ).execute(kdb);
 
-      const res = await update(db.pet, {
+      const res = await update(db.Pet, {
         set: (p, v) => ({
           name: p.name.textcat(v.name),
           species: p.species.textcat(v.species),
