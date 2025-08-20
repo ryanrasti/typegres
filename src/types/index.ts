@@ -11,7 +11,6 @@ export * from "../gen/types";
 export { default as Any } from "./any";
 export { default as Array } from "./array";
 export { default as Bool } from "./bool";
-export { default as Text } from "./text";
 export { default as Record } from "./record";
 export type { RowLike, RowLikeStrict } from "../query/values";
 export type { Table } from "../query/db";

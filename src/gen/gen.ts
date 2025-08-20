@@ -2,6 +2,7 @@ import fs from "fs";
 import { $ } from "zx";
 import { typeMap } from "../types/serialization";
 import { asType, pgNameToIdent } from "./as-type";
+import invariant from "tiny-invariant";
 
 // edge cases:
 // * if ends with `[]`, then:
@@ -23,6 +24,29 @@ export type FunctionDefinition = {
   operator_name: string | null;
   is_reserved?: boolean;
   is_variadic?: boolean;
+  // populated by the code generator:
+  sql_name?: string;
+};
+
+const operatorsToDuplicate = {
+  "=": "eq",
+  "<>": "ne",
+  "<": "lt",
+  "<=": "lte",
+  ">": "gt",
+  ">=": "gte",
+
+  // Like/ILike
+  "~~": "like",
+  "~~*": "ilike",
+  "!~~": "notlike",
+  "!~~*": "notilike",
+
+  // Math
+  "+": "plus",
+  "-": "minus",
+  "*": "multiply",
+  "/": "divide",
 };
 
 const allowAutoboxing = (definitions: FunctionDefinition[]) => {
@@ -42,7 +66,7 @@ const functionDefinitionToTyped = (name: string, defn: FunctionDefinition[]) => 
       const rawTyped = `{args: [${args.map((t) => asType(t, { runtime: true })).join(", ")}], ret: ${asType(ret, {
         runtime: true,
         set: defn,
-      })}, isOperator: ${defn.operator_name === name}, isReserved: ${defn.is_reserved || false}, isVariadic: ${
+      })}, isOperator: ${defn.operator_name === name || defn.operator_name === defn.sql_name}, isReserved: ${defn.is_reserved || false}, isVariadic: ${
         defn.is_variadic || false
       }}`;
 
@@ -294,10 +318,22 @@ const main = async () => {
       .flatMap((v) => (v ? v : []))
       .filter((defn) => defn.operator_name != null && defn.args.length === 2)
       .reduce(
-        (acc, defn) => ({
-          ...acc,
-          [defn.operator_name ?? ""]: [...(acc[defn.operator_name ?? ""] ?? []), defn],
-        }),
+        (acc, defn) => {
+          invariant(defn.operator_name != null);
+          const duplicateOperatorName =
+            defn.operator_name in operatorsToDuplicate &&
+            operatorsToDuplicate[defn.operator_name as keyof typeof operatorsToDuplicate];
+          return {
+            ...acc,
+            [defn.operator_name]: [...(acc[defn.operator_name] ?? []), defn],
+            ...(duplicateOperatorName && {
+              [duplicateOperatorName]: [
+                ...(acc[duplicateOperatorName] ?? []),
+                { ...defn, sql_name: defn.operator_name },
+              ],
+            }),
+          };
+        },
         {} as Record<string, FunctionDefinition[]>,
       );
 
@@ -358,8 +394,9 @@ const main = async () => {
         }
       }
       await output.write(`    ${pgNameToIdent(rawName)}(...args: unknown[]) {\n`);
+      const sqlName = definitions?.find((defn) => defn.sql_name)?.sql_name ?? rawName;
       await output.write(
-        `        return sqlFunction(${JSON.stringify(rawName)}, ${functionDefinitionToTyped(
+        `        return sqlFunction(${JSON.stringify(sqlName)}, ${functionDefinitionToTyped(
           rawName,
           definitions ?? [],
         )}, [this, ...args]);\n`,
