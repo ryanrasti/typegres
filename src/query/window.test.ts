@@ -372,9 +372,7 @@ describe("Window Functions", () => {
       (o) => ({
         customer: o.customer,
         product: o.product,
-        customerOrderCount: o.customer
-          .count()
-          .over({ partitionBy: o.customer }),
+        customerOrderCount: o.customer.count().over({ partitionBy: o.customer }),
         totalOrderCount: o.customer.count().over(),
       }),
       {

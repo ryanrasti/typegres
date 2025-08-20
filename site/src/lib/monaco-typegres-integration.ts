@@ -34,9 +34,7 @@ async function getEsbuild() {
   return globalThis.__esbuildModule!;
 }
 
-export async function setupMonacoWithTypegres(
-  monaco: typeof import("monaco-editor"),
-) {
+export async function setupMonacoWithTypegres(monaco: typeof import("monaco-editor")) {
   // Ensure esbuild is available (but don't need to use it here)
   await getEsbuild();
 
@@ -90,10 +88,7 @@ ${rawTypes}
     "file:///node_modules/typegres/index.d.ts",
   );
 
-  console.log(
-    "Loading typegres types, first 1000 chars:",
-    typegresModule.substring(0, 1000),
-  );
+  console.log("Loading typegres types, first 1000 chars:", typegresModule.substring(0, 1000));
 
   // Enable type acquisition
   monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);

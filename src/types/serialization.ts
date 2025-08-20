@@ -1,8 +1,6 @@
 import type Any from "./any";
 
-export type Input<T extends Any> = unknown extends T["resultType"]
-  ? never
-  : T["resultType"];
+export type Input<T extends Any> = unknown extends T["resultType"] ? never : T["resultType"];
 
 export const typeMap = {
   bool: {

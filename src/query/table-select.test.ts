@@ -24,16 +24,12 @@ describe("compile tests", () => {
     const compiled2 = query2.compile();
     const result2 = compiled2.compile(dummyDb);
 
-    expect(result2.sql).toBe(
-      'SELECT "users"."id" AS "id", "users"."name" AS "name" FROM "users" as "users"',
-    );
+    expect(result2.sql).toBe('SELECT "users"."id" AS "id", "users"."name" AS "name" FROM "users" as "users"');
     expect(result2.parameters).toEqual([]);
   });
 
   it("should support additional options like where clause", () => {
-    const query = db.Users.select((u) => u).where((u) =>
-      u.active["="](Types.Int4.new(1)),
-    );
+    const query = db.Users.select((u) => u).where((u) => u.active["="](Types.Int4.new(1)));
     const compiled = query.compile();
     const result = compiled.compile(dummyDb);
 
@@ -66,9 +62,7 @@ describe("compile tests", () => {
         return this.name.textcat(this.name);
       }
 
-      static select<S extends Types.RowLike>(
-        selectCb?: (t: ActiveUsers, _j: any) => S,
-      ) {
+      static select<S extends Types.RowLike>(selectCb?: (t: ActiveUsers, _j: any) => S) {
         return select(selectCb ?? ((t: ActiveUsers, _j: any) => t as S), {
           from: this,
           where: (t) => t.active["="](1),
@@ -98,9 +92,7 @@ describe("compile tests", () => {
         postTitle: posts.title,
       }),
       {
-        from: db.Users.asFromItem().join(db.Posts, "posts", (u, { posts }) =>
-          u.id["="](posts.user_id),
-        ),
+        from: db.Users.asFromItem().join(db.Posts, "posts", (u, { posts }) => u.id["="](posts.user_id)),
       },
     );
 

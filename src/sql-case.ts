@@ -18,9 +18,7 @@ export interface WhenThen<R extends Any> {
  * With ELSE: nullable if any branch is nullable
  */
 
-type AsNullable<R extends Any<unknown, number>> = NonNullable<
-  ReturnType<R["asNullable"]>
->;
+type AsNullable<R extends Any<unknown, number>> = NonNullable<ReturnType<R["asNullable"]>>;
 
 // Without ELSE - always nullable
 export function caseWhen<N extends number, R extends Any<unknown, N>>(
@@ -42,13 +40,9 @@ export function caseWhen<R extends Any<unknown, N>, N extends number>(
 ): Types.Any<R, N> {
   const lastArg = args[args.length - 1];
   const hasElse = lastArg && lastArg instanceof Types.Any;
-  const whenThens = hasElse
-    ? (args.slice(0, -1) as WhenThen<R>[])
-    : (args as WhenThen<R>[]);
+  const whenThens = hasElse ? (args.slice(0, -1) as WhenThen<R>[]) : (args as WhenThen<R>[]);
 
-  const elseValue = hasElse
-    ? (args[args.length - 1] as Types.Any<R, any>)
-    : undefined;
+  const elseValue = hasElse ? (args[args.length - 1] as Types.Any<R, any>) : undefined;
 
   if (whenThens.length === 0) {
     throw new Error("CASE expression must have at least one WHEN clause");
@@ -72,9 +66,7 @@ export function caseWhen<R extends Any<unknown, N>, N extends number>(
   }
 
   if (!typeStr || !resultClass) {
-    throw new Error(
-      `Cannot create CASE expression: unable to determine result type`,
-    );
+    throw new Error(`Cannot create CASE expression: unable to determine result type`);
   }
 
   return resultClass.new(
@@ -97,14 +89,9 @@ export class CaseExpression extends Expression {
   }
 
   compile(ctx: Context) {
-    const whenClauses = this.whens.map(
-      (w) =>
-        sql`WHEN ${w.condition.compile(ctx)} THEN ${w.result.compile(ctx)}`,
-    );
+    const whenClauses = this.whens.map((w) => sql`WHEN ${w.condition.compile(ctx)} THEN ${w.result.compile(ctx)}`);
 
-    const elsePart = this.elseResult
-      ? sql` ELSE ${this.elseResult.compile(ctx)}`
-      : sql``;
+    const elsePart = this.elseResult ? sql` ELSE ${this.elseResult.compile(ctx)}` : sql``;
 
     return sql`CASE ${sql.join(whenClauses, sql` `)}${elsePart} END`;
   }

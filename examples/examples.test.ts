@@ -19,12 +19,7 @@ describe("examples", () => {
   it("advanced-example: should insert posts and show prolific authors", async () => {
     const { postsCount, prolificAuthors } = await advancedMain();
 
-    assert<
-      Equals<
-        typeof prolificAuthors,
-        { id: number; name: string; totalPosts: bigint }[]
-      >
-    >();
+    assert<Equals<typeof prolificAuthors, { id: number; name: string; totalPosts: bigint }[]>>();
 
     // Check that posts were inserted
     expect(postsCount).toBe(32);

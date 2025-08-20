@@ -15,10 +15,7 @@ describe("INSERT parser", () => {
       email: Text.new("john@example.com"),
     }));
 
-    const parsed = insert(
-      { into: db.Users, columns: ["name", "email"] },
-      selectQuery,
-    );
+    const parsed = insert({ into: db.Users, columns: ["name", "email"] }, selectQuery);
 
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
@@ -44,12 +41,7 @@ describe("INSERT parser", () => {
     expect(result.sql).toBe(
       'INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text)), (cast($3 as text), cast($4 as text)))',
     );
-    expect(result.parameters).toEqual([
-      "john@example.com",
-      "John",
-      "jane@example.com",
-      "Jane",
-    ]);
+    expect(result.parameters).toEqual(["john@example.com", "John", "jane@example.com", "Jane"]);
   });
 
   it("should parse INSERT with RETURNING clause", () => {
@@ -58,13 +50,9 @@ describe("INSERT parser", () => {
       email: Text.new("jane@example.com"),
     }));
 
-    const parsed = insert(
-      { into: db.Users, columns: ["name", "email"] },
-      selectQuery,
-      {
-        returning: (insertRow) => ({ id: insertRow.id, name: insertRow.name }),
-      },
-    );
+    const parsed = insert({ into: db.Users, columns: ["name", "email"] }, selectQuery, {
+      returning: (insertRow) => ({ id: insertRow.id, name: insertRow.name }),
+    });
 
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
@@ -84,10 +72,7 @@ describe("INSERT parser", () => {
       { from: db.UpdateTestUsers },
     );
 
-    const parsed = insert(
-      { into: db.Users, columns: ["name", "email"] },
-      selectQuery,
-    );
+    const parsed = insert({ into: db.Users, columns: ["name", "email"] }, selectQuery);
 
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
@@ -104,10 +89,7 @@ describe("INSERT parser", () => {
       email: Text.new("test@example.com"),
     }));
 
-    const parsed = insert(
-      { into: db.Users, columns: ["name", "email"] },
-      selectQuery,
-    );
+    const parsed = insert({ into: db.Users, columns: ["name", "email"] }, selectQuery);
 
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
@@ -149,11 +131,7 @@ describe("INSERT parser", () => {
     expect(result.sql).toBe(
       'INSERT INTO "users" ("email", "id", "name") OVERRIDING SYSTEM VALUE (SELECT cast($1 as text) AS "email", cast($2 as int4) AS "id", cast($3 as text) AS "name")',
     );
-    expect(result.parameters).toEqual([
-      "override@example.com",
-      999,
-      "Override User",
-    ]);
+    expect(result.parameters).toEqual(["override@example.com", 999, "Override User"]);
   });
 
   describe("e2e tests", () => {
@@ -217,16 +195,12 @@ describe("INSERT parser", () => {
             },
           );
 
-          const parsed = insert(
-            { into: db.Person, columns: ["firstName", "lastName", "gender"] },
-            selectQuery,
-            {
-              returning: (insertRow) => ({
-                id: insertRow.id,
-                firstName: insertRow.firstName,
-              }),
-            },
-          );
+          const parsed = insert({ into: db.Person, columns: ["firstName", "lastName", "gender"] }, selectQuery, {
+            returning: (insertRow) => ({
+              id: insertRow.id,
+              firstName: insertRow.firstName,
+            }),
+          });
 
           const result = await parsed.execute(kdb);
 
@@ -258,18 +232,14 @@ describe("INSERT parser", () => {
             age: Int4.new(2),
           }));
 
-          const parsed = insert(
-            { into: db.Pet, columns: ["name", "ownerId", "species", "age"] },
-            selectQuery,
-            {
-              returning: (insertRow) => ({
-                id: insertRow.id,
-                name: insertRow.name,
-                species: insertRow.species,
-                ownerId: insertRow.ownerId,
-              }),
-            },
-          );
+          const parsed = insert({ into: db.Pet, columns: ["name", "ownerId", "species", "age"] }, selectQuery, {
+            returning: (insertRow) => ({
+              id: insertRow.id,
+              name: insertRow.name,
+              species: insertRow.species,
+              ownerId: insertRow.ownerId,
+            }),
+          });
 
           const result = await parsed.execute(kdb);
 
@@ -373,17 +343,13 @@ describe("INSERT parser", () => {
             },
           );
 
-          const parsed = insert(
-            { into: db.Users, columns: ["name", "email"] },
-            selectQuery,
-            {
-              returning: (insertRow) => ({
-                id: insertRow.id,
-                name: insertRow.name,
-                email: insertRow.email,
-              }),
-            },
-          );
+          const parsed = insert({ into: db.Users, columns: ["name", "email"] }, selectQuery, {
+            returning: (insertRow) => ({
+              id: insertRow.id,
+              name: insertRow.name,
+              email: insertRow.email,
+            }),
+          });
 
           const result = await parsed.execute(kdb);
 

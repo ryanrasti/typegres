@@ -46,19 +46,13 @@ describe("Transactions", () => {
           },
         );
 
-        await insert(
-          { into: TestUsers, columns: ["name", "balance"] },
-          selectQuery,
-        ).execute(tx);
+        await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery).execute(tx);
       });
 
-      const users = await select(
-        (u) => ({ name: u.name, balance: u.balance }),
-        {
-          from: TestUsers,
-          orderBy: (u) => u.name,
-        },
-      ).execute(testDb);
+      const users = await select((u) => ({ name: u.name, balance: u.balance }), {
+        from: TestUsers,
+        orderBy: (u) => u.name,
+      }).execute(testDb);
 
       expect(users).toEqual([
         { name: "Alice", balance: 100 },
@@ -79,10 +73,7 @@ describe("Transactions", () => {
             },
           );
 
-          await insert(
-            { into: TestUsers, columns: ["name", "balance"] },
-            selectQuery,
-          ).execute(tx);
+          await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery).execute(tx);
 
           throw new Error("Transaction error");
 
@@ -97,21 +88,15 @@ describe("Transactions", () => {
             },
           );
 
-          await insert(
-            { into: TestUsers, columns: ["name", "balance"] },
-            selectQuery2,
-          ).execute(tx);
+          await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery2).execute(tx);
         });
       } catch (e) {
         expect((e as Error).message).toBe("Transaction error");
       }
 
-      const users = await select(
-        (u) => ({ name: u.name, balance: u.balance }),
-        {
-          from: TestUsers,
-        },
-      ).execute(testDb);
+      const users = await select((u) => ({ name: u.name, balance: u.balance }), {
+        from: TestUsers,
+      }).execute(testDb);
       expect(users).toHaveLength(0);
     });
 
@@ -128,30 +113,21 @@ describe("Transactions", () => {
           },
         );
 
-        await insert(
-          { into: TestUsers, columns: ["name", "balance"] },
-          selectQuery,
-        ).execute(tx);
+        await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery).execute(tx);
 
         // Query using new select syntax
-        const txResult = await select(
-          (u) => ({ name: u.name, balance: u.balance }),
-          {
-            from: TestUsers,
-            where: (u) => u.balance[">="](Int4.new(50)),
-          },
-        ).execute(tx);
+        const txResult = await select((u) => ({ name: u.name, balance: u.balance }), {
+          from: TestUsers,
+          where: (u) => u.balance[">="](Int4.new(50)),
+        }).execute(tx);
 
         expect(txResult).toEqual([{ name: "Alice", balance: 100 }]);
 
         // But we should not see Alice yet in the main db:
-        const mainResult = await select(
-          (u) => ({ name: u.name, balance: u.balance }),
-          {
-            from: TestUsers,
-            where: (u) => u.balance[">="](Int4.new(50)),
-          },
-        ).execute(testDb);
+        const mainResult = await select((u) => ({ name: u.name, balance: u.balance }), {
+          from: TestUsers,
+          where: (u) => u.balance[">="](Int4.new(50)),
+        }).execute(testDb);
 
         expect(mainResult).toEqual([]);
       });
@@ -169,17 +145,13 @@ describe("Transactions", () => {
           },
         );
 
-        const result = await insert(
-          { into: TestUsers, columns: ["name", "balance"] },
-          selectQuery,
-          {
-            returning: (u) => ({
-              id: u.id,
-              name: u.name,
-              balance: u.balance,
-            }),
-          },
-        ).execute(tx);
+        const result = await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery, {
+          returning: (u) => ({
+            id: u.id,
+            name: u.name,
+            balance: u.balance,
+          }),
+        }).execute(tx);
         return result;
       });
 
@@ -187,13 +159,10 @@ describe("Transactions", () => {
       expect(users[0].name).toBe("Alice");
       expect(users[0].balance).toBe(100);
 
-      const user = await select(
-        (u) => ({ id: u.id, name: u.name, balance: u.balance }),
-        {
-          from: TestUsers,
-          where: (u) => u.id["="](Int4.new(users[0].id)),
-        },
-      ).execute(testDb);
+      const user = await select((u) => ({ id: u.id, name: u.name, balance: u.balance }), {
+        from: TestUsers,
+        where: (u) => u.id["="](Int4.new(users[0].id)),
+      }).execute(testDb);
 
       // Verify the user was created correctly
       expect(user).toHaveLength(1);
@@ -216,10 +185,7 @@ describe("Transactions", () => {
         },
       );
 
-      await insert(
-        { into: TestUsers, columns: ["name", "balance"] },
-        selectQuery,
-      ).execute(testDb);
+      await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery).execute(testDb);
 
       // Use transaction to update
       await testDb.transaction(async (tx) => {
@@ -229,13 +195,10 @@ describe("Transactions", () => {
         }).execute(tx);
       });
 
-      const alice = await select(
-        (u) => ({ name: u.name, balance: u.balance }),
-        {
-          from: TestUsers,
-          where: (u) => u.name["="](Text.new("Alice")),
-        },
-      ).execute(testDb);
+      const alice = await select((u) => ({ name: u.name, balance: u.balance }), {
+        from: TestUsers,
+        where: (u) => u.name["="](Text.new("Alice")),
+      }).execute(testDb);
 
       expect(alice).toHaveLength(1);
       expect(alice[0].balance).toBe(150);
@@ -258,10 +221,7 @@ describe("Transactions", () => {
           },
         );
 
-        await insert(
-          { into: TestUsers, columns: ["name", "balance"] },
-          selectQuery,
-        ).execute(tx);
+        await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery).execute(tx);
 
         // Complex query within transaction
         const richUsers = await select(
@@ -293,9 +253,7 @@ describe("Transactions", () => {
 
     it("cannot close connection during transaction", async () => {
       await testDb.transaction(async (tx) => {
-        await expect(tx.end()).rejects.toThrow(
-          "Cannot close connection during transaction",
-        );
+        await expect(tx.end()).rejects.toThrow("Cannot close connection during transaction");
       });
     });
   });

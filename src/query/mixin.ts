@@ -17,10 +17,7 @@ export function withMixinProxy<T, TMixin, TKeys extends keyof TMixin>(
   // Add each method as a static method
   for (const attr of attrs) {
     // Check if attribute already exists on the class
-    invariant(
-      !(attr in extended),
-      `Attribute '${inspect(attr)}' already exists on the class`,
-    );
+    invariant(!(attr in extended), `Attribute '${inspect(attr)}' already exists on the class`);
 
     extended[attr] = mixinInstance[attr] as any;
   }

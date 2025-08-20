@@ -1,11 +1,5 @@
 import { QueryResult, RawBuilder, sql } from "kysely";
-import {
-  Context,
-  Expression,
-  ExistsExpression,
-  NotExistsExpression,
-  QueryAlias,
-} from "../expression";
+import { Context, Expression, ExistsExpression, NotExistsExpression, QueryAlias } from "../expression";
 import * as Types from "../types";
 import type { XOR } from "ts-xor";
 import { Typegres } from "../db";
@@ -18,10 +12,7 @@ import { FromItem } from "../query/from-item";
 import { sqlJoin, compileClauses } from "./utils";
 import { dummyDb } from "../test/db";
 
-const compileNumericLike = (
-  value: Types.NumericLike,
-  ctx: Context,
-): RawBuilder<any> => {
+const compileNumericLike = (value: Types.NumericLike, ctx: Context): RawBuilder<any> => {
   if (typeof value === "number") {
     return sql`${value}`;
   }
@@ -29,13 +20,8 @@ const compileNumericLike = (
   return value.toExpression().compile(ctx);
 };
 
-const compileExpressionList = (
-  expressions: Types.Any[],
-  ctx: Context,
-): RawBuilder<any> => {
-  return sql`(${sqlJoin(
-    expressions.map((expr) => expr.toExpression().compile(ctx)),
-  )})`;
+const compileExpressionList = (expressions: Types.Any[], ctx: Context): RawBuilder<any> => {
+  return sql`(${sqlJoin(expressions.map((expr) => expr.toExpression().compile(ctx)))})`;
 };
 
 class SelectExpression extends Expression {
@@ -67,11 +53,7 @@ SELECT [ ALL | DISTINCT [ ON ( expression [, ...] ) ] ]
     [ FOR { UPDATE | NO KEY UPDATE | SHARE | KEY SHARE } [ OF from_reference [, ...] ] [ NOWAIT | SKIP LOCKED ] [...] ]
 */
 
-export class Select<
-  S extends Types.RowLike = any,
-  F extends Types.RowLike = any,
-  J extends Types.Joins = any,
-> {
+export class Select<S extends Types.RowLike = any, F extends Types.RowLike = any, J extends Types.Joins = any> {
   private _fromItem: Types.FromItem<F, J> | undefined;
 
   constructor(private _clause: Parameters<typeof select<S, F, J>>) {
@@ -80,53 +62,31 @@ export class Select<
 
   private get fromItem(): Types.FromItem<F, J> | undefined {
     if (!this._fromItem) {
-      this._fromItem = this.clause[1]?.from?.asFromItem() as
-        | Types.FromItem<F, J>
-        | undefined;
+      this._fromItem = this.clause[1]?.from?.asFromItem() as Types.FromItem<F, J> | undefined;
     }
     return this._fromItem;
   }
 
   selectArgs() {
-    return (this.fromItem?.toSelectArgs() ?? []) as Types.FromToSelectArgs<
-      F,
-      J
-    >;
+    return (this.fromItem?.toSelectArgs() ?? []) as Types.FromToSelectArgs<F, J>;
   }
 
   get clause() {
     return [this._clause[0], this._clause[1] ?? {}] as const;
   }
 
-  select<S2 extends Types.RowLike>(
-    fn: (...args: Types.FromToSelectArgs<F, J>) => S2,
-  ): Select<S2, F, J> {
+  select<S2 extends Types.RowLike>(fn: (...args: Types.FromToSelectArgs<F, J>) => S2): Select<S2, F, J> {
     const [, ...opts] = this.clause;
-    const {
-      union,
-      unionAll,
-      intersect,
-      intersectAll,
-      except,
-      exceptAll,
-      ...rest
-    } = opts[0] ?? {};
+    const { union, unionAll, intersect, intersectAll, except, exceptAll, ...rest } = opts[0] ?? {};
     invariant(
-      !union &&
-        !unionAll &&
-        !intersect &&
-        !intersectAll &&
-        !except &&
-        !exceptAll,
+      !union && !unionAll && !intersect && !intersectAll && !except && !exceptAll,
       "Cannot dynamically change select() after a set operation (union, unionAll, intersect, intersectAll, except, exceptAll) has been applied",
     );
 
     return new Select<S2, F, J>([fn, rest]);
   }
 
-  selectMerge<S2 extends Types.RowLike>(
-    fn: (...args: Types.FromToSelectArgs<F, J>) => S2,
-  ): Select<S & S2, F, J> {
+  selectMerge<S2 extends Types.RowLike>(fn: (...args: Types.FromToSelectArgs<F, J>) => S2): Select<S & S2, F, J> {
     const [select] = this.clause;
     return this.select((...args) => ({
       ...select(...args),
@@ -140,10 +100,7 @@ export class Select<
       select,
       {
         ...rest,
-        where: where
-          ? (...args: Types.FromToSelectArgs<F, J>) =>
-              fn(...args).and(where(...args))
-          : fn,
+        where: where ? (...args: Types.FromToSelectArgs<F, J>) => fn(...args).and(where(...args)) : fn,
       },
     ]);
   }
@@ -154,27 +111,21 @@ export class Select<
       select,
       {
         ...rest,
-        orderBy: existingOrderBy
-          ? [...normalizeOrderBy(existingOrderBy), ...normalizeOrderBy(input)]
-          : input,
+        orderBy: existingOrderBy ? [...normalizeOrderBy(existingOrderBy), ...normalizeOrderBy(input)] : input,
       },
     ]);
   }
 
   groupBy(...input: GroupByInputNormalized<F, J>[0]): Select<S, F, J> {
     const [select, { groupBy: existingGroupBy, ...rest }] = this.clause;
-    const [existingGb, existingOpts] = normalizeGroupBy(
-      existingGroupBy ?? [() => []],
-    );
+    const [existingGb, existingOpts] = normalizeGroupBy(existingGroupBy ?? [() => []]);
     const [newGb, newOpts] = normalizeGroupBy(input);
 
     return new Select<S, F, J>([
       select,
       {
         ...rest,
-        groupBy: existingGroupBy
-          ? [[...existingGb, ...newGb], existingOpts ?? newOpts ?? {}]
-          : input,
+        groupBy: existingGroupBy ? [[...existingGb, ...newGb], existingOpts ?? newOpts ?? {}] : input,
       },
     ]);
   }
@@ -185,10 +136,7 @@ export class Select<
       select,
       {
         ...rest,
-        having: having
-          ? (...args: Types.FromToSelectArgs<F, J>) =>
-              fn(...args).and(having(...args))
-          : fn,
+        having: having ? (...args: Types.FromToSelectArgs<F, J>) => fn(...args).and(having(...args)) : fn,
       },
     ]);
   }
@@ -198,23 +146,12 @@ export class Select<
     return new Select([select, { ...rest, limit }]);
   }
 
-  offset(
-    offset:
-      | Types.NumericLike
-      | [Types.NumericLike, { row?: true; rows?: true }],
-  ): Select<S, F, J> {
+  offset(offset: Types.NumericLike | [Types.NumericLike, { row?: true; rows?: true }]): Select<S, F, J> {
     const [select, { offset: _existingOffset, ...rest }] = this.clause;
     return new Select([select, { ...rest, offset }]);
   }
 
-  fetch(
-    fetch: [
-      "first" | "next",
-      Types.NumericLike,
-      "row" | "rows",
-      "only" | "withTies",
-    ],
-  ): Select<S, F, J> {
+  fetch(fetch: ["first" | "next", Types.NumericLike, "row" | "rows", "only" | "withTies"]): Select<S, F, J> {
     const [select, { fetch: _existingFetch, ...rest }] = this.clause;
     return new Select([select, { ...rest, fetch }]);
   }
@@ -243,24 +180,19 @@ export class Select<
       {
         all: () => sql`ALL`,
         distinct: () => sql`DISTINCT`,
-        distinctOn: (fn) =>
-          sql`DISTINCT ON (${compileExpressionList(fn(...args), ctx)})`,
+        distinctOn: (fn) => sql`DISTINCT ON (${compileExpressionList(fn(...args), ctx)})`,
         select: (fn) =>
           sqlJoin(
             Object.entries(fn(...args))
               .sort(([a], [b]) => a.localeCompare(b))
-              .map(
-                ([alias, v]) =>
-                  sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`,
-              ),
+              .map(([alias, v]) => sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`),
           ),
         from: () => sql`FROM ${this.fromItem?.compile(ctx)}`,
         where: (fn) =>
           sql`WHERE ${fn(...args)
             .toExpression()
             .compile(ctx)}`,
-        groupBy: (groupBy) =>
-          sqlJoin([sql`GROUP BY`, compileGroupBy(groupBy, args, ctx)], sql` `),
+        groupBy: (groupBy) => sqlJoin([sql`GROUP BY`, compileGroupBy(groupBy, args, ctx)], sql` `),
         having: (fn) =>
           sql`HAVING ${fn(...args)
             .toExpression()
@@ -269,16 +201,11 @@ export class Select<
           throw new Error("Window functions not implemented yet");
         },
         union: (union): RawBuilder<any> => sql`UNION ${union.compile(ctxIn)}`,
-        unionAll: (unionAll): RawBuilder<any> =>
-          sql`UNION ALL ${unionAll.compile(ctxIn)}`,
-        intersect: (intersect): RawBuilder<any> =>
-          sql`INTERSECT ${intersect.compile(ctxIn)}`,
-        intersectAll: (intersectAll): RawBuilder<any> =>
-          sql`INTERSECT ALL ${intersectAll.compile(ctxIn)}`,
-        except: (except): RawBuilder<any> =>
-          sql`EXCEPT ${except.compile(ctxIn)}`,
-        exceptAll: (exceptAll): RawBuilder<any> =>
-          sql`EXCEPT ALL ${exceptAll.compile(ctxIn)}`,
+        unionAll: (unionAll): RawBuilder<any> => sql`UNION ALL ${unionAll.compile(ctxIn)}`,
+        intersect: (intersect): RawBuilder<any> => sql`INTERSECT ${intersect.compile(ctxIn)}`,
+        intersectAll: (intersectAll): RawBuilder<any> => sql`INTERSECT ALL ${intersectAll.compile(ctxIn)}`,
+        except: (except): RawBuilder<any> => sql`EXCEPT ${except.compile(ctxIn)}`,
+        exceptAll: (exceptAll): RawBuilder<any> => sql`EXCEPT ALL ${exceptAll.compile(ctxIn)}`,
         orderBy: (orderBy) =>
           sql`ORDER BY ${sqlJoin(
             normalizeOrderBy(orderBy).map(([orderByFn, orderByOpts]) => {
@@ -289,20 +216,14 @@ export class Select<
                 asc: () => sql`ASC`,
                 desc: () => sql`DESC`,
                 using: (using) => sql`USING ${sql.ref(using)}`,
-                nulls: (direction) =>
-                  sql`NULLS ${direction === "first" ? sql`FIRST` : sql`LAST`}`,
+                nulls: (direction) => sql`NULLS ${direction === "first" ? sql`FIRST` : sql`LAST`}`,
               });
               return sqlJoin([fnCompiled, optsCompiled], sql` `);
             }),
           )}`,
-        limit: (limit) =>
-          sql`LIMIT ${
-            limit === "all" ? sql`ALL` : compileNumericLike(limit, ctx)
-          }`,
+        limit: (limit) => sql`LIMIT ${limit === "all" ? sql`ALL` : compileNumericLike(limit, ctx)}`,
         offset: (offset) => {
-          const normalized = Array.isArray(offset)
-            ? offset
-            : ([offset] as const);
+          const normalized = Array.isArray(offset) ? offset : ([offset] as const);
           const [value, opts] = normalized;
           return sqlJoin(
             [
@@ -318,22 +239,14 @@ export class Select<
         },
         fetch: (fetch) => {
           const [firstNext, count, rows, onlyTies] = fetch;
-          const compiledFirstNext = { first: sql`FIRST`, next: sql`NEXT` }[
-            firstNext
-          ];
+          const compiledFirstNext = { first: sql`FIRST`, next: sql`NEXT` }[firstNext];
           const compiledRows = { row: sql`ROW`, rows: sql`ROWS` }[rows];
           const compiledOnlyTies = {
             only: sql`ONLY`,
             withTies: sql`WITH TIES`,
           }[onlyTies];
           return sqlJoin(
-            [
-              sql`FETCH`,
-              compiledFirstNext,
-              compileNumericLike(count, ctx),
-              compiledRows,
-              compiledOnlyTies,
-            ],
+            [sql`FETCH`, compiledFirstNext, compileNumericLike(count, ctx), compiledRows, compiledOnlyTies],
             sql` `,
           );
         },
@@ -350,10 +263,7 @@ export class Select<
               sql`FOR`,
               compiledLockType,
               compileClauses(opts ?? {}, {
-                of: (tables) =>
-                  sql`OF ${sqlJoin(
-                    tables.map((table) => sql.ref(table.fromAlias.name)),
-                  )}`,
+                of: (tables) => sql`OF ${sqlJoin(tables.map((table) => sql.ref(table.fromAlias.name)))}`,
                 nowait: () => sql`NOWAIT`,
                 skipLocked: () => sql`SKIP LOCKED`,
               }),
@@ -378,21 +288,14 @@ export class Select<
     try {
       raw = await typegres._internal.executeQuery(compiledRaw);
     } catch (error) {
-      console.error(
-        "Error executing query: ",
-        compiledRaw.sql,
-        compiledRaw.parameters,
-      );
+      console.error("Error executing query: ", compiledRaw.sql, compiledRaw.parameters);
       throw error;
     }
     const returnShape = this.getRowLike();
     return (
       returnShape
         ? raw.rows.map((row) => {
-            invariant(
-              typeof row === "object" && row !== null,
-              "Expected each row to be an object",
-            );
+            invariant(typeof row === "object" && row !== null, "Expected each row to be an object");
             return parseRowLike(returnShape, row);
           })
         : raw
@@ -422,10 +325,7 @@ export class Select<
   scalar(): S[keyof S] {
     const returnShape = this.clause[0](...this.selectArgs());
     const [val, ...rest] = Object.values(returnShape);
-    invariant(
-      rest.length === 0,
-      `Expected a single scalar return shape, got: ${inspect(returnShape)}`,
-    );
+    invariant(rest.length === 0, `Expected a single scalar return shape, got: ${inspect(returnShape)}`);
     return val.getClass().new(this.toExpression()) as S[keyof S];
   }
 
@@ -452,11 +352,7 @@ export class Select<
   }
 }
 
-export const select = <
-  S extends Types.RowLike,
-  F extends Types.RowLike,
-  J extends Types.Joins,
->(
+export const select = <S extends Types.RowLike, F extends Types.RowLike, J extends Types.Joins>(
   select: (...args: Types.FromToSelectArgs<F, J>) => S,
   opts?: XOR<
     { all?: true },
@@ -471,15 +367,8 @@ export const select = <
   } & SetOps<S> & {
       orderBy?: OrderByInput<F, J>;
       limit?: Types.NumericLike | "all";
-      offset?:
-        | Types.NumericLike
-        | [Types.NumericLike, { row?: true; rows?: true }];
-      fetch?: [
-        "first" | "next",
-        Types.NumericLike,
-        "row" | "rows",
-        "only" | "withTies",
-      ];
+      offset?: Types.NumericLike | [Types.NumericLike, { row?: true; rows?: true }];
+      fetch?: ["first" | "next", Types.NumericLike, "row" | "rows", "only" | "withTies"];
       for?: [
         "update" | "noKeyUpdate" | "share" | "keyShare",
         {
@@ -537,31 +426,22 @@ const normalizeOrderBy = <F extends Types.RowLike, J extends Types.Joins>(
     // Check if it's a single tuple by looking at the second element
     if (
       orderBy.length === 2 &&
-      (orderBy[1] === undefined ||
-        (typeof orderBy[1] === "object" && !Array.isArray(orderBy[1])))
+      (orderBy[1] === undefined || (typeof orderBy[1] === "object" && !Array.isArray(orderBy[1])))
     ) {
       // It's a single tuple [fn, opts]
       return [orderBy] as OrderByInputNormalized<F, J>;
     }
     // It's an array of mixed elements - normalize each
-    return orderBy.map((elem) =>
-      Array.isArray(elem) ? elem : [elem],
-    ) as OrderByInputNormalized<F, J>;
+    return orderBy.map((elem) => (Array.isArray(elem) ? elem : [elem])) as OrderByInputNormalized<F, J>;
   }
 
   // If first element is an array, it's already normalized or needs element normalization
   if (Array.isArray(orderBy[0])) {
     // Each element should be a tuple, but some might be bare functions
-    return orderBy.map((elem) =>
-      Array.isArray(elem) ? elem : [elem],
-    ) as OrderByInputNormalized<F, J>;
+    return orderBy.map((elem) => (Array.isArray(elem) ? elem : [elem])) as OrderByInputNormalized<F, J>;
   }
 
-  throw new Error(
-    `Invalid orderBy input: expected an array of functions or tuples, got ${inspect(
-      orderBy,
-    )}`,
-  );
+  throw new Error(`Invalid orderBy input: expected an array of functions or tuples, got ${inspect(orderBy)}`);
 };
 
 /*
@@ -589,10 +469,7 @@ type GroupByInput<F extends Types.RowLike, J extends Types.Joins> =
   | GroupByInputNormalized<F, J>[0][0];
 
 type GroupByInputNormalized<F extends Types.RowLike, J extends Types.Joins> = [
-  [
-    GroupingElement<Types.FromToSelectArgs<F, J>>,
-    ...GroupingElement<Types.FromToSelectArgs<F, J>>[],
-  ],
+  [GroupingElement<Types.FromToSelectArgs<F, J>>, ...GroupingElement<Types.FromToSelectArgs<F, J>>[]],
   ({ all?: true } | { distinct?: true })?,
 ];
 
@@ -600,11 +477,7 @@ const normalizeGroupBy = <F extends Types.RowLike, J extends Types.Joins>(
   groupBy: GroupByInput<F, J>,
 ): GroupByInputNormalized<F, J> => {
   return (
-    Array.isArray(groupBy)
-      ? Array.isArray(groupBy[0])
-        ? groupBy
-        : [groupBy]
-      : [[groupBy]]
+    Array.isArray(groupBy) ? (Array.isArray(groupBy[0]) ? groupBy : [groupBy]) : [[groupBy]]
   ) as GroupByInputNormalized<F, J>;
 };
 
@@ -624,8 +497,7 @@ const compileGroupBy = <F extends Types.RowLike, J extends Types.Joins>(
     return compileClauses(el, {
       rollup: (fn) => sql`ROLLUP ${compileExpressionList(fn(...args), ctx)}`,
       cube: (fn) => sql`CUBE ${compileExpressionList(fn(...args), ctx)}`,
-      groupingSets: (fn) =>
-        sql`GROUPING SETS ${compileExpressionList(fn(...args), ctx)}`,
+      groupingSets: (fn) => sql`GROUPING SETS ${compileExpressionList(fn(...args), ctx)}`,
     });
   });
 

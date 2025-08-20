@@ -1,10 +1,4 @@
-import {
-  DummyDriver,
-  PostgresAdapter,
-  PostgresDialect,
-  PostgresIntrospector,
-  PostgresQueryCompiler,
-} from "kysely";
+import { DummyDriver, PostgresAdapter, PostgresDialect, PostgresIntrospector, PostgresQueryCompiler } from "kysely";
 import { defineConfig } from "kysely-ctl";
 import { Pool } from "pg";
 

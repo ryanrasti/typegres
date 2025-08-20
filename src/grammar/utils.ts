@@ -1,10 +1,7 @@
 import { RawBuilder, sql } from "kysely";
 
 // Helper for joining SQL parts
-export const sqlJoin = (
-  rawParts: unknown[],
-  joiner?: RawBuilder<any>,
-): RawBuilder<any> => {
+export const sqlJoin = (rawParts: unknown[], joiner?: RawBuilder<any>): RawBuilder<any> => {
   const parts = rawParts.filter((p) => p !== undefined);
   return parts.length === 0 ? sql`` : sql.join(parts, joiner ?? sql`, `);
 };

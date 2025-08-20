@@ -16,32 +16,25 @@ import { inspect } from "cross-inspect";
 // when_clause [...]
 // [ RETURNING { * | output_expression [ [ AS ] output_name ] } [, ...] ]
 
-type MergeArgs<
-  T extends Types.RowLike,
-  S extends Types.RowLike,
-  J extends Types.Joins,
-> = [T, ...Types.FromToSelectArgs<S, J>];
+type MergeArgs<T extends Types.RowLike, S extends Types.RowLike, J extends Types.Joins> = [
+  T,
+  ...Types.FromToSelectArgs<S, J>,
+];
 
 // merge_update is:
 // UPDATE SET { column_name = { expression | DEFAULT } |
 //              ( column_name [, ...] ) = [ ROW ] ( { expression | DEFAULT } [, ...] ) |
 //              ( column_name [, ...] ) = ( sub-SELECT )
 //            } [, ...]
-type MergeUpdate<
-  T extends Types.RowLike,
-  S extends Types.RowLike,
-  J extends Types.Joins,
-> = (...args: MergeArgs<T, S, J>) => Partial<PickAny<T>>;
+type MergeUpdate<T extends Types.RowLike, S extends Types.RowLike, J extends Types.Joins> = (
+  ...args: MergeArgs<T, S, J>
+) => Partial<PickAny<T>>;
 
 // merge_insert is:
 // INSERT [( column_name [, ...] )]
 // [ OVERRIDING { SYSTEM | USER } VALUE ]
 // { VALUES ( { expression | DEFAULT } [, ...] ) | DEFAULT VALUES }
-type MergeInsert<
-  T extends Types.RowLike,
-  S extends Types.RowLike,
-  J extends Types.Joins,
-> = {
+type MergeInsert<T extends Types.RowLike, S extends Types.RowLike, J extends Types.Joins> = {
   columns?: (keyof T)[];
   values: (...args: MergeArgs<T, S, J>) => Partial<PickAny<T>>;
   overriding?: ["system" | "user", "value"];
@@ -53,11 +46,7 @@ type MergeInsert<
 //   WHEN NOT MATCHED [ BY TARGET ] [ AND condition ] THEN { merge_insert | DO NOTHING } }
 
 // Common case: simple actions without conditions
-type SimpleWhenClause<
-  T extends Types.RowLike,
-  S extends Types.RowLike,
-  J extends Types.Joins,
-> = {
+type SimpleWhenClause<T extends Types.RowLike, S extends Types.RowLike, J extends Types.Joins> = {
   whenMatchedThenUpdateSet?: MergeUpdate<T, S, J>;
   whenMatchedThenDelete?: true;
   whenMatchedThenDoNothing?: true;
@@ -69,41 +58,23 @@ type SimpleWhenClause<
 };
 
 // Complex case: with AND conditions
-type ComplexWhenClause<
-  T extends Types.RowLike,
-  S extends Types.RowLike,
-  J extends Types.Joins,
-> = {
+type ComplexWhenClause<T extends Types.RowLike, S extends Types.RowLike, J extends Types.Joins> = {
   whenMatched?: {
     and?: (...args: MergeArgs<T, S, J>) => Types.Bool<0 | 1>;
-  } & XOR<
-    { thenUpdateSet: MergeUpdate<T, S, J> },
-    { thenDelete: true },
-    { thenDoNothing: true }
-  >;
+  } & XOR<{ thenUpdateSet: MergeUpdate<T, S, J> }, { thenDelete: true }, { thenDoNothing: true }>;
   whenNotMatchedBySource?: {
     and?: (...args: MergeArgs<T, S, J>) => Types.Bool<0 | 1>;
-  } & XOR<
-    { thenUpdateSet: MergeUpdate<T, S, J> },
-    { thenDelete: true },
-    { thenDoNothing: true }
-  >;
+  } & XOR<{ thenUpdateSet: MergeUpdate<T, S, J> }, { thenDelete: true }, { thenDoNothing: true }>;
   whenNotMatched?: {
     and?: (...args: MergeArgs<T, S, J>) => Types.Bool<0 | 1>;
   } & XOR<{ thenInsert: MergeInsert<T, S, J> }, { thenDoNothing: true }>;
 };
 
-type WhenClause<
-  T extends Types.RowLike,
-  S extends Types.RowLike,
-  J extends Types.Joins,
-> = SimpleWhenClause<T, S, J> | ComplexWhenClause<T, S, J>;
+type WhenClause<T extends Types.RowLike, S extends Types.RowLike, J extends Types.Joins> =
+  | SimpleWhenClause<T, S, J>
+  | ComplexWhenClause<T, S, J>;
 
-const normalizeWhenClause = <
-  T extends Types.RowLike,
-  S extends Types.RowLike,
-  J extends Types.Joins,
->(
+const normalizeWhenClause = <T extends Types.RowLike, S extends Types.RowLike, J extends Types.Joins>(
   clause: WhenClause<T, S, J>,
 ): ComplexWhenClause<T, S, J>[] => {
   return Object.entries(clause).map(([key, value]) => {
@@ -120,11 +91,7 @@ const normalizeWhenClause = <
   });
 };
 
-const compileWhenClause = <
-  T extends Types.RowLikeStrict,
-  S extends Types.RowLike,
-  J extends Types.Joins,
->(
+const compileWhenClause = <T extends Types.RowLikeStrict, S extends Types.RowLike, J extends Types.Joins>(
   normalized: ComplexWhenClause<T, S, J>,
   args: MergeArgs<T, S, J>,
   ctx: Context,
@@ -132,21 +99,14 @@ const compileWhenClause = <
   // The order is important, so make sure there's only one key
   invariant(
     Object.keys(normalized).length === 1,
-    `Normalized clause must have exactly one key: ${inspect(
-      Object.keys(normalized),
-    )}`,
+    `Normalized clause must have exactly one key: ${inspect(Object.keys(normalized))}`,
   );
   type C = ComplexWhenClause<T, S, J>;
 
   const matched = (normalized.whenMatched ??
     normalized.whenNotMatched ??
-    normalized.whenNotMatchedBySource) as C["whenMatched"] &
-    C["whenNotMatched"] &
-    C["whenNotMatchedBySource"];
-  invariant(
-    matched,
-    "When clause must have a 'whenMatched', 'whenNotMatched', or 'whenNotMatchedBySource' key",
-  );
+    normalized.whenNotMatchedBySource) as C["whenMatched"] & C["whenNotMatched"] & C["whenNotMatchedBySource"];
+  invariant(matched, "When clause must have a 'whenMatched', 'whenNotMatched', or 'whenNotMatchedBySource' key");
   const { and, ...then } = matched;
 
   const thenCompiled = sqlJoin(
@@ -161,10 +121,7 @@ const compileWhenClause = <
           const assignments = set(...args);
           return sql`UPDATE SET ${sqlJoin(
             Object.entries(assignments).map(([col, val]) => {
-              invariant(
-                val instanceof Types.Any,
-                `Expected value for column ${col} to be an instance of Any`,
-              );
+              invariant(val instanceof Types.Any, `Expected value for column ${col} to be an instance of Any`);
               return sql`${sql.ref(col)} = ${val.toExpression().compile(ctx)}`;
             }),
           )}`;
@@ -173,20 +130,12 @@ const compileWhenClause = <
         thenDoNothing: () => sql`DO NOTHING`,
         thenInsert: (insert) => {
           const insertVals = insert.values(...args);
-          const cols =
-            insert.columns ?? (Object.keys(insertVals) as (keyof T)[]);
+          const cols = insert.columns ?? (Object.keys(insertVals) as (keyof T)[]);
           return sqlJoin(
             [
               sql`INSERT (${sqlJoin(cols.map((c) => sql.ref(c as string)))})`,
-              insert.overriding &&
-                sql`OVERRIDING ${insert.overriding[0] === "system" ? sql`SYSTEM` : sql`USER`} VALUE`,
-              sql`VALUES (${sqlJoin(
-                cols.map(
-                  (col) =>
-                    insertVals[col]?.toExpression().compile(ctx) ??
-                    sql`DEFAULT`,
-                ),
-              )})`,
+              insert.overriding && sql`OVERRIDING ${insert.overriding[0] === "system" ? sql`SYSTEM` : sql`USER`} VALUE`,
+              sql`VALUES (${sqlJoin(cols.map((col) => insertVals[col]?.toExpression().compile(ctx) ?? sql`DEFAULT`))})`,
             ].filter(Boolean),
             sql` `,
           );
@@ -198,19 +147,14 @@ const compileWhenClause = <
 
   return compileClauses(normalized, {
     whenMatched: () => sqlJoin([sql`WHEN MATCHED`, thenCompiled], sql` `),
-    whenNotMatched: () =>
-      sqlJoin([sql`WHEN NOT MATCHED`, thenCompiled], sql` `),
-    whenNotMatchedBySource: () =>
-      sqlJoin([sql`WHEN NOT MATCHED BY SOURCE`, thenCompiled], sql` `),
+    whenNotMatched: () => sqlJoin([sql`WHEN NOT MATCHED`, thenCompiled], sql` `),
+    whenNotMatchedBySource: () => sqlJoin([sql`WHEN NOT MATCHED BY SOURCE`, thenCompiled], sql` `),
   });
 };
 
 // data_source is:
 // { [ ONLY ] source_table_name [ * ] | ( source_query ) } [ [ AS ] source_alias ]
-type DataSource<
-  S extends Types.RowLike,
-  J extends Types.Joins,
-> = Types.AsFromItem<S, J>;
+type DataSource<S extends Types.RowLike, J extends Types.Joins> = Types.AsFromItem<S, J>;
 
 export class Merge<
   T extends Types.RowLikeStrict = Types.RowLikeStrict,
@@ -227,9 +171,7 @@ export class Merge<
       using: DataSource<S, J>;
       on: (...args: MergeArgs<T, S, J>) => Types.Bool<0 | 1>;
     },
-    private whenClauses:
-      | WhenClause<T, S, J>
-      | [WhenClause<T, S, J>, ...WhenClause<T, S, J>[]],
+    private whenClauses: WhenClause<T, S, J> | [WhenClause<T, S, J>, ...WhenClause<T, S, J>[]],
     private returningClause?: {
       returning: (...args: MergeArgs<T, S, J>) => R;
     },
@@ -238,16 +180,11 @@ export class Merge<
   }
 
   private get args(): MergeArgs<T, S, J> {
-    return [
-      this.mergeInto.into.toSelectArgs()[0],
-      ...this.sourceItem.toSelectArgs(),
-    ] as MergeArgs<T, S, J>;
+    return [this.mergeInto.into.toSelectArgs()[0], ...this.sourceItem.toSelectArgs()] as MergeArgs<T, S, J>;
   }
 
   compile(ctxIn = Context.new()) {
-    const ctx = this.sourceItem.getContext(
-      this.mergeInto.into.getContext(ctxIn),
-    );
+    const ctx = this.sourceItem.getContext(this.mergeInto.into.getContext(ctxIn));
 
     const parts = [
       sql`MERGE INTO${this.mergeInto.only ? sql` ONLY` : sql``} ${this.mergeInto.into.rawFromExpr.compile(ctx)} as ${sql.ref(
@@ -265,8 +202,7 @@ export class Merge<
       this.returningClause &&
         sql`RETURNING ${sqlJoin(
           Object.entries(this.returningClause.returning(...this.args)).map(
-            ([alias, v]) =>
-              sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`,
+            ([alias, v]) => sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`,
           ),
         )}`,
     ];
@@ -286,11 +222,7 @@ export class Merge<
     try {
       raw = await typegres._internal.executeQuery(compiledRaw);
     } catch (error) {
-      console.error(
-        "Error executing query: ",
-        compiledRaw.sql,
-        compiledRaw.parameters,
-      );
+      console.error("Error executing query: ", compiledRaw.sql, compiledRaw.parameters);
       throw error;
     }
 
@@ -298,10 +230,7 @@ export class Merge<
     if (!returnShape) return raw.rows as RowLikeResult<R>[];
 
     return raw.rows.map((row) => {
-      invariant(
-        typeof row === "object" && row !== null,
-        "Expected each row to be an object",
-      );
+      invariant(typeof row === "object" && row !== null, "Expected each row to be an object");
       return parseRowLike(returnShape, row);
     }) as RowLikeResult<R>[];
   }
@@ -319,9 +248,7 @@ export const merge = <
     using: DataSource<S, J>;
     on: (...args: MergeArgs<T, S, J>) => Types.Bool<0 | 1>;
   },
-  whenClauses:
-    | WhenClause<T, S, J>
-    | [WhenClause<T, S, J>, ...WhenClause<T, S, J>[]],
+  whenClauses: WhenClause<T, S, J> | [WhenClause<T, S, J>, ...WhenClause<T, S, J>[]],
   returningClause?: {
     returning: (...args: MergeArgs<T, S, J>) => R;
   },

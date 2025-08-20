@@ -1,9 +1,4 @@
-import {
-  BinaryOperatorExpression,
-  Expression,
-  FunctionExpression,
-  LiteralUnknownExpression,
-} from "./expression";
+import { BinaryOperatorExpression, Expression, FunctionExpression, LiteralUnknownExpression } from "./expression";
 import type { RowLike } from "./query/values";
 import { Any } from "./types";
 import { Schema } from "./types/any";
@@ -19,16 +14,9 @@ const Sentinel = class Sentinel {
 const genericArgs = { T: Sentinel, R: Sentinel };
 
 const getRetType = (args: unknown[], defn: TypedFunctionDefinition) => {
-  const {
-    args: params,
-    ret,
-    isVariadic,
-  } = typeof defn === "function" ? defn(genericArgs) : defn;
+  const { args: params, ret, isVariadic } = typeof defn === "function" ? defn(genericArgs) : defn;
 
-  if (
-    args.length !== params.length &&
-    (!isVariadic || params.length > args.length)
-  ) {
+  if (args.length !== params.length && (!isVariadic || params.length > args.length)) {
     return false;
   }
 
@@ -53,11 +41,7 @@ const getRetType = (args: unknown[], defn: TypedFunctionDefinition) => {
       genericBindsTo = argSubtype.subtype;
       continue;
     }
-    if (
-      arg instanceof Any &&
-      arg.getClass().typeString() !== param.typeString() &&
-      !(arg instanceof param)
-    ) {
+    if (arg instanceof Any && arg.getClass().typeString() !== param.typeString() && !(arg instanceof param)) {
       // If the argument is not an instance of the parameter, we can't bind it.
       // Note that if the argument type is not an `Any` (i.e., its a primitive type),
       //  we assume it matches -- it shouldn't matter because we assert that primitive
@@ -67,9 +51,7 @@ const getRetType = (args: unknown[], defn: TypedFunctionDefinition) => {
   }
   if (!genericBindsTo) {
     if (ret === Sentinel) {
-      throw new Error(
-        `Cannot determine return type for function ${defn} with args ${args}`,
-      );
+      throw new Error(`Cannot determine return type for function ${defn} with args ${args}`);
     }
     return { ret, genericBindsTo };
   }
@@ -112,11 +94,7 @@ type TypedFunctionDefinition =
       isVariadic?: boolean;
     });
 
-export const sqlFunction = (
-  name: string,
-  defn: TypedFunctionDefinition[],
-  args: unknown[],
-): Any | FromItem<any> => {
+export const sqlFunction = (name: string, defn: TypedFunctionDefinition[], args: unknown[]): Any | FromItem<any> => {
   const [{ matchingDef, RetType }] = defn.flatMap((def) => {
     const RetType = getRetType(args, def);
     return RetType
@@ -139,9 +117,7 @@ export const sqlFunction = (
       `No matching function found for ${name} with args ${JSON.stringify(
         args,
       )} / ${JSON.stringify(defn)} / ${JSON.stringify(
-        defn.map((d) =>
-          typeof d === "function" ? d(genericArgs).args : d.args,
-        ),
+        defn.map((d) => (typeof d === "function" ? d(genericArgs).args : d.args)),
       )}`,
     );
   }
@@ -156,14 +132,7 @@ export const sqlFunction = (
 
   return RetType.new(
     matchingDef.isOperator
-      ? new BinaryOperatorExpression(
-          name,
-          argsAsExpressions as [Expression, Expression],
-        )
-      : new FunctionExpression(
-          name,
-          argsAsExpressions,
-          matchingDef.isReserved || false,
-        ),
+      ? new BinaryOperatorExpression(name, argsAsExpressions as [Expression, Expression])
+      : new FunctionExpression(name, argsAsExpressions, matchingDef.isReserved || false),
   );
 };

@@ -46,10 +46,7 @@ class Post extends View(postData).extend<Post>() {
 
   ageInHours() {
     // Using epoch difference for hours calculation
-    const epoch = datePart(
-      Text.new("epoch"),
-      this.now(true)["-"](this.createdAt),
-    );
+    const epoch = datePart(Text.new("epoch"), this.now(true)["-"](this.createdAt));
     return epoch["/"](3600);
   }
 
@@ -170,9 +167,7 @@ const example3 = await Post.select((p) => ({
   engagementRank: rank().over({ orderBy: [p.engagement(), "desc"] }),
 
   // Running totals
-  cumulativeLikes: p.likes
-    .sum()
-    .over({ partitionBy: p.authorId, orderBy: p.createdAt }),
+  cumulativeLikes: p.likes.sum().over({ partitionBy: p.authorId, orderBy: p.createdAt }),
 }))
   .orderBy((p) => p.createdAt)
   .debug()

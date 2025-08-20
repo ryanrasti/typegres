@@ -519,18 +519,11 @@ describe("Extending table classes", () => {
         {
           from: activeAdmins
             .asFromItem()
-            .join(db.Posts, "p", (u, { p }) =>
-              u.id["="](p.user_id).and(p.published["="](1)),
-            ),
+            .join(db.Posts, "p", (u, { p }) => u.id["="](p.user_id).and(p.published["="](1))),
         },
       ).execute(kdb);
 
-      assert<
-        Equals<
-          typeof res,
-          { author: string; postTitle: string; totalComments: bigint }[]
-        >
-      >();
+      assert<Equals<typeof res, { author: string; postTitle: string; totalComments: bigint }[]>>();
 
       expect(res).toEqual([
         {

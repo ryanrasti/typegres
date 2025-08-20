@@ -46,9 +46,7 @@ describe("View tests", () => {
         },
       ).execute(kdb);
 
-      assert<
-        Equals<typeof res, { id: number; name: string; dept: string }[]>
-      >();
+      assert<Equals<typeof res, { id: number; name: string; dept: string }[]>>();
 
       expect(res).toEqual([
         { id: 1, name: "Alice", dept: "Engineering" },
@@ -100,9 +98,7 @@ describe("View tests", () => {
         }
 
         displayBudget() {
-          return this.budget["*"](Int4.new(100))
-            .cast(Types.Text)
-            .textcat(" cents");
+          return this.budget["*"](Int4.new(100)).cast(Types.Text).textcat(" cents");
         }
 
         isHighBudget() {
@@ -131,17 +127,9 @@ describe("View tests", () => {
 
       // Test static method
       const activeProjects = await ProjectView.activeProjects().execute(kdb);
-      assert<
-        Equals<
-          typeof activeProjects,
-          { id: number; name: string; status: string; budget: number }[]
-        >
-      >();
+      assert<Equals<typeof activeProjects, { id: number; name: string; status: string; budget: number }[]>>();
       expect(activeProjects).toHaveLength(2);
-      expect(activeProjects.map((p) => p.name).sort()).toEqual([
-        "Project Alpha",
-        "Project Gamma",
-      ]);
+      expect(activeProjects.map((p) => p.name).sort()).toEqual(["Project Alpha", "Project Gamma"]);
 
       // Test instance methods in select
       const res = await select(

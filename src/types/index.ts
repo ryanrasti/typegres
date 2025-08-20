@@ -16,21 +16,9 @@ export { default as Record } from "./record";
 export type { RowLike, RowLikeStrict } from "../query/values";
 export type { Table } from "../query/db";
 export type { Input } from "./serialization";
-export type {
-  FromToSelectArgs,
-  Joins,
-  WithFromItem,
-  AsFromItem,
-  JoinTables,
-} from "../query/from-item";
+export type { FromToSelectArgs, Joins, WithFromItem, AsFromItem, JoinTables } from "../query/from-item";
 export { FromItem } from "../query/from-item";
 
-export type NumericLike =
-  | Int4<0 | 1>
-  | Int2<0 | 1>
-  | Int8<0 | 1>
-  | Float4<0 | 1>
-  | Float8<0 | 1>
-  | Numeric<0 | 1>;
+export type NumericLike = Int4<0 | 1> | Int2<0 | 1> | Int8<0 | 1> | Float4<0 | 1> | Float8<0 | 1> | Numeric<0 | 1>;
 
 export type Repeated<T> = T | [T, ...T[]];

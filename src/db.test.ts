@@ -17,9 +17,7 @@ export const testDb = await typegres({
 
 describe("App", () => {
   it("run a select query", async () => {
-    const one = await testDb._internal
-      .selectNoFrom([sql<number>`1`.as("val")])
-      .executeTakeFirst();
+    const one = await testDb._internal.selectNoFrom([sql<number>`1`.as("val")]).executeTakeFirst();
     // We're not using the default pg parsing, so it's a
     // string here:
     expect(one?.val).toEqual("1");

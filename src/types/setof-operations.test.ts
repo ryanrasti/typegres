@@ -80,9 +80,7 @@ describe("IN/NOT IN operations", () => {
       },
     ).execute(testDb);
 
-    assert<
-      Equals<typeof result, { id: number; name: string; isActive: boolean }[]>
-    >();
+    assert<Equals<typeof result, { id: number; name: string; isActive: boolean }[]>>();
 
     expect(result).toEqual([
       { id: 1, name: "Alice", isActive: true },
@@ -113,9 +111,7 @@ describe("IN/NOT IN operations", () => {
       },
     ).execute(testDb);
 
-    assert<
-      Equals<typeof result, { id: number; name: string; notBanned: boolean }[]>
-    >();
+    assert<Equals<typeof result, { id: number; name: string; notBanned: boolean }[]>>();
 
     expect(result).toEqual([
       { id: 1, name: "Alice", notBanned: true },
@@ -127,10 +123,7 @@ describe("IN/NOT IN operations", () => {
 
 describe("EXISTS/NOT EXISTS operations", () => {
   it("can use EXISTS", async () => {
-    const users = values(
-      { id: Int4.new(1), name: Text.new("Alice") },
-      { id: Int4.new(2), name: Text.new("Bob") },
-    );
+    const users = values({ id: Int4.new(1), name: Text.new("Alice") }, { id: Int4.new(2), name: Text.new("Bob") });
 
     const orders = values(
       { orderId: Int4.new(1), userId: Int4.new(1), amount: Int4.new(100) },
@@ -196,15 +189,9 @@ describe("EXISTS/NOT EXISTS operations", () => {
 
 describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
   it("can use UNION", async () => {
-    const query1 = values(
-      { id: Int4.new(1), name: Text.new("Alice") },
-      { id: Int4.new(2), name: Text.new("Bob") },
-    );
+    const query1 = values({ id: Int4.new(1), name: Text.new("Alice") }, { id: Int4.new(2), name: Text.new("Bob") });
 
-    const query2 = values(
-      { id: Int4.new(2), name: Text.new("Bob") },
-      { id: Int4.new(3), name: Text.new("Charlie") },
-    );
+    const query2 = values({ id: Int4.new(2), name: Text.new("Bob") }, { id: Int4.new(3), name: Text.new("Charlie") });
 
     const result = await select((row) => ({ id: row.id, name: row.name }), {
       from: query1,
@@ -226,15 +213,9 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
   });
 
   it("can use UNION ALL", async () => {
-    const query1 = values(
-      { id: Int4.new(1), name: Text.new("Alice") },
-      { id: Int4.new(2), name: Text.new("Bob") },
-    );
+    const query1 = values({ id: Int4.new(1), name: Text.new("Alice") }, { id: Int4.new(2), name: Text.new("Bob") });
 
-    const query2 = values(
-      { id: Int4.new(2), name: Text.new("Bob") },
-      { id: Int4.new(3), name: Text.new("Charlie") },
-    );
+    const query2 = values({ id: Int4.new(2), name: Text.new("Bob") }, { id: Int4.new(3), name: Text.new("Charlie") });
 
     const result = await select((row) => ({ id: row.id, name: row.name }), {
       from: query1,
@@ -306,17 +287,9 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
   });
 
   it("can work with scalar queries", async () => {
-    const query1 = values(
-      { id: Int4.new(1) },
-      { id: Int4.new(2) },
-      { id: Int4.new(3) },
-    );
+    const query1 = values({ id: Int4.new(1) }, { id: Int4.new(2) }, { id: Int4.new(3) });
 
-    const query2 = values(
-      { id: Int4.new(3) },
-      { id: Int4.new(4) },
-      { id: Int4.new(5) },
-    );
+    const query2 = values({ id: Int4.new(3) }, { id: Int4.new(4) }, { id: Int4.new(5) });
 
     const result = await select((v) => ({ value: v.id }), {
       from: query1,
@@ -350,9 +323,7 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
     assert<Equals<typeof result, { id: number }[]>>();
 
     expect(result).toHaveLength(4);
-    expect(result).toEqual(
-      expect.arrayContaining([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]),
-    );
+    expect(result).toEqual(expect.arrayContaining([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]));
   });
 
   it("can use set operations with WHERE clauses", async () => {
@@ -364,31 +335,22 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
     );
 
     // Create the young users query
-    const youngUsersQuery = select(
-      (u) => ({ name: u.name, category: Text.new("young") }),
-      {
-        from: users,
-        where: (u) => u.age["<"](Int4.new(32)),
-      },
-    );
+    const youngUsersQuery = select((u) => ({ name: u.name, category: Text.new("young") }), {
+      from: users,
+      where: (u) => u.age["<"](Int4.new(32)),
+    });
 
     // Create the old users query
-    const oldUsersQuery = select(
-      (u) => ({ name: u.name, category: Text.new("old") }),
-      {
-        from: users,
-        where: (u) => u.age[">="](Int4.new(32)),
-      },
-    );
+    const oldUsersQuery = select((u) => ({ name: u.name, category: Text.new("old") }), {
+      from: users,
+      where: (u) => u.age[">="](Int4.new(32)),
+    });
 
     // Union them and add final transformation
-    const unionedQuery = select(
-      (u) => ({ name: u.name, category: u.category }),
-      {
-        from: youngUsersQuery,
-        union: oldUsersQuery,
-      },
-    );
+    const unionedQuery = select((u) => ({ name: u.name, category: u.category }), {
+      from: youngUsersQuery,
+      union: oldUsersQuery,
+    });
 
     const result = await select(
       (u) => ({
@@ -401,9 +363,7 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
       },
     ).execute(testDb);
 
-    assert<
-      Equals<typeof result, { name: string; category: string; foo: string }[]>
-    >();
+    assert<Equals<typeof result, { name: string; category: string; foo: string }[]>>();
 
     expect(result).toHaveLength(4);
     expect(result).toEqual(
@@ -417,10 +377,7 @@ describe("Set operations (UNION, INTERSECT, EXCEPT)", () => {
   });
 
   it.skip("cannot use set operations with incompatible types", async () => {
-    const query1 = values(
-      { id: Int4.new(1), name: Text.new("Alice") },
-      { id: Int4.new(2), name: Text.new("Bob") },
-    );
+    const query1 = values({ id: Int4.new(1), name: Text.new("Alice") }, { id: Int4.new(2), name: Text.new("Bob") });
 
     select(
       // @ts-expect-error
