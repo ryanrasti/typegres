@@ -32,9 +32,7 @@ describe("Outer Joins", () => {
         },
       );
 
-      const usersWithOrders = users.leftJoin(orders, "o", (u, { o }) =>
-        u.id["="](o.userId),
-      );
+      const usersWithOrders = users.leftJoin(orders, "o", (u, { o }) => u.id["="](o.userId));
 
       const result = await select(
         (u, { o }) => ({
@@ -88,9 +86,7 @@ describe("Outer Joins", () => {
         },
       );
 
-      const usersWithOrders = users.leftJoin(orders, "o", (u, { o }) =>
-        u.id["="](o.userId),
-      );
+      const usersWithOrders = users.leftJoin(orders, "o", (u, { o }) => u.id["="](o.userId));
 
       const result = await select(
         (u, { o }) => ({
@@ -118,10 +114,7 @@ describe("Outer Joins", () => {
     });
 
     it("can chain multiple left joins", async () => {
-      const users = values(
-        { id: Int4.new(1), name: Text.new("Alice") },
-        { id: Int4.new(2), name: Text.new("Bob") },
-      );
+      const users = values({ id: Int4.new(1), name: Text.new("Alice") }, { id: Int4.new(2), name: Text.new("Bob") });
 
       const profiles = values({
         id: Int4.new(1),
@@ -134,14 +127,8 @@ describe("Outer Joins", () => {
         { id: Int4.new(2), userId: Int4.new(2), theme: Text.new("light") },
       );
 
-      const usersWithProfiles = users.leftJoin(profiles, "p", (u, { p }) =>
-        u.id["="](p.userId),
-      );
-      const usersWithProfilesAndSettings = usersWithProfiles.leftJoin(
-        settings,
-        "s",
-        (u, { s }) => u.id["="](s.userId),
-      );
+      const usersWithProfiles = users.leftJoin(profiles, "p", (u, { p }) => u.id["="](p.userId));
+      const usersWithProfilesAndSettings = usersWithProfiles.leftJoin(settings, "s", (u, { s }) => u.id["="](s.userId));
 
       const result = await select(
         (u, { p, s }) => ({
@@ -199,9 +186,7 @@ describe("Outer Joins", () => {
         { id: Int4.new(3), name: Text.new("Charlie") }, // User with no orders
       );
 
-      const ordersWithUsers = orders.rightJoin(users, "u", (o, { u }) =>
-        o.userId["="](u.id),
-      );
+      const ordersWithUsers = orders.rightJoin(users, "u", (o, { u }) => o.userId["="](u.id));
 
       const result = await select(
         (o, { u }) => ({
@@ -249,9 +234,7 @@ describe("Outer Joins", () => {
         { id: Int4.new(4), data: Text.new("Z") },
       );
 
-      const joined = table1.fullOuterJoin(table2, "t2", (t1, { t2 }) =>
-        t1.id["="](t2.id),
-      );
+      const joined = table1.fullOuterJoin(table2, "t2", (t1, { t2 }) => t1.id["="](t2.id));
 
       const result = await select(
         (t1, { t2 }) => ({
@@ -289,10 +272,7 @@ describe("Outer Joins", () => {
 
   describe("Complex join scenarios", () => {
     it("can mix inner and outer joins", async () => {
-      const users = values(
-        { id: Int4.new(1), name: Text.new("Alice") },
-        { id: Int4.new(2), name: Text.new("Bob") },
-      );
+      const users = values({ id: Int4.new(1), name: Text.new("Alice") }, { id: Int4.new(2), name: Text.new("Bob") });
 
       const orders = values(
         { id: Int4.new(101), userId: Int4.new(1), productId: Int4.new(1) },
@@ -362,11 +342,7 @@ describe("Outer Joins", () => {
         },
       );
 
-      const categoriesWithProducts = categories.leftJoin(
-        products,
-        "p",
-        (c, { p }) => c.id["="](p.categoryId),
-      );
+      const categoriesWithProducts = categories.leftJoin(products, "p", (c, { p }) => c.id["="](p.categoryId));
 
       const result = await select(
         (c, { p }) => ({
@@ -400,19 +376,14 @@ describe("Outer Joins", () => {
     });
 
     it("can handle nullable columns in select", async () => {
-      const users = values(
-        { id: Int4.new(1), name: Text.new("Alice") },
-        { id: Int4.new(2), name: Text.new("Bob") },
-      );
+      const users = values({ id: Int4.new(1), name: Text.new("Alice") }, { id: Int4.new(2), name: Text.new("Bob") });
 
       const preferences = values({
         userId: Int4.new(1),
         theme: Text.new("custom"),
       });
 
-      const usersWithPrefs = users.leftJoin(preferences, "p", (u, { p }) =>
-        u.id["="](p.userId),
-      );
+      const usersWithPrefs = users.leftJoin(preferences, "p", (u, { p }) => u.id["="](p.userId));
 
       const result = await select(
         (u, { p }) => ({

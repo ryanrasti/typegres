@@ -270,11 +270,7 @@ describe("MERGE parser", () => {
     expect(result.sql).toBe(
       'MERGE INTO "users" as "users" USING (VALUES (cast($1 as text), cast($2 as int4), cast($3 as text))) as "values"("email", "id", "name") ON ("users"."id" = "values"."id") WHEN NOT MATCHED THEN INSERT ("name", "email") OVERRIDING USER VALUE VALUES ("values"."name", "values"."email")',
     );
-    expect(result.parameters).toEqual([
-      "override@example.com",
-      200,
-      "User Override",
-    ]);
+    expect(result.parameters).toEqual(["override@example.com", 200, "User Override"]);
   });
 
   it("should handle duplicate when clause types passed as list", () => {
@@ -325,21 +321,7 @@ describe("MERGE parser", () => {
     expect(result.sql).toBe(
       'MERGE INTO "users" as "users" USING (VALUES (cast($1 as int4), cast($2 as text), cast($3 as int4)), (cast($4 as int4), cast($5 as text), cast($6 as int4)), (cast($7 as int4), cast($8 as text), cast($9 as int4))) as "values"("id", "name", "priority") ON ("users"."id" = "values"."id") WHEN MATCHED AND ("values"."priority" = $10) THEN UPDATE SET "name" = "values"."name", "active" = cast($11 as int4) WHEN MATCHED AND ("values"."priority" = $12) THEN UPDATE SET "name" = "values"."name", "active" = cast($13 as int4) WHEN MATCHED THEN DELETE WHEN NOT MATCHED THEN INSERT ("id", "name") VALUES ("values"."id", "values"."name")',
     );
-    expect(result.parameters).toEqual([
-      1,
-      "First",
-      1,
-      2,
-      "Second",
-      2,
-      3,
-      "Third",
-      3,
-      1,
-      1,
-      2,
-      0,
-    ]);
+    expect(result.parameters).toEqual([1, "First", 1, 2, "Second", 2, 3, "Third", 3, 1, 1, 2, 0]);
   });
 
   describe("e2e tests", () => {

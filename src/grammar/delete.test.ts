@@ -38,9 +38,7 @@ describe("DELETE parser", () => {
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
 
-    expect(result.sql).toBe(
-      'DELETE FROM "users" as "users" WHERE ("users"."id" = cast($1 as int4))',
-    );
+    expect(result.sql).toBe('DELETE FROM "users" as "users" WHERE ("users"."id" = cast($1 as int4))');
     expect(result.parameters).toEqual([1]);
   });
 
@@ -53,9 +51,7 @@ describe("DELETE parser", () => {
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
 
-    expect(result.sql).toBe(
-      'DELETE FROM "users" as "users" RETURNING "users"."id" AS "id", "users"."name" AS "name"',
-    );
+    expect(result.sql).toBe('DELETE FROM "users" as "users" RETURNING "users"."id" AS "id", "users"."name" AS "name"');
     expect(result.parameters).toEqual([]);
   });
 
@@ -97,10 +93,7 @@ describe("DELETE parser", () => {
       const parsed = delete_({
         from: db.Comments,
         using: db.Users,
-        where: (commentRow, userRow) =>
-          commentRow.user_id["="](userRow.id).and(
-            userRow.active["="](Int4.new(0)),
-          ),
+        where: (commentRow, userRow) => commentRow.user_id["="](userRow.id).and(userRow.active["="](Int4.new(0))),
       });
 
       const compiled = parsed.compile();
@@ -116,10 +109,7 @@ describe("DELETE parser", () => {
       const parsed = delete_({
         from: db.Posts,
         using: db.Users,
-        where: (postRow, userRow) =>
-          postRow.user_id["="](userRow.id).and(
-            userRow.role["="](Text.new("deleted")),
-          ),
+        where: (postRow, userRow) => postRow.user_id["="](userRow.id).and(userRow.role["="](Text.new("deleted"))),
         returning: (postRow, userRow) => ({
           postId: postRow.id,
           postTitle: postRow.title,
@@ -137,9 +127,7 @@ describe("DELETE parser", () => {
     });
 
     it("should parse DELETE with USING joined table (true 3 tables)", () => {
-      const usersJoinPosts = db.Users.join(db.Posts, "p", (u, { p }) =>
-        u.id["="](p.user_id),
-      );
+      const usersJoinPosts = db.Users.join(db.Posts, "p", (u, { p }) => u.id["="](p.user_id));
 
       const parsed = delete_({
         from: db.Comments,
@@ -179,8 +167,7 @@ describe("DELETE parser", () => {
 
           const parsed = delete_({
             from: db.Person,
-            where: (deleteRow) =>
-              deleteRow.lastName["="](Text.new("TestDelete")),
+            where: (deleteRow) => deleteRow.lastName["="](Text.new("TestDelete")),
             returning: (deleteRow) => ({
               firstName: deleteRow.firstName,
               lastName: deleteRow.lastName,
@@ -236,9 +223,7 @@ describe("DELETE parser", () => {
           const parsed = delete_({
             from: db.Pet,
             where: (deleteRow) =>
-              deleteRow.species["="](Text.new("dog")).and(
-                deleteRow.ownerId["="](Int4.new(ownerId)),
-              ),
+              deleteRow.species["="](Text.new("dog")).and(deleteRow.ownerId["="](Int4.new(ownerId))),
             returning: (deleteRow) => ({
               name: deleteRow.name,
               species: deleteRow.species,
@@ -308,8 +293,7 @@ describe("DELETE parser", () => {
           const parsed = delete_({
             from: db.Comments,
             using: db.Users,
-            where: (commentRow, userRow) =>
-              commentRow.user_id["="](userRow.id).and(userRow.active["="](0)),
+            where: (commentRow, userRow) => commentRow.user_id["="](userRow.id).and(userRow.active["="](0)),
             returning: (commentRow, userRow) => ({
               commentContent: commentRow.content,
               userName: userRow.name,
@@ -343,9 +327,7 @@ describe("DELETE parser", () => {
             SELECT content FROM comments WHERE user_id IN (${inactiveUserId}, ${activeUserId})
           `.execute();
           expect(checkResult).toHaveLength(1);
-          expect((checkResult[0] as any).content).toBe(
-            "Comment from active user",
-          );
+          expect((checkResult[0] as any).content).toBe("Comment from active user");
         });
       });
 
@@ -390,11 +372,7 @@ describe("DELETE parser", () => {
               (${publishedPostId}, ${goodUserId}, 'Comment on published by good')
           `.execute();
 
-          const usersJoinPosts = db.Users.join(
-            db.Posts,
-            "post",
-            (u, { post }) => u.id["="](post.user_id),
-          );
+          const usersJoinPosts = db.Users.join(db.Posts, "post", (u, { post }) => u.id["="](post.user_id));
 
           // Delete comments on unpublished posts by inactive users
           const parsed = delete_({
@@ -452,13 +430,7 @@ describe("DELETE parser", () => {
     it("should parse DELETE with WITH clause", () => {
       const query = with_(
         (cte) => ({
-          toDelete: cte(
-            values(
-              { id: Int4.new(1) },
-              { id: Int4.new(2) },
-              { id: Int4.new(3) },
-            ),
-          ),
+          toDelete: cte(values({ id: Int4.new(1) }, { id: Int4.new(2) }, { id: Int4.new(3) })),
         }),
         ({ toDelete }) =>
           delete_({
@@ -496,9 +468,7 @@ describe("DELETE parser", () => {
         // Delete inactive users using WITH clause
         const query = with_(
           (cte) => ({
-            inactiveIds: cte(
-              values({ id: Int4.new(102) }, { id: Int4.new(103) }),
-            ),
+            inactiveIds: cte(values({ id: Int4.new(102) }, { id: Int4.new(103) })),
           }),
           ({ inactiveIds }) =>
             delete_({

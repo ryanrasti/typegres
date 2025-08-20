@@ -21,11 +21,10 @@ UPDATE [ ONLY ] table_name [ * ] [ [ AS ] alias ]
 */
 
 // Helper type to construct the proper argument types based on whether FROM is provided
-type UpdateArgs<
-  U extends Types.RowLike,
-  F extends Types.RowLike,
-  J extends Types.Joins,
-> = [U, ...Types.FromToSelectArgs<F, J>]; // Always [updateRow, ...fromSelectArgs]
+type UpdateArgs<U extends Types.RowLike, F extends Types.RowLike, J extends Types.Joins> = [
+  U,
+  ...Types.FromToSelectArgs<F, J>,
+]; // Always [updateRow, ...fromSelectArgs]
 
 export class Update<
   U extends Types.RowLikeStrict = Types.RowLikeStrict,
@@ -51,18 +50,13 @@ export class Update<
 
   private updateAndFromArgs(): UpdateArgs<U, F, J> {
     const [{ table }] = this.clause;
-    return [
-      table.toSelectArgs()[0],
-      ...(this.fromItem?.toSelectArgs() ?? []),
-    ] as UpdateArgs<U, F, J>;
+    return [table.toSelectArgs()[0], ...(this.fromItem?.toSelectArgs() ?? [])] as UpdateArgs<U, F, J>;
   }
 
   compile(ctxIn = Context.new()) {
     const [{ table, only }, { set, from, where, returning }] = this.clause;
 
-    const ctx = this.fromItem
-      ? this.fromItem.getContext(table.getContext(ctxIn))
-      : table.getContext(ctxIn);
+    const ctx = this.fromItem ? this.fromItem.getContext(table.getContext(ctxIn)) : table.getContext(ctxIn);
 
     const clauses = compileClauses(
       {
@@ -76,16 +70,13 @@ export class Update<
       {
         only: () => sql`ONLY`,
         table: (table) => {
-          return sql`${table.rawFromExpr.compile(ctx)} as ${sql.ref(
-            ctx.getAlias(table.fromAlias),
-          )}`;
+          return sql`${table.rawFromExpr.compile(ctx)} as ${sql.ref(ctx.getAlias(table.fromAlias))}`;
         },
         set: (fn) => {
           const assignments = fn(...this.updateAndFromArgs());
           return sql`SET ${sqlJoin(
             Object.entries(pickAny(assignments)).map(
-              ([col, val]) =>
-                sql`${sql.ref(col)} = ${val.toExpression().compile(ctx)}`,
+              ([col, val]) => sql`${sql.ref(col)} = ${val.toExpression().compile(ctx)}`,
             ),
           )}`;
         },
@@ -97,10 +88,7 @@ export class Update<
         returning: (fn) => {
           const returnList = fn(...this.updateAndFromArgs());
           return sql`RETURNING ${sqlJoin(
-            Object.entries(returnList).map(
-              ([alias, v]) =>
-                sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`,
-            ),
+            Object.entries(returnList).map(([alias, v]) => sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`),
           )}`;
         },
       },
@@ -125,11 +113,7 @@ export class Update<
     try {
       raw = await typegres._internal.executeQuery(compiledRaw);
     } catch (error) {
-      console.error(
-        "Error executing query: ",
-        compiledRaw.sql,
-        compiledRaw.parameters,
-      );
+      console.error("Error executing query: ", compiledRaw.sql, compiledRaw.parameters);
       throw error;
     }
 
@@ -137,10 +121,7 @@ export class Update<
     const returnShape = this.getRowLike();
     if (returnShape) {
       return raw.rows.map((row) => {
-        invariant(
-          typeof row === "object" && row !== null,
-          "Expected each row to be an object",
-        );
+        invariant(typeof row === "object" && row !== null, "Expected each row to be an object");
         return parseRowLike(returnShape, row);
       }) as RowLikeResult<R>[];
     }

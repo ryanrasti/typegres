@@ -91,6 +91,4 @@ export function installTypegresToMonaco(monaco: typeof import('monaco-editor')) 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, bundleContent);
 
-console.log(
-  `Successfully bundled ${Object.keys(typeFiles).length} type definition files to ${outputPath}`,
-);
+console.log(`Successfully bundled ${Object.keys(typeFiles).length} type definition files to ${outputPath}`);

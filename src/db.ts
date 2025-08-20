@@ -17,10 +17,7 @@ export class Typegres {
   }
 
   // Execute raw SQL query using template literal
-  sql<T = unknown>(
-    strings: TemplateStringsArray,
-    ...values: unknown[]
-  ): { execute: () => Promise<T[]> } {
+  sql<T = unknown>(strings: TemplateStringsArray, ...values: unknown[]): { execute: () => Promise<T[]> } {
     const kysely = this.kysely;
     return {
       async execute(): Promise<T[]> {
@@ -35,10 +32,7 @@ export class Typegres {
   }
 
   // Execute a compiled query with parameters
-  async executeCompiled(
-    compiledSql: string,
-    parameters: unknown[],
-  ): Promise<unknown[]> {
+  async executeCompiled(compiledSql: string, parameters: unknown[]): Promise<unknown[]> {
     const result = await this.kysely.executeQuery({
       sql: compiledSql,
       parameters: parameters,
@@ -69,9 +63,7 @@ export class Typegres {
   }
 
   // Transaction with callback - auto commit/rollback
-  async transaction<T>(
-    callback: (tx: TypegresTransaction) => Promise<T>,
-  ): Promise<T> {
+  async transaction<T>(callback: (tx: TypegresTransaction) => Promise<T>): Promise<T> {
     // Just delegate to Kysely's transaction handling
     return await this.kysely.transaction().execute(async (kyselyTx) => {
       const tx = new TypegresTransactionImpl(kyselyTx);
@@ -84,9 +76,7 @@ export type DatabaseConfig =
   | { type: "pg"; PoolClass: typeof Pool; config?: PoolConfig }
   | { type: "pglite"; PGliteClass?: typeof PGlite; options?: PGliteOptions };
 
-async function createKyselyInstance(
-  dbConfig: DatabaseConfig,
-): Promise<Kysely<{}>> {
+async function createKyselyInstance(dbConfig: DatabaseConfig): Promise<Kysely<{}>> {
   if (dbConfig.type === "pg") {
     const { PoolClass, config } = dbConfig;
     return new Kysely<{}>({

@@ -27,9 +27,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn("id", "serial", (col) => col.primaryKey())
     .addColumn("title", "text", (col) => col.notNull())
     .addColumn("content", "text")
-    .addColumn("user_id", "integer", (col) =>
-      col.references("users.id").notNull(),
-    )
+    .addColumn("user_id", "integer", (col) => col.references("users.id").notNull())
     .addColumn("published", "integer", (col) => col.defaultTo(0))
     .execute();
 
@@ -39,9 +37,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn("id", "serial", (col) => col.primaryKey())
     .addColumn("title", "text", (col) => col.notNull())
     .addColumn("content", "text")
-    .addColumn("user_id", "integer", (col) =>
-      col.references("update_test_users.id").notNull(),
-    )
+    .addColumn("user_id", "integer", (col) => col.references("update_test_users.id").notNull())
     .addColumn("published", "integer", (col) => col.defaultTo(0))
     .execute();
 
@@ -49,12 +45,8 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable("comments")
     .addColumn("id", "serial", (col) => col.primaryKey())
-    .addColumn("post_id", "integer", (col) =>
-      col.references("posts.id").notNull(),
-    )
-    .addColumn("user_id", "integer", (col) =>
-      col.references("users.id").notNull(),
-    )
+    .addColumn("post_id", "integer", (col) => col.references("posts.id").notNull())
+    .addColumn("user_id", "integer", (col) => col.references("users.id").notNull())
     .addColumn("content", "text", (col) => col.notNull())
     .execute();
 

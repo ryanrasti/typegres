@@ -16,9 +16,7 @@ describe("WITH (CTE) parser", () => {
     it("should compile a simple WITH clause", () => {
       const query = with_(
         (cte) => ({
-          numbers: cte(
-            values({ n: Int4.new(1) }, { n: Int4.new(2) }, { n: Int4.new(3) }),
-          ),
+          numbers: cte(values({ n: Int4.new(1) }, { n: Int4.new(2) }, { n: Int4.new(3) })),
         }),
         ({ numbers }) => select((n) => ({ value: n.n }), { from: numbers }),
       );
@@ -64,12 +62,7 @@ describe("WITH (CTE) parser", () => {
     it("should support CTE referencing another CTE", () => {
       const query = with_(
         (cte) => ({
-          base: cte(
-            values(
-              { id: Int4.new(1), name: Text.new("Alice") },
-              { id: Int4.new(2), name: Text.new("Bob") },
-            ),
-          ),
+          base: cte(values({ id: Int4.new(1), name: Text.new("Alice") }, { id: Int4.new(2), name: Text.new("Bob") })),
           get filtered() {
             return cte(
               select((b) => ({ id: b.id, name: b.name }), {
@@ -79,8 +72,7 @@ describe("WITH (CTE) parser", () => {
             );
           },
         }),
-        ({ filtered }) =>
-          select((f) => ({ id: f.id, name: f.name }), { from: filtered }),
+        ({ filtered }) => select((f) => ({ id: f.id, name: f.name }), { from: filtered }),
       );
 
       const compiled = query.compile();
@@ -105,12 +97,9 @@ describe("WITH (CTE) parser", () => {
               }),
             );
           },
-          base: cte(
-            values({ n: Int4.new(1) }, { n: Int4.new(2) }, { n: Int4.new(3) }),
-          ),
+          base: cte(values({ n: Int4.new(1) }, { n: Int4.new(2) }, { n: Int4.new(3) })),
         }),
-        ({ derived }) =>
-          select((d) => ({ result: d.value }), { from: derived }),
+        ({ derived }) => select((d) => ({ result: d.value }), { from: derived }),
         { recursive: true },
       );
 
@@ -127,13 +116,10 @@ describe("WITH (CTE) parser", () => {
       const query = with_(
         (cte) => ({
           get numbers(): Cte<{ n: Int4<1> }> {
-            const recursive = select(
-              (prev: { n: Int4<1> }) => ({ n: prev.n["+"](Int4.new(1)) }),
-              {
-                from: this.numbers,
-                where: (prev) => prev.n["<"](Int4.new(10)),
-              },
-            );
+            const recursive = select((prev: { n: Int4<1> }) => ({ n: prev.n["+"](Int4.new(1)) }), {
+              from: this.numbers,
+              where: (prev) => prev.n["<"](Int4.new(10)),
+            });
             return cte(
               select(() => ({ n: Int4.new(1) }), {
                 unionAll: recursive,
@@ -296,12 +282,7 @@ describe("WITH (CTE) parser", () => {
     it("should handle CTEs with joins", () => {
       const query = with_(
         (cte) => ({
-          users: cte(
-            values(
-              { id: Int4.new(1), name: Text.new("Alice") },
-              { id: Int4.new(2), name: Text.new("Bob") },
-            ),
-          ),
+          users: cte(values({ id: Int4.new(1), name: Text.new("Alice") }, { id: Int4.new(2), name: Text.new("Bob") })),
           orders: cte(
             values(
               { id: Int4.new(1), userId: Int4.new(1), amount: Int4.new(100) },
@@ -329,21 +310,7 @@ describe("WITH (CTE) parser", () => {
       expect(result.sql).toBe(
         'WITH "users"("id", "name") AS (VALUES (cast($1 as int4), cast($2 as text)), (cast($3 as int4), cast($4 as text))) "orders"("amount", "id", "userId") AS (VALUES (cast($5 as int4), cast($6 as int4), cast($7 as int4)), (cast($8 as int4), cast($9 as int4), cast($10 as int4)), (cast($11 as int4), cast($12 as int4), cast($13 as int4))) (SELECT "o"."amount" AS "amount", "o"."id" AS "orderId", "users"."name" AS "userName" FROM "users" as "users" JOIN "orders" as "o" ON ("users"."id" = "o"."userId"))',
       );
-      expect(result.parameters).toEqual([
-        1,
-        "Alice",
-        2,
-        "Bob",
-        100,
-        1,
-        1,
-        200,
-        2,
-        1,
-        150,
-        3,
-        2,
-      ]);
+      expect(result.parameters).toEqual([1, "Alice", 2, "Bob", 100, 1, 1, 200, 2, 1, 150, 3, 2]);
     });
 
     it("should handle nested WITH clauses in final query", () => {
@@ -351,8 +318,7 @@ describe("WITH (CTE) parser", () => {
         (cte) => ({
           base: cte(values({ n: Int4.new(1) })),
         }),
-        ({ base }) =>
-          select((b) => ({ doubled: b.n["*"](Int4.new(2)) }), { from: base }),
+        ({ base }) => select((b) => ({ doubled: b.n["*"](Int4.new(2)) }), { from: base }),
       );
 
       const compiled = query.compile();
@@ -442,13 +408,7 @@ describe("WITH (CTE) parser", () => {
           >
         >();
 
-        expect(result).toEqual([
-          { num: 1 },
-          { num: 2 },
-          { num: 3 },
-          { num: 4 },
-          { num: 5 },
-        ]);
+        expect(result).toEqual([{ num: 1 }, { num: 2 }, { num: 3 }, { num: 4 }, { num: 5 }]);
       });
     });
 

@@ -16,11 +16,10 @@ DELETE FROM [ ONLY ] table_name [ * ] [ [ AS ] alias ]
     [ RETURNING { * | output_expression [ [ AS ] output_name ] } [, ...] ]
 */
 
-type DeleteArgs<
-  D extends Types.RowLike,
-  U extends Types.RowLike,
-  J extends Types.Joins,
-> = [D, ...Types.FromToSelectArgs<U, J>];
+type DeleteArgs<D extends Types.RowLike, U extends Types.RowLike, J extends Types.Joins> = [
+  D,
+  ...Types.FromToSelectArgs<U, J>,
+];
 
 export class Delete<
   D extends Types.RowLikeStrict = Types.RowLikeStrict,
@@ -45,18 +44,13 @@ export class Delete<
 
   private get args(): DeleteArgs<D, U, J> {
     const [{ from }] = this.clause;
-    return [
-      from.toSelectArgs()[0],
-      ...(this.usingItem?.toSelectArgs() ?? []),
-    ] as DeleteArgs<D, U, J>;
+    return [from.toSelectArgs()[0], ...(this.usingItem?.toSelectArgs() ?? [])] as DeleteArgs<D, U, J>;
   }
 
   compile(ctxIn = Context.new()) {
     const [{ from, only }, { using, where, returning }] = this.clause;
 
-    const ctx = this.usingItem
-      ? this.usingItem.getContext(from.getContext(ctxIn))
-      : from.getContext(ctxIn);
+    const ctx = this.usingItem ? this.usingItem.getContext(from.getContext(ctxIn)) : from.getContext(ctxIn);
 
     const clauses = compileClauses(
       {
@@ -78,10 +72,7 @@ export class Delete<
         returning: (fn) => {
           const returnList = fn(...this.args);
           return sql`RETURNING ${sqlJoin(
-            Object.entries(returnList).map(
-              ([alias, v]) =>
-                sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`,
-            ),
+            Object.entries(returnList).map(([alias, v]) => sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`),
           )}`;
         },
       },
@@ -102,11 +93,7 @@ export class Delete<
     try {
       raw = await typegres._internal.executeQuery(compiledRaw);
     } catch (error) {
-      console.error(
-        "Error executing query: ",
-        compiledRaw.sql,
-        compiledRaw.parameters,
-      );
+      console.error("Error executing query: ", compiledRaw.sql, compiledRaw.parameters);
       throw error;
     }
 
@@ -114,10 +101,7 @@ export class Delete<
     if (!returnShape) return raw.rows as RowLikeResult<R>[];
 
     return raw.rows.map((row) => {
-      invariant(
-        typeof row === "object" && row !== null,
-        "Expected each row to be an object",
-      );
+      invariant(typeof row === "object" && row !== null, "Expected each row to be an object");
       return parseRowLike(returnShape, row);
     }) as RowLikeResult<R>[];
   }

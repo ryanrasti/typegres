@@ -2,15 +2,7 @@ import { QueryResult, RawBuilder, sql } from "kysely";
 import { Context } from "../expression";
 import * as Types from "../types";
 import { Typegres } from "../db";
-import {
-  bareRowLike,
-  parseRowLike,
-  PickAny,
-  pickAny,
-  rawAliasRowLike,
-  RowLikeResult,
-  Values,
-} from "../query/values";
+import { bareRowLike, parseRowLike, PickAny, pickAny, rawAliasRowLike, RowLikeResult, Values } from "../query/values";
 import invariant from "tiny-invariant";
 import { sqlJoin, compileClauses } from "./utils";
 import { Select } from "./select";
@@ -49,11 +41,7 @@ export class Insert<
   constructor(public clause: Parameters<typeof insert<I, K, S, R>>) {}
 
   compile(ctxIn = Context.new()) {
-    const [
-      { into, columns, overriding },
-      values,
-      { onConflict, returning } = {},
-    ] = this.clause;
+    const [{ into, columns, overriding }, values, { onConflict, returning } = {}] = this.clause;
 
     const ctx = into.getContext(ctxIn);
 
@@ -71,8 +59,7 @@ export class Insert<
           // For INSERT, we just need the table name, not a full FROM item compilation
           return sql`INTO ${table.rawFromExpr.compile(ctx)}`;
         },
-        columns: (cols) =>
-          sql`(${sqlJoin(cols.toSorted().map((col) => sql.ref(col as string)))})`,
+        columns: (cols) => sql`(${sqlJoin(cols.toSorted().map((col) => sql.ref(col as string)))})`,
         overriding: ([systemOrUser, _value]) =>
           sql`OVERRIDING ${systemOrUser === "system" ? sql`SYSTEM` : sql`USER`} VALUE`,
         values: (vals) => {
@@ -84,15 +71,11 @@ export class Insert<
           }
           return sql`(${vals.compile(ctx)})`;
         },
-        onConflict: (input) =>
-          compileOnConflictInput(input, into.toSelectArgs()[0], ctx),
+        onConflict: (input) => compileOnConflictInput(input, into.toSelectArgs()[0], ctx),
         returning: (fn) => {
           const returnList = fn(into.toSelectArgs()[0]);
           return sql`RETURNING ${sqlJoin(
-            Object.entries(returnList).map(
-              ([alias, v]) =>
-                sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`,
-            ),
+            Object.entries(returnList).map(([alias, v]) => sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`),
           )}`;
         },
       },
@@ -118,11 +101,7 @@ export class Insert<
     try {
       raw = await typegres._internal.executeQuery(compiledRaw);
     } catch (error) {
-      console.error(
-        "Error executing query: ",
-        compiledRaw.sql,
-        compiledRaw.parameters,
-      );
+      console.error("Error executing query: ", compiledRaw.sql, compiledRaw.parameters);
       throw error;
     }
 
@@ -130,10 +109,7 @@ export class Insert<
     const returnShape = this.getRowLike();
     if (returnShape) {
       return raw.rows.map((row) => {
-        invariant(
-          typeof row === "object" && row !== null,
-          "Expected each row to be an object",
-        );
+        invariant(typeof row === "object" && row !== null, "Expected each row to be an object");
         return parseRowLike(returnShape, row);
       }) as RowLikeResult<R>[];
     }
@@ -200,20 +176,14 @@ type OnConflictInput<I extends Types.RowLike> = XOR<
     >
 >;
 
-const compileOnConflictInput = <I extends Types.RowLike>(
-  onConflict: OnConflictInput<I>,
-  args: I,
-  ctx: Context,
-) => {
+const compileOnConflictInput = <I extends Types.RowLike>(onConflict: OnConflictInput<I>, args: I, ctx: Context) => {
   const ret = compileClauses(onConflict, {
     target: (target) => sql`(${compileConflictTarget(target, args, ctx)})`,
     onConstraint: (constraintName) => sql`ON CONSTRAINT ${constraintName}`,
     where: (whereFn) => sql`WHERE ${whereFn(args).toExpression().compile(ctx)}`,
     doNothing: () => sql`DO NOTHING`,
     doUpdateSet: (updateSet) => {
-      const normalized = Array.isArray(updateSet)
-        ? updateSet
-        : ([updateSet] as const);
+      const normalized = Array.isArray(updateSet) ? updateSet : ([updateSet] as const);
       const [setFn, opts] = normalized;
 
       const pickedArgs = pickAny(args);
@@ -221,19 +191,14 @@ const compileOnConflictInput = <I extends Types.RowLike>(
 
       const setClause = sql`SET ${sqlJoin(
         Object.entries(setFn(pickedArgs, excluded)).map(([col, val]) => {
-          invariant(
-            val instanceof Types.Any,
-            `Expected value for column ${col} to be an instance of Any`,
-          );
+          invariant(val instanceof Types.Any, `Expected value for column ${col} to be an instance of Any`);
           return sql`${sql.ref(col)} = ${val.toExpression().compile(ctx)}`;
         }),
       )}`;
       return sql`DO UPDATE ${sqlJoin(
-        [
-          setClause,
-          opts?.where &&
-            sql`WHERE ${opts.where(args, excluded).toExpression().compile(ctx)}`,
-        ].filter(Boolean),
+        [setClause, opts?.where && sql`WHERE ${opts.where(args, excluded).toExpression().compile(ctx)}`].filter(
+          Boolean,
+        ),
         sql` `,
       )}`;
     },
@@ -242,10 +207,7 @@ const compileOnConflictInput = <I extends Types.RowLike>(
 };
 
 // Type for the VALUES clause - either literal values, VALUES clause, or a subquery
-type ValuesInput<S extends Types.RowLikeStrict> =
-  | "defaultValues"
-  | Values<S>
-  | Select<S, any, any>;
+type ValuesInput<S extends Types.RowLikeStrict> = "defaultValues" | Values<S> | Select<S, any, any>;
 
 export const insert = <
   I extends Types.RowLikeStrict,

@@ -74,10 +74,7 @@ export type RecordClass<T extends { [key in string]: Any<unknown, 0 | 1> }> = {
   parse(v: string): { [key in keyof T]: T[key]["resultType"] };
 };
 
-export type RecordInstance<
-  N extends number,
-  T extends { [k in string]: Any<unknown, 0 | 1> },
-> = Record<N, T> & T;
+export type RecordInstance<N extends number, T extends { [k in string]: Any<unknown, 0 | 1> }> = Record<N, T> & T;
 
 export default abstract class Record<
   N extends number,
@@ -86,10 +83,7 @@ export default abstract class Record<
   public abstract schema: { [K in keyof T]: ReturnType<T[K]["getClass"]> };
 
   static of<S extends Schema>(schema: S): RecordClass<SchemaPrototype<S>> {
-    return class RecordImpl<N extends number> extends Record<
-      N,
-      SchemaPrototype<S>
-    > {
+    return class RecordImpl<N extends number> extends Record<N, SchemaPrototype<S>> {
       schema = schema as any;
 
       static resultType:
@@ -114,10 +108,7 @@ export default abstract class Record<
         const parts = array.parse(`{${v.slice(1, -1)}}`, (v) => v);
         // 2. Then each part corresponds to a k/v in the schema:
         return Object.fromEntries(
-          Object.entries(schema).map(([key, value], i) => [
-            key,
-            value.parse(parts[i]),
-          ]),
+          Object.entries(schema).map(([key, value], i) => [key, value.parse(parts[i])]),
         ) as SchemaResultType<S>;
       }
 
@@ -125,11 +116,7 @@ export default abstract class Record<
         super(v);
         for (const [key, value] of Object.entries(schema)) {
           if (key in this) {
-            throw new Error(
-              `Record constructor: ${key} already defined ${JSON.stringify(
-                this,
-              )}, cannot redefine`,
-            );
+            throw new Error(`Record constructor: ${key} already defined ${JSON.stringify(this)}, cannot redefine`);
           }
 
           (this as any)[key] = value.new(
@@ -149,18 +136,14 @@ export default abstract class Record<
           return super.toExpression();
         }
         if (typeof this.v !== "string") {
-          throw new Error(
-            `Record.toExpression: expected string, got ${typeof this.v}`,
-          );
+          throw new Error(`Record.toExpression: expected string, got ${typeof this.v}`);
         }
         return new LiteralRecordExpression(this.v, schema);
       }
 
       static new(v: string): Record<1, SchemaPrototype<S>> & SchemaPrototype<S>;
       static new(v: null): Record<0, SchemaPrototype<S>> & SchemaPrototype<S>;
-      static new(
-        v: Expression,
-      ): Record<0 | 1, SchemaPrototype<S>> & SchemaPrototype<S>;
+      static new(v: Expression): Record<0 | 1, SchemaPrototype<S>> & SchemaPrototype<S>;
       static new(v: unknown) {
         return new RecordImpl(v as unknown as string) as any;
       }

@@ -121,11 +121,7 @@ export class FunctionExpression extends Expression {
 
   compile(ctx: Context) {
     const funcName = this.isReserved ? sql.ref(this.name) : sql.raw(this.name);
-    return sql`${funcName}(${
-      this.args.length === 0
-        ? sql``
-        : sql.join(this.args.map((arg) => arg.compile(ctx)))
-    })`;
+    return sql`${funcName}(${this.args.length === 0 ? sql`` : sql.join(this.args.map((arg) => arg.compile(ctx)))})`;
   }
 }
 
@@ -138,9 +134,7 @@ export class BinaryOperatorExpression extends Expression {
   }
 
   compile(ctx: Context) {
-    return sql`(${this.args[0].compile(ctx)} ${sql.raw(
-      this.operator,
-    )} ${this.args[1].compile(ctx)})`;
+    return sql`(${this.args[0].compile(ctx)} ${sql.raw(this.operator)} ${this.args[1].compile(ctx)})`;
   }
 }
 
@@ -197,9 +191,7 @@ export class InExpression extends Expression {
 
   compile(ctx: Context) {
     if (Array.isArray(this.list)) {
-      return sql`(${this.value.compile(ctx)} IN (${sql.join(
-        this.list.map((item) => item.compile(ctx)),
-      )}))`;
+      return sql`(${this.value.compile(ctx)} IN (${sql.join(this.list.map((item) => item.compile(ctx)))}))`;
     }
     return sql`(${this.value.compile(ctx)} IN ${this.list.compile(ctx)})`;
   }
@@ -215,9 +207,7 @@ export class NotInExpression extends Expression {
 
   compile(ctx: Context) {
     if (Array.isArray(this.list)) {
-      return sql`(${this.value.compile(ctx)} NOT IN (${sql.join(
-        this.list.map((item) => item.compile(ctx)),
-      )}))`;
+      return sql`(${this.value.compile(ctx)} NOT IN (${sql.join(this.list.map((item) => item.compile(ctx)))}))`;
     }
     return sql`(${this.value.compile(ctx)} NOT IN ${this.list.compile(ctx)})`;
   }
@@ -259,17 +249,10 @@ export class WindowExpression extends Expression {
   compile(ctx: Context) {
     const parts = [
       this.spec?.partitionBy &&
-        sql`PARTITION BY ${sql.join(
-          [this.spec.partitionBy]
-            .flat()
-            .map((p) => p.toExpression().compile(ctx)),
-        )}`,
-      this.spec?.orderBy &&
-        sql`ORDER BY ${sql.join(compileOrderBy(this.spec.orderBy, ctx))}`,
+        sql`PARTITION BY ${sql.join([this.spec.partitionBy].flat().map((p) => p.toExpression().compile(ctx)))}`,
+      this.spec?.orderBy && sql`ORDER BY ${sql.join(compileOrderBy(this.spec.orderBy, ctx))}`,
     ].filter((x) => x != null);
 
-    return sql`${this.func.compile(ctx)} OVER (${
-      parts.length > 0 ? sql.join(parts, sql` `) : sql``
-    })`;
+    return sql`${this.func.compile(ctx)} OVER (${parts.length > 0 ? sql.join(parts, sql` `) : sql``})`;
   }
 }
