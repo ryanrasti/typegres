@@ -114,6 +114,21 @@ describe("View tests", () => {
         }
       }
 
+      // Test basic select:
+      const project = await ProjectView.select((p) => ({
+        budget: p.displayBudget(),
+      }))
+        .orderBy((p) => p.budget, { asc: true })
+        .execute(kdb);
+
+      assert<Equals<typeof project, { budget: string }[]>>();
+      expect(project).toEqual([
+        { budget: "5000000 cents" },
+        { budget: "7500000 cents" },
+        { budget: "10000000 cents" },
+        { budget: "15000000 cents" },
+      ]);
+
       // Test static method
       const activeProjects = await ProjectView.activeProjects().execute(kdb);
       assert<
