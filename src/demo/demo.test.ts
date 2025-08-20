@@ -1,13 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-type Examples = "Example 1" | "Example 2" | "Example 3";
+type Examples = "Trending Posts:" | "Viral Posts with Stats:" | "Analytics:";
 
 describe("demo.ts examples", async () => {
   const calls: {
-    "Example 1"?: { species: string }[];
-    "Example 2"?: { key: string; isNum: boolean }[];
-    "Example 3"?: { personName: string; petSpecies: string; petAge: number }[];
-    "Example 4"?: { result: number }[];
+    "Trending Posts:"?: unknown[];
+    "Viral Posts with Stats:"?: unknown[];
+    "Analytics:"?: unknown[];
   } = {};
 
   const spyConsole = vi
@@ -19,54 +18,62 @@ describe("demo.ts examples", async () => {
   spyConsole.mockRestore();
 
   const {
-    "Example 1": example1,
-    "Example 2": example2,
-    "Example 3": example3,
-    "Example 4": example4,
+    "Trending Posts:": example1,
+    "Viral Posts with Stats:": example2,
+    "Analytics:": example3,
   } = calls;
 
-  it("example1: grouping and aggregation on pets", async () => {
-    expect(Array.isArray(example1)).toBe(true);
-    // Should group by species and aggregate
-    expect(
-      example1?.toSorted((a, b) => a.species.localeCompare(b.species)),
-    ).toEqual([
+  it("example1: Trending posts with engagement metrics", async () => {
+    expect(example1).toEqual([
       {
-        species: "cat",
-        avgAge: 2,
-        stddev: 0,
-        total: 1n,
-        note: "cats are great!",
+        content: "PostgreSQL can do THAT?!",
+        engagement: 151,
+        trending: 151 / 7.5,
+        viral: true,
       },
       {
-        species: "dog",
-        avgAge: 6.5,
-        stddev: 3.5,
-        total: 2n,
-        note: "dogs are great!",
+        content: "Working on something new...",
+        engagement: 18,
+        trending: 18 / 3,
+        viral: false,
+      },
+      {
+        content: "Just shipped Typegres!",
+        engagement: 58,
+        trending: 58 / 36,
+        viral: false,
       },
     ]);
   });
 
-  it("example2: Jsonb jsonbEach and select", async () => {
+  it("example2: Viral posts with author and top comment", async () => {
     expect(example2).toEqual([
-      { key: "a!", isNum: true },
-      { key: "b!", isNum: true },
-      { key: "c!", isNum: false },
+      {
+        content: "PostgreSQL can do THAT?!",
+        author: "bob",
+        topComment: "This changes everything",
+        viral: true,
+      },
     ]);
   });
 
-  it("example3: join people and pets", async () => {
-    expect(Array.isArray(example3)).toBe(true);
+  it("example3: Analytics with window functions", async () => {
     expect(example3).toEqual([
-      { personName: "Alice", petSpecies: "cat", petAge: 2 },
-      { personName: "Bob", petSpecies: "dog", petAge: 3 },
-      { personName: "Charlie", petSpecies: "dog", petAge: 10 },
+      {
+        content: "Just shipped Typegres!",
+        engagementRank: 2n,
+        cumulativeLikes: 42n,
+      },
+      {
+        content: "PostgreSQL can do THAT?!",
+        engagementRank: 1n,
+        cumulativeLikes: 105n,
+      },
+      {
+        content: "Working on something new...",
+        engagementRank: 3n,
+        cumulativeLikes: 42n + 12n,
+      },
     ]);
-  });
-
-  it("example4: math coverage", async () => {
-    expect(Array.isArray(example4)).toBe(true);
-    expect(example4).toEqual([{ result: 1.669026835867367 }]);
   });
 });

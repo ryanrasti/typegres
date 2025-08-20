@@ -24,7 +24,7 @@ export type TableSchemaToRowLike<T extends TableSchema> = {
 
 export type Table<R extends RowLikeStrict, E extends RowLike = any> = {
   new (data: AnyOrParsed<R>): R & RowImpl<R>;
-  extend<E2 extends object>(): Table<R, E2>;
+  extend<E2 extends object>(): Table<R, E & E2>;
 } & WithFromItem<R & E, {}>;
 
 type Expand<T> = T extends object ? { [K in keyof T]: T[K] } : T;

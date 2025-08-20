@@ -1,12 +1,12 @@
 import { sql } from "kysely";
 import { Expression, QueryAlias } from "../expression";
-import { Bool } from "../types";
+import { Bool, RowLikeStrict } from "../types";
 import { maybePrimitiveToSqlType } from "../types/primitive";
 import { Context } from "../expression";
 import Any, { MakeNullable } from "../types/any";
 import { aliasRowLike, RowLike, ValuesExpression } from "./values";
 import invariant from "tiny-invariant";
-import type { TableSchema, TableSchemaToRowLike } from "./db";
+import { View, type TableSchema, type TableSchemaToRowLike } from "./db";
 import { withMixinProxy } from "./mixin";
 import { Select, select } from "../grammar/select";
 
@@ -325,6 +325,12 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
     return select<S, F, J>(cb ?? ((f: F) => f as unknown as S), {
       from: this,
     }) as Select<S, F, J>;
+  }
+
+  asClass<E extends object>(
+    this: FromItem<F extends RowLikeStrict ? F : never, J>,
+  ) {
+    return View(this).extend<E>();
   }
 }
 

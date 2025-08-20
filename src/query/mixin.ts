@@ -22,12 +22,7 @@ export function withMixinProxy<T, TMixin, TKeys extends keyof TMixin>(
       `Attribute '${inspect(attr)}' already exists on the class`,
     );
 
-    if (typeof mixinInstance[attr] === "function") {
-      // If it's a function, bind it to the mixin instance
-      extended[attr] = mixinInstance[attr].bind(mixinInstance) as any;
-    } else {
-      (extended as any)[attr] = mixinInstance[attr];
-    }
+    extended[attr] = mixinInstance[attr] as any;
   }
 
   return extended;
