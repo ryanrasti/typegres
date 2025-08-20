@@ -44,7 +44,12 @@ describe("demo.ts examples", async () => {
     expect(example2).toEqual([
       {
         content: "PostgreSQL can do THAT?!",
-        author: "bob",
+        author: {
+          id: 2,
+          username: "bob",
+          verified: false,
+          followers: 450,
+        },
         topComment: "Game changer!",
         viral: true,
       },

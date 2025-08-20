@@ -495,9 +495,9 @@ describe("Namespace sanitzation", () => {
     const res = await select(
       (s) => ({
         x: s.a,
-        y: select((s2) => ({ a: s2.a }), {
-          from: values({ a: Text.new("bar"), b: Numeric.new("2.2") }),
-        }).scalar(),
+        y: values({ a: Text.new("bar"), b: Numeric.new("2.2") })
+          .select()
+          .selectScalar((s2) => s2.a),
       }),
       {
         from: values({ a: Text.new("foo"), b: Numeric.new("1.1") }),

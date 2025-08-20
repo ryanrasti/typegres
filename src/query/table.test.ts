@@ -32,9 +32,7 @@ describe("Extending table classes", () => {
     }
 
     numComments() {
-      return select((c) => ({ count: c.id.count() }), {
-        from: this.comments(),
-      }).scalar();
+      return this.comments().selectScalar((c) => c.id.count());
     }
   }
 

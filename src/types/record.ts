@@ -7,9 +7,22 @@ import {
   ColumnAliasExpression,
   RawColumnAliasExpression,
   RawTableReferenceExpression,
+  RowLikeStrict,
   TableReferenceExpression,
 } from "../query/values";
 import { Context } from "../expression";
+
+export class RecordExpression extends Expression {
+  constructor(public values: RowLikeStrict) {
+    super();
+  }
+
+  compile(ctx: Context): RawBuilder<unknown> {
+    return sql`ROW(${sql.join(
+      Object.entries(this.values).map(([_key, value]) => sql`${value.toExpression().compile(ctx)}`),
+    )})`;
+  }
+}
 
 export class LiteralRecordExpression extends Expression {
   constructor(

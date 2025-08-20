@@ -7,6 +7,7 @@ const tg = await typegres({ type: "pglite" });
 // ------------------------------------
 // "Business logic in TypeScript, execution in PostgreSQL"
 
+// Some sample data we'll use as an in-memory table:
 const postData = values(
   {
     id: Int4.new(1),
@@ -20,6 +21,7 @@ const postData = values(
   { id: 3, authorId: 1, content: "Working on something new...", createdAt: "2025-08-15 19:00", likes: 12, comments: 3 },
 );
 
+// Define a model class that extends the in-memory data:
 class Post extends postData.asClass<Post>() {
   // These compile to SQL expressions, not JavaScript!
   engagement() {
@@ -29,7 +31,7 @@ class Post extends postData.asClass<Post>() {
 
   ageInHours() {
     // Using epoch difference for hours calculation
-    const epoch = datePart(Text.new("epoch"), this.now(true).minus(this.createdAt));
+    const epoch = datePart("epoch", this.now(true).minus(this.createdAt));
     return epoch.divide(3600);
   }
 
@@ -43,7 +45,7 @@ class Post extends postData.asClass<Post>() {
   }
 
   now(stub: boolean = false) {
-    // stub out now() for testing
+    // stub out `now()` for hermetic testing
     return stub ? Timestamptz.new("2025-08-15 20:00:00") : now();
   }
 }
@@ -80,15 +82,7 @@ const commentData = values(
 class User extends userData.asClass<User>() {
   displayName() {
     // Using CASE for conditional logic
-    return this.username.textcat(
-      caseWhen(
-        {
-          when: this.verified,
-          then: Text.new(" (verified)"),
-        },
-        Text.new(""),
-      ),
-    );
+    return this.username.concat(caseWhen({ when: this.verified, then: Text.new(" (verified)") }, Text.new("")));
   }
 
   isInfluencer() {
@@ -112,14 +106,8 @@ class PostWithStats extends Post.extend<PostWithStats>() {
 
 const example2 = await PostWithStats.select((p) => ({
   content: p.content,
-  author: p
-    .author()
-    .select((a) => ({ name: a.displayName() }))
-    .scalar(),
-  topComment: p
-    .topComment()
-    .select((c) => ({ name: c.content }))
-    .scalar(),
+  topComment: p.topComment().selectScalar((c) => c.content), // Just the content
+  author: p.author().scalar(), // Select an **entire object** as a Postgres record
   viral: p.isViral(),
 }))
   .where((p) => p.isViral())
@@ -139,7 +127,6 @@ const example3 = await Post.select((p) => ({
   // Window functions for rankings
   content: p.content,
   engagementRank: rank().over({ orderBy: [p.engagement(), "desc"] }),
-
   // Running totals
   cumulativeLikes: p.likes.sum().over({ partitionBy: p.authorId, orderBy: p.createdAt }),
 }))

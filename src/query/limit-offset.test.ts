@@ -522,15 +522,13 @@ describe("LIMIT and OFFSET", () => {
     );
 
     // Use a subquery to get the limit value
-    const limitValue = select((c) => ({ val: c.value }), {
-      from: config,
-      where: (c) => c.key["="]("page_size"),
-    }).scalar();
-
     const result = await select((u) => ({ id: u.id, name: u.name }), {
       from: users,
       orderBy: (u) => u.id,
-      limit: limitValue,
+      limit: config
+        .select()
+        .where((c) => c.key.eq("page_size"))
+        .selectScalar((c) => c.value),
     }).execute(testDb);
 
     assert<Equals<typeof result, { id: number; name: string }[]>>();
