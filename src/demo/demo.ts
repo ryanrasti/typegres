@@ -1,4 +1,4 @@
-import { Text, Int4, Timestamptz, View, Float8, values, typegres, datePart, caseWhen, now } from "typegres";
+import { Text, Int4, Timestamptz, Float8, values, typegres, datePart, caseWhen, now } from "typegres";
 
 const tg = await typegres({ type: "pglite" });
 
@@ -24,22 +24,22 @@ class Post extends postData.asClass<Post>() {
   // These compile to SQL expressions, not JavaScript!
   engagement() {
     // Comments worth 2x likes for engagement
-    return this.likes["+"](this.comments["*"](Int4.new(2)));
+    return this.likes.plus(this.comments.multiply(Int4.new(2)));
   }
 
   ageInHours() {
     // Using epoch difference for hours calculation
-    const epoch = datePart(Text.new("epoch"), this.now(true)["-"](this.createdAt));
-    return epoch["/"](3600);
+    const epoch = datePart(Text.new("epoch"), this.now(true).minus(this.createdAt));
+    return epoch.divide(3600);
   }
 
   trendingScore() {
     // Higher engagement + recency = trending
-    return this.engagement().cast(Float8)["/"](this.ageInHours()["+"](2));
+    return this.engagement().cast(Float8).divide(this.ageInHours().plus(2));
   }
 
   isViral() {
-    return this.engagement()[">"](100);
+    return this.engagement().gt(100);
   }
 
   now(stub: boolean = false) {
@@ -77,7 +77,7 @@ const commentData = values(
   { id: 3, postId: 1, authorId: 2, content: "Congrats!", likes: 2 },
 );
 
-class User extends View(userData).extend<User>() {
+class User extends userData.asClass<User>() {
   displayName() {
     // Using CASE for conditional logic
     return this.username.textcat(
@@ -92,24 +92,21 @@ class User extends View(userData).extend<User>() {
   }
 
   isInfluencer() {
-    return this.followers[">"](10000).or(this.verified);
+    return this.followers.gt(10000).or(this.verified);
   }
-}
-
-class Comment extends View(commentData).extend<Comment>() {
-  // No changes needed here
 }
 
 class PostWithStats extends Post.extend<PostWithStats>() {
   topComment() {
-    return Comment.select()
-      .where((c) => c.postId["="](this.id))
+    return commentData
+      .select()
+      .where((c) => c.postId.eq(this.id))
       .orderBy((c) => c.likes, { desc: true })
       .limit(1);
   }
 
   author() {
-    return User.select().where((u) => u.id["="](this.authorId));
+    return User.select().where((u) => u.id.eq(this.authorId));
   }
 }
 
