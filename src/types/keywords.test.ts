@@ -24,9 +24,7 @@ describe("Keyword operators", () => {
         },
       ).execute(testDb);
 
-      assert<
-        Equals<typeof result, { nameIsNull: boolean; ageIsNull: boolean }[]>
-      >();
+      assert<Equals<typeof result, { nameIsNull: boolean; ageIsNull: boolean }[]>>();
 
       expect(result).toEqual([
         { nameIsNull: false, ageIsNull: true },
@@ -216,11 +214,7 @@ describe("Keyword operators", () => {
     });
 
     it("should follow PostgreSQL three-valued logic for NOT", async () => {
-      const data = values(
-        { a: Types.Bool.new(true) },
-        { a: Types.Bool.new(false) },
-        { a: Types.Bool.new(null) },
-      );
+      const data = values({ a: Types.Bool.new(true) }, { a: Types.Bool.new(false) }, { a: Types.Bool.new(null) });
 
       const result = await select(
         (row) => ({
@@ -495,14 +489,10 @@ describe("Keyword operators", () => {
         },
       );
 
-      const result = await select(
-        (u) => ({ name: u.name, age: u.age, active: u.active }),
-        {
-          from: users,
-          where: (u) =>
-            u.active.and(u.age.isNotNull()).and(u.age[">"](Types.Int4.new(20))),
-        },
-      ).execute(testDb);
+      const result = await select((u) => ({ name: u.name, age: u.age, active: u.active }), {
+        from: users,
+        where: (u) => u.active.and(u.age.isNotNull()).and(u.age[">"](Types.Int4.new(20))),
+      }).execute(testDb);
 
       expect(result.length).toBe(1);
       expect(result[0].name).toBe("John");
@@ -574,9 +564,7 @@ describe("Keyword operators", () => {
           textToInt: row.text.cast(Types.Int4),
           numToText: row.num.cast(Types.Text),
           numToFloat: row.num.cast(Types.Float8),
-          nullableText: (Types.Text.new("456") as Types.Text<0 | 1>).cast(
-            Types.Numeric,
-          ), // nullable cast
+          nullableText: (Types.Text.new("456") as Types.Text<0 | 1>).cast(Types.Numeric), // nullable cast
         }),
         { from: data },
       ).execute(testDb);
@@ -909,9 +897,7 @@ describe("Keyword operators", () => {
         },
       ).execute(testDb);
 
-      assert<
-        Equals<typeof result, { coalesced: number; withLiteral: number }[]>
-      >();
+      assert<Equals<typeof result, { coalesced: number; withLiteral: number }[]>>();
 
       expect(result).toEqual([
         { coalesced: 10, withLiteral: 99 },

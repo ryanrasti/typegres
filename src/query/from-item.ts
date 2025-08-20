@@ -36,10 +36,7 @@ export type MakeJoinsNullable<J extends Joins> = {
   };
 };
 
-export type FromToSelectArgs<F extends RowLike, J extends Joins> = [
-  F,
-  JoinTables<J>,
-];
+export type FromToSelectArgs<F extends RowLike, J extends Joins> = [F, JoinTables<J>];
 
 const methods = [
   "as",
@@ -62,26 +59,21 @@ const methods = [
   "select",
 ] as const;
 
-export const withFromItem = <T extends { asFromItem: () => FromItem }>(
-  base: T,
-) => withMixinProxy(() => base.asFromItem(), base, methods);
+export const withFromItem = <T extends { asFromItem: () => FromItem }>(base: T) =>
+  withMixinProxy(() => base.asFromItem(), base, methods);
 
 export type AsFromItem<F extends RowLike = RowLike, J extends Joins = Joins> = {
   asFromItem(): FromItem<F, J>;
 };
 
-export type WithFromItem<
-  F extends RowLike = RowLike,
-  J extends Joins = any,
-> = AsFromItem<F, J> & Pick<FromItem<F, J>, (typeof methods)[number]>;
+export type WithFromItem<F extends RowLike = RowLike, J extends Joins = any> = AsFromItem<F, J> &
+  Pick<FromItem<F, J>, (typeof methods)[number]>;
 
 export type FromItemFromExpressionClass = {
   ["new"](fromExpr: Expression, alias?: string): FromItem<RowLike, Joins>;
 };
 
-export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
-  implements WithFromItem<F, J>
-{
+export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins> implements WithFromItem<F, J> {
   constructor(
     public rawFromExpr: Expression,
     public fromAlias: QueryAlias,
@@ -101,12 +93,7 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
     return class extends this {
       static new(fromExpr: Expression, alias?: string) {
         const queryAlias = new QueryAlias(alias ?? "f");
-        return new this(
-          fromExpr,
-          queryAlias,
-          {},
-          aliasRowLike(queryAlias, fromRow),
-        );
+        return new this(fromExpr, queryAlias, {}, aliasRowLike(queryAlias, fromRow));
       }
     };
   }
@@ -174,10 +161,7 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
   join<F2 extends RowLike, A extends string>(
     j: WithFromItem<F2>,
     as: A,
-    on: (
-      from: F,
-      js: JoinTables<J> & { [a in A]: F2 },
-    ) => Bool<0 | 1> | boolean,
+    on: (from: F, js: JoinTables<J> & { [a in A]: F2 }) => Bool<0 | 1> | boolean,
   ): FromItem<
     F,
     {
@@ -273,19 +257,12 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
   }
 
   getContext(ctxIn: Context): Context {
-    return ctxIn.withAliases([
-      this.fromAlias,
-      ...Object.values(this.joinAliases),
-    ]);
+    return ctxIn.withAliases([this.fromAlias, ...Object.values(this.joinAliases)]);
   }
 
   compileJustFrom(ctx: Context, alias?: string) {
-    return sql`${this.rawFromExpr.compile(ctx)} as ${sql.ref(
-      alias ?? ctx.getAlias(this.fromAlias),
-    )}${
-      this.rawFromExpr instanceof ValuesExpression
-        ? sql`(${this.tableColumnAlias()})`
-        : sql``
+    return sql`${this.rawFromExpr.compile(ctx)} as ${sql.ref(alias ?? ctx.getAlias(this.fromAlias))}${
+      this.rawFromExpr instanceof ValuesExpression ? sql`(${this.tableColumnAlias()})` : sql``
     }`;
   }
 
@@ -293,10 +270,7 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
     const from = this.compileJustFrom(ctx);
 
     const joins = Object.entries(this.joins ?? {}).map(([alias, join]) => {
-      invariant(
-        Object.keys(join.fromItem.joins).length === 0,
-        "Joins in expression joining to",
-      );
+      invariant(Object.keys(join.fromItem.joins).length === 0, "Joins in expression joining to");
       return sql`${sql.raw(join.type)} ${join.fromItem.compileJustFrom(ctx, alias)} ON ${join.on.toExpression().compile(ctx)}`;
     });
 
@@ -310,14 +284,8 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
     return sql.join(keys);
   }
 
-  select<S extends RowLike>(
-    this: WithFromItem<F, J>,
-    cb?: (f: F, j: JoinTables<J>) => S,
-  ): Select<S, F, J>;
-  select<S extends RowLike>(
-    this: WithFromItem<F, J>,
-    cb?: (f: F) => S,
-  ): Select<S, F, J>;
+  select<S extends RowLike>(this: WithFromItem<F, J>, cb?: (f: F, j: JoinTables<J>) => S): Select<S, F, J>;
+  select<S extends RowLike>(this: WithFromItem<F, J>, cb?: (f: F) => S): Select<S, F, J>;
   select<S extends RowLike>(
     this: WithFromItem<F, J>,
     cb?: ((f: F, j: JoinTables<J>) => S) | ((f: F) => S),
@@ -327,9 +295,7 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
     }) as Select<S, F, J>;
   }
 
-  asClass<E extends object>(
-    this: FromItem<F extends RowLikeStrict ? F : never, J>,
-  ) {
+  asClass<E extends object>(this: FromItem<F extends RowLikeStrict ? F : never, J>) {
     return View(this).extend<E>();
   }
 }

@@ -9,9 +9,7 @@ const CircleArray = Array.of(Circle);
 
 describe("Types & functions", () => {
   it("composes and runs a basic expression", async () => {
-    expect(
-      await Text.new("foo").textcat(Text.new("bar")).length().execute(testDb),
-    ).toEqual(6);
+    expect(await Text.new("foo").textcat(Text.new("bar")).length().execute(testDb)).toEqual(6);
   });
 
   it("infers return type basic", async () => {
@@ -97,10 +95,7 @@ describe("Types & functions", () => {
   });
 
   it("can use serialized type in function calls -- with generic text", async () => {
-    const res = await Text.new("foo")
-      .arrayFill(IntegerArray.new("{2}"))
-      .arrayAppend("bar")
-      .execute(testDb);
+    const res = await Text.new("foo").arrayFill(IntegerArray.new("{2}")).arrayAppend("bar").execute(testDb);
 
     expect(res).toEqual(["foo", "foo", "bar"]);
     assert<Equals<typeof res, string[]>>;

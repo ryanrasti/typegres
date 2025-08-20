@@ -1,11 +1,5 @@
 import { Transaction } from "kysely";
-import {
-  DummyDriver,
-  Kysely,
-  PostgresAdapter,
-  PostgresIntrospector,
-  PostgresQueryCompiler,
-} from "kysely";
+import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler } from "kysely";
 import { SeedDatabase, testSeeds } from "./seeds";
 import { Typegres } from "../db";
 
@@ -24,16 +18,11 @@ class ExpectedRollbackException extends Error {
   }
 }
 
-export const withDb = async (
-  db: Typegres,
-  fn: (db: Typegres) => Promise<void>,
-): Promise<void> => {
+export const withDb = async (db: Typegres, fn: (db: Typegres) => Promise<void>): Promise<void> => {
   try {
     await db._internal.transaction().execute(async (txn) => {
       await testSeeds(txn as unknown as Transaction<SeedDatabase>);
-      throw new ExpectedRollbackException(
-        await fn(Typegres._createFromKysely(txn as unknown as Transaction<{}>)),
-      );
+      throw new ExpectedRollbackException(await fn(Typegres._createFromKysely(txn as unknown as Transaction<{}>)));
     });
   } catch (e) {
     if (!(e instanceof ExpectedRollbackException)) {

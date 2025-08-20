@@ -73,9 +73,7 @@ describe("SELECT parser", () => {
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
 
-    expect(result.sql).toBe(
-      'SELECT "name" AS "name" ORDER BY "name" ASC, "name2" DESC',
-    );
+    expect(result.sql).toBe('SELECT "name" AS "name" ORDER BY "name" ASC, "name2" DESC');
     expect(result.parameters).toEqual([]);
   });
 

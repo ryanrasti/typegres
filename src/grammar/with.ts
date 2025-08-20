@@ -30,10 +30,7 @@ class With<R extends RowLike, W extends WithQueryTables> {
 
   resolveCtes(): W {
     const [ctes] = this.clause;
-    const raw = ctes(
-      <T extends RowLike>(expr: Withable<T>, options?: CteArgs[0]) =>
-        Cte.new(expr, options),
-    );
+    const raw = ctes(<T extends RowLike>(expr: Withable<T>, options?: CteArgs[0]) => Cte.new(expr, options));
     const props = Object.getOwnPropertyDescriptors(raw);
 
     const resolved: Partial<W> = {};
@@ -62,9 +59,7 @@ class With<R extends RowLike, W extends WithQueryTables> {
           if (chain.has(prop)) {
             invariant(
               chain.size === 1,
-              `Circular reference detected in CTE resolution: ${Array.from(
-                chain,
-              ).join(" -> ")} -> ${prop}`,
+              `Circular reference detected in CTE resolution: ${Array.from(chain).join(" -> ")} -> ${prop}`,
             );
             // This is a recursive CTE, return a sentinel
             resolved[prop] = sentinel.as(prop) as W[keyof W & string];
@@ -72,30 +67,16 @@ class With<R extends RowLike, W extends WithQueryTables> {
           }
           chain.add(prop);
 
-          invariant(
-            desc.get !== undefined,
-            `No getter for CTE property ${prop}`,
-          );
+          invariant(desc.get !== undefined, `No getter for CTE property ${prop}`);
           const rawCte = desc.get.bind(proxy)();
-          invariant(
-            rawCte instanceof Cte,
-            `Expected CTE for property ${prop}, but got ${typeof rawCte}`,
-          );
+          invariant(rawCte instanceof Cte, `Expected CTE for property ${prop}, but got ${typeof rawCte}`);
           if (resolved[prop] !== undefined) {
             // If we've already resolved this prop, we must be in a recursive CTE.
             // Just make sure the alias is not created again:
-            resolved[prop] = new Cte(
-              resolved[prop].fromAlias,
-              rawCte.expression,
-              rawCte.args,
-            ) as W[keyof W & string];
+            resolved[prop] = new Cte(resolved[prop].fromAlias, rawCte.expression, rawCte.args) as W[keyof W & string];
             // And then resolve it again:
             const { expression, args } = desc.get.bind(proxy)();
-            resolved[prop] = new Cte(
-              resolved[prop].fromAlias,
-              expression,
-              args,
-            ) as W[keyof W & string];
+            resolved[prop] = new Cte(resolved[prop].fromAlias, expression, args) as W[keyof W & string];
           } else {
             resolved[prop] = rawCte.as(prop) as W[keyof W & string];
           }
@@ -116,9 +97,7 @@ class With<R extends RowLike, W extends WithQueryTables> {
   compile(ctxIn = Context.new()) {
     const [, then, { recursive } = {}] = this.clause;
 
-    const ctx = ctxIn.withAliases(
-      Object.values(this.resolvedCtes).map((cte) => cte.fromAlias),
-    );
+    const ctx = ctxIn.withAliases(Object.values(this.resolvedCtes).map((cte) => cte.fromAlias));
 
     const thenQuery = then(this.resolvedCtes);
     const needsParens = !(
@@ -152,21 +131,14 @@ class With<R extends RowLike, W extends WithQueryTables> {
     try {
       raw = await typegres._internal.executeQuery(compiledRaw);
     } catch (error) {
-      console.error(
-        "Error executing query: ",
-        compiledRaw.sql,
-        compiledRaw.parameters,
-      );
+      console.error("Error executing query: ", compiledRaw.sql, compiledRaw.parameters);
       throw error;
     }
 
     const returnShape = this.getRowLike();
     if (returnShape) {
       return raw.rows.map((row) => {
-        invariant(
-          typeof row === "object" && row !== null,
-          "Expected each row to be an object",
-        );
+        invariant(typeof row === "object" && row !== null, "Expected each row to be an object");
         return parseRowLike(returnShape, row);
       }) as RowLikeResult<R>[];
     }
@@ -198,22 +170,14 @@ export class Cte<R extends RowLike> extends FromItem<R> {
     public expression: Withable<R>,
     public args: CteArgs,
   ) {
-    super(
-      new CteReferenceExpression(alias),
-      alias,
-      {},
-      aliasRowLike(alias, expression.getRowLike() ?? ({} as R)),
-    );
+    super(new CteReferenceExpression(alias), alias, {}, aliasRowLike(alias, expression.getRowLike() ?? ({} as R)));
   }
 
   getRowLike(): R | undefined {
     return this.expression.getRowLike();
   }
 
-  static new<R extends RowLike>(
-    expression: Withable<R>,
-    options?: CteArgs[0],
-  ): Cte<R> {
+  static new<R extends RowLike>(expression: Withable<R>, options?: CteArgs[0]): Cte<R> {
     return new Cte(new QueryAlias("cte"), expression, [options]);
   }
 
@@ -226,9 +190,7 @@ export class Cte<R extends RowLike> extends FromItem<R> {
     return sqlJoin(
       [
         sql`${sql.ref(ctx.getAlias(this.fromAlias))}${
-          this.expression instanceof Values
-            ? sql`(${this.expression.tableColumnAlias()})`
-            : sql``
+          this.expression instanceof Values ? sql`(${this.expression.tableColumnAlias()})` : sql``
         }`,
         sql`AS`,
         compileClauses(
@@ -271,9 +233,7 @@ type Withable<T extends RowLike> =
   | Merge<any, any, any, T>;
 
 export const with_ = <R extends RowLike, W extends WithQueryTables>(
-  ctes: (
-    cte: <T extends RowLike>(expr: Withable<T>, options?: CteArgs[0]) => Cte<T>,
-  ) => W,
+  ctes: (cte: <T extends RowLike>(expr: Withable<T>, options?: CteArgs[0]) => Cte<T>) => W,
   then: (args: W) => Withable<R>,
   opts?: {
     recursive?: true;

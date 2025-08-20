@@ -52,12 +52,7 @@ export const testSeeds = async (db: Kysely<SeedDatabase>) => {
           name: `${result.firstName}'s pet`,
           ownerId: result.id,
           species: "dog",
-          age:
-            result.firstName == "John"
-              ? 1
-              : result.firstName === "Alice"
-                ? 2
-                : 3,
+          age: result.firstName == "John" ? 1 : result.firstName === "Alice" ? 2 : 3,
         },
       ])
       .execute();

@@ -15,9 +15,7 @@ describe("UPDATE parser", () => {
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
 
-    expect(result.sql).toBe(
-      'UPDATE "users" as "users" SET "name" = cast($1 as text)',
-    );
+    expect(result.sql).toBe('UPDATE "users" as "users" SET "name" = cast($1 as text)');
     expect(result.parameters).toEqual(["John"]);
   });
 
@@ -33,9 +31,7 @@ describe("UPDATE parser", () => {
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
 
-    expect(result.sql).toBe(
-      'UPDATE ONLY "users" as "users" SET "role" = cast($1 as text)',
-    );
+    expect(result.sql).toBe('UPDATE ONLY "users" as "users" SET "role" = cast($1 as text)');
     expect(result.parameters).toEqual(["active"]);
   });
 
@@ -131,10 +127,7 @@ describe("UPDATE parser", () => {
       const parsed = update(db.Pet, {
         set: () => ({ age: Int4.new(10) }),
         from: db.Person,
-        where: (petRow, personRow) =>
-          petRow.ownerId["="](personRow.id).and(
-            personRow.firstName["="](Text.new("John")),
-          ),
+        where: (petRow, personRow) => petRow.ownerId["="](personRow.id).and(personRow.firstName["="](Text.new("John"))),
         returning: (petRow, personRow) => ({
           petId: petRow.id,
           petName: petRow.name,
@@ -158,9 +151,7 @@ describe("UPDATE parser", () => {
 
     it("should parse UPDATE with FROM joined table (true 3 tables)", () => {
       // Create a FROM item with joined table
-      const usersJoinComments = db.Users.join(db.Comments, "c", (u, { c }) =>
-        u.id["="](c.user_id),
-      );
+      const usersJoinComments = db.Users.join(db.Comments, "c", (u, { c }) => u.id["="](c.user_id));
 
       const parsed = update(db.Posts, {
         set: () => ({ published: Int4.new(1) }),
@@ -261,9 +252,7 @@ describe("UPDATE parser", () => {
               age: Int4.new(5),
             }),
             where: (updateRow) =>
-              updateRow.species["="](Text.new("dog")).and(
-                updateRow.ownerId["="](Int4.new(ownerId)),
-              ),
+              updateRow.species["="](Text.new("dog")).and(updateRow.ownerId["="](Int4.new(ownerId))),
             returning: (updateRow) => ({
               name: updateRow.name,
               species: updateRow.species,
@@ -318,10 +307,7 @@ describe("UPDATE parser", () => {
           const parsed = update(db.Pet, {
             set: () => ({ age: Int4.new(10) }),
             from: db.Person,
-            where: (petRow, personRow) =>
-              petRow.ownerId["="](personRow.id).and(
-                personRow.firstName["="]("Johnny"),
-              ),
+            where: (petRow, personRow) => petRow.ownerId["="](personRow.id).and(personRow.firstName["="]("Johnny")),
             returning: (petRow, personRow) => ({
               petId: petRow.id,
               petName: petRow.name,
@@ -401,10 +387,8 @@ describe("UPDATE parser", () => {
           `.execute();
 
           // Create a FROM item with joined table
-          const usersJoinComments = db.Users.join(
-            db.Comments,
-            "comment",
-            (u, { comment }) => u.id["="](comment.user_id),
+          const usersJoinComments = db.Users.join(db.Comments, "comment", (u, { comment }) =>
+            u.id["="](comment.user_id),
           );
 
           // Update posts where the user has made an approving comment

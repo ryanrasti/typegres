@@ -1,18 +1,9 @@
 import { Any, RowLikeStrict } from "../types";
-import {
-  aliasRowLike,
-  RawTableReferenceExpression,
-  RowLike,
-  ScalarResult,
-} from "./values";
+import { aliasRowLike, RawTableReferenceExpression, RowLike, ScalarResult } from "./values";
 import { QueryAlias } from "../expression";
 import { FromItem, Joins, withFromItem, WithFromItem } from "./from-item";
 
-export type InstanceType<C> = C extends { new (...args: any[]): infer R }
-  ? R extends Any
-    ? R
-    : never
-  : never;
+export type InstanceType<C> = C extends { new (...args: any[]): infer R } ? (R extends Any ? R : never) : never;
 
 export type TableSchema = {
   [key: string]: typeof Any<unknown, 0 | 1>;
@@ -34,9 +25,7 @@ type AnyOrParsed<T extends RowLikeStrict> = Expand<{
 
 class RowImpl<R extends RowLikeStrict> {
   static schema: TableSchema;
-  static asFromItem: <T extends typeof RowImpl>(
-    this: T,
-  ) => FromItem<T["prototype"], {}>;
+  static asFromItem: <T extends typeof RowImpl>(this: T) => FromItem<T["prototype"], {}>;
 
   constructor(data: AnyOrParsed<R>) {
     Object.assign(
@@ -46,10 +35,7 @@ class RowImpl<R extends RowLikeStrict> {
           if (value instanceof Any) {
             return [key, value];
           } else {
-            return [
-              key,
-              (this.constructor as typeof RowImpl).schema[key].new(value),
-            ];
+            return [key, (this.constructor as typeof RowImpl).schema[key].new(value)];
           }
         }),
       ),
@@ -65,21 +51,15 @@ export const Table = <S extends TableSchema>(name: string, schema: S) => {
   const alias = new QueryAlias(name);
   const row = aliasRowLike(
     alias,
-    Object.fromEntries(
-      Object.entries(schema).map(([column, type]) => [column, type.new("")]),
-    ),
+    Object.fromEntries(Object.entries(schema).map(([column, type]) => [column, type.new("")])),
   );
-  return View(
-    new FromItem(new RawTableReferenceExpression(name, row), alias, {}, row),
-  ) as unknown as Table<
+  return View(new FromItem(new RawTableReferenceExpression(name, row), alias, {}, row)) as unknown as Table<
     TableSchemaToRowLike<S>,
     RowImpl<TableSchemaToRowLike<S>>
   >;
 };
 
-export const View = <R extends RowLikeStrict, J extends Joins>(
-  fromItem: FromItem<R, J>,
-) => {
+export const View = <R extends RowLikeStrict, J extends Joins>(fromItem: FromItem<R, J>) => {
   const name = fromItem.fromAlias.name;
   const ret = {
     [name]: class extends RowImpl<R> {
@@ -89,16 +69,8 @@ export const View = <R extends RowLikeStrict, J extends Joins>(
           .filter(([_, value]) => value instanceof Any)
           .map(([key, value]) => [key, value.constructor]),
       ) as TableSchema;
-      static asFromItem<T extends typeof RowImpl>(): FromItem<
-        T["prototype"],
-        {}
-      > {
-        return new FromItem(
-          fromItem.rawFromExpr,
-          fromItem.fromAlias,
-          {},
-          new this(fromItem.from as AnyOrParsed<R>),
-        );
+      static asFromItem<T extends typeof RowImpl>(): FromItem<T["prototype"], {}> {
+        return new FromItem(fromItem.rawFromExpr, fromItem.fromAlias, {}, new this(fromItem.from as AnyOrParsed<R>));
       }
     },
   }[name];

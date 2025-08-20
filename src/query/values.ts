@@ -12,9 +12,7 @@ export type RowLikeStrict = {
 export type PickAny<R extends RowLike> = {
   [K in keyof R]: R[K] extends Any ? R[K] : never;
 };
-export const pickAny = <R extends RowLike>(
-  row: R,
-): PickAny<R> & { [key in string]: Any } => {
+export const pickAny = <R extends RowLike>(row: R): PickAny<R> & { [key in string]: Any } => {
   return Object.fromEntries(
     Object.entries(row)
       .filter(([_, value]) => value instanceof Any)
@@ -23,13 +21,7 @@ export const pickAny = <R extends RowLike>(
 };
 
 export type ScalarResult<R extends unknown> =
-  R extends Any<infer R, infer Nullable>
-    ? Nullable extends 0
-      ? null
-      : Nullable extends 1
-        ? R
-        : R | null
-    : never;
+  R extends Any<infer R, infer Nullable> ? (Nullable extends 0 ? null : Nullable extends 1 ? R : R | null) : never;
 
 type RowLikeRawResult<R extends RowLike> = {
   [K in keyof R]: string | null;
@@ -95,10 +87,7 @@ export class ValuesExpression extends SelectableExpression {
   }
 }
 
-const referenceRowLike = <R extends RowLike>(
-  toExpr: (key: string) => Expression,
-  row: R,
-): R => {
+const referenceRowLike = <R extends RowLike>(toExpr: (key: string) => Expression, row: R): R => {
   const copy = Object.create(row);
   for (const key in row) {
     const value = row[key];
@@ -109,16 +98,13 @@ const referenceRowLike = <R extends RowLike>(
   return copy as R;
 };
 
-export const aliasRowLike = <R extends RowLike>(
-  queryAlias: QueryAlias,
-  row: R,
-) => referenceRowLike((key) => new ColumnAliasExpression(queryAlias, key), row);
+export const aliasRowLike = <R extends RowLike>(queryAlias: QueryAlias, row: R) =>
+  referenceRowLike((key) => new ColumnAliasExpression(queryAlias, key), row);
 
 export const rawAliasRowLike = <R extends RowLike>(alias: string, row: R) =>
   referenceRowLike((key) => new RawColumnAliasExpression(alias, key), row);
 
-export const bareRowLike = <R extends RowLike>(row: R) =>
-  referenceRowLike((key) => new BareColumnExpression(key), row);
+export const bareRowLike = <R extends RowLike>(row: R) => referenceRowLike((key) => new BareColumnExpression(key), row);
 
 export class ColumnAliasExpression extends Expression {
   constructor(
@@ -156,10 +142,7 @@ export class BareColumnExpression extends Expression {
   }
 }
 
-export const parseRowLike = <R extends RowLike>(
-  rowLike: RowLike,
-  result: RowLikeRawResult<RowLike>,
-) => {
+export const parseRowLike = <R extends RowLike>(rowLike: RowLike, result: RowLikeRawResult<RowLike>) => {
   return Object.fromEntries(
     Object.entries(rowLike).map(([key, value]) => {
       const res = result[key as keyof RowLikeRawResult<RowLike>];
@@ -169,8 +152,6 @@ export const parseRowLike = <R extends RowLike>(
 };
 
 // Convenience function to create Values
-export const values = <R extends { [k in string]: Any }>(
-  ...rows: [R, ...R[]]
-): Values<R> => {
+export const values = <R extends { [k in string]: Any }>(...rows: [R, ...R[]]): Values<R> => {
   return new Values(rows);
 };

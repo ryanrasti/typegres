@@ -9,19 +9,13 @@ describe("demo.ts examples", async () => {
     "Analytics:"?: unknown[];
   } = {};
 
-  const spyConsole = vi
-    .spyOn(console, "log")
-    .mockImplementation((name: Examples, value: unknown[]) => {
-      calls[name] = value as any;
-    });
+  const spyConsole = vi.spyOn(console, "log").mockImplementation((name: Examples, value: unknown[]) => {
+    calls[name] = value as any;
+  });
   await import("./demo.js");
   spyConsole.mockRestore();
 
-  const {
-    "Trending Posts:": example1,
-    "Viral Posts with Stats:": example2,
-    "Analytics:": example3,
-  } = calls;
+  const { "Trending Posts:": example1, "Viral Posts with Stats:": example2, "Analytics:": example3 } = calls;
 
   it("example1: Trending posts with engagement metrics", async () => {
     expect(example1).toEqual([

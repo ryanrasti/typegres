@@ -21,8 +21,7 @@ type TableGenFile = {
   };
 };
 
-const canonicalType = (type: string): string =>
-  type === "varchar" ? "text" : type;
+const canonicalType = (type: string): string => (type === "varchar" ? "text" : type);
 
 const introspectCommand = Command.make(
   "introspect",
@@ -30,9 +29,7 @@ const introspectCommand = Command.make(
     database: Options.text("database").pipe(
       Options.withAlias("d"),
       Options.withDescription("PostgreSQL connection string"),
-      Options.withDefault(
-        "postgres://postgres:postgres@localhost:5432/postgres",
-      ),
+      Options.withDefault("postgres://postgres:postgres@localhost:5432/postgres"),
     ),
     schema: Options.text("schema").pipe(
       Options.withAlias("s"),
@@ -85,25 +82,18 @@ const introspectCommand = Command.make(
               ) per_schema
             `.execute();
             // Parse the JSON string result
-            return rows[0]?.result
-              ? (JSON.parse(rows[0].result) as TableGenFile)
-              : null;
+            return rows[0]?.result ? (JSON.parse(rows[0].result) as TableGenFile) : null;
           },
-          catch: (error) =>
-            new Error(`Failed to query database: ${inspect(error)}`),
+          catch: (error) => new Error(`Failed to query database: ${inspect(error)}`),
         });
 
         if (!result) {
-          return yield* Effect.fail(
-            new Error(`No result returned from database`),
-          );
+          return yield* Effect.fail(new Error(`No result returned from database`));
         }
 
         const tables = result[schema];
         if (!tables) {
-          return yield* Effect.fail(
-            new Error(`No tables found in schema '${schema}'`),
-          );
+          return yield* Effect.fail(new Error(`No tables found in schema '${schema}'`));
         }
 
         const outputContent = [

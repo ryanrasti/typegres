@@ -1,14 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  Int4,
-  Jsonb,
-  Numeric,
-  Text,
-  Record,
-  Int2,
-  Bool,
-  Int8,
-} from "../types/index";
+import { Int4, Jsonb, Numeric, Text, Record, Int2, Bool, Int8 } from "../types/index";
 import { values } from "./values";
 import { assert, Equals } from "tsafe";
 import { withDb } from "../test/db";
@@ -55,9 +46,7 @@ describe("Queries", () => {
       },
     ).execute(testDb);
 
-    assert<
-      Equals<typeof res, { x: boolean; y: boolean; z: boolean; t: boolean }[]>
-    >();
+    assert<Equals<typeof res, { x: boolean; y: boolean; z: boolean; t: boolean }[]>>();
 
     expect(res).toEqual([
       { x: true, y: true, z: false, t: true },
@@ -79,9 +68,7 @@ describe("Queries", () => {
 
       assert<Equals<typeof res, { name: string; age: number }[]>>();
 
-      expect(
-        res.toSorted((p1, p2) => String(p1.age).localeCompare(String(p2.age))),
-      ).toEqual([
+      expect(res.toSorted((p1, p2) => String(p1.age).localeCompare(String(p2.age)))).toEqual([
         { name: "John's pet!!", age: 2 },
         { name: "Alice's pet!!", age: 3 },
         { name: "Jane's pet!!", age: 4 },
@@ -136,9 +123,7 @@ describe("Queries", () => {
         value: value.jsonbTypeof().textcat(Text.new("!!")),
       }),
       {
-        from: Jsonb.new(
-          JSON.stringify([{ a: 1, b: 2 }, 1]),
-        ).jsonbArrayElements(),
+        from: Jsonb.new(JSON.stringify([{ a: 1, b: 2 }, 1])).jsonbArrayElements(),
       },
     ).execute(testDb);
 
@@ -199,10 +184,7 @@ describe("Queries", () => {
       }),
       {
         from: strings.join(
-          values(
-            { a: Text.new("foo"), b: Numeric.new("100") },
-            { a: Text.new("baz"), b: Numeric.new("200") },
-          ),
+          values({ a: Text.new("foo"), b: Numeric.new("100") }, { a: Text.new("baz"), b: Numeric.new("200") }),
           "s2",
           (s1, { s2 }) => {
             return s1.a.texteq(s2.a);
@@ -255,9 +237,7 @@ describe("Queries", () => {
       }),
       {
         from: values({
-          a: Record.of({ a: Text, b: Record.of({ c: Numeric, d: Int2 }) }).new(
-            '(1,"(2,3)")',
-          ),
+          a: Record.of({ a: Text, b: Record.of({ c: Numeric, d: Int2 }) }).new('(1,"(2,3)")'),
         }),
       },
     ).execute(testDb);
@@ -286,9 +266,7 @@ describe("Queries", () => {
       }),
       {
         from: values({
-          x: Record.of({ a: Text, b: Record.of({ c: Numeric, d: Int2 }) }).new(
-            '(1,"(2,3)")',
-          ),
+          x: Record.of({ a: Text, b: Record.of({ c: Numeric, d: Int2 }) }).new('(1,"(2,3)")'),
         }),
       },
     ).execute(testDb);
@@ -396,9 +374,7 @@ describe("Mutations", async () => {
         >
       >();
 
-      const [p2, p3] = res.toSorted(
-        (p1, p2) => String(p1.age).localeCompare(String(p2?.age)) ?? 0,
-      );
+      const [p2, p3] = res.toSorted((p1, p2) => String(p1.age).localeCompare(String(p2?.age)) ?? 0);
 
       expect(p2).toMatchObject({ name: "John's pet #2", age: 1 });
       expect(p3).toMatchObject({ name: "John's pet #3", age: 2 });

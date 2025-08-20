@@ -31,35 +31,22 @@ const allowAutoboxing = (definitions: FunctionDefinition[]) => {
   return definitions.every((defn) => defn.ret === firstRet);
 };
 
-const functionDefinitionToTyped = (
-  name: string,
-  defn: FunctionDefinition[],
-) => {
+const functionDefinitionToTyped = (name: string, defn: FunctionDefinition[]) => {
   return `[${defn
     .map((defn) => {
       const { args, ret } = defn;
-      const hasRecord = [...args, ret].some((arg) =>
-        asType(arg, { runtime: true, set: defn }).includes(".of(R)"),
-      );
+      const hasRecord = [...args, ret].some((arg) => asType(arg, { runtime: true, set: defn }).includes(".of(R)"));
       const hasGeneric = [...args, ret].some(
-        (arg) =>
-          asType(arg) === "T" ||
-          asType(arg, { runtime: true }).includes(".of(T)"),
+        (arg) => asType(arg) === "T" || asType(arg, { runtime: true }).includes(".of(T)"),
       );
-      const rawTyped = `{args: [${args
-        .map((t) => asType(t, { runtime: true }))
-        .join(", ")}], ret: ${asType(ret, {
+      const rawTyped = `{args: [${args.map((t) => asType(t, { runtime: true })).join(", ")}], ret: ${asType(ret, {
         runtime: true,
         set: defn,
       })}, isOperator: ${defn.operator_name === name}, isReserved: ${defn.is_reserved || false}, isVariadic: ${
         defn.is_variadic || false
       }}`;
 
-      return hasRecord
-        ? `({R}) => (${rawTyped})`
-        : hasGeneric
-          ? `({T}) => (${rawTyped})`
-          : rawTyped;
+      return hasRecord ? `({R}) => (${rawTyped})` : hasGeneric ? `({T}) => (${rawTyped})` : rawTyped;
     })
     .join(", ")}]`;
 };
@@ -85,9 +72,7 @@ const keepFunction = (name: string, definitionns: FunctionDefinition[]) => {
     // Skip functions that end with _send/recv/in/out
     !/^(?:send|recv|in|out)$/.test(name) &&
     // Skip functions that reference "internal" type:
-    !definitionns.some(
-      (def) => def.ret === "internal" || def.args.includes("internal"),
-    )
+    !definitionns.some((def) => def.ret === "internal" || def.args.includes("internal"))
   );
 };
 
@@ -107,11 +92,7 @@ const main = async () => {
       oid: number;
     };
   } = {};
-  const addType = (
-    rawType: string,
-    oid: number,
-    fn?: [string, FunctionDefinition] | undefined,
-  ) => {
+  const addType = (rawType: string, oid: number, fn?: [string, FunctionDefinition] | undefined) => {
     if (rawType.startsWith("_")) {
       return;
     }
@@ -128,18 +109,14 @@ const main = async () => {
       functions: {
         ...types[type]?.functions,
         ...(fn && {
-          [fn[0]]: [...(types[type]?.functions?.[fn[0]] ?? []), fn[1]].flatMap(
-            (x) => (x ? [x] : []),
-          ),
+          [fn[0]]: [...(types[type]?.functions?.[fn[0]] ?? []), fn[1]].flatMap((x) => (x ? [x] : [])),
         }),
       },
       oid,
     };
   };
 
-  const input = JSON.parse(
-    fs.readFileSync("./functions.json", "utf-8"),
-  ) as FunctionsFile;
+  const input = JSON.parse(fs.readFileSync("./functions.json", "utf-8")) as FunctionsFile;
   const output = await fs.promises.open("./functions.ts", "w");
 
   await output.write("import { sqlFunction } from '../sql-function';\n");
@@ -153,21 +130,12 @@ const main = async () => {
 
     for (const definition of defintitions) {
       const hasGeneric = definition.args.some(
-        (arg) =>
-          asType(arg) === "T" ||
-          asType(arg).includes("<T>") ||
-          asType(arg).includes(", T>"),
+        (arg) => asType(arg) === "T" || asType(arg).includes("<T>") || asType(arg).includes(", T>"),
       );
-      const hasRecordGeneric = definition.args.some((arg) =>
-        asType(arg).includes(", R>"),
-      );
+      const hasRecordGeneric = definition.args.some((arg) => asType(arg).includes(", R>"));
       addType(definition.ret, definition.ret_oid);
       for (const [idx, argType] of definition.args.entries()) {
-        addType(
-          argType,
-          definition.arg_oids[idx],
-          idx === 0 ? [name, definition] : undefined,
-        );
+        addType(argType, definition.arg_oids[idx], idx === 0 ? [name, definition] : undefined);
       }
       for (const [idx, argType] of definition.retset.entries()) {
         addType(argType, definition.retset_oids[idx]);
@@ -192,13 +160,9 @@ const main = async () => {
         }(${argString}): ${asType(definition.ret, { set: definition })}\n`,
       );
     }
+    await output.write(`export function ${pgNameToIdent(name)}(...args: unknown[]) {\n`);
     await output.write(
-      `export function ${pgNameToIdent(name)}(...args: unknown[]) {\n`,
-    );
-    await output.write(
-      `    return sqlFunction(${JSON.stringify(
-        name,
-      )}, ${functionDefinitionToTyped(name, defintitions)}, args);\n`,
+      `    return sqlFunction(${JSON.stringify(name)}, ${functionDefinitionToTyped(name, defintitions)}, args);\n`,
     );
     await output.write("}\n");
     await output.write("\n");
@@ -226,9 +190,7 @@ const main = async () => {
     const hasParser = type in typeMap;
 
     if (type === "array") {
-      await output.write(
-        `import { default as AnyBase } from '../../types/any';\n`,
-      );
+      await output.write(`import { default as AnyBase } from '../../types/any';\n`);
       await output.write(`\n`);
 
       const className = pgNameToIdent(type, true);
@@ -236,12 +198,8 @@ const main = async () => {
         `export class ${className}<N extends number, T extends AnyBase> extends AnyBase<NonNullable<T["resultType"]>[], N> {\n`,
       );
     } else if (type === "record") {
-      await output.write(
-        `import { default as AnyBase } from '../../types/any';\n`,
-      );
-      await output.write(
-        `import { default as AnynonarrayBase } from '../../types/any';\n`,
-      );
+      await output.write(`import { default as AnyBase } from '../../types/any';\n`);
+      await output.write(`import { default as AnynonarrayBase } from '../../types/any';\n`);
       await output.write(`\n`);
 
       const className = pgNameToIdent(type, true);
@@ -249,31 +207,21 @@ const main = async () => {
         `export class ${className}<N extends number, R extends { [K in string]: AnyBase<unknown, 0 | 1> }> extends AnynonarrayBase<{ [K in keyof R]: R[K]["resultType"]}, N> {\n`,
       );
     } else if (type === "any") {
-      await output.write(
-        `import type { default as AnyBase } from '../../types/any';\n`,
-      );
+      await output.write(`import type { default as AnyBase } from '../../types/any';\n`);
       const className = pgNameToIdent(type, true);
       await output.write(`export class ${className} {\n`);
     } else if (type === "anyrange" || type === "anymultirange") {
-      await output.write(
-        `import { default as AnynonarrayBase } from '../../types/any';\n`,
-      );
-      await output.write(
-        `import type { default as AnyBase } from '../../types/any';\n`,
-      );
+      await output.write(`import { default as AnynonarrayBase } from '../../types/any';\n`);
+      await output.write(`import type { default as AnyBase } from '../../types/any';\n`);
       await output.write(`\n`);
       const className = pgNameToIdent(type, true);
       await output.write(
         `export class ${className}<N extends number, T extends AnyBase> extends AnynonarrayBase<unknown, N> {\n`,
       );
     } else {
-      await output.write(
-        `import { default as AnynonarrayBase } from '../../types/any';\n`,
-      );
+      await output.write(`import { default as AnynonarrayBase } from '../../types/any';\n`);
       if (hasParser) {
-        await output.write(
-          `import { typeMap } from '../../types/serialization';\n`,
-        );
+        await output.write(`import { typeMap } from '../../types/serialization';\n`);
       }
       const isInstantiatable = asType(type) !== "T";
 
@@ -282,28 +230,18 @@ const main = async () => {
       }
       await output.write(`\n`);
       await output.write(
-        `type Parsed = ${
-          hasParser
-            ? `ReturnType<typeof typeMap[${JSON.stringify(type)}]['parse']>`
-            : "string"
-        }\n`,
+        `type Parsed = ${hasParser ? `ReturnType<typeof typeMap[${JSON.stringify(type)}]['parse']>` : "string"}\n`,
       );
       if (isInstantiatable) {
         await output.write(
           `type SerializeParam = ${
-            hasParser
-              ? `Parameters<typeof typeMap[${JSON.stringify(
-                  type,
-                )}]['serialize']>[0]`
-              : "string"
+            hasParser ? `Parameters<typeof typeMap[${JSON.stringify(type)}]['serialize']>[0]` : "string"
           }\n`,
         );
       }
 
       const className = pgNameToIdent(type, true);
-      await output.write(
-        `export class ${className}<N extends number> extends AnynonarrayBase<Parsed, N> {\n`,
-      );
+      await output.write(`export class ${className}<N extends number> extends AnynonarrayBase<Parsed, N> {\n`);
 
       if (isInstantiatable) {
         await output.write(
@@ -311,43 +249,27 @@ const main = async () => {
             nullable: false,
           })};\n`,
         );
-        await output.write(
-          `    static new(v: null): ${asType(type, { nullable: true })};\n`,
-        );
+        await output.write(`    static new(v: null): ${asType(type, { nullable: true })};\n`);
         await output.write(`    static new(v: Expression): ${asType(type)};\n`);
         await output.write(
-          `    static new(v: SerializeParam | null | Expression): ${asType(
-            type,
-          )} { return new ${asType(type)}(v); }\n`,
+          `    static new(v: SerializeParam | null | Expression): ${asType(type)} { return new ${asType(type)}(v); }\n`,
         );
 
         if (hasParser) {
-          await output.write(
-            `    static serializeParamTypes: readonly SerializeParam[] | undefined = undefined;\n`,
-          );
+          await output.write(`    static serializeParamTypes: readonly SerializeParam[] | undefined = undefined;\n`);
         }
       }
     }
 
     if (hasParser) {
-      await output.write(
-        `    static parse(v: string) { return typeMap[${JSON.stringify(
-          type,
-        )}].parse(v); }\n`,
-      );
+      await output.write(`    static parse(v: string) { return typeMap[${JSON.stringify(type)}].parse(v); }\n`);
     } else if (type === "any" || type === "array" || type === "record") {
-      await output.write(
-        `    static parse(v: string): unknown { return v; }\n`,
-      );
+      await output.write(`    static parse(v: string): unknown { return v; }\n`);
     } else {
       await output.write(`    static parse(v: string) { return v; }\n`);
     }
 
-    await output.write(
-      `    static typeString(): string | undefined  { return ${JSON.stringify(
-        type,
-      )} } \n`,
-    );
+    await output.write(`    static typeString(): string | undefined  { return ${JSON.stringify(type)} } \n`);
 
     if (type !== "any") {
       for (const [fnName, nullability] of [
@@ -357,11 +279,7 @@ const main = async () => {
       ]) {
         await output.write(
           `    ${fnName}(): Types.${pgNameToIdent(type, true)}<${nullability}${
-            type === "array" || type === "anyrange" || type === "anymultirange"
-              ? ", T"
-              : type === "record"
-                ? ", R"
-                : ""
+            type === "array" || type === "anyrange" || type === "anymultirange" ? ", T" : type === "record" ? ", R" : ""
           }> | undefined {
           return undefined;
         }
@@ -370,8 +288,7 @@ const main = async () => {
       }
     }
 
-    const isThisGeneric =
-      type === "any" || type === "anynonarray" || type === "anyenum";
+    const isThisGeneric = type === "any" || type === "anynonarray" || type === "anyenum";
 
     const functionsByOperatorName = Object.values(typeDef?.functions ?? {})
       .flatMap((v) => (v ? v : []))
@@ -379,10 +296,7 @@ const main = async () => {
       .reduce(
         (acc, defn) => ({
           ...acc,
-          [defn.operator_name ?? ""]: [
-            ...(acc[defn.operator_name ?? ""] ?? []),
-            defn,
-          ],
+          [defn.operator_name ?? ""]: [...(acc[defn.operator_name ?? ""] ?? []), defn],
         }),
         {} as Record<string, FunctionDefinition[]>,
       );
@@ -393,21 +307,14 @@ const main = async () => {
     })) {
       // Special case we're not handling now where this overrides parent class
       // call in an incompatible way
-      if (
-        (rawName === "width_bucket" || rawName == "<@" || rawName == "||") &&
-        type !== "any"
-      ) {
+      if ((rawName === "width_bucket" || rawName == "<@" || rawName == "||") && type !== "any") {
         continue;
       }
 
       const autoBoxable = allowAutoboxing(definitions ?? []);
       for (const definition of definitions ?? []) {
         const opts = definition.is_agg
-          ? [
-              rawName === "count"
-                ? { nullable: false, aggregate: true }
-                : { aggregate: true },
-            ]
+          ? [rawName === "count" ? { nullable: false, aggregate: true } : { aggregate: true }]
           : [{ nullable: false }, {}, { aggregate: true }];
         for (const opt of opts) {
           const args = definition.args.flatMap((argType, idx) => {
@@ -429,15 +336,8 @@ const main = async () => {
 
           const hasGeneric = definition.args
             .slice(1)
-            .some(
-              (arg) =>
-                asType(arg) === "T" ||
-                asType(arg).includes("<T>") ||
-                asType(arg).includes(", T>"),
-            );
-          const hasRecordGeneric = definition.args
-            .slice(1)
-            .some((arg) => asType(arg).includes(", R>"));
+            .some((arg) => asType(arg) === "T" || asType(arg).includes("<T>") || asType(arg).includes(", T>"));
+          const hasRecordGeneric = definition.args.slice(1).some((arg) => asType(arg).includes(", R>"));
 
           await output.write(
             `    ${pgNameToIdent(rawName)}${
@@ -456,13 +356,9 @@ const main = async () => {
           );
         }
       }
+      await output.write(`    ${pgNameToIdent(rawName)}(...args: unknown[]) {\n`);
       await output.write(
-        `    ${pgNameToIdent(rawName)}(...args: unknown[]) {\n`,
-      );
-      await output.write(
-        `        return sqlFunction(${JSON.stringify(
-          rawName,
-        )}, ${functionDefinitionToTyped(
+        `        return sqlFunction(${JSON.stringify(rawName)}, ${functionDefinitionToTyped(
           rawName,
           definitions ?? [],
         )}, [this, ...args]);\n`,
@@ -477,15 +373,11 @@ const main = async () => {
   // Then generate a file that imports all the types and exports them
   // as a single object
   const output2 = await fs.promises.open(`./types/index.ts`, "w");
-  for (const type of Object.keys(types).toSorted((a, b) =>
-    pgNameToIdent(a).localeCompare(pgNameToIdent(b)),
-  )) {
+  for (const type of Object.keys(types).toSorted((a, b) => pgNameToIdent(a).localeCompare(pgNameToIdent(b)))) {
     if (type === "array" || type === "any") {
       continue;
     }
-    await output2.write(
-      `export { ${pgNameToIdent(type, true)} } from './${type}';\n`,
-    );
+    await output2.write(`export { ${pgNameToIdent(type, true)} } from './${type}';\n`);
   }
 };
 

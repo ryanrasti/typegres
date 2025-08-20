@@ -15,9 +15,7 @@ describe("Select Builder Methods", () => {
       }));
 
       const result = modifiedQuery.compile().compile(dummyDb);
-      expect(result.sql).toBe(
-        'SELECT "users"."email" AS "email", "users"."name" AS "name" FROM "users" as "users"',
-      );
+      expect(result.sql).toBe('SELECT "users"."email" AS "email", "users"."name" AS "name" FROM "users" as "users"');
       expect(result.parameters).toEqual([]);
     });
 
@@ -78,18 +76,14 @@ describe("Select Builder Methods", () => {
       }));
 
       const result = mergedQuery.compile().compile(dummyDb);
-      expect(result.sql).toBe(
-        'SELECT "users"."email" AS "fullName", "users"."id" AS "id" FROM "users" as "users"',
-      );
+      expect(result.sql).toBe('SELECT "users"."email" AS "fullName", "users"."id" AS "id" FROM "users" as "users"');
       expect(result.parameters).toEqual([]);
     });
   });
 
   describe("where() method", () => {
     it("should add where clause to query", () => {
-      const query = select((u) => u, { from: db.Users }).where((u) =>
-        u.active["="](Types.Int4.new(1)),
-      );
+      const query = select((u) => u, { from: db.Users }).where((u) => u.active["="](Types.Int4.new(1)));
 
       const result = query.compile().compile(dummyDb);
       expect(result.sql).toBe(
@@ -112,9 +106,7 @@ describe("Select Builder Methods", () => {
 
     it("should work with complex boolean expressions", () => {
       const query = select((u) => u, { from: db.Users }).where((u) =>
-        u.active["="](Types.Int4.new(1)).or(
-          u.role["="](Types.Text.new("admin")),
-        ),
+        u.active["="](Types.Int4.new(1)).or(u.role["="](Types.Text.new("admin"))),
       );
 
       const result = query.compile().compile(dummyDb);
@@ -127,9 +119,7 @@ describe("Select Builder Methods", () => {
 
   describe("orderBy() method", () => {
     it("should add ORDER BY clause", () => {
-      const query = select((p) => p, { from: db.Person }).orderBy(
-        (p) => p.createdAt,
-      );
+      const query = select((p) => p, { from: db.Person }).orderBy((p) => p.createdAt);
 
       const result = query.compile().compile(dummyDb);
       expect(result.sql).toBe(
@@ -139,10 +129,7 @@ describe("Select Builder Methods", () => {
     });
 
     it("should support DESC ordering", () => {
-      const query = select((p) => p, { from: db.Person }).orderBy(
-        (p) => p.createdAt,
-        { desc: true },
-      );
+      const query = select((p) => p, { from: db.Person }).orderBy((p) => p.createdAt, { desc: true });
 
       const result = query.compile().compile(dummyDb);
       expect(result.sql).toBe(
@@ -176,10 +163,7 @@ describe("Select Builder Methods", () => {
     });
 
     it("should support NULLS FIRST/LAST", () => {
-      const query = select((p) => p, { from: db.Person }).orderBy(
-        (p) => p.lastName,
-        { desc: true, nulls: "last" },
-      );
+      const query = select((p) => p, { from: db.Person }).orderBy((p) => p.lastName, { desc: true, nulls: "last" });
 
       const result = query.compile().compile(dummyDb);
       expect(result.sql).toBe(
@@ -287,9 +271,7 @@ describe("Select Builder Methods", () => {
 
   describe("limit() method", () => {
     it("should add LIMIT clause", () => {
-      const query = select((u) => u, { from: db.Users }).limit(
-        Types.Int4.new(10),
-      );
+      const query = select((u) => u, { from: db.Users }).limit(Types.Int4.new(10));
 
       const result = query.compile().compile(dummyDb);
       expect(result.sql).toBe(
@@ -323,9 +305,7 @@ describe("Select Builder Methods", () => {
 
   describe("offset() method", () => {
     it("should add OFFSET clause", () => {
-      const query = select((u) => u, { from: db.Users }).offset(
-        Types.Int4.new(20),
-      );
+      const query = select((u) => u, { from: db.Users }).offset(Types.Int4.new(20));
 
       const result = query.compile().compile(dummyDb);
       expect(result.sql).toBe(
@@ -335,10 +315,7 @@ describe("Select Builder Methods", () => {
     });
 
     it("should support OFFSET with ROW/ROWS", () => {
-      const query = select((u) => u, { from: db.Users }).offset([
-        Types.Int4.new(20),
-        { rows: true },
-      ]);
+      const query = select((u) => u, { from: db.Users }).offset([Types.Int4.new(20), { rows: true }]);
 
       const result = query.compile().compile(dummyDb);
       expect(result.sql).toBe(
@@ -362,12 +339,7 @@ describe("Select Builder Methods", () => {
 
   describe("fetch() method", () => {
     it("should add FETCH clause", () => {
-      const query = select((u) => u, { from: db.Users }).fetch([
-        "first",
-        Types.Int4.new(5),
-        "rows",
-        "only",
-      ]);
+      const query = select((u) => u, { from: db.Users }).fetch(["first", Types.Int4.new(5), "rows", "only"]);
 
       const result = query.compile().compile(dummyDb);
       expect(result.sql).toBe(
@@ -391,9 +363,7 @@ describe("Select Builder Methods", () => {
 
   describe("as() and subquery() methods", () => {
     it("should create a FromItem with alias", () => {
-      const subquery = select((u) => ({ id: u.id }), { from: db.Users }).as(
-        "user_ids",
-      );
+      const subquery = select((u) => ({ id: u.id }), { from: db.Users }).as("user_ids");
 
       expect(subquery).toBeDefined();
       expect(subquery.fromAlias.name).toBe("user_ids");
@@ -438,9 +408,7 @@ describe("Select Builder Methods", () => {
 
       // Step 1: Basic select
       let result = query.compile().compile(dummyDb);
-      expect(result.sql).toBe(
-        'SELECT "users"."id" AS "id", "users"."name" AS "name" FROM "users" as "users"',
-      );
+      expect(result.sql).toBe('SELECT "users"."id" AS "id", "users"."name" AS "name" FROM "users" as "users"');
       expect(result.parameters).toEqual([]);
 
       // Step 2: Add where clause
@@ -525,9 +493,7 @@ describe("Select Builder Methods", () => {
 
     it("should maintain immutability - original query unchanged", () => {
       const originalQuery = select((u) => u, { from: db.Users });
-      const modifiedQuery = originalQuery
-        .where((u) => u.active["="](Types.Int4.new(1)))
-        .limit(Types.Int4.new(10));
+      const modifiedQuery = originalQuery.where((u) => u.active["="](Types.Int4.new(1))).limit(Types.Int4.new(10));
 
       const originalResult = originalQuery.compile().compile(dummyDb);
       const modifiedResult = modifiedQuery.compile().compile(dummyDb);
@@ -558,9 +524,7 @@ describe("Select Builder Methods", () => {
         .as("role_counts");
 
       // Use the subquery
-      const mainQuery = select((rc) => rc, { from: roleCountsSubquery }).where(
-        (rc) => rc.userCount[">="](2),
-      );
+      const mainQuery = select((rc) => rc, { from: roleCountsSubquery }).where((rc) => rc.userCount[">="](2));
 
       const result = mainQuery.compile().compile(dummyDb);
       expect(result.sql).toBe(
@@ -590,17 +554,7 @@ describe("Select Builder Methods", () => {
       expect(result.sql).toBe(
         'SELECT (("values"."age" / cast($1 as int4)) * cast($2 as int4)) AS "ageGroup", "values"."name" AS "name" FROM (VALUES (cast($3 as int4), cast($4 as text)), (cast($5 as int4), cast($6 as text)), (cast($7 as int4), cast($8 as text))) as "values"("age", "name") WHERE ("values"."age" >= cast($9 as int4)) ORDER BY "values"."age"',
       );
-      expect(result.parameters).toEqual([
-        10,
-        10,
-        25,
-        "Alice",
-        30,
-        "Bob",
-        35,
-        "Charlie",
-        30,
-      ]);
+      expect(result.parameters).toEqual([10, 10, 25, "Alice", 30, "Bob", 35, "Charlie", 30]);
     });
   });
 });

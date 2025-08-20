@@ -151,20 +151,15 @@ describe("LIMIT and OFFSET", () => {
       },
     );
 
-    const result = await select(
-      (p) => ({ id: p.id, name: p.name, price: p.price }),
-      {
-        from: products,
-        where: (p) => p.price[">"](Numeric.new("15.00")),
-        orderBy: (p) => p.id,
-        limit: Int4.new(2),
-        offset: [Int4.new(1), { rows: true }],
-      },
-    ).execute(testDb);
+    const result = await select((p) => ({ id: p.id, name: p.name, price: p.price }), {
+      from: products,
+      where: (p) => p.price[">"](Numeric.new("15.00")),
+      orderBy: (p) => p.id,
+      limit: Int4.new(2),
+      offset: [Int4.new(1), { rows: true }],
+    }).execute(testDb);
 
-    assert<
-      Equals<typeof result, { id: number; name: string; price: string }[]>
-    >();
+    assert<Equals<typeof result, { id: number; name: string; price: string }[]>>();
 
     expect(result).toHaveLength(2);
     expect(result).toEqual([
@@ -248,20 +243,15 @@ describe("LIMIT and OFFSET", () => {
       },
     );
 
-    const result = await select(
-      (u) => ({ name: u.name, age: u.age, city: u.city }),
-      {
-        from: users,
-        orderBy: [
-          [(u) => u.age, { desc: true }],
-          (u) => u.city, // implicit ASC
-        ],
-      },
-    ).execute(testDb);
+    const result = await select((u) => ({ name: u.name, age: u.age, city: u.city }), {
+      from: users,
+      orderBy: [
+        [(u) => u.age, { desc: true }],
+        (u) => u.city, // implicit ASC
+      ],
+    }).execute(testDb);
 
-    assert<
-      Equals<typeof result, { name: string; age: number; city: string }[]>
-    >();
+    assert<Equals<typeof result, { name: string; age: number; city: string }[]>>();
 
     expect(result).toEqual([
       { name: "David", age: 30, city: "LA" },
@@ -295,9 +285,7 @@ describe("LIMIT and OFFSET", () => {
       },
     ).execute(testDb);
 
-    assert<
-      Equals<typeof result, { customer: string; totalAmount: string | null }[]>
-    >();
+    assert<Equals<typeof result, { customer: string; totalAmount: string | null }[]>>();
 
     expect(result).toEqual([
       { customer: "Alice", totalAmount: "300" },
@@ -306,10 +294,7 @@ describe("LIMIT and OFFSET", () => {
   });
 
   it("can use LIMIT 0 to return no results", async () => {
-    const users = values(
-      { id: Int4.new(1), name: Text.new("Alice") },
-      { id: Int4.new(2), name: Text.new("Bob") },
-    );
+    const users = values({ id: Int4.new(1), name: Text.new("Alice") }, { id: Int4.new(2), name: Text.new("Bob") });
 
     const result = await select((u) => ({ id: u.id, name: u.name }), {
       from: users,
@@ -324,10 +309,7 @@ describe("LIMIT and OFFSET", () => {
   });
 
   it("can use OFFSET larger than result set", async () => {
-    const users = values(
-      { id: Int4.new(1), name: Text.new("Alice") },
-      { id: Int4.new(2), name: Text.new("Bob") },
-    );
+    const users = values({ id: Int4.new(1), name: Text.new("Alice") }, { id: Int4.new(2), name: Text.new("Bob") });
 
     const result = await select((u) => ({ id: u.id, name: u.name }), {
       from: users,
@@ -342,15 +324,9 @@ describe("LIMIT and OFFSET", () => {
   });
 
   it("can use LIMIT and OFFSET with set operations", async () => {
-    const query1 = values(
-      { id: Int4.new(1), name: Text.new("Alice") },
-      { id: Int4.new(2), name: Text.new("Bob") },
-    );
+    const query1 = values({ id: Int4.new(1), name: Text.new("Alice") }, { id: Int4.new(2), name: Text.new("Bob") });
 
-    const query2 = values(
-      { id: Int4.new(3), name: Text.new("Charlie") },
-      { id: Int4.new(4), name: Text.new("David") },
-    );
+    const query2 = values({ id: Int4.new(3), name: Text.new("Charlie") }, { id: Int4.new(4), name: Text.new("David") });
 
     const combinedQuery = select((u) => ({ id: u.id, name: u.name }), {
       from: query1,
@@ -472,20 +448,15 @@ describe("LIMIT and OFFSET", () => {
       },
     );
 
-    const result = await select(
-      (u) => ({ name: u.name, age: u.age, city: u.city }),
-      {
-        from: users,
-        orderBy: [
-          [(u) => u.age, { desc: true }],
-          (u) => u.city, // Raw value (implicit ASC)
-        ],
-      },
-    ).execute(testDb);
+    const result = await select((u) => ({ name: u.name, age: u.age, city: u.city }), {
+      from: users,
+      orderBy: [
+        [(u) => u.age, { desc: true }],
+        (u) => u.city, // Raw value (implicit ASC)
+      ],
+    }).execute(testDb);
 
-    assert<
-      Equals<typeof result, { name: string; age: number; city: string }[]>
-    >();
+    assert<Equals<typeof result, { name: string; age: number; city: string }[]>>();
 
     expect(result).toEqual([
       { name: "David", age: 30, city: "LA" },
@@ -523,17 +494,12 @@ describe("LIMIT and OFFSET", () => {
       },
     );
 
-    const result = await select(
-      (u) => ({ name: u.name, age: u.age, city: u.city }),
-      {
-        from: users,
-        orderBy: [(u) => u.age, (u) => u.city],
-      },
-    ).execute(testDb);
+    const result = await select((u) => ({ name: u.name, age: u.age, city: u.city }), {
+      from: users,
+      orderBy: [(u) => u.age, (u) => u.city],
+    }).execute(testDb);
 
-    assert<
-      Equals<typeof result, { name: string; age: number; city: string }[]>
-    >();
+    assert<Equals<typeof result, { name: string; age: number; city: string }[]>>();
 
     // Should be sorted by age first, then by city
     expect(result).toEqual([

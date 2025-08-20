@@ -12,12 +12,13 @@ export type PrimitiveToSqlType<T extends Primitive> = T extends string
         ? Numeric<1>
         : never;
 
-export type MaybePrimitiveToSqlType<T extends Primitive | Any> =
-  T extends Primitive ? PrimitiveToSqlType<T> : T extends Any ? T : never;
+export type MaybePrimitiveToSqlType<T extends Primitive | Any> = T extends Primitive
+  ? PrimitiveToSqlType<T>
+  : T extends Any
+    ? T
+    : never;
 
-export const maybePrimitiveToSqlType = <T extends Primitive | Any>(
-  value: T,
-): MaybePrimitiveToSqlType<T> => {
+export const maybePrimitiveToSqlType = <T extends Primitive | Any>(value: T): MaybePrimitiveToSqlType<T> => {
   if (typeof value === "string") {
     return Text.new(value) as MaybePrimitiveToSqlType<T>;
   } else if (typeof value === "number") {
@@ -34,13 +35,8 @@ export const maybePrimitiveToSqlType = <T extends Primitive | Any>(
 
   if (typeof value === "object" && value !== null) {
     return Object.fromEntries(
-      Object.entries(value).map(([key, val]) => [
-        key,
-        maybePrimitiveToSqlType(val),
-      ]),
+      Object.entries(value).map(([key, val]) => [key, maybePrimitiveToSqlType(val)]),
     ) as unknown as MaybePrimitiveToSqlType<T>;
   }
-  throw new Error(
-    `Unsupported type for maybePrimitiveToSqlType: ${typeof value}`,
-  );
+  throw new Error(`Unsupported type for maybePrimitiveToSqlType: ${typeof value}`);
 };

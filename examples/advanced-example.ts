@@ -1,13 +1,5 @@
 // Advanced example demonstrating joins and aggregations
-import {
-  typegres,
-  values,
-  Text,
-  Int4,
-  Typegres,
-  select,
-  insert,
-} from "typegres";
+import { typegres, values, Text, Int4, Typegres, select, insert } from "typegres";
 import { Users, Posts, createSchema } from "./schema";
 
 const samplePosts = async (tg: Typegres) => {

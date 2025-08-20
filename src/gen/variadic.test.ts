@@ -16,55 +16,36 @@ import {
 describe("Testing variadic types", () => {
   describe("concat function", () => {
     it("should concatenate text values as method", async () => {
-      const result = await Text.new("Hello")
-        .concat(Text.new(" "), Text.new("world"), Text.new("!"))
-        .execute(testDb);
+      const result = await Text.new("Hello").concat(Text.new(" "), Text.new("world"), Text.new("!")).execute(testDb);
       expect(result).toBe("Hello world!");
     });
 
     it("should concatenate with different types", async () => {
-      const result = await Text.new("Value: ")
-        .concat(Int4.new(42).cast(Text))
-        .execute(testDb);
+      const result = await Text.new("Value: ").concat(Int4.new(42).cast(Text)).execute(testDb);
       expect(result).toBe("Value: 42");
     });
 
     it("should work with single argument", async () => {
-      const result = await Text.new("Hello")
-        .concat(Text.new(" world"))
-        .execute(testDb);
+      const result = await Text.new("Hello").concat(Text.new(" world")).execute(testDb);
       expect(result).toBe("Hello world");
     });
 
     it("should work as standalone function", async () => {
-      const result = await concat(
-        Text.new("Hello"),
-        Text.new(" "),
-        Text.new("world"),
-        Text.new("!"),
-      ).execute(testDb);
+      const result = await concat(Text.new("Hello"), Text.new(" "), Text.new("world"), Text.new("!")).execute(testDb);
       expect(result).toBe("Hello world!");
     });
   });
 
   describe("concat_ws function", () => {
     it("should concatenate with separator", async () => {
-      const result = await concatWs(
-        Text.new("-"),
-        Text.new("one"),
-        Text.new("two"),
-        Text.new("three"),
-      ).execute(testDb);
+      const result = await concatWs(Text.new("-"), Text.new("one"), Text.new("two"), Text.new("three")).execute(testDb);
       expect(result).toBe("one-two-three");
     });
 
     it("should handle null values by skipping them", async () => {
-      const result = await concatWs(
-        Text.new(", "),
-        Text.new("first"),
-        Text.new(null),
-        Text.new("third"),
-      ).execute(testDb);
+      const result = await concatWs(Text.new(", "), Text.new("first"), Text.new(null), Text.new("third")).execute(
+        testDb,
+      );
       expect(result).toBe("first, third");
     });
   });
@@ -80,40 +61,24 @@ describe("Testing variadic types", () => {
     });
 
     it("should work with single replacement", async () => {
-      const result = await format(
-        Text.new("Hello %s!"),
-        Text.new("World"),
-      ).execute(testDb);
+      const result = await format(Text.new("Hello %s!"), Text.new("World")).execute(testDb);
       expect(result).toBe("Hello World!");
     });
   });
 
   describe("JSON array building", () => {
     it("should build JSON array with jsonBuildArray", async () => {
-      const result = await jsonBuildArray(
-        Text.new("a"),
-        Int4.new(1),
-        Bool.new(true),
-        Text.new("test"),
-      ).execute(testDb);
+      const result = await jsonBuildArray(Text.new("a"), Int4.new(1), Bool.new(true), Text.new("test")).execute(testDb);
       expect(JSON.parse(result as string)).toEqual(["a", 1, true, "test"]);
     });
 
     it("should build JSON array as method", async () => {
-      const result = await Text.new("first")
-        .jsonBuildArray(Text.new("second"), Text.new("third"))
-        .execute(testDb);
-      expect(JSON.parse(result as string)).toEqual([
-        "first",
-        "second",
-        "third",
-      ]);
+      const result = await Text.new("first").jsonBuildArray(Text.new("second"), Text.new("third")).execute(testDb);
+      expect(JSON.parse(result as string)).toEqual(["first", "second", "third"]);
     });
 
     it("should build JSONB array", async () => {
-      const result = await jsonbBuildArray(Text.new("x"), Int4.new(42)).execute(
-        testDb,
-      );
+      const result = await jsonbBuildArray(Text.new("x"), Int4.new(42)).execute(testDb);
       expect(JSON.parse(result as string)).toEqual(["x", 42]);
     });
   });
@@ -151,12 +116,9 @@ describe("Testing variadic types", () => {
 
   describe("null counting functions", () => {
     it("should count null values with numNulls", async () => {
-      const result = await numNulls(
-        Text.new(null),
-        Text.new("not null"),
-        Text.new(null),
-        Int4.new(null),
-      ).execute(testDb);
+      const result = await numNulls(Text.new(null), Text.new("not null"), Text.new(null), Int4.new(null)).execute(
+        testDb,
+      );
       expect(result).toBe(3);
     });
 

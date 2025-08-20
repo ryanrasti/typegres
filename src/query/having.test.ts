@@ -28,9 +28,7 @@ describe("HAVING clause", () => {
       },
     ).execute(testDb);
 
-    assert<
-      Equals<typeof result, { customer: string; totalAmount: string | null }[]>
-    >();
+    assert<Equals<typeof result, { customer: string; totalAmount: string | null }[]>>();
 
     expect(result).toHaveLength(2);
     expect(result).toEqual(
@@ -211,9 +209,7 @@ describe("HAVING clause", () => {
       },
     ).execute(testDb);
 
-    assert<
-      Equals<typeof result, { category: string; totalSales: bigint | null }[]>
-    >();
+    assert<Equals<typeof result, { category: string; totalSales: bigint | null }[]>>();
 
     expect(result).toEqual([
       { category: "Electronics", totalSales: 225n },
