@@ -43,7 +43,8 @@ func_info AS (
      WHERE mode_arg.mode = ANY (ARRAY['o', 't', 'b'])) AS output_column_names,
     a.aggfnoid IS NOT NULL AS is_agg,
     op.oprname AS operator_name,
-    COALESCE(rw.is_reserved, FALSE) AS is_reserved
+    COALESCE(rw.is_reserved, FALSE) AS is_reserved,
+    p.provariadic != 0 AS is_variadic
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
   JOIN pg_type rt ON rt.oid = p.prorettype
@@ -67,7 +68,8 @@ grouped_funcs AS (
       'retset_oids', output_oids,
       'is_agg', is_agg,
       'operator_name', operator_name,
-      'is_reserved', is_reserved
+      'is_reserved', is_reserved,
+      'is_variadic', is_variadic
     ) ORDER BY ret_type, arg_types) AS overloads
   FROM func_info
   GROUP BY nspname, proname

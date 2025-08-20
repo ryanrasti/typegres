@@ -85,5 +85,8 @@ export const asType = (
         `Types.${pgNameToIdent(type, true)}`
       : `Types.${pgNameToIdent(type, true)}<${cardinality}, T>`;
   }
+  if (type === "any") {
+    return `Types.Any<unknown, ${cardinality}>`;
+  }
   return `Types.${pgNameToIdent(type, true)}<${cardinality}>`;
 };

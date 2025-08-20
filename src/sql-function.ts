@@ -19,16 +19,23 @@ const Sentinel = class Sentinel {
 const genericArgs = { T: Sentinel, R: Sentinel };
 
 const getRetType = (args: unknown[], defn: TypedFunctionDefinition) => {
-  const { args: params, ret } =
-    typeof defn === "function" ? defn(genericArgs) : defn;
-  if (args.length !== params.length) {
+  const {
+    args: params,
+    ret,
+    isVariadic,
+  } = typeof defn === "function" ? defn(genericArgs) : defn;
+
+  if (
+    args.length !== params.length &&
+    (!isVariadic || params.length > args.length)
+  ) {
     return false;
   }
 
   let genericBindsTo;
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    const param = params[i];
+    const param = params[i] ?? params[params.length - 1];
 
     if (param === Sentinel) {
       if (arg instanceof Any) {
@@ -95,12 +102,14 @@ type TypedFunctionDefinition =
       args: (typeof Any<unknown>)[];
       isOperator: boolean;
       isReserved?: boolean;
+      isVariadic?: boolean;
     }
   | ((args: { T: typeof Any<unknown, 0 | 1>; R: Schema }) => {
       ret: typeof Any<unknown, number> | FromItemFromExpressionClass;
       args: (typeof Any<unknown, number>)[];
       isOperator: boolean;
       isReserved?: boolean;
+      isVariadic?: boolean;
     });
 
 export const sqlFunction = (

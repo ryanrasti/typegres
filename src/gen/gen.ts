@@ -22,6 +22,7 @@ export type FunctionDefinition = {
   is_agg: boolean;
   operator_name: string | null;
   is_reserved?: boolean;
+  is_variadic?: boolean;
 };
 
 const allowAutoboxing = (definitions: FunctionDefinition[]) => {
@@ -50,7 +51,9 @@ const functionDefinitionToTyped = (
         .join(", ")}], ret: ${asType(ret, {
         runtime: true,
         set: defn,
-      })}, isOperator: ${defn.operator_name === name}, isReserved: ${defn.is_reserved || false}}`;
+      })}, isOperator: ${defn.operator_name === name}, isReserved: ${defn.is_reserved || false}, isVariadic: ${
+        defn.is_variadic || false
+      }}`;
 
       return hasRecord
         ? `({R}) => (${rawTyped})`
@@ -169,9 +172,14 @@ const main = async () => {
       for (const [idx, argType] of definition.retset.entries()) {
         addType(argType, definition.retset_oids[idx]);
       }
-      const args = definition.args.map((argType, idx) => {
+      const args = definition.args.flatMap((argType, idx) => {
         const rawType = asType(argType, { aggregate: definition.is_agg });
-        return `a${idx}: ${rawType}`;
+        const ret = `a${idx}: ${rawType}`;
+        if (idx === definition.args.length - 1 && definition.is_variadic) {
+          return [ret, `...variadic: ${rawType}[]`];
+        }
+
+        return [ret];
       });
       const argString = args.join(", ");
       await output.write(
@@ -402,7 +410,7 @@ const main = async () => {
             ]
           : [{ nullable: false }, {}, { aggregate: true }];
         for (const opt of opts) {
-          const args = definition.args.map((argType, idx) => {
+          const args = definition.args.flatMap((argType, idx) => {
             const normalType = asType(argType, opt);
             const rawType = isThisGeneric && idx === 0 ? "T" : normalType;
             const type =
@@ -410,8 +418,13 @@ const main = async () => {
                 ? `${rawType} | Types.Input<${asType(argType)}>`
                 : rawType;
             const name = idx === 0 ? "this" : `a${idx}`;
-            return `${name}: ${type}`;
+            const ret = `${name}: ${type}`;
+            if (idx === definition.args.length - 1 && definition.is_variadic) {
+              return [ret, `...variadic: ${type}[]`];
+            }
+            return [ret];
           });
+
           const argString = args.join(", ");
 
           const hasGeneric = definition.args
