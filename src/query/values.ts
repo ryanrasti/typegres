@@ -1,8 +1,10 @@
 import { sql } from "kysely";
 import { Expression, QueryAlias, SelectableExpression } from "../expression";
-import { Any } from "../types";
+import { Any, Bool, Float8, Numeric, Text } from "../types";
 import { Context } from "../expression";
 import { Values } from "./from-item";
+
+import invariant from "tiny-invariant";
 export { Values } from "./from-item";
 
 export type RowLike = object;
@@ -168,9 +170,86 @@ export const parseRowLike = <R extends RowLike>(
   ) as RowLikeResult<R>;
 };
 
-// Convenience function to create Values
-export const values = <R extends { [k in string]: Any }>(
-  ...rows: [R, ...R[]]
-): Values<R> => {
-  return new Values(rows);
+type CanonicalizableType = boolean | number | bigint | string;
+type CanonicalType<T extends CanonicalizableType> = T extends boolean
+  ? Bool<0 | 1>
+  : T extends number
+    ? Float8<0 | 1>
+    : T extends bigint
+      ? Numeric<0 | 1>
+      : T extends string
+        ? Text<0 | 1>
+        : never;
+
+const toCanonicalType = <T extends CanonicalizableType>(
+  value: T,
+): CanonicalType<T> => {
+  const typeString = typeof value as "boolean" | "number" | "bigint" | "string";
+  return {
+    boolean: Bool,
+    number: Float8,
+    bigint: Numeric,
+    string: Text,
+  }[typeString].new(value as any) as unknown as CanonicalType<T>;
 };
+
+export type AnyOrParsed<T extends RowLikeStrict> = Expand<{
+  [key in keyof T]: ScalarResult<T[key]> | T[key];
+}>;
+
+export type RowLikeCanonicalizable = {
+  [key: string]: Any<unknown, 0 | 1> | CanonicalizableType;
+};
+
+export type CanonicalRowType<R extends RowLikeCanonicalizable> = {
+  [K in keyof R]: R[K] extends CanonicalizableType
+    ? CanonicalType<R[K]>
+    : R[K] extends Any<unknown, 0 | 1>
+      ? R[K]
+      : never;
+};
+
+// Convenience function to create Values
+export function values<R extends RowLikeStrict>(
+  ...rows: [R, ...AnyOrParsed<R>[]]
+): Values<R>;
+export function values<R extends RowLikeCanonicalizable>(
+  ...rows: [R, ...AnyOrParsed<CanonicalRowType<R>>[]]
+): Values<Expand<CanonicalRowType<R>>>;
+export function values(...rows: object[]) {
+  const [row, ...rest] = rows;
+  if (Object.values(row).every((v) => v instanceof Any)) {
+    return new Values([
+      row as RowLikeStrict,
+      ...rest.map((subrow) => {
+        return Object.fromEntries(
+          Object.entries(subrow).map(([key, value]) => {
+            const rowValue = (row as RowLikeStrict)[key];
+            invariant(
+              rowValue instanceof Any,
+              `Row value for ${key} is not an Any type`,
+            );
+            return [
+              key,
+              value instanceof Any ? value : rowValue.getClass().new(value),
+            ];
+          }),
+        ) as unknown as RowLikeStrict;
+      }),
+    ]);
+  }
+
+  return new Values(
+    rows.map(
+      (row) =>
+        Object.fromEntries(
+          Object.entries(row).map(([key, value]) => [
+            key,
+            value instanceof Any
+              ? value
+              : toCanonicalType(value as CanonicalizableType),
+          ]),
+        ) as unknown as RowLikeStrict,
+    ) as [RowLikeStrict, ...RowLikeStrict[]],
+  );
+}

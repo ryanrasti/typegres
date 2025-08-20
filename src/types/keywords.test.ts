@@ -10,7 +10,10 @@ describe("Keyword operators", () => {
   describe("isNull and isNotNull", () => {
     it("should work with isNull", async () => {
       const data = values(
-        { name: Types.Text.new("John"), age: Types.Int4.new(null) },
+        {
+          name: Types.Text.new("John") as Types.Text<0 | 1>,
+          age: Types.Int4.new(null) as Types.Int4<0 | 1>,
+        },
         { name: Types.Text.new(null), age: Types.Int4.new(25) },
       );
 
@@ -60,7 +63,10 @@ describe("Keyword operators", () => {
 
     it("should work with isNotNull", async () => {
       const data = values(
-        { name: Types.Text.new("John"), age: Types.Int4.new(null) },
+        {
+          name: Types.Text.new("John") as Types.Text<0 | 1>,
+          age: Types.Int4.new(null) as Types.Int4<0 | 1>,
+        },
         { name: Types.Text.new(null), age: Types.Int4.new(25) },
       );
 
@@ -126,7 +132,10 @@ describe("Keyword operators", () => {
     it("should follow PostgreSQL three-valued logic for AND", async () => {
       const data = values(
         // All 9 combinations of true/false/null
-        { a: Types.Bool.new(true), b: Types.Bool.new(true) },
+        {
+          a: Types.Bool.new(true) as Types.Bool<0 | 1>,
+          b: Types.Bool.new(true) as Types.Bool<0 | 1>,
+        },
         { a: Types.Bool.new(true), b: Types.Bool.new(false) },
         { a: Types.Bool.new(true), b: Types.Bool.new(null) },
         { a: Types.Bool.new(false), b: Types.Bool.new(true) },
@@ -172,7 +181,10 @@ describe("Keyword operators", () => {
     it("should follow PostgreSQL three-valued logic for OR", async () => {
       const data = values(
         // All 9 combinations of true/false/null
-        { a: Types.Bool.new(true), b: Types.Bool.new(true) },
+        {
+          a: Types.Bool.new(true) as Types.Bool<0 | 1>,
+          b: Types.Bool.new(true) as Types.Bool<0 | 1>,
+        },
         { a: Types.Bool.new(true), b: Types.Bool.new(false) },
         { a: Types.Bool.new(true), b: Types.Bool.new(null) },
         { a: Types.Bool.new(false), b: Types.Bool.new(true) },
@@ -217,7 +229,7 @@ describe("Keyword operators", () => {
 
     it("should follow PostgreSQL three-valued logic for NOT", async () => {
       const data = values(
-        { a: Types.Bool.new(true) },
+        { a: Types.Bool.new(true) as Types.Bool<0 | 1> },
         { a: Types.Bool.new(false) },
         { a: Types.Bool.new(null) },
       );
@@ -410,7 +422,10 @@ describe("Keyword operators", () => {
 
     it("should follow PostgreSQL null-safe comparison semantics", async () => {
       const data = values(
-        { a: Types.Int4.new(1), b: Types.Int4.new(1) },
+        {
+          a: Types.Int4.new(1) as Types.Int4<0 | 1>,
+          b: Types.Int4.new(1) as Types.Int4<0 | 1>,
+        },
         { a: Types.Int4.new(1), b: Types.Int4.new(2) },
         { a: Types.Int4.new(1), b: Types.Int4.new(null) },
         { a: Types.Int4.new(null), b: Types.Int4.new(1) },
@@ -480,7 +495,7 @@ describe("Keyword operators", () => {
       const users = values(
         {
           name: Types.Text.new("John"),
-          age: Types.Int4.new(25),
+          age: Types.Int4.new(25) as Types.Int4<0 | 1>,
           active: Types.Bool.new(true),
         },
         {
@@ -512,8 +527,8 @@ describe("Keyword operators", () => {
       const users = values(
         {
           id: Types.Int4.new(1),
-          previousAge: Types.Int4.new(25),
-          currentAge: Types.Int4.new(26),
+          previousAge: Types.Int4.new(25) as Types.Int4<0 | 1>,
+          currentAge: Types.Int4.new(26) as Types.Int4<0 | 1>,
         },
         {
           id: Types.Int4.new(2),
@@ -779,7 +794,10 @@ describe("Keyword operators", () => {
 
     it("should handle NULL values in conditions", async () => {
       const data = values(
-        { id: Types.Int4.new(1), value: Types.Int4.new(10) },
+        {
+          id: Types.Int4.new(1),
+          value: Types.Int4.new(10) as Types.Int4<0 | 1>,
+        },
         { id: Types.Int4.new(2), value: Types.Int4.new(null) },
         { id: Types.Int4.new(3), value: Types.Int4.new(30) },
       );
@@ -895,7 +913,10 @@ describe("Keyword operators", () => {
 
     it("should work with coalesce at runtime", async () => {
       const data = values(
-        { num: Types.Int4.new(null), fallback: Types.Int4.new(10) },
+        {
+          num: Types.Int4.new(null) as Types.Int4<0 | 1>,
+          fallback: Types.Int4.new(10),
+        },
         { num: Types.Int4.new(20), fallback: Types.Int4.new(30) },
       );
 

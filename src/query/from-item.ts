@@ -4,7 +4,7 @@ import { Bool, RowLikeStrict } from "../types";
 import { maybePrimitiveToSqlType } from "../types/primitive";
 import { Context } from "../expression";
 import Any, { MakeNullable } from "../types/any";
-import { aliasRowLike, RowLike, ValuesExpression } from "./values";
+import { aliasRowLike, AnyOrParsed, RowLike, ValuesExpression } from "./values";
 import invariant from "tiny-invariant";
 import { View, type TableSchema, type TableSchemaToRowLike } from "./db";
 import { withMixinProxy } from "./mixin";
@@ -339,8 +339,10 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins>
  * It extends FromItem so it can be used in FROM clauses,
  * but is a distinct type so we can match on it specifically for INSERT
  */
-export class Values<R extends RowLike = RowLike> extends FromItem<R> {
-  constructor(public rows: [R, ...R[]]) {
+export class Values<
+  R extends RowLikeStrict = RowLikeStrict,
+> extends FromItem<R> {
+  constructor(public rows: [R, ...AnyOrParsed<R>[]]) {
     const alias = new QueryAlias("values");
     super(new ValuesExpression(rows), alias, {}, aliasRowLike(alias, rows[0]));
   }

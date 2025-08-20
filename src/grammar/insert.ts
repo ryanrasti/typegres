@@ -242,7 +242,7 @@ const compileOnConflictInput = <I extends Types.RowLike>(
 };
 
 // Type for the VALUES clause - either literal values, VALUES clause, or a subquery
-type ValuesInput<S extends Types.RowLike> =
+type ValuesInput<S extends Types.RowLikeStrict> =
   | "defaultValues"
   | Values<S>
   | Select<S, any, any>;

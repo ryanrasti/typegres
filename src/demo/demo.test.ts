@@ -51,7 +51,7 @@ describe("demo.ts examples", async () => {
       {
         content: "PostgreSQL can do THAT?!",
         author: "bob",
-        topComment: "This changes everything",
+        topComment: "Game changer!",
         viral: true,
       },
     ]);

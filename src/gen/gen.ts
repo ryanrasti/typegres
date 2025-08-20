@@ -410,20 +410,25 @@ const main = async () => {
             ]
           : [{ nullable: false }, {}, { aggregate: true }];
         for (const opt of opts) {
-          const args = definition.args.flatMap((argType, idx) => {
-            const normalType = asType(argType, opt);
-            const rawType = isThisGeneric && idx === 0 ? "T" : normalType;
-            const type =
-              (argType in typeMap || rawType === "T") && autoBoxable && idx > 0
-                ? `${rawType} | Types.Input<${asType(argType)}>`
-                : rawType;
-            const name = idx === 0 ? "this" : `a${idx}`;
-            const ret = `${name}: ${type}`;
-            if (idx === definition.args.length - 1 && definition.is_variadic) {
-              return [ret, `...variadic: ${type}[]`];
-            }
-            return [ret];
-          });
+          const last = definition.args.at(-1);
+
+          const args = definition.args
+            .concat(definition.is_variadic && last ? [last] : [])
+            .map((argType, idx) => {
+              const normalType = asType(argType, opt);
+              const rawType = isThisGeneric && idx === 0 ? "T" : normalType;
+              const type =
+                (argType in typeMap || rawType === "T" || argType === "any") &&
+                autoBoxable &&
+                idx > 0
+                  ? `${rawType} | Types.Input<${asType(argType)}>`
+                  : rawType;
+              if (idx === definition.args.length && definition.is_variadic) {
+                return `...variadic: (${type})[]`;
+              }
+              const name = idx === 0 ? "this" : `a${idx}`;
+              return `${name}: ${type}`;
+            });
 
           const argString = args.join(", ");
 

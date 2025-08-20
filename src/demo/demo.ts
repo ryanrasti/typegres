@@ -1,4 +1,4 @@
-import { Text, Int4, Timestamptz, Bool, View, Float8, values } from "typegres";
+import { Text, Int4, Timestamptz, View, Float8, values } from "typegres";
 import { typegres } from "typegres";
 
 const tg = await typegres({ type: "pglite" });
@@ -12,26 +12,26 @@ const postData = values(
   {
     id: Int4.new(1),
     authorId: Int4.new(1),
-    content: Text.new("Just shipped Typegres!"),
+    content: "Just shipped Typegres!",
     createdAt: Timestamptz.new("2025-08-14 10:00:00"),
     likes: Int4.new(42),
     comments: Int4.new(8),
   },
   {
-    id: Int4.new(2),
-    authorId: Int4.new(2),
-    content: Text.new("PostgreSQL can do THAT?!"),
+    id: 2,
+    authorId: 2,
+    content: "PostgreSQL can do THAT?!",
     createdAt: Timestamptz.new("2025-08-15 14:30:00"),
-    likes: Int4.new(105),
-    comments: Int4.new(23),
+    likes: 105,
+    comments: 23,
   },
   {
-    id: Int4.new(3),
-    authorId: Int4.new(1),
-    content: Text.new("Working on something new..."),
+    id: 3,
+    authorId: 1,
+    content: "Working on something new...",
     createdAt: Timestamptz.new("2025-08-15 19:00:00"),
-    likes: Int4.new(12),
-    comments: Int4.new(3),
+    likes: 12,
+    comments: 3,
   },
 );
 
@@ -86,24 +86,9 @@ console.log("Trending Posts:", example1);
 // "Relations that compile to efficient SQL"
 
 const userData = values(
-  {
-    id: Int4.new(1),
-    username: Text.new("alice"),
-    verified: Bool.new(true),
-    followers: Int4.new(1200),
-  },
-  {
-    id: Int4.new(2),
-    username: Text.new("bob"),
-    verified: Bool.new(false),
-    followers: Int4.new(450),
-  },
-  {
-    id: Int4.new(3),
-    username: Text.new("charlie"),
-    verified: Bool.new(true),
-    followers: Int4.new(89000),
-  },
+  { id: Int4.new(1), username: "alice", verified: true, followers: 1200 },
+  { id: 2, username: "bob", verified: false, followers: 450 },
+  { id: 3, username: "charlie", verified: true, followers: 89000 },
 );
 
 const commentData = values(
@@ -111,23 +96,11 @@ const commentData = values(
     id: Int4.new(1),
     postId: Int4.new(2),
     authorId: Int4.new(1),
-    content: Text.new("Great point!"),
-    likes: Int4.new(5),
+    content: "Yes!",
+    likes: 5,
   },
-  {
-    id: Int4.new(2),
-    postId: Int4.new(2),
-    authorId: Int4.new(3),
-    content: Text.new("This changes everything"),
-    likes: Int4.new(12),
-  },
-  {
-    id: Int4.new(3),
-    postId: Int4.new(1),
-    authorId: Int4.new(2),
-    content: Text.new("Congrats!"),
-    likes: Int4.new(2),
-  },
+  { id: 2, postId: 2, authorId: 3, content: "Game changer!", likes: 12 },
+  { id: 3, postId: 1, authorId: 2, content: "Congrats!", likes: 2 },
 );
 
 class User extends View(userData).extend<User>() {
