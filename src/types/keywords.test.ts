@@ -848,4 +848,92 @@ describe("Keyword operators", () => {
       });
     });
   });
+
+  describe("coalesce", () => {
+    it("should have correct types for coalesce with nullable + nonnullable", async () => {
+      const nullable: Types.Int4<0 | 1> = Types.Int4.new(null);
+      const nonnullable: Types.Int4<1> = Types.Int4.new(42);
+
+      // When a nullable coalesces with nonnullable, result should be nonnullable
+      const result = nullable.coalesce(nonnullable);
+      assert<Equals<typeof result, Types.Int4<1>>>();
+
+      expect(await result.execute(testDb)).toBe(42);
+    });
+
+    it("should have correct types for coalesce with nullable + nullable", async () => {
+      const nullable1: Types.Int4<0 | 1> = Types.Int4.new(null);
+      const nullable2: Types.Int4<0 | 1> = Types.Int4.new(10);
+
+      // When both are nullable, result stays nullable
+      const result = nullable1.coalesce(nullable2);
+      assert<Equals<typeof result, Types.Int4<0 | 1>>>();
+
+      expect(await result.execute(testDb)).toBe(10);
+    });
+
+    it("should have correct types for coalesce with nonnullable + nullable", async () => {
+      const nonnullable: Types.Int4<1> = Types.Int4.new(42);
+      const nullable: Types.Int4<0 | 1> = Types.Int4.new(null);
+
+      // Nonnullable always stays nonnullable
+      const result = nonnullable.coalesce(nullable);
+      assert<Equals<typeof result, Types.Int4<1>>>();
+
+      expect(await result.execute(testDb)).toBe(42);
+    });
+
+    it("should have correct types for coalesce with nonnullable + nonnullable", async () => {
+      const nonnullable1: Types.Int4<1> = Types.Int4.new(42);
+      const nonnullable2: Types.Int4<1> = Types.Int4.new(100);
+
+      const result = nonnullable1.coalesce(nonnullable2);
+      assert<Equals<typeof result, Types.Int4<1>>>();
+
+      expect(await result.execute(testDb)).toBe(42); // First non-nullable takes precedence
+    });
+
+    it("should work with coalesce at runtime", async () => {
+      const data = values(
+        { num: Types.Int4.new(null), fallback: Types.Int4.new(10) },
+        { num: Types.Int4.new(20), fallback: Types.Int4.new(30) },
+      );
+
+      const result = await select(
+        (row) => ({
+          coalesced: row.num.coalesce(row.fallback),
+          withLiteral: row.num.coalesce(99),
+        }),
+        {
+          from: data,
+        },
+      ).execute(testDb);
+
+      assert<
+        Equals<typeof result, { coalesced: number; withLiteral: number }[]>
+      >();
+
+      expect(result).toEqual([
+        { coalesced: 10, withLiteral: 99 },
+        { coalesced: 20, withLiteral: 20 },
+      ]);
+    });
+
+    it("should work with coalesce on different types", () => {
+      const textNullable: Types.Text<0 | 1> = Types.Text.new(null);
+      const textNonnullable: Types.Text<1> = Types.Text.new("default");
+
+      const result1 = textNullable.coalesce(textNonnullable);
+      assert<Equals<typeof result1, Types.Text<1>>>();
+
+      const result2 = textNullable.coalesce("literal");
+      assert<Equals<typeof result2, Types.Text<1>>>();
+
+      const boolNullable: Types.Bool<0 | 1> = Types.Bool.new(null);
+      const boolNonnullable: Types.Bool<1> = Types.Bool.new(true);
+
+      const result3 = boolNullable.coalesce(boolNonnullable);
+      assert<Equals<typeof result3, Types.Bool<1>>>();
+    });
+  });
 });
