@@ -3,8 +3,6 @@ import { Expression, QueryAlias, SelectableExpression } from "../expression";
 import { Any, Bool, Float8, Numeric, Text } from "../types";
 import { Context } from "../expression";
 import { Values } from "./from-item";
-
-import invariant from "tiny-invariant";
 export { Values } from "./from-item";
 
 export type RowLike = object;
@@ -197,30 +195,21 @@ export function values<R extends RowLikeCanonicalizable>(
 ): Values<Expand<CanonicalRowType<R>>>;
 export function values(...rows: object[]) {
   const [row, ...rest] = rows;
-  if (Object.values(row).every((v) => v instanceof Any)) {
-    return new Values([
-      row as RowLikeStrict,
-      ...rest.map((subrow) => {
-        return Object.fromEntries(
-          Object.entries(subrow).map(([key, value]) => {
-            const rowValue = (row as RowLikeStrict)[key];
-            invariant(rowValue instanceof Any, `Row value for ${key} is not an Any type`);
-            return [key, value instanceof Any ? value : rowValue.getClass().new(value)];
-          }),
-        ) as unknown as RowLikeStrict;
-      }),
-    ]);
-  }
+  const schema = Object.fromEntries(
+    Object.entries(row).map(([key, value]) => {
+      return [key, value instanceof Any ? value : toCanonicalType(value as CanonicalizableType)];
+    }),
+  ) as RowLikeStrict;
 
-  return new Values(
-    rows.map(
-      (row) =>
-        Object.fromEntries(
-          Object.entries(row).map(([key, value]) => [
-            key,
-            value instanceof Any ? value : toCanonicalType(value as CanonicalizableType),
-          ]),
-        ) as unknown as RowLikeStrict,
-    ) as [RowLikeStrict, ...RowLikeStrict[]],
-  );
+  return new Values([
+    schema,
+    ...rest.map((subrow) => {
+      return Object.fromEntries(
+        Object.entries(subrow).map(([key, value]) => {
+          const rowValue = schema[key];
+          return [key, value instanceof Any ? value : rowValue.getClass().new(value)];
+        }),
+      ) as unknown as RowLikeStrict;
+    }),
+  ]);
 }

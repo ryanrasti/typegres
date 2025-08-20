@@ -1,5 +1,4 @@
-import { Text, Int4, Timestamptz, View, Float8, values } from "typegres";
-import { typegres } from "typegres";
+import { Text, Int4, Timestamptz, View, Float8, values, typegres, datePart, caseWhen, now } from "typegres";
 
 const tg = await typegres({ type: "pglite" });
 
@@ -13,31 +12,15 @@ const postData = values(
     id: Int4.new(1),
     authorId: Int4.new(1),
     content: "Just shipped Typegres!",
-    createdAt: Timestamptz.new("2025-08-14 10:00:00"),
+    createdAt: Timestamptz.new("2025-08-14 10:00"),
     likes: Int4.new(42),
     comments: Int4.new(8),
   },
-  {
-    id: 2,
-    authorId: 2,
-    content: "PostgreSQL can do THAT?!",
-    createdAt: Timestamptz.new("2025-08-15 14:30:00"),
-    likes: 105,
-    comments: 23,
-  },
-  {
-    id: 3,
-    authorId: 1,
-    content: "Working on something new...",
-    createdAt: Timestamptz.new("2025-08-15 19:00:00"),
-    likes: 12,
-    comments: 3,
-  },
+  { id: 2, authorId: 2, content: "PostgreSQL can do THAT?!", createdAt: "2025-08-15 14:30", likes: 105, comments: 23 },
+  { id: 3, authorId: 1, content: "Working on something new...", createdAt: "2025-08-15 19:00", likes: 12, comments: 3 },
 );
 
-import { datePart, caseWhen, now } from "typegres";
-
-class Post extends View(postData).extend<Post>() {
+class Post extends postData.asClass<Post>() {
   // These compile to SQL expressions, not JavaScript!
   engagement() {
     // Comments worth 2x likes for engagement
@@ -89,13 +72,7 @@ const userData = values(
 );
 
 const commentData = values(
-  {
-    id: Int4.new(1),
-    postId: Int4.new(2),
-    authorId: Int4.new(1),
-    content: "Yes!",
-    likes: 5,
-  },
+  { id: Int4.new(1), postId: Int4.new(2), authorId: Int4.new(1), content: "Yes!", likes: 5 },
   { id: 2, postId: 2, authorId: 3, content: "Game changer!", likes: 12 },
   { id: 3, postId: 1, authorId: 2, content: "Congrats!", likes: 2 },
 );
@@ -128,7 +105,7 @@ class PostWithStats extends Post.extend<PostWithStats>() {
     return Comment.select()
       .where((c) => c.postId["="](this.id))
       .orderBy((c) => c.likes, { desc: true })
-      .limit(Int4.new(1));
+      .limit(1);
   }
 
   author() {
