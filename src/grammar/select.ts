@@ -12,7 +12,16 @@ import { FromItem } from "../query/from-item";
 import { sqlJoin, compileClauses } from "./utils";
 import { dummyDb } from "../test/db";
 
-const compileNumericLike = (value: Types.NumericLike, ctx: Context): RawBuilder<any> => {
+export type NumericLike =
+  | Types.Int4<0 | 1>
+  | Types.Int2<0 | 1>
+  | Types.Int8<0 | 1>
+  | Types.Float4<0 | 1>
+  | Types.Float8<0 | 1>
+  | Types.Numeric<0 | 1>
+  | number;
+
+const compileNumericLike = (value: NumericLike, ctx: Context): RawBuilder<any> => {
   if (typeof value === "number") {
     return sql`${value}`;
   }
@@ -141,17 +150,17 @@ export class Select<S extends Types.RowLike = any, F extends Types.RowLike = any
     ]);
   }
 
-  limit(limit: Types.NumericLike | "all"): Select<S, F, J> {
+  limit(limit: NumericLike | "all"): Select<S, F, J> {
     const [select, { limit: _existingLimit, ...rest }] = this.clause;
     return new Select([select, { ...rest, limit }]);
   }
 
-  offset(offset: Types.NumericLike | [Types.NumericLike, { row?: true; rows?: true }]): Select<S, F, J> {
+  offset(offset: NumericLike | [NumericLike, { row?: true; rows?: true }]): Select<S, F, J> {
     const [select, { offset: _existingOffset, ...rest }] = this.clause;
     return new Select([select, { ...rest, offset }]);
   }
 
-  fetch(fetch: ["first" | "next", Types.NumericLike, "row" | "rows", "only" | "withTies"]): Select<S, F, J> {
+  fetch(fetch: ["first" | "next", NumericLike, "row" | "rows", "only" | "withTies"]): Select<S, F, J> {
     const [select, { fetch: _existingFetch, ...rest }] = this.clause;
     return new Select([select, { ...rest, fetch }]);
   }
@@ -366,9 +375,9 @@ export const select = <S extends Types.RowLike, F extends Types.RowLike, J exten
     window?: never; // TODO: Implement window functions
   } & SetOps<S> & {
       orderBy?: OrderByInput<F, J>;
-      limit?: Types.NumericLike | "all";
-      offset?: Types.NumericLike | [Types.NumericLike, { row?: true; rows?: true }];
-      fetch?: ["first" | "next", Types.NumericLike, "row" | "rows", "only" | "withTies"];
+      limit?: NumericLike | "all";
+      offset?: NumericLike | [NumericLike, { row?: true; rows?: true }];
+      fetch?: ["first" | "next", NumericLike, "row" | "rows", "only" | "withTies"];
       for?: [
         "update" | "noKeyUpdate" | "share" | "keyShare",
         {
