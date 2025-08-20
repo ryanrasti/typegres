@@ -9,6 +9,7 @@ import {
   ExpressionLike,
   WindowExpression,
   WindowSpec,
+  FunctionExpression,
 } from "../expression";
 import { Any as PgAny } from "../gen/types/any";
 import { Context } from "../expression";
@@ -28,6 +29,10 @@ export type WithNullability<N extends number, T extends Any> = NonNullable<
 
 export type MakeNullable<T extends Any> = NonNullable<
   ReturnType<T["asNullable"]>
+>;
+
+export type MakeNonNullable<T extends Any> = NonNullable<
+  ReturnType<T["asNonNullable"]>
 >;
 
 export type ClassType<T> = {
@@ -285,6 +290,27 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
           : list.toExpression(),
       ),
     ) as Types.Bool<N | N2>;
+  }
+
+  coalesce<
+    T extends Any,
+    T2 extends MakeNullable<T>,
+    F extends T2 | Types.Input<T2>,
+  >(
+    this: T,
+    fallback: F,
+  ): T extends Any<unknown, 1> ? T : F extends Any ? F : MakeNonNullable<T2> {
+    return this.getClass().new(
+      new FunctionExpression(
+        "coalesce",
+        [this.toExpression(), this.toExpressionHelper(fallback)],
+        false, // prefix operator
+      ),
+    ) as T extends Any<unknown, 1>
+      ? T
+      : F extends Any
+        ? F
+        : MakeNonNullable<T2>;
   }
 }
 
