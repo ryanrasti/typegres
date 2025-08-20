@@ -1,9 +1,9 @@
 import { Any, RowLikeStrict } from "../types";
 import {
   aliasRowLike,
+  AnyOrParsed,
   RawTableReferenceExpression,
   RowLike,
-  ScalarResult,
 } from "./values";
 import { QueryAlias } from "../expression";
 import { FromItem, Joins, withFromItem, WithFromItem } from "./from-item";
@@ -26,11 +26,6 @@ export type Table<R extends RowLikeStrict, E extends RowLike = any> = {
   new (data: AnyOrParsed<R>): R & RowImpl<R>;
   extend<E2 extends object>(): Table<R, E & E2>;
 } & WithFromItem<R & E, {}>;
-
-type Expand<T> = T extends object ? { [K in keyof T]: T[K] } : T;
-type AnyOrParsed<T extends RowLikeStrict> = Expand<{
-  [key in keyof T]: ScalarResult<T[key]> | T[key];
-}>;
 
 class RowImpl<R extends RowLikeStrict> {
   static schema: TableSchema;

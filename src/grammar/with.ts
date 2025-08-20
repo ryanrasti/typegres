@@ -11,7 +11,7 @@ import { Update } from "./update";
 import { Delete } from "./delete";
 import { Merge } from "./merge";
 import { XOR } from "ts-xor";
-import { FromItem, RowLike, Text } from "../types";
+import { FromItem, RowLike, RowLikeStrict, Text } from "../types";
 
 /*
 and with_query is:
@@ -263,7 +263,7 @@ type WithQueryTables = {
 };
 
 type Withable<T extends RowLike> =
-  | Values<T>
+  | Values<T extends RowLikeStrict ? T : never>
   | Select<T>
   | Insert<any, any, any, T>
   | Update<any, any, any, T>

@@ -419,7 +419,7 @@ describe("Window Functions", () => {
 
   it("can use ORDER BY with nulls first/last", async () => {
     const scores = values(
-      { student: Text.new("Alice"), score: Int4.new(85) },
+      { student: Text.new("Alice"), score: Int4.new(85) as Int4<0 | 1> },
       { student: Text.new("Bob"), score: Int4.new(null) },
       { student: Text.new("Charlie"), score: Int4.new(92) },
       { student: Text.new("David"), score: Int4.new(null) },
