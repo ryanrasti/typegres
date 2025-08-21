@@ -16,9 +16,19 @@ type Pet = {
   age: number;
 };
 
+type User = {
+  id: Generated<number>;
+  name: string;
+  email: string;
+  active?: number;
+  role?: string;
+  mood?: "happy" | "sad" | "neutral";
+};
+
 export type SeedDatabase = {
   person: Person;
   pet: Pet;
+  users: User;
 };
 
 export const testSeeds = async (db: Kysely<SeedDatabase>) => {
@@ -57,4 +67,39 @@ export const testSeeds = async (db: Kysely<SeedDatabase>) => {
       ])
       .execute();
   }
+
+  // Seed users with mood enum values
+  await db
+    .insertInto("users")
+    .values([
+      {
+        name: "Happy User",
+        email: "happy@example.com",
+        active: 1,
+        role: "user",
+        mood: "happy",
+      },
+      {
+        name: "Sad User",
+        email: "sad@example.com",
+        active: 1,
+        role: "user",
+        mood: "sad",
+      },
+      {
+        name: "Neutral User",
+        email: "neutral@example.com",
+        active: 1,
+        role: "admin",
+        mood: "neutral",
+      },
+      {
+        name: "No Mood User",
+        email: "nomood@example.com",
+        active: 1,
+        role: "user",
+        // mood is null
+      },
+    ])
+    .execute();
 };

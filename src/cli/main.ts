@@ -7,6 +7,8 @@ import { Pool } from "pg";
 import { typegres } from "../db";
 import { asType } from "../gen/as-type";
 import { inspect } from "cross-inspect";
+import TypegresArray from "../types/array";
+import { Text } from "../types";
 
 type ColumnDefinition = {
   type: string;
@@ -55,7 +57,8 @@ const introspectCommand = Command.make(
       });
 
       try {
-        const result = yield* Effect.tryPromise({
+        // Fetch tables
+        const tablesResult = yield* Effect.tryPromise({
           try: async () => {
             const rows = await db.sql<{ result: string }>`
               SELECT json_object_agg(schema_name, tables) AS result
@@ -87,11 +90,30 @@ const introspectCommand = Command.make(
           catch: (error) => new Error(`Failed to query database: ${inspect(error)}`),
         });
 
-        if (!result) {
+        // Fetch enums
+        const enumsResult = yield* Effect.tryPromise({
+          try: async () => {
+            const rows = await db.sql<{ typname: string; labels: string }>`
+              SELECT 
+                t.typname,
+                array_agg(e.enumlabel ORDER BY e.enumsortorder) as labels
+              FROM pg_type t
+              JOIN pg_enum e ON e.enumtypid = t.oid
+              JOIN pg_namespace n ON n.oid = t.typnamespace
+              WHERE t.typtype = 'e' AND n.nspname = ${schema}
+              GROUP BY t.typname
+              ORDER BY t.typname
+            `.execute();
+            return rows;
+          },
+          catch: (error) => new Error(`Failed to query enums: ${inspect(error)}`),
+        });
+
+        if (!tablesResult) {
           return yield* Effect.fail(new Error(`No result returned from database`));
         }
 
-        const tables = result[schema];
+        const tables = tablesResult[schema];
         if (!tables) {
           return yield* Effect.fail(new Error(`No tables found in schema '${schema}'`));
         }
@@ -99,7 +121,36 @@ const introspectCommand = Command.make(
         const outputContent = [
           `import * as Types from "typegres";`,
           `import { Table } from "typegres";`,
+          `import { Expression } from "typegres/dist/expression";`,
           ``,
+          // Generate enum classes
+          ...enumsResult.flatMap((enumDef) => {
+            const className = enumDef.typname
+              .split("_")
+              .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+              .join("");
+
+            // Parse PostgreSQL array using the Array parser
+            const labels = TypegresArray.of(Text).parse(enumDef.labels);
+            const literalUnion = labels.map((label) => `'${label}'`).join(" | ");
+
+            return [
+              `export class ${className}<N extends number> extends Types.Anyenum<N, ${literalUnion}> {`,
+              `  static typeString() { return '${enumDef.typname}'; }`,
+              `  static new(v: ${literalUnion}): ${className}<1>;`,
+              `  static new(v: null): ${className}<0>;`,
+              `  static new(v: Expression): ${className}<0 | 1>;`,
+              `  static new(v: ${literalUnion} | null | Expression): ${className}<0 | 1> {`,
+              `    return new ${className}(v);`,
+              `  }`,
+              `  asAggregate() { return undefined as Types.${className}<number> | undefined; }`,
+              `  asNullable() { return undefined as Types.${className}<0 | 1> | undefined; }`,
+              `  asNonNullable() { return undefined as Types.${className}<1> | undefined; }`,
+              `}`,
+              ``,
+            ];
+          }),
+          // Generate table definitions
           ...Object.entries(tables).flatMap(([tableName, columns]) => {
             // Convert table name to PascalCase for class name
             const className = tableName
@@ -109,12 +160,22 @@ const introspectCommand = Command.make(
 
             return [
               `export const ${className} = Table("${tableName}", {`,
-              ...Object.entries(columns as TableGenFile[string][string]).map(
-                ([column, definition]) =>
-                  `  ${column}: ${asType(canonicalType(definition.type), {
+              ...Object.entries(columns as TableGenFile[string][string]).map(([column, definition]) => {
+                // Check if this type is an enum
+                const isEnum = enumsResult.some((e) => e.typname === definition.type);
+                if (isEnum) {
+                  const enumClassName = definition.type
+                    .split("_")
+                    .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
+                    .join("");
+                  return `  ${column}: ${enumClassName},`;
+                } else {
+                  const typeStr = asType(canonicalType(definition.type), {
                     nullable: definition.not_null ? false : undefined,
-                  })},`,
-              ),
+                  });
+                  return `  ${column}: ${typeStr},`;
+                }
+              }),
               `});`,
               ``,
             ];

@@ -242,6 +242,13 @@ const main = async () => {
       await output.write(
         `export class ${className}<N extends number, T extends AnyBase> extends AnynonarrayBase<unknown, N> {\n`,
       );
+    } else if (type === "anyenum") {
+      await output.write(`import { default as AnynonarrayBase } from '../../types/any';\n`);
+      await output.write(`\n`);
+      const className = pgNameToIdent(type, true);
+      await output.write(
+        `export class ${className}<N extends number, P extends string = string> extends AnynonarrayBase<P, N> {\n`,
+      );
     } else {
       await output.write(`import { default as AnynonarrayBase } from '../../types/any';\n`);
       if (hasParser) {
@@ -289,6 +296,8 @@ const main = async () => {
       await output.write(`    static parse(v: string) { return typeMap[${JSON.stringify(type)}].parse(v); }\n`);
     } else if (type === "any" || type === "array" || type === "record") {
       await output.write(`    static parse(v: string): unknown { return v; }\n`);
+    } else if (type === "anyenum") {
+      await output.write(`    static parse(v: string) { return v; }\n`);
     } else {
       await output.write(`    static parse(v: string) { return v; }\n`);
     }
@@ -303,7 +312,13 @@ const main = async () => {
       ]) {
         await output.write(
           `    ${fnName}(): Types.${pgNameToIdent(type, true)}<${nullability}${
-            type === "array" || type === "anyrange" || type === "anymultirange" ? ", T" : type === "record" ? ", R" : ""
+            type === "array" || type === "anyrange" || type === "anymultirange"
+              ? ", T"
+              : type === "record"
+                ? ", R"
+                : type === "anyenum"
+                  ? ", P"
+                  : ""
           }> | undefined {
           return undefined;
         }
