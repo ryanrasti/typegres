@@ -284,8 +284,9 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins> impl
     return sql.join(keys);
   }
 
-  select<S extends RowLike>(this: WithFromItem<F, J>, cb?: (f: F, j: JoinTables<J>) => S): Select<S, F, J>;
-  select<S extends RowLike>(this: WithFromItem<F, J>, cb?: (f: F) => S): Select<S, F, J>;
+  select(this: WithFromItem<F, J>): Select<F, F, J>;
+  select<S extends RowLike>(this: WithFromItem<F, J>, cb: (f: F, j: JoinTables<J>) => S): Select<S, F, J>;
+  select<S extends RowLike>(this: WithFromItem<F, J>, cb: (f: F) => S): Select<S, F, J>;
   select<S extends RowLike>(
     this: WithFromItem<F, J>,
     cb?: ((f: F, j: JoinTables<J>) => S) | ((f: F) => S),

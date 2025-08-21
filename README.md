@@ -9,6 +9,9 @@ Import the full power of PostgreSQL as a TypeScript library.
 > [!WARNING]
 > **Developer Preview**: Typegres is experimental and not production-ready. The API is evolving rapidly. Try the [playground](https://typegres.com/play/) and star the repo to follow along!
 
+> [!NOTE]
+> This project is evolving quickly! The code examples in this README are correct, but the [playground](https://typegres.com/play/) contains the very latest, most ergonomic API I'm working on.
+
 ## Quick Start
 
 ```bash

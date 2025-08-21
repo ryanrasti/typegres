@@ -166,7 +166,9 @@ const main = async () => {
       }
       const args = definition.args.flatMap((argType, idx) => {
         const rawType = asType(argType, { aggregate: definition.is_agg });
-        const ret = `a${idx}: ${rawType}`;
+        const isAutoboxable = allowAutoboxing(defintitions) && argType in typeMap;
+        const type = isAutoboxable ? `${rawType} | Types.Input<${asType(argType)}>` : rawType;
+        const ret = `a${idx}: ${type}`;
         if (idx === definition.args.length - 1 && definition.is_variadic) {
           return [ret, `...variadic: ${rawType}[]`];
         }

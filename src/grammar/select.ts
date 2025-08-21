@@ -3,7 +3,7 @@ import { Context, Expression, ExistsExpression, NotExistsExpression, QueryAlias 
 import * as Types from "../types";
 import type { XOR } from "ts-xor";
 import { Typegres } from "../db";
-import { parseRowLike, RowLikeResult, aliasRowLike } from "../query/values";
+import { parseRowLike, RowLikeResult, aliasRowLike, pickAny } from "../query/values";
 import invariant from "tiny-invariant";
 import { inspect } from "util";
 import Bool from "../types/bool";
@@ -11,6 +11,7 @@ import { FromItem } from "../query/from-item";
 
 import { sqlJoin, compileClauses } from "./utils";
 import { dummyDb } from "../test/db";
+import { RecordExpression } from "../types/record";
 
 export type NumericLike =
   | Types.Int4<0 | 1>
@@ -331,11 +332,21 @@ export class Select<S extends Types.RowLike = any, F extends Types.RowLike = any
    * Converts a single-column select into a scalar value
    * Used for subqueries that return a single value
    */
-  scalar(): S[keyof S] {
-    const returnShape = this.clause[0](...this.selectArgs());
-    const [val, ...rest] = Object.values(returnShape);
-    invariant(rest.length === 0, `Expected a single scalar return shape, got: ${inspect(returnShape)}`);
-    return val.getClass().new(this.toExpression()) as S[keyof S];
+  scalar(): Types.Record<0 | 1, { [key in keyof S]: S[key] extends Types.Any<unknown, 0 | 1> ? S[key] : never }> {
+    const selected = this.clause[0](...this.selectArgs());
+    const returnShape = pickAny(selected);
+    const schema = Object.fromEntries(Object.entries(returnShape).map(([key, type]) => [key, type.getClass()])) as {
+      [key in keyof S]: S[key] extends Types.Any<unknown, 0 | 1> ? ReturnType<S[key]["getClass"]> : never;
+    };
+
+    return this.selectScalar(() =>
+      Types.Record.of(schema).new(new RecordExpression(returnShape as Types.RowLikeStrict)),
+    );
+  }
+
+  selectScalar<S2 extends Types.Any<unknown, 0 | 1>>(fn: (...args: Types.FromToSelectArgs<F, J>) => S2) {
+    const val = fn(...this.selectArgs());
+    return val.getClass().new(this.select(() => ({ val })).toExpression()) as S2;
   }
 
   /**
