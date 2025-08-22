@@ -35,7 +35,7 @@ export class LiteralRecordExpression extends Expression {
     super();
   }
 
-  compile(): RawBuilder<unknown> {
+  compile(ctx: Context): RawBuilder<unknown> {
     if (this.value === null) {
       throw new Error("Cannot create a null literal record");
     }
@@ -46,8 +46,8 @@ export class LiteralRecordExpression extends Expression {
       Object.values(this.schema).map((type, i) => {
         const instantiated = type.new("");
         return instantiated instanceof Record
-          ? new LiteralRecordExpression(parts[i], instantiated.schema).compile()
-          : new LiteralExpression(parts[i], type.typeString()!).compile();
+          ? new LiteralRecordExpression(parts[i], instantiated.schema).compile(ctx)
+          : new LiteralExpression(parts[i], type.typeString()!).compile(ctx);
       }),
       sql.raw(", "),
     )})`;

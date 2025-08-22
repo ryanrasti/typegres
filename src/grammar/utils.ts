@@ -28,3 +28,7 @@ export const compileClauses = <C extends { [k in string]: unknown }>(
   }
   return sqlJoin(mapped, sql` `);
 };
+
+// For now we mandate the user to use a sql`<ident>` string in certain places
+// where we can't infer the string type to help prevent SQL injection.
+export type Identifier = RawBuilder<any>;

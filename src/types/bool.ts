@@ -3,6 +3,13 @@ import * as Types from "../types";
 import { BinaryOperatorExpression, UnaryOperatorExpression, Expression } from "../expression";
 
 export default class Bool<N extends number> extends PgBool<N> {
+  static new(v: boolean): Bool<1>;
+  static new(v: null): Bool<0>;
+  static new(v: Expression): Bool<0 | 1>;
+  static new(v: boolean | null | Expression): Bool<0 | 1> {
+    return new this(v);
+  }
+
   /**
    * Helper to convert a boolean value to an Expression
    */

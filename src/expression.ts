@@ -3,6 +3,7 @@ import type { RowLike } from "./query/values";
 import type { Any } from "./types";
 import type { OrderBySpec } from "./query/order-by";
 import { compileOrderBy } from "./query/order-by";
+import { escapeLiteral } from "pg";
 
 export class QueryAlias {
   constructor(public name: string) {}
@@ -12,14 +13,17 @@ export class Context {
   // The list of tables in the current context (including aliases for subqueries)
   public namespace: Map<QueryAlias, string>;
   public usedAliases: Set<string>;
+  // Whether we are in a DDL context (e.g., CREATE TABLE) where query parameters are not allowed:
+  public inDdl: boolean;
 
-  private constructor(namespace: Map<QueryAlias, string>) {
+  private constructor(namespace: Map<QueryAlias, string>, inDdl: boolean) {
     this.namespace = namespace;
     this.usedAliases = new Set(namespace.values());
+    this.inDdl = inDdl;
   }
 
-  static new() {
-    return new Context(new Map());
+  static new(opts?: { inDdl?: boolean }) {
+    return new Context(new Map(), opts?.inDdl ?? false);
   }
 
   withReference(ref: string) {
@@ -28,7 +32,7 @@ export class Context {
     }
     const newNamespace = new Map(this.namespace);
     newNamespace.set(new QueryAlias(ref), ref);
-    return new Context(newNamespace);
+    return new Context(newNamespace, this.inDdl);
   }
 
   withAliases(aliases: QueryAlias[]) {
@@ -56,7 +60,7 @@ export class Context {
       newNamespace.set(alias, aliasName);
     }
 
-    return new Context(newNamespace);
+    return new Context(newNamespace, this.inDdl);
   }
 
   getAlias(alias: QueryAlias): string {
@@ -95,8 +99,9 @@ export class LiteralExpression extends Expression {
     super();
   }
 
-  compile() {
-    return sql`cast(${this.value} as ${sql.raw(this.type)})`;
+  compile(ctx: Context) {
+    const value = ctx.inDdl ? sql.raw(escapeLiteral(String(this.value))) : this.value;
+    return sql`cast(${value} as ${sql.raw(this.type)})`;
   }
 }
 
@@ -105,8 +110,9 @@ export class LiteralUnknownExpression extends Expression {
     super();
   }
 
-  compile() {
-    return sql`${this.value}`;
+  compile(ctx: Context) {
+    const value = ctx.inDdl ? sql.raw(escapeLiteral(String(this.value))) : this.value;
+    return sql`${value}`;
   }
 }
 
