@@ -270,15 +270,18 @@ const main = async () => {
       await output.write(`export class ${className}<N extends number> extends AnynonarrayBase<Parsed, N> {\n`);
 
       if (isInstantiatable) {
+        const stripTypes = (t: string) => t.split(".").slice(1); // remove "Types." prefix
         await output.write(
-          `    static new(v: SerializeParam): ${asType(type, {
-            nullable: false,
-          })};\n`,
+          `    static new(v: SerializeParam): ${stripTypes(
+            asType(type, {
+              nullable: false,
+            }),
+          )};\n`,
         );
-        await output.write(`    static new(v: null): ${asType(type, { nullable: true })};\n`);
-        await output.write(`    static new(v: Expression): ${asType(type)};\n`);
+        await output.write(`    static new(v: null): ${stripTypes(asType(type, { nullable: true }))};\n`);
+        await output.write(`    static new(v: Expression): ${stripTypes(asType(type))};\n`);
         await output.write(
-          `    static new(v: SerializeParam | null | Expression): ${asType(type)} { return new ${asType(type)}(v); }\n`,
+          `    static new(v: SerializeParam | null | Expression): ${stripTypes(asType(type))} { return new this(v); }\n`,
         );
 
         if (hasParser) {

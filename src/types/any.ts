@@ -66,7 +66,7 @@ export default class Any<R = unknown, N extends number = number> extends PgAny {
   static new(v: Expression): Any<unknown, 0 | 1>;
   static new(v: unknown): Any<unknown, 1>;
   static new(v: string | null | Expression): Any<unknown, 0 | 1> {
-    return new Any(v);
+    return new this(v);
   }
 
   asAggregate(): Any<R, number> | undefined {
