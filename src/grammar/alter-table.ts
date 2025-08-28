@@ -127,11 +127,15 @@ type Ast<B extends object> = {
   [k in keyof B]: B[k] extends (...args: any) => any ? Parameters<B[k]> : never;
 };
 
+const clone = <T>(obj: T, attrs: Partial<T>): T => Object.assign(Object.create(obj), attrs);
+
+const Repeated = Symbol("Repeated");
+
 abstract class Builder<Context extends object = any> {
-  public $ast: Partial<Ast<this>> = {};
+  //public $ast: Partial<Ast<this>> = {};
   constructor(protected $ctx: Context) {}
 
-  public $clone($ast: this['$ast']): this {
+  public $clone<T extends this>(this: T, $ast: this["$ast"]): this {
     return Object.assign(Object.create(this), attrs);
   }
 
@@ -139,37 +143,45 @@ abstract class Builder<Context extends object = any> {
     return this as Chain<this, K>;
   }
 
-  public abstract $start: () => object;
-  public abstract $then: () => object;
-  abstract get $optionals(): readonly (keyof this)[];
-}
+  $start(): object {
+    return {};
+  }
+  $end(): object {
+    return {};
+  }
 
-type Repeated<B extends Builder> = Omit<B, "$then"> & { $then: () => ReturnType<B["$then"]> & B };
+  $optionals: readonly (keyof this)[] = [];
 
-abstract class AlterTableBuilder<C extends object> extends Builder<C> {
-  public $ast: Partial<Ast<this> & {actions: AbstractActionBuilder['$ast'][]}> = {};
-  $optionals = ["ifExists", "only"] as const;
-
-  alterTable = (name: string, star?: "*") => this.$chain("ifExists");
-  ifExists = () => this.$chain("only");
-  only = () => this.$actions();
-  protected $args = true;
-  $actions() {
-    const self = this;
-    return new (class ActionBuilder extends AbstractActionBuilder {
-      $then = () => {
-        const atb = self.$clone({ ...this.$ast, $actions: [...(self.$ast.$actions ?? []), this.$ast] });
-        return { ...atb.$then(), ...atb.$actions() };
-      };
-    })({}).$start();
+  static repeated<Then extends object>(end: () => Then) {
+    return class RepeatedBuilder extends this {
+      [Repeated] = true;
+      $end = () => ({ ...end(), ...this.$start() });
+    };
   }
 }
 
-const a: AlterTableBuilder<{}> = AlterTableBuilder.new({});
-a.alterTable("table_name").ifExists().only().add("column_name", "data_type").
+const alterTable = class extends Builder {
+  alterTable = (tableName: string, star?: "*") =>
+    class extends Builder {
+      $optionals = ["ifExists", "only"] as const;
+      ifExists = () => this.$chain("only");
+      only = () => this.actions();
+      $compileArgs = this.$args;
+    };
+  actions = () => action.repeated(() => ({ end: true }));
+}.new;
 
-abstract class AbstractActionBuilder extends Builder<{}> {
+const a: AlterTableBuilder<{}> = AlterTableBuilder.new({});
+a.alterTable("table_name").ifExists().only().add("column_name", "data_type");
+
+const action = class extends Builder<{}> {
   $optionals = [] as const;
-  $start = () => this.$chain("add"); 
-  add = (columnName: string, dataType: string) => this.$then() as ReturnType<this["$then"]>;
-}
+  $start = () => this.$chain("add");
+  add = (columnName: string, dataType: string) => this.$end() as ReturnType<(typeof this)["$end"]>;
+};
+
+type Repeated<T, F extends (then: () => T) => Builder, End extends object> = ReturnType<F> & Repeated<T, F, End>;
+
+const repeated = <T, F extends (then: () => T) => Builder, End extends object>(clause: F, end: () => End) => {
+  return clause(() => ({ ...repeated(clause, end), ...end() }));
+};
