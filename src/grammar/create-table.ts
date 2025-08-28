@@ -69,7 +69,7 @@ import { BareColumnExpression } from "../query/values";
 
 // { NO ACTION | RESTRICT | CASCADE | SET NULL [ ( column_name [, ... ] ) ] | SET DEFAULT [ ( column_name [, ... ] ) ] }
 
-export class CreateTable<T extends object> {
+export class CreateTable<T extends Table> {
   public tableName: string;
   public tableInstance: T & { [key: string]: Types.Any & ColumnMeta };
 
@@ -85,6 +85,9 @@ export class CreateTable<T extends object> {
   createTableInstance() {
     const instance = new this.tableDef();
     for (const key of Object.keys(instance)) {
+      // Skip inherited properties from Table base class
+      if (key === '__brand') continue;
+      
       const columnDef = instance[key as keyof T];
       invariant(isColumn(columnDef), `Property ${key} is not a valid column definition`);
       columnDef.v = new BareColumnExpression(key);
@@ -139,7 +142,9 @@ export class CreateTable<T extends object> {
 
 const compileColumns = (tableInstance: { [key: string]: Types.Any & ColumnMeta }, ctx: Context) => {
   return sqlJoin(
-    Object.entries(tableInstance).map(([columnName, columnDef]) => {
+    Object.entries(tableInstance)
+      .filter(([_key, value]) => isColumn(value))
+      .map(([columnName, columnDef]) => {
       const cls = columnDef.getClass();
       const typeString = cls.typeString();
       invariant(
@@ -175,7 +180,7 @@ const compileColumns = (tableInstance: { [key: string]: Types.Any & ColumnMeta }
   );
 };
 
-type ColumnMeta = {
+export type ColumnMeta = {
   getClass(): {
     options: [
       (ColumnOptions & CombinedColumnConstraints<any>)?,
@@ -206,13 +211,17 @@ const isColumn = (v: unknown): v is Types.Any & ColumnMeta => {
   return v instanceof Types.Any && "options" in (v.constructor as any);
 };
 
-type TableDefinition<T extends object> = {
+export class Table {
+  __brand: "Table" = "Table";
+}
+
+type TableDefinition<T extends Table> = typeof Table &{
   new (): T;
   tableName?: string;
   opts?: (row: T) => TableOpts<T>;
 };
 
-export type TableOpts<T extends object> = PreambleOpts & {
+export type TableOpts<T extends Table> = PreambleOpts & {
   tableConstraints?: TableConstraint<T>[];
   like?: never;
   inherits?: never;
@@ -223,7 +232,7 @@ export type TableOpts<T extends object> = PreambleOpts & {
   tablespace?: never;
 };
 
-export const createTable = <T extends object>(
+export const createTable = <T extends Table>(
   tableDef: TableDefinition<T>,
   createOpts?: { ifNotExists?: true },
 ): CreateTable<T> => {
@@ -301,7 +310,7 @@ type UniqueConstraint = {
   unique?: true | IndexParameters | [true | IndexParameters, { nulls?: "distinct" | "notDistinct" }];
 };
 type PrimaryKeyConstraint = { primaryKey?: true | IndexParameters };
-type ReferencesConstraint<T extends object> = {
+type ReferencesConstraint<T extends Table> = {
   references?: [
     reftable: Identifier,
     refcolumn: Identifier,
@@ -365,15 +374,15 @@ const compileReferentialAction = (action: ReferentialAction<any>) => {
 //   FOREIGN KEY ( column_name [, ... ] ) REFERENCES reftable [ ( refcolumn [, ... ] ) ]
 //     [ MATCH FULL | MATCH PARTIAL | MATCH SIMPLE ] [ ON DELETE referential_action ] [ ON UPDATE referential_action ] }
 // [ DEFERRABLE | NOT DEFERRABLE ] [ INITIALLY DEFERRED | INITIALLY IMMEDIATE ]
-type TableConstraint<T extends object> = XOR<CombinedTableConstraints<T>, SingleTableConstraint<T>>;
+type TableConstraint<T extends Table> = XOR<CombinedTableConstraints<T>, SingleTableConstraint<T>>;
 
-type CombinedTableConstraints<T extends object> = CheckConstraint &
+type CombinedTableConstraints<T extends Table> = CheckConstraint &
   UniqueTableConstraint<T> &
   PrimaryKeyTableConstraint<T> &
   ExcludeTableConstraint &
   ForeignKeyTableConstraint<T>;
 
-type SingleTableConstraint<T extends object> = XOR<
+type SingleTableConstraint<T extends Table> = XOR<
   CheckConstraint,
   UniqueTableConstraint<T>,
   PrimaryKeyTableConstraint<T>,
@@ -453,7 +462,7 @@ type ExcludeTableConstraint = {
   exclude?: never;
 };
 
-type ForeignKeyTableConstraint<T extends object> = {
+type ForeignKeyTableConstraint<T extends Table> = {
   foreignKey?: [
     Identifier[],
     {
@@ -465,14 +474,14 @@ type ForeignKeyTableConstraint<T extends object> = {
   ];
 };
 
-type ReferencesGenericClause<T extends object> = {
+type ReferencesGenericClause<T extends Table> = {
   references: [Identifier, Identifier[]];
   match?: "full" | "partial" | "simple";
   onDelete?: ReferentialAction<T>;
   onUpdate?: ReferentialAction<T>;
 };
 
-const compileForeignKey = <T extends object>(foreignKey: ForeignKeyTableConstraint<T>) => {
+const compileForeignKey = <T extends Table>(foreignKey: ForeignKeyTableConstraint<T>) => {
   invariant(foreignKey.foreignKey, "Foreign key constraint must have columns and references");
   const [cols, clauses] = foreignKey.foreignKey;
   const rest = compileClauses(
@@ -485,7 +494,7 @@ const compileForeignKey = <T extends object>(foreignKey: ForeignKeyTableConstrai
   return sql`FOREIGN KEY ${rest}`;
 };
 
-const compileReferencesGenericClause = <T extends object>(clauses: ReferencesGenericClause<T>) => {
+const compileReferencesGenericClause = <T extends Table>(clauses: ReferencesGenericClause<T>) => {
   return (
     compileClauses(clauses, {
       references: ([reftable, refcolumn]) => sql`REFERENCES ${reftable} (${sqlJoin(refcolumn)})`,
@@ -496,7 +505,7 @@ const compileReferencesGenericClause = <T extends object>(clauses: ReferencesGen
   );
 };
 
-type ReferentialAction<T extends object> = XOR<
+type ReferentialAction<T extends Table> = XOR<
   { noAction: true },
   { restrict: true },
   { cascade: true },
@@ -504,7 +513,7 @@ type ReferentialAction<T extends object> = XOR<
   { setDefault: true | (keyof T & string)[] }
 >;
 
-const compileTableConstraint = <T extends Object>(constraint: TableConstraint<T>, ctx: Context) => {
+const compileTableConstraint = <T extends Table>(constraint: TableConstraint<T>, ctx: Context) => {
   return compileClauses(constraint, {
     constraint: (name) => sql`CONSTRAINT ${name}`,
     check: (expr) => compileCheckConstraint({ check: expr }, ctx),
