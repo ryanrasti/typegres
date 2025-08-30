@@ -351,7 +351,7 @@ export const rawGrammar = (filePath?: string) => {
 }
 
 // Main parse function
-export const parse = (content: string) => {
+export const parse = (content: string = rawGrammar()) => {
   const blocks = preprocess(content);
   return Object.fromEntries(
     Object.entries(blocks).map(([k, v]) => {
