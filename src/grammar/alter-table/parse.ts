@@ -129,7 +129,7 @@ class RepetitionNode extends Node<" " | ", "> {
   }
 
   render(): string {
-    return this.value === " " ? `[...]` : `[${this.value}... ]`;
+    return this.value === " " ? `[ ... ]` : `[${this.value}... ]`;
   }
 }
 
@@ -142,10 +142,10 @@ export class ChoiceNode extends Node<NodeList[]> {
     super(value);
   }
 
-  static parse(input: string): { node: ChoiceNode; remaining: string } | null {
+  static parse(input: string, allowSingle = false): { node: ChoiceNode; remaining: string } | null {
     const { node, remaining: rem } = NodeList.parse(input, false, [ChoiceNode.parse]);
 
-    if (rem === "") {
+    if (rem === "" && allowSingle) {
       return {
         node: new ChoiceNode([node]),
         remaining: "",
@@ -156,7 +156,7 @@ export class ChoiceNode extends Node<NodeList[]> {
       return null;
     }
 
-    const restParsed = ChoiceNode.parse(rem.slice(1).trimStart());
+    const restParsed = ChoiceNode.parse(rem.slice(1).trimStart(), true);
     if (!restParsed) {
       return null;
     }
@@ -172,7 +172,7 @@ export class ChoiceNode extends Node<NodeList[]> {
   }
 }
 
-class GroupNode extends Node<NodeList> {
+export class GroupNode extends Node<NodeList> {
   type = "group" as const;
 
   static parse(input: string) {
@@ -197,7 +197,7 @@ class GroupNode extends Node<NodeList> {
   }
 }
 
-class IdentifierNode extends Node<string> {
+export class IdentifierNode extends Node<string> {
   type = "identifier" as const;
 
   static parse(input: string): { node: IdentifierNode; remaining: string } | null {
@@ -226,7 +226,7 @@ class IdentifierNode extends Node<string> {
   }
 }
 
-class NodeList extends Node<Node<unknown>[]> {
+export class NodeList extends Node<Node<unknown>[]> {
   type = "nodelist" as const;
 
   static parse(input: string, parseFully = false, omitParsers: ((...a: any) => any)[] = []) {
@@ -345,11 +345,13 @@ function normalizeLines(lines: string[]): string[] {
   return normalized;
 }
 
-// Main parse function
-export const parse = (filePath?: string) => {
-  const file = filePath || path.join(__dirname, "alter-table.md");
-  const content = fs.readFileSync(file, "utf-8");
+export const rawGrammar = (filePath?: string) => {
+    const file = filePath || path.join(__dirname, "alter-table.md");
+    return fs.readFileSync(file, "utf-8");
+}
 
+// Main parse function
+export const parse = (content: string) => {
   const blocks = preprocess(content);
   return Object.fromEntries(
     Object.entries(blocks).map(([k, v]) => {
@@ -367,19 +369,19 @@ export const parse = (filePath?: string) => {
 export type ParsedBlock = Block & { parsed: NodeList | ChoiceNode };
 export type ParsedBlocks = { [k in string]: ParsedBlock };
 
-const replay = (blocks: ParsedBlocks) => {
+export function* replay(blocks: ParsedBlocks)  {
   for (const [name, { parsed, header }] of Object.entries(blocks)) {
     if (header) {
-      console.log(header);
-      console.log();
+      yield header;
     }
-    console.log(parsed.render());
-    console.log();
+    yield parsed.render()
   }
 };
 
 // Test
 if (require.main === module) {
-  const result = parse();
-  replay(result);
+  const result = parse(rawGrammar());
+  for (const line of replay(result)) {
+    console.log(line);
+  }
 }

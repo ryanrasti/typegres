@@ -1,18 +1,9 @@
 import invariant from "tiny-invariant";
-import { ChoiceNode, ParsedBlocks, ParsedBlock, KeywordNode } from "./parse";
+import { ChoiceNode, ParsedBlocks, ParsedBlock, KeywordNode, NodeList } from "./parse";
 import { Node, parse } from "./parse";
 import camelCase from "camelcase";
 import { inspect } from "cross-inspect";
-
-const definitions = (block: ParsedBlock): Node<unknown>[][] => {
-  if (block.parsed instanceof ChoiceNode) {
-    return block.parsed.value;
-  }
-  if (block.parsed[0] && block.parsed.length === 1 && block.parsed[0] instanceof ChoiceNode) {
-    return block.parsed[0].value;
-  }
-  return [block.parsed];
-};
+import { forEach } from "effect/Array";
 
 const extractLeadingKeywordNode = (nodes: Node<unknown>[]) => {
   const [first] = nodes;
@@ -21,45 +12,59 @@ const extractLeadingKeywordNode = (nodes: Node<unknown>[]) => {
   return first;
 };
 
-const generateSubMethods = (nodes: Node<unknown>[], prefix: string) => {
-  for (const node of nodes.map((n) => n.asNodeType())) {
-    if (node.type === "keyword") {
-      console.log(`${prefix}__${camelCase(node.value)}() {}`);
-    } else if (node.type === "choice") {
-      for (const choice of node.value) {
-        generateSubMethods(choice, prefix);
+type Clause = [KeywordNode, ...Node<unknown>[]];
+
+const extractLeadingClauses = ({ parsed }: ParsedBlock): Map<Clause, string> => {
+  const names: { [key in string]: number } = {};
+
+  const ret: Map<Clause, string> = new Map();
+
+  const registerKeyword = (node: KeywordNode, rest: Node<unknown>[]) => {
+    names[node.value] = names[node.value] ?? 0;
+    const name = `${camelCase(node.value)}_${names[node.value]}`;
+    names[node.value]++;
+    ret.set([node, ...rest], name);
+  };
+
+  const traverse = (nodeIn: Node<unknown>) => {
+    const node = nodeIn.asNodeType();
+    if (node.type === "nodelist") {
+      const [first, ...rest] = node.value;
+      invariant(first, "No nodes to extract keyword from");
+
+      if (first instanceof KeywordNode) {
+        registerKeyword(first, rest);
+      } else {
+        traverse(first);
       }
-    } else if (node.type === "group" || node.type === "optional") {
-      generateSubMethods(node.value, prefix);
-    } else if (node.type === "identifier" || node.type === "parameter" || node.type === "repetition") {
-      // Do nothing for now
+    } else if (node.type === "optional" || node.type === "group") {
+      forEach(node.value.value, traverse);
+    } else if (node.type === "keyword") {
+      registerKeyword(node, []);
+    } else if (node.type === "choice") {
+      forEach(node.value, traverse);
+    } else if (node.type === "repetition" || node.type === "identifier" || node.type === "parameter") {
+      // Nothing for now
     } else {
       node satisfies never;
-      invariant(false, `Unhandled node type: ${(node as any).type}`);
+      invariant(false, `Unhandled node type: ${inspect(node)}`);
     }
-  }
+  };
+
+  forEach(parsed.value, traverse);
+  return ret;
 };
 
 // Generate a builder class for a block
 const generateBuilderClass = (name: string, block: ParsedBlock) => {
   const className = `${name === "$root" ? "" : camelCase(name, { pascalCase: true })}Builder`;
-  const defs = definitions(block);
-  const entryPoints: { [key in string]: number } = {};
 
   console.log(`export class ${className} extends Builder {`);
 
-  for (const def of defs) {
-    const firstKeyword = extractLeadingKeywordNode(def);
-    entryPoints[firstKeyword.value] = entryPoints[firstKeyword.value] ?? 0;
-    const prefix = `${camelCase(firstKeyword.value)}__${entryPoints[firstKeyword.value]}`;
-    console.log(`${prefix}() {}`);
-    generateSubMethods(def.slice(1), prefix);
-
-    entryPoints[firstKeyword.value]++;
-  }
-
-  for (const [entry, n] of Object.entries(entryPoints)) {
-    console.log(`${camelCase(entry)}() {}`);
+  const leadingClauses = extractLeadingClauses(block);
+  for (const [clause, name] of leadingClauses.entries()) {
+    console.log(`  ${name} = () => {}`);
+    
   }
 
   console.log(`}`);
@@ -69,7 +74,7 @@ export const generateClasses = (blocks: ParsedBlocks) => {
   // Generate a class for each block
   for (const [name, block] of Object.entries(blocks)) {
     generateBuilderClass(name, block);
-    console.log("\n\n");
+    console.log("\n");
   }
 };
 
@@ -78,3 +83,4 @@ if (require.main === module) {
   const blocks = parse();
   generateClasses(blocks);
 }
+
