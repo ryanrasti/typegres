@@ -6,6 +6,7 @@ import invariant from "tiny-invariant";
 abstract class Node<T> {
   abstract type: string;
   constructor(public value: T) {}
+  abstract render(): string;
 }
 
 const doMatch = (input: string, pattern: RegExp) => {
@@ -32,6 +33,10 @@ class KeywordNode extends Node<string> {
     }
     return null;
   }
+
+  render() {
+    return this.value;
+  }
 }
 
 class ExplicitParametersNode extends Node<string> {
@@ -40,13 +45,16 @@ class ExplicitParametersNode extends Node<string> {
   static parse(input: string) {
     const { match, remaining } = doMatch(input, /^\(([^)]+)\)/);
     if (match) {
-      console.log("Matched explicit parameters:", match);
       return {
         node: new ExplicitParametersNode(match),
         remaining: remaining,
       };
     }
     return null;
+  }
+
+  render() {
+    return `${this.value}`;
   }
 }
 
@@ -83,9 +91,13 @@ class OptionalNode extends Node<Node<unknown>[]> {
       remaining,
     };
   }
+
+  render(): string {
+    return `[ ${this.value.map((v) => v.render()).join(" ")} ]`;
+  }
 }
 
-class RepetitionNode extends Node<" " | ","> {
+class RepetitionNode extends Node<" " | ", "> {
   type = "repetition" as const;
 
   static parse(input: string) {
@@ -97,10 +109,14 @@ class RepetitionNode extends Node<" " | ","> {
     // Check for repetition pattern
     if (content === "..." || content === ", ...") {
       return {
-        node: new RepetitionNode(content === "..." ? " " : ","),
+        node: new RepetitionNode(content === "..." ? " " : ", "),
         remaining,
       };
     }
+  }
+
+  render(): string {
+    return this.value === " " ? `[...]` : `[${this.value}... ]`;
   }
 }
 
@@ -131,6 +147,10 @@ class ChoiceNode extends Node<Node<unknown>[][]> {
       remaining: restParsed.remaining,
     };
   }
+
+  render(): string {
+    return this.value.map((group) => group.map((n) => n.render()).join(" ")).join(" | ");
+  }
 }
 
 class GroupNode extends Node<Node<unknown>[]> {
@@ -144,7 +164,6 @@ class GroupNode extends Node<Node<unknown>[]> {
     }
 
     const { nodes, remaining: rem } = parseNodes(content);
-    console.log("GroupNode parsed nodes:", nodes, "remaining:", rem);
     if (rem !== "") {
       return null;
     }
@@ -152,6 +171,10 @@ class GroupNode extends Node<Node<unknown>[]> {
       node: new GroupNode(nodes),
       remaining,
     };
+  }
+
+  render() {
+    return `{ ${this.value.map((v) => v.render()).join(" ")} }`;
   }
 }
 
@@ -177,6 +200,10 @@ class ReferenceNode extends Node<string> {
     }
 
     return null;
+  }
+
+  render() {
+    return this.value === "*" ? this.value : `\`${this.value}\``;
   }
 }
 
@@ -269,7 +296,7 @@ function normalizeLines(lines: string[]): string[] {
 
   while (i < lines.length) {
     let line = lines[i];
-    const baseIndent = line.match(/^(\s*)/)?.[1].length || 0;
+    const baseIndent = line.match(/^(\s*)[^ ]/)?.[1].length ?? Infinity;
     i++;
 
     // Check for continuation lines (more indented)
@@ -303,30 +330,31 @@ const parse = (filePath?: string) => {
       const parsed = v.isOneOf
         ? new ChoiceNode(v.lines.map((l) => parseNodes(l, true).nodes))
         : parseNodes(v.lines.join(" "), true).nodes;
-      return [k, {...v, parsed}];
+      return [k, { ...v, parsed }];
     }),
   );
 };
 
 type ParsedBlock = Block & { parsed: Node<unknown>[] | ChoiceNode };
 
-const replay = (blocks: {[k in string]: ParsedBlock}): string => {
-    for (const [name, {parsed, header}] of Object.entries(blocks)) {
-        if (header) {
-            console.log(header);
-            console.log();
-        }
-        const nodeGroups = parsed instanceof ChoiceNode ? parsed.value : [parsed];
-        for (const nodes of nodeGroups) {
-            for (const node of nodes) {
-                console.log(node.render());
-            }
-        }
+const replay = (blocks: { [k in string]: ParsedBlock }) => {
+  for (const [name, { parsed, header }] of Object.entries(blocks)) {
+    if (header) {
+      console.log(header);
+      console.log();
     }
-}
+    const nodeGroups = parsed instanceof ChoiceNode ? parsed.value : [parsed];
+    for (const nodes of nodeGroups) {
+      for (const node of nodes) {
+        console.log(node.render());
+      }
+    }
+    console.log();
+  }
+};
 
 // Test
 if (require.main === module) {
   const result = parse();
-  console.log(JSON.stringify(result, null, 2));
+  replay(result);
 }
