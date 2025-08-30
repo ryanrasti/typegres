@@ -22,8 +22,8 @@ class KeywordNode extends Node<string> {
   type = "keyword" as const;
 
   static parse(input: string) {
-    // Match contiguous uppercase words (e.g., "ALTER TABLE", "IF EXISTS")
-    const { match, remaining } = doMatch(input, /^([A-Z]+(\s+[A-Z]+)*)/);
+    // Match contiguous uppercase words (e.g., "ALTER TABLE", "CURRENT_USER")
+    const { match, remaining } = doMatch(input, /^([A-Z]+([ _]+[A-Z]+)*)/);
     if (match) {
       return {
         node: new KeywordNode(match),
@@ -38,10 +38,11 @@ class ExplicitParametersNode extends Node<string> {
   type = "parameter" as const;
 
   static parse(input: string) {
-    const { remaining, match } = doMatch(input, /^`\(([^)]+)\)`/);
+    const { match, remaining } = doMatch(input, /^\(([^)]+)\)/);
     if (match) {
+      console.log("Matched explicit parameters:", match);
       return {
-        node: new ExplicitParametersNode(remaining),
+        node: new ExplicitParametersNode(match),
         remaining: remaining,
       };
     }
@@ -60,7 +61,7 @@ const balanceBrackets = (input: string, open: string, close: string) => {
     if (depth === 0) break;
   }
   return depth === 0
-    ? { content: input.slice(0, i).trim(), remaining: input.slice(i).trimStart() }
+    ? { content: input.slice(1, i - 1).trim(), remaining: input.slice(i).trimStart() }
     : { content: null, remaining: input };
 };
 
@@ -107,23 +108,48 @@ class ChoiceNode extends Node<Node<unknown>[][]> {
   type = "choice" as const;
 
   static parse(input: string): { node: ChoiceNode; remaining: string } | null {
-    // Optionally, match surrounding {}:
-    const { content, remaining } = balanceBrackets(input, "{", "}");
+    const { nodes, remaining: rem } = parseNodes(input, false, [ChoiceNode.parse]);
 
-    const {
-      nodes,
-      remaining: [divider, ...rest],
-    } = parseNodes(content ?? input);
-    if (nodes.length === 0 || divider !== "|") {
+    if (rem === "") {
+      return {
+        node: new ChoiceNode([nodes]),
+        remaining: "",
+      };
+    }
+
+    if (nodes.length === 0 || rem[0] !== "|") {
       return null;
     }
-    const restParsed = ChoiceNode.parse(rest);
+
+    const restParsed = ChoiceNode.parse(rem.slice(1).trimStart());
     if (!restParsed) {
       return null;
     }
 
     return {
       node: new ChoiceNode([nodes, ...restParsed.node.value]),
+      remaining: restParsed.remaining,
+    };
+  }
+}
+
+class GroupNode extends Node<Node<unknown>[]> {
+  type = "group" as const;
+
+  static parse(input: string) {
+    // Optionally, match surrounding {}:
+    const { content, remaining } = balanceBrackets(input, "{", "}");
+    if (!content) {
+      return null;
+    }
+
+    const { nodes, remaining: rem } = parseNodes(content);
+    console.log("GroupNode parsed nodes:", nodes, "remaining:", rem);
+    if (rem !== "") {
+      return null;
+    }
+    return {
+      node: new GroupNode(nodes),
       remaining,
     };
   }
@@ -133,45 +159,63 @@ class ReferenceNode extends Node<string> {
   type = "reference" as const;
 
   static parse(input: string): { node: ReferenceNode; remaining: string } | null {
-    const match = input.match(/^([a-z][a-z_]*)/);
-    if (match) {
+    // Try backticked parameter first
+    const backtickMatch = input.match(/^`([^`]+)`/);
+    if (backtickMatch) {
       return {
-        node: new ReferenceNode(match[1]),
-        remaining: input.slice(match[0].length).trimStart(),
+        node: new ReferenceNode(backtickMatch[1]),
+        remaining: input.slice(backtickMatch[0].length).trimStart(),
       };
     }
+
+    // Also match * as a reference
+    if (input.startsWith("*")) {
+      return {
+        node: new ReferenceNode("*"),
+        remaining: input.slice(1).trimStart(),
+      };
+    }
+
     return null;
   }
 }
 
 // Parse a sequence of nodes
-function parseNodes(input: string, parseFully = false) {
+function parseNodes(input: string, parseFully = false, omitParsers: ((...a: any) => any)[] = []) {
   const nodes: Node<unknown>[] = [];
   let remaining = input.trim();
 
   while (remaining) {
     // Try each parser in order
     const parsers = [
-      ExplicitParametersNode.parse,
       ChoiceNode.parse,
+      ExplicitParametersNode.parse,
+      GroupNode.parse,
       RepetitionNode.parse,
       OptionalNode.parse,
       KeywordNode.parse,
       ReferenceNode.parse,
-    ];
+    ].filter((p) => !omitParsers.includes(p));
 
+    let matched = false;
     for (const parser of parsers) {
       const result = parser(remaining);
       if (result) {
         nodes.push(result.node);
         remaining = result.remaining;
+        matched = true;
         break;
       }
+    }
+
+    // If nothing matched, break to avoid infinite loop
+    if (!matched) {
+      break;
     }
   }
 
   if (parseFully) {
-    invariant(remaining === "", `Failed to fully parse input: ${input} -> '${remaining}'`);
+    invariant(remaining === "", `Failed to fully parse input: ${input} \n\n\t->'${remaining}'`);
   }
 
   return { nodes, remaining };
@@ -180,6 +224,7 @@ function parseNodes(input: string, parseFully = false) {
 type Block = {
   lines: string[];
   isOneOf: boolean;
+  header?: string;
 };
 
 // Preprocess the file
@@ -190,16 +235,17 @@ function preprocess(content: string): { [key: string]: Block } & { $root: Block 
       isOneOf: true,
     },
   };
-  let currentBlock = "__root__";
+  let currentBlock = "$root";
 
   for (const line of normalizeLines(content.split("\n"))) {
     // Check for block header
-    const blockMatch = line.match(/^(?:where |and )?`([^`]+)` is(?: one of)?:/);
+    const blockMatch = line.match(/^(?:where |and )?`([^`]+)` .*(of|is|are):/);
     if (blockMatch) {
-      const currentBlock = blockMatch[1];
+      currentBlock = blockMatch[1];
       blocks[currentBlock] = {
         lines: [],
         isOneOf: line.includes("one of"),
+        header: line.trim(),
       };
       continue;
     }
@@ -254,11 +300,30 @@ const parse = (filePath?: string) => {
   const blocks = preprocess(content);
   return Object.fromEntries(
     Object.entries(blocks).map(([k, v]) => {
-        const parsed = v.lines.map((l) => parseNodes(l, true).nodes);
-        return [k, v.isOneOf ? [new ChoiceNode(parsed)] : parsed.flat()];
+      const parsed = v.isOneOf
+        ? new ChoiceNode(v.lines.map((l) => parseNodes(l, true).nodes))
+        : parseNodes(v.lines.join(" "), true).nodes;
+      return [k, {...v, parsed}];
     }),
   );
 };
+
+type ParsedBlock = Block & { parsed: Node<unknown>[] | ChoiceNode };
+
+const replay = (blocks: {[k in string]: ParsedBlock}): string => {
+    for (const [name, {parsed, header}] of Object.entries(blocks)) {
+        if (header) {
+            console.log(header);
+            console.log();
+        }
+        const nodeGroups = parsed instanceof ChoiceNode ? parsed.value : [parsed];
+        for (const nodes of nodeGroups) {
+            for (const node of nodes) {
+                console.log(node.render());
+            }
+        }
+    }
+}
 
 // Test
 if (require.main === module) {
