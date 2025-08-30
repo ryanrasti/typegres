@@ -120,7 +120,7 @@ class RepetitionNode extends Node<" " | ", "> {
   }
 }
 
-class ChoiceNode extends Node<Node<unknown>[][]> {
+export class ChoiceNode extends Node<Node<unknown>[][]> {
   type = "choice" as const;
 
   static parse(input: string): { node: ChoiceNode; remaining: string } | null {
@@ -178,23 +178,23 @@ class GroupNode extends Node<Node<unknown>[]> {
   }
 }
 
-class ReferenceNode extends Node<string> {
-  type = "reference" as const;
+class IdentifierNode extends Node<string> {
+  type = "identifier" as const;
 
-  static parse(input: string): { node: ReferenceNode; remaining: string } | null {
+  static parse(input: string): { node: IdentifierNode; remaining: string } | null {
     // Try backticked parameter first
     const backtickMatch = input.match(/^`([^`]+)`/);
     if (backtickMatch) {
       return {
-        node: new ReferenceNode(backtickMatch[1]),
+        node: new IdentifierNode(backtickMatch[1]),
         remaining: input.slice(backtickMatch[0].length).trimStart(),
       };
     }
 
-    // Also match * as a reference
+    // Also match * as a identifier
     if (input.startsWith("*")) {
       return {
-        node: new ReferenceNode("*"),
+        node: new IdentifierNode("*"),
         remaining: input.slice(1).trimStart(),
       };
     }
@@ -221,7 +221,7 @@ function parseNodes(input: string, parseFully = false, omitParsers: ((...a: any)
       RepetitionNode.parse,
       OptionalNode.parse,
       KeywordNode.parse,
-      ReferenceNode.parse,
+      IdentifierNode.parse,
     ].filter((p) => !omitParsers.includes(p));
 
     let matched = false;
@@ -335,9 +335,10 @@ const parse = (filePath?: string) => {
   );
 };
 
-type ParsedBlock = Block & { parsed: Node<unknown>[] | ChoiceNode };
+export type ParsedBlock = Block & { parsed: Node<unknown>[] | ChoiceNode };
+export type ParsedBlocks = { [k in string]: ParsedBlock };
 
-const replay = (blocks: { [k in string]: ParsedBlock }) => {
+const replay = (blocks: ParsedBlocks) => {
   for (const [name, { parsed, header }] of Object.entries(blocks)) {
     if (header) {
       console.log(header);
