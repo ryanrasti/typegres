@@ -3,10 +3,13 @@ import * as path from "path";
 import invariant from "tiny-invariant";
 
 // Base Node class
-abstract class Node<T> {
+export abstract class Node<T> {
   abstract type: string;
   constructor(public value: T) {}
   abstract render(): string;
+  asNodeType(): NodeType {
+    return this as NodeType;
+  }
 }
 
 const doMatch = (input: string, pattern: RegExp) => {
@@ -18,8 +21,18 @@ const doMatch = (input: string, pattern: RegExp) => {
   return { match: null, remaining: input };
 };
 
+type NodeType =
+  | KeywordNode
+  | ExplicitParametersNode
+  | OptionalNode
+  | RepetitionNode
+  | ChoiceNode
+  | GroupNode
+  | IdentifierNode
+  | NodeList;
+
 // Node types
-class KeywordNode extends Node<string> {
+export class KeywordNode extends Node<string> {
   type = "keyword" as const;
 
   static parse(input: string) {
@@ -73,7 +86,7 @@ const balanceBrackets = (input: string, open: string, close: string) => {
     : { content: null, remaining: input };
 };
 
-class OptionalNode extends Node<Node<unknown>[]> {
+class OptionalNode extends Node<NodeList> {
   type = "optional" as const;
 
   static parse(input: string): { node: OptionalNode | RepetitionNode; remaining: string } | null {
@@ -82,18 +95,18 @@ class OptionalNode extends Node<Node<unknown>[]> {
       return null;
     }
 
-    const { nodes, remaining: rem } = parseNodes(content);
+    const { node, remaining: rem } = NodeList.parse(content);
     if (rem) {
       return null;
     }
     return {
-      node: new OptionalNode(nodes),
+      node: new OptionalNode(node),
       remaining,
     };
   }
 
   render(): string {
-    return `[ ${this.value.map((v) => v.render()).join(" ")} ]`;
+    return `[ ${this.value.render()} ]`;
   }
 }
 
@@ -120,20 +133,26 @@ class RepetitionNode extends Node<" " | ", "> {
   }
 }
 
-export class ChoiceNode extends Node<Node<unknown>[][]> {
+export class ChoiceNode extends Node<NodeList[]> {
   type = "choice" as const;
+  constructor(
+    value: NodeList[],
+    public isTopLevel = false,
+  ) {
+    super(value);
+  }
 
   static parse(input: string): { node: ChoiceNode; remaining: string } | null {
-    const { nodes, remaining: rem } = parseNodes(input, false, [ChoiceNode.parse]);
+    const { node, remaining: rem } = NodeList.parse(input, false, [ChoiceNode.parse]);
 
     if (rem === "") {
       return {
-        node: new ChoiceNode([nodes]),
+        node: new ChoiceNode([node]),
         remaining: "",
       };
     }
 
-    if (nodes.length === 0 || rem[0] !== "|") {
+    if (node.value.length === 0 || rem[0] !== "|") {
       return null;
     }
 
@@ -143,17 +162,17 @@ export class ChoiceNode extends Node<Node<unknown>[][]> {
     }
 
     return {
-      node: new ChoiceNode([nodes, ...restParsed.node.value]),
+      node: new ChoiceNode([node, ...restParsed.node.value]),
       remaining: restParsed.remaining,
     };
   }
 
   render(): string {
-    return this.value.map((group) => group.map((n) => n.render()).join(" ")).join(" | ");
+    return this.value.map((group) => group.render()).join(this.isTopLevel ? '\n' : " | ");
   }
 }
 
-class GroupNode extends Node<Node<unknown>[]> {
+class GroupNode extends Node<NodeList> {
   type = "group" as const;
 
   static parse(input: string) {
@@ -163,18 +182,18 @@ class GroupNode extends Node<Node<unknown>[]> {
       return null;
     }
 
-    const { nodes, remaining: rem } = parseNodes(content);
+    const { node, remaining: rem } = NodeList.parse(content);
     if (rem !== "") {
       return null;
     }
     return {
-      node: new GroupNode(nodes),
+      node: new GroupNode(node),
       remaining,
     };
   }
 
   render() {
-    return `{ ${this.value.map((v) => v.render()).join(" ")} }`;
+    return `{ ${this.value.render()} }`;
   }
 }
 
@@ -207,45 +226,52 @@ class IdentifierNode extends Node<string> {
   }
 }
 
-// Parse a sequence of nodes
-function parseNodes(input: string, parseFully = false, omitParsers: ((...a: any) => any)[] = []) {
-  const nodes: Node<unknown>[] = [];
-  let remaining = input.trim();
+class NodeList extends Node<Node<unknown>[]> {
+  type = "nodelist" as const;
 
-  while (remaining) {
-    // Try each parser in order
-    const parsers = [
-      ChoiceNode.parse,
-      ExplicitParametersNode.parse,
-      GroupNode.parse,
-      RepetitionNode.parse,
-      OptionalNode.parse,
-      KeywordNode.parse,
-      IdentifierNode.parse,
-    ].filter((p) => !omitParsers.includes(p));
+  static parse(input: string, parseFully = false, omitParsers: ((...a: any) => any)[] = []) {
+    const nodes: Node<unknown>[] = [];
+    let remaining = input.trim();
 
-    let matched = false;
-    for (const parser of parsers) {
-      const result = parser(remaining);
-      if (result) {
-        nodes.push(result.node);
-        remaining = result.remaining;
-        matched = true;
+    while (remaining) {
+      // Try each parser in order
+      const parsers = [
+        ChoiceNode.parse,
+        ExplicitParametersNode.parse,
+        GroupNode.parse,
+        RepetitionNode.parse,
+        OptionalNode.parse,
+        KeywordNode.parse,
+        IdentifierNode.parse,
+      ].filter((p) => !omitParsers.includes(p));
+
+      let matched = false;
+      for (const parser of parsers) {
+        const result = parser(remaining);
+        if (result) {
+          nodes.push(result.node);
+          remaining = result.remaining;
+          matched = true;
+          break;
+        }
+      }
+
+      // If nothing matched, break to avoid infinite loop
+      if (!matched) {
         break;
       }
     }
 
-    // If nothing matched, break to avoid infinite loop
-    if (!matched) {
-      break;
+    if (parseFully) {
+      invariant(remaining === "", `Failed to fully parse input: ${input} \n\n\t->'${remaining}'`);
     }
+
+    return { node: new NodeList(nodes), remaining };
   }
 
-  if (parseFully) {
-    invariant(remaining === "", `Failed to fully parse input: ${input} \n\n\t->'${remaining}'`);
+  render(joiner = " ") {
+    return this.value.map((v) => v.render()).join(joiner);
   }
-
-  return { nodes, remaining };
 }
 
 type Block = {
@@ -320,7 +346,7 @@ function normalizeLines(lines: string[]): string[] {
 }
 
 // Main parse function
-const parse = (filePath?: string) => {
+export const parse = (filePath?: string) => {
   const file = filePath || path.join(__dirname, "alter-table.md");
   const content = fs.readFileSync(file, "utf-8");
 
@@ -328,14 +354,17 @@ const parse = (filePath?: string) => {
   return Object.fromEntries(
     Object.entries(blocks).map(([k, v]) => {
       const parsed = v.isOneOf
-        ? new ChoiceNode(v.lines.map((l) => parseNodes(l, true).nodes))
-        : parseNodes(v.lines.join(" "), true).nodes;
+        ? new ChoiceNode(
+            v.lines.map((l) => NodeList.parse(l, true).node),
+            true,
+          )
+        : NodeList.parse(v.lines.join(" "), true).node;
       return [k, { ...v, parsed }];
     }),
   );
 };
 
-export type ParsedBlock = Block & { parsed: Node<unknown>[] | ChoiceNode };
+export type ParsedBlock = Block & { parsed: NodeList | ChoiceNode };
 export type ParsedBlocks = { [k in string]: ParsedBlock };
 
 const replay = (blocks: ParsedBlocks) => {
@@ -344,12 +373,7 @@ const replay = (blocks: ParsedBlocks) => {
       console.log(header);
       console.log();
     }
-    const nodeGroups = parsed instanceof ChoiceNode ? parsed.value : [parsed];
-    for (const nodes of nodeGroups) {
-      for (const node of nodes) {
-        console.log(node.render());
-      }
-    }
+    console.log(parsed.render());
     console.log();
   }
 };
