@@ -3,7 +3,7 @@ import * as path from "path";
 import invariant from "tiny-invariant";
 
 // Base Node class
-export abstract class Node<T> {
+export abstract class Node<T = unknown> {
   abstract type: string;
   constructor(public value: T) {}
   abstract render(): string;
@@ -52,7 +52,7 @@ export class KeywordNode extends Node<string> {
   }
 }
 
-class ExplicitParametersNode extends Node<string> {
+export class ExplicitParametersNode extends Node<string> {
   type = "parameter" as const;
 
   static parse(input: string) {
@@ -172,7 +172,7 @@ export class ChoiceNode extends Node<NodeList[]> {
   }
 }
 
-export class GroupNode extends Node<NodeList> {
+export class GroupNode extends Node<ChoiceNode> {
   type = "group" as const;
 
   static parse(input: string) {
@@ -182,10 +182,15 @@ export class GroupNode extends Node<NodeList> {
       return null;
     }
 
-    const { node, remaining: rem } = NodeList.parse(content);
-    if (rem !== "") {
+    const result = ChoiceNode.parse(content);
+    if (!result) {
       return null;
     }
+    const { node, remaining: rem } = result;
+    if (rem) {
+      return null;
+    }
+
     return {
       node: new GroupNode(node),
       remaining,
@@ -226,11 +231,13 @@ export class IdentifierNode extends Node<string> {
   }
 }
 
-export class NodeList extends Node<Node<unknown>[]> {
+type RawNode = ChoiceNode | KeywordNode | IdentifierNode | ExplicitParametersNode | OptionalNode | RepetitionNode | GroupNode;
+
+export class NodeList extends Node<RawNode[]> {
   type = "nodelist" as const;
 
   static parse(input: string, parseFully = false, omitParsers: ((...a: any) => any)[] = []) {
-    const nodes: Node<unknown>[] = [];
+    const nodes: RawNode[] = [];
     let remaining = input.trim();
 
     while (remaining) {

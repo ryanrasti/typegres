@@ -1,59 +1,87 @@
 import invariant from "tiny-invariant";
-import { ChoiceNode, ParsedBlocks, ParsedBlock, KeywordNode, NodeList } from "./parse";
+import { ParsedBlocks, ParsedBlock, KeywordNode, ExplicitParametersNode, IdentifierNode } from "./parse";
 import { Node, parse } from "./parse";
 import camelCase from "camelcase";
 import { inspect } from "cross-inspect";
-import { forEach } from "effect/Array";
 
-const extractLeadingKeywordNode = (nodes: Node<unknown>[]) => {
-  const [first] = nodes;
-  invariant(first, "No nodes to extract keyword from");
-  invariant(first instanceof KeywordNode, `First node is not a keyword: ${inspect(first)}`);
-  return first;
+type Transition = {
+  params: (ExplicitParametersNode | IdentifierNode)[];
+  to: KeywordNode;
+  as: string;
 };
 
-type Clause = [KeywordNode, ...Node<unknown>[]];
+type TransitionGraph = {
+  roots: Transition[];
+  map: Map<KeywordNode, Transition[]>;
+};
 
-const extractLeadingClauses = ({ parsed }: ParsedBlock): Map<Clause, string> => {
+const buildTransitions = (nodes: Node<unknown>[]): TransitionGraph => {
   const names: { [key in string]: number } = {};
+  const keywordMapping = new Map<KeywordNode, string>();
 
-  const ret: Map<Clause, string> = new Map();
-
-  const registerKeyword = (node: KeywordNode, rest: Node<unknown>[]) => {
+  const registerKeyword = (node: KeywordNode) => {
     names[node.value] = names[node.value] ?? 0;
     const name = `${camelCase(node.value)}_${names[node.value]}`;
     names[node.value]++;
-    ret.set([node, ...rest], name);
+    keywordMapping.set(node, name);
+    return name;
   };
 
-  const traverse = (nodeIn: Node<unknown>) => {
-    const node = nodeIn.asNodeType();
-    if (node.type === "nodelist") {
-      const [first, ...rest] = node.value;
-      invariant(first, "No nodes to extract keyword from");
+  const ret = new Map<KeywordNode, Transition[]>();
+  const traverse = (nodes: Node<unknown>[]): Transition[] => {
+    const [first, ...rest] = nodes;
+    if (!first) {
+      return [];
+    }
 
-      if (first instanceof KeywordNode) {
-        registerKeyword(first, rest);
-      } else {
-        traverse(first);
-      }
-    } else if (node.type === "optional" || node.type === "group") {
-      forEach(node.value.value, traverse);
+    const restTransitions = traverse(rest);
+
+    const node = first.asNodeType();
+    if (node.type === "nodelist") {
+      return traverse(node.value);
+    } else if (node.type === "optional") {
+      return traverse(node.value.value).concat(restTransitions);
+    } else if (node.type === "group") {
+      return traverse(node.value.value);
     } else if (node.type === "keyword") {
-      registerKeyword(node, []);
+      const name = registerKeyword(node);
+      ret.set(node, restTransitions);
+      return [{ to: node, params: [], as: name }];
     } else if (node.type === "choice") {
-      forEach(node.value, traverse);
-    } else if (node.type === "repetition" || node.type === "identifier" || node.type === "parameter") {
-      // Nothing for now
+      return node.value.flatMap((choice) => traverse(choice.value));
+    } else if (node.type === "identifier" || node.type === "parameter") {
+      return restTransitions.map((t) => ({
+        ...t,
+        params: [node, ...t.params],
+      }));
+    } else if (node.type === "repetition") {
+      // TODO
+      return restTransitions;
     } else {
       node satisfies never;
       invariant(false, `Unhandled node type: ${inspect(node)}`);
     }
   };
 
-  forEach(parsed.value, traverse);
-  return ret;
+  const roots = traverse(nodes);
+  return { roots, map: ret };
 };
+
+const transitionToMethod = (from: Transition, to: Transition[]) => {
+  return `  ${from.as}(${from.params
+    .map((p, i) => (p.type === "identifier" ? `name${i}` : `param${i}: ${p.value}`))
+    .join(", ")}) {
+    return {${to.map((t) => `${camelCase(t.to.value)}: this.${t.as}`).join(", ")}};
+  }`;
+};
+
+function* traverseGraph(graph: TransitionGraph, start: Transition): Generator<[Transition, Transition[]]> {
+  const transitions = graph.map.get(start.to) ?? [];
+  yield [start, transitions] as const;
+  for (const t of transitions) {
+    yield* traverseGraph(graph, t);
+  }
+}
 
 // Generate a builder class for a block
 const generateBuilderClass = (name: string, block: ParsedBlock) => {
@@ -61,10 +89,13 @@ const generateBuilderClass = (name: string, block: ParsedBlock) => {
 
   console.log(`export class ${className} extends Builder {`);
 
-  const leadingClauses = extractLeadingClauses(block);
-  for (const [clause, name] of leadingClauses.entries()) {
-    console.log(`  ${name} = () => {}`);
-    
+  const graph = buildTransitions([block.parsed]);
+  for (const root of graph.roots) {
+    console.log(`  // ${root.to.value}`);
+    for (const [head, tails] of traverseGraph(graph, root)) {
+      console.log(transitionToMethod(head, tails));
+    }
+    console.log();
   }
 
   console.log(`}`);
@@ -83,4 +114,3 @@ if (require.main === module) {
   const blocks = parse();
   generateClasses(blocks);
 }
-
