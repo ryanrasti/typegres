@@ -53,7 +53,7 @@ export class KeywordNode extends Node<string> {
 }
 
 export class ExplicitParametersNode extends Node<string> {
-  type = "parameter" as const;
+  type = "explicitParameters" as const;
 
   static parse(input: string) {
     const { match, remaining } = doMatch(input, /^\(([^)]+)\)/);

@@ -161,3 +161,5 @@ class Atb<T extends string> extends AlterTableBuilder {
 
 const atb = new Atb('1');
 atb.alterTable("foo").ifExists();
+
+atb.$()
