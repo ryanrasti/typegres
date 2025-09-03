@@ -1,13 +1,14 @@
 import invariant from "tiny-invariant";
-import { ParsedBlocks, ParsedBlock, KeywordNode, ExplicitParametersNode, IdentifierNode } from "./parse";
+import { ParsedBlocks, ParsedBlock, KeywordNode } from "./parse";
 import { Node, parse } from "./parse";
 import camelCase from "camelcase";
 import { inspect } from "cross-inspect";
 
-type BaseNode = KeywordNode | ExplicitParametersNode | IdentifierNode;
+type BaseNode = KeywordNode;
 
 type Transition = {
   to: BaseNode;
+  parameters: Node[];
   as: string;
 };
 
@@ -16,13 +17,34 @@ type TransitionGraph = {
   map: Map<BaseNode, Transition[]>;
 };
 
+const isParameterLike = (nodeIn: Node): boolean => {
+  const node = nodeIn.asNodeType();
+  if (node.type === "explicitParameters" || node.type === "identifier") {
+    return true;
+  }
+  if (node.type === "nodelist") {
+    const [first, ...rest] = node.value;
+    return first && !rest.length && isParameterLike(first);
+  }
+  if (node.type === "optional") {
+    return isParameterLike(node.value);
+  }
+  if (node.type === "group") {
+    return isParameterLike(node.value);
+  }
+  if (node.type === "choice") {
+    return node.value.some((choice) => isParameterLike(choice));
+  }
+  return false;
+};
+
 const buildTransitions = (nodes: Node<unknown>[]): TransitionGraph => {
   const names: { [key in string]: number } = {};
   const keywordMapping = new Map<KeywordNode, string>();
 
   const registerKeyword = (node: KeywordNode) => {
     names[node.value] = names[node.value] ?? 0;
-    const name = `${camelCase(node.value)}_${names[node.value]}`;
+    const name = `${node.value} ${names[node.value]}`;
     names[node.value]++;
     keywordMapping.set(node, name);
     return name;
@@ -38,21 +60,23 @@ const buildTransitions = (nodes: Node<unknown>[]): TransitionGraph => {
     const restTransitions = traverse(rest, next);
 
     const node = first.asNodeType();
-    if (node.type === "nodelist") {
+    if (node.type === "identifier" || node.type === "explicitParameters" || isParameterLike(node)) {
+      return restTransitions.map((t) => ({ ...t, parameters: [node, ...t.parameters] }));
+    } else if (node.type === "nodelist") {
       return traverse(node.value);
     } else if (node.type === "optional") {
-      return traverse(node.value.value).concat(restTransitions);
+      return traverse(
+        node.value.value,
+        restTransitions.map((t) => ({ ...t, parameters: [] })),
+      ).concat(restTransitions);
     } else if (node.type === "group") {
       return traverse(node.value.value);
     } else if (node.type === "keyword") {
       const name = registerKeyword(node);
       ret.set(node, restTransitions);
-      return [{ to: node, as: name }];
+      return [{ to: node, as: name, parameters: [] }];
     } else if (node.type === "choice") {
       return node.value.flatMap((choice) => traverse(choice.value, restTransitions));
-    } else if (node.type === "identifier" || node.type === "explicitParameters") {
-      ret.set(node, restTransitions);
-      return [{ to: node, as: camelCase(node.type === "identifier" ? node.value : "params") }];
     } else if (node.type === "repetition") {
       // TODO
       return restTransitions;
@@ -66,58 +90,45 @@ const buildTransitions = (nodes: Node<unknown>[]): TransitionGraph => {
   return { roots, map: ret };
 };
 
-type MethodTransition = {
-  to?: KeywordNode;
-  as: string;
-  params: (ExplicitParametersNode | IdentifierNode)[];
-};
-
-const transitionToMethod = (from: MethodTransition, to: MethodTransition[]) => {
-  const ret =`{${to.map((t) => t.to ? `${camelCase(t.to.value)}: this.${t.as}` : '...this.$end()').join(", ")}}`;
-
-  return `  ${from.as}(${from.params
-    .map((p, i) => (p.type === "identifier" ? `name${i}` : `param${i}: ${p.value}`))
-    .join(", ")}) {
-    return ${ret};
-  }`;
-};
-
-const resolveTransition = (t: Transition, graph: TransitionGraph): MethodTransition[] => {
-  const to = t.to;
-  if (to.type === "keyword") {
-    return [{ to: to, params: [], as: t.as }];
-  } else {
-    const transitions = graph.map.get(to);
-    if (transitions?.length) {
-      return transitions.flatMap((nt) => {
-        if (nt.to.type === "keyword") {
-          return [{ to: nt.to, params: [to], as: nt.as }];
-        } else {
-          return resolveTransition(nt, graph).map((mt) => ({
-            ...mt,
-            params: [to, ...mt.params],
-          }));
-        }
-      });
-    } else {
-      return [{ params: [to], as: t.as }];
-    }
+const methodName = (keywordName: string) => {
+  const val = camelCase(keywordName, { pascalCase: false });
+  if (val === "in") {
+    return '["in"]';
   }
+  return val;
 };
 
-function* traverseGraph(graph: TransitionGraph, start: Transition): Generator<[MethodTransition, MethodTransition[]]> {
-  const startTransitions = resolveTransition(start, graph);
+const className = (transition: Transition) => {
+  return camelCase(transition.as, { pascalCase: true });
+};
 
-  for (const start of startTransitions) {
-    const next = start.to && graph.map.get(start.to);
-    const nextTransitions = next?.flatMap((t) => resolveTransition(t, graph)) ?? [];
-    yield [start, nextTransitions] as const;
-    for (const t of nextTransitions) {
-      if (t.to) {
-        yield* traverseGraph(graph, {...t, to: t.to});
-      }
-    }
+function* transitionToMethods(from: BaseNode, map: Map<BaseNode, Transition[]>): Generator<string> {
+  const to = map.get(from) ?? [];
+  const names: { [key: string]: Transition[] } = {};
+  for (const t of to) {
+    names[t.to.value] = [...(names[t.to.value] ?? []), t];
   }
+
+  for (const [k, v] of Object.entries(names)) {
+    yield `  ${methodName(k)} = () => this.$oneOf(${v.map((t) => `this.${className(t)}`).join(", ")})`;
+  }
+  yield "";
+
+  for (const t of to) {
+    const next = map.get(t.to) ?? [];
+    const params = t.parameters.map((p, i) => `param${i}`).join(", ");
+
+    yield `    ${className(t)} = class extends SubBuilder {`;
+    yield `      $ = (${params}) => oneOf(${next.map((n) => `this.${className(n)}`).join(", ")})`;
+    yield* transitionToMethods(t.to, map);
+    yield `    }`;
+  }
+}
+
+function* rootsToMethods(roots: Transition[], map: Map<BaseNode, Transition[]>): Generator<string> {
+  const root: BaseNode = new KeywordNode("$");
+  map.set(root, roots);
+  yield* transitionToMethods(root, map);
 }
 
 // Generate a builder class for a block
@@ -127,20 +138,8 @@ const generateBuilderClass = (name: string, block: ParsedBlock) => {
   console.log(`export class ${className} extends Builder {`);
 
   const graph = buildTransitions([block.parsed]);
-  const seen = new Set<BaseNode | undefined>();
-  for (const root of graph.roots) {
-    if (seen.has(root?.to)) {
-      continue;
-    }
-    console.log(`  // ${root.to?.value}`);
-    for (const [head, tails] of traverseGraph(graph, root)) {
-      if (!head.to || seen.has(head.to)) {
-        continue;
-      }
-      console.log(transitionToMethod(head, tails));
-      seen.add(head.to);
-    }
-    console.log();
+  for (const line of rootsToMethods(graph.roots, graph.map)) {
+    console.log(line);
   }
 
   console.log(`}`);

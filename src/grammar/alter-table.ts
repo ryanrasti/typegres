@@ -1,165 +1,250 @@
-type Component = string | readonly Component[] | Builder<any>;
-type Components = readonly Component[];
+import invariant from "tiny-invariant";
+import * as Types from "../types";
+import { MakeNonNullable } from "../types/any";
 
-type Overrides<C extends readonly Component[]> = {};
+type TupleToIntersection<T extends any[]> = {
+  [K in keyof T]: (x: T[K]) => void;
+} extends {
+  [K: number]: (x: infer I) => void;
+}
+  ? I
+  : never;
 
-abstract class Builder<Ctx extends object> {
-  constructor(protected $ctx: Ctx) {}
-
-  $register(name: string, ctx: object) {
-    return args;
+const oneOf = <T extends any[]>(...builders: T): TupleToIntersection<T> => {
+  const [first, ...rest] = builders;
+  invariant(first, "oneOf requires at least one builder");
+  if (!rest.length) {
+    return first as TupleToIntersection<T>;
   }
+  if (builders.every((b) => typeof b === "function")) {
+    return ((...args: any[]) => oneOf(...builders.map((b) => b(...args)))) as TupleToIntersection<T>;
+  }
+  let possibilities: { [key in string]: any[] } = {};
+  for (const b of builders) {
+    for (const [k, v] of Object.entries(b)) {
+      possibilities[k] = [...(possibilities[k] ?? []), v];
+    }
+  }
+  return Object.fromEntries(
+    Object.entries(possibilities).map(([k, v]) => [k, () => oneOf(...v.map((f) => f()))]),
+  ) as TupleToIntersection<T>;
+};
+
+type Methods<T> = {
+  [K in keyof T]: T[K] extends (...f: any) => any ? T[K] : never;
+};
+
+type PickNext<T, K extends keyof T> = {
+  [k in K]: T[K] extends (...args: any) => infer R ? R : never;
+}[K];
+
+const foo = {
+  a: 1,
+  b: () => "foo",
+};
+
+type T = PickNext<typeof foo, "b">;
+
+type Calls<T> = {
+  [K in keyof T]: T[K] extends (...args: infer A) => any ? ["A"] : never;
+};
+
+class Builder<Ctx extends object = {}> {
+  ctx!: Ctx = {};
+  $calls: Partial<Calls<this>> = {};
+
+  $then<K extends keyof this>(...next: K[]): Pick<this, K> {
+    return this;
+  }
+
+  $thenOptional<K extends keyof Methods<this>>(...next: K[]): Pick<this, K> & PickNext<this, K> {
+    if (next.every((k) => k in this)) {
+      return this as Pick<this, K> & PickNext<this, K>;
+    }
+
+    let ret = {} as Pick<this, K> & PickNext<this, K>;
+    for (const k of next) {
+      ret = { ...ret, ...this[k]() };
+    }
+    return ret;
+  }
+
+  $merge<T>(obj: T): this & T {
+    return this as this & T;
+  }
+
+  $withCtx<NewCtx extends object>(ctx: NewCtx): Builder<Ctx & NewCtx> {
+    return this as unknown as Builder<Ctx & NewCtx>;
+  }
+
+  static $withEnd<O extends object, T extends { new (...args: any[]): any }>(
+    this: T,
+    end: (self: InstanceType<T>) => O,
+  ) {
+    return class extends this {
+      $end() {
+        return end(this as InstanceType<T>);
+      }
+    };
+  }
+
+  static $new<A extends any[], R>(this: { new (...args: A): R }, ...args: A): R {
+    return new this(...args);
+  }
+
   $end() {
     return {};
   }
 }
 
-type ExtractKeyword<S> = S extends string ? (S extends Lowercase<S> ? never : S) : never;
-type ExtractClause<C extends Component> = C extends readonly [infer S, ...any]
-  ? ExtractKeyword<S>
-  : C extends string
-    ? ExtractKeyword<C>
-    : never;
-type CamelCase<S extends string> = S extends `${infer P1} ${infer P2}`
-  ? `${Lowercase<P1>}${Capitalize<CamelCase<P2>>}`
-  : Lowercase<S>;
-type Repeated = readonly [string, "..."] | ["..."];
-type Optional<T = any> = readonly T[];
-type Param = Lowercase<string> | Optional<Lowercase<string>>;
+abstract class AlterTableBuilder extends Builder {
+  alterTable = oneOf((name: string, star?: "*") =>
+    class A extends Builder {
+      constructor(
+        protected name: string,
+        protected star?: "*",
+      ) {
+        super();
+      }
+      ifExists = () => this.$thenOptional("only");
+      only = () => this.$action();
+      $args = () => this.$thenOptional("ifExists");
+      $action = () => {
+        const self = this;
+        return new (class extends ActionBuilder {
+          $end = () => this.$merge(self.$end());
+        })().$then("add");
+      };
+    }
+      .$new(name, star)
+      .$thenOptional("ifExists"),
+  );
+}
 
-// Transitions<L> <- object of { [k in string]: () => Transitions }
-type Transitions<C extends Components, End extends object, Sub extends object> = C extends [...any[], infer B, Repeated]
-  ? B extends Builder<any>
-    ? Invoke<B, Transitions<C, End> & End>
-    : [...TransitionsHelper<C, End, Sub>, End]
-  : [...TransitionsHelper<C, End, Sub>, End];
+alterTable().ifExists().only();
 
-type TransitionsHelper<
-  C extends Components,
-  NextTransition extends object,
-  Sub extends object,
-  Params extends unknown[] = [],
-> = C extends readonly [...infer F, infer L]
-  ? L extends Param
-    ? WrapTransitionsHelper<
-        F extends Components ? F : never,
-        NextTransition,
-        L extends Optional ? [unknown?, ...Params] : [unknown, ...Params]
-      >
-    : WrapTransitionsHelper<
-        F extends Components ? F : never,
-        ToCallback<L extends Component ? L : never, L extends Optional ? [] : Params, NextTransition, Sub>,
-        L extends Optional ? Params : []
-      >
-  : [];
+abstract class ActionBuilder extends Builder {
+  $parent = this;
+  add = oneOf(
+    // ADD [ COLUMN ] [ IF NOT EXISTS ] column_name data_type [ COLLATE collation ] [ column_constraint [ ... ] ]
 
-type WrapTransitionsHelper<C extends Components, NextTransition extends object, Params extends unknown[] = []> = [
-  ...TransitionsHelper<C, NextTransition, Params>,
-  NextTransition,
-];
-
-type ToCallback<C extends Component, Params extends unknown[], NextTransition extends object, Sub> = (C extends string
-  ? { [k in CamelCase<C>]: k extends keyof Sub ? Sub[k] : (...args: Params) => NextTransition }
-  : C extends readonly [string, ...infer T]
-    ? { [k in CamelCase<C[0]>]: (...args: MapUnknown<T>) => NextTransition }
-    : {}) &
-  (C extends Optional ? NextTransition : {});
-
-type MapUnknown<T extends any[]> = {
-  [k in keyof T]: unknown;
-};
-
-type Invoke<B, R> = ["INVOKE", B, R];
-
-type Substitute<Transitions extends object[], O extends object> = {
-  [K in keyof Transitions]: {
-    [M in keyof Transitions[K]]: O extends { [N in M]: infer T } ? T : Transitions[K][M];
-  };
-};
-
-const b = ["ALTER TABLE", ["IF EXISTS"], ["ONLY"], "name", ["*"], "FOO", [",", "..."]] as const;
-const s = {
-  alterTable: <T>(name: T, star?: "*") => this.$register("alterTable", { name }),
-  foo: 1,
-};
-type Expand<T> = T extends object ? { [K in keyof T]: T[K] } : T;
-const t: Expand<Substitute<Transitions<typeof b, { end: () => {} }>, typeof s>>;
-
-t[0].alterTable().ifExists().only();
-
-type O = {
-  foo: <T extends O>(this: T) => "foo";
-  bar: <T extends O>(this: T) => T[""];
-};
-
-const builder = <C extends Component[], O extends Overrides<C>>(components: C, overrides: O) => {
-  return new (class extends Builder<{}> {})({});
-};
-
-// ALTER TABLE [ IF EXISTS ] [ ONLY ] name [ * ]
-//     action [, ... ]
-builder(
-  ["ALTER TABLE", ["IF EXISTS"], ["ONLY"], "name", ["*"], action, [",", "..."]] as const,
-  (b: typeof Builder) =>
-    class extends b<{}> {
-      alterTable = <T>(name: T, star?: "*") => this.$register("alterTable", { name });
+    class AddBuilder<CN extends string = string, DT extends Types.Any = Types.Any> extends Builder.$withEnd(() =>
+      this.$end(),
+    ) {
+      constructor(
+        protected columnName: CN,
+        protected dataType: DT,
+      ) {
+        super();
+      }
+      add = <CN extends string = string, DT extends Types.Any = Types.Any>(columnName: CN, dataType: DT) =>
+        new AddBuilder(columnName, dataType).$thenOptional("column");
+      column = () => this.$thenOptional("ifNotExists");
+      ifNotExists = () => this.$thenOptional("collate");
+      $args = () => this.$thenOptional("column");
+      collate = () =>
+        class extends Builder.$withEnd(() => this.$thenOptional("$columnConstraint")) {
+          $args = (collation: string) => this.$end();
+        };
+      $columnConstraint = () => {
+        const self = this;
+        return class extends ColumnConstraintBuilder<DT> {
+          $end<DT extends Types.Any>(this: ColumnConstraintBuilder<DT>) {
+            return { ...(self as unknown as AddBuilder<CN, DT>).columnConstraints(this.$calls), ...this };
+          }
+        };
+      };
+      columnConstraints = (b: ColumnConstraintBuilder["$calls"]) => this.$end();
     },
+  );
+}
+
+abstract class ColumnConstraintBuilder<DT extends Types.Any = Types.Any> extends Builder {
+  // [ CONSTRAINT constraint_name ]
+  constraint = (constraintName: string) =>
+    oneOf(
+      class extends Builder.$withEnd(() => this.$thenOptional("notNull", "null", "default")) {
+        $ = () => this.$end();
+      },
+    );
+  $almostEnd = () => this.$thenOptional("initiallyDeferred", "initiallyImmediate");
+  notNull = () => (this as ColumnConstraintBuilder<MakeNonNullable<DT>>).$almostEnd();
+  null = () => this.$almostEnd();
+  default = (value: string) =>
+    oneOf(
+      class extends Builder.$withEnd(() => this.$almostEnd()) {
+        $ = () => this.$end();
+      },
+    );
+  deferable = () => this.$thenOptional("initiallyDeferred", "initiallyImmediate");
+  notDeferrable = () => this.$thenOptional("initiallyDeferred", "initiallyImmediate");
+  initiallyDeferred = () => this.$end();
+  initiallyImmediate = () => this.$end();
+}
+
+// pass context
+
+const builder = (grammar: string, override: any, opts: { references?: string } = {}) => {
+    return {grammar, override, opts}
+}
+
+// ALTER TABLE [ IF EXISTS ] [ ONLY ] name [ * ] action [, ... ]
+const root = builder(
+  "ALTER TABLE [ IF EXISTS ] [ ONLY ] name [ * ] action [, ... ]",
+  (C) =>
+    class AlterTable<T extends Table> extends C {
+      constructor(protected $table: T) {
+        super();
+      }
+      override $fn0 = <T extends Table>(name: Table, star?: "*") =>
+        new AlterTable(name).$from(this.super.$fn0(compile(name), compile(star)));
+      action = () => action(this.$table);
+    },
+  { references: "action" },
 );
 
-const o = {
-  alterTable: <T>(name: T, star?: "*") => {
-    return name;
-  },
-};
-type P = ReturnType<typeof alterTable>;
+const action = <T extends Table>(t: Table) =>
+  builder(
+    "ADD [ COLUMN ] [ IF NOT EXISTS ] column_name data_type [ COLLATE collation ] [ column_constraint [ ... ] ]",
+    (C) =>
+      class Add<T extends Table, C extends string, DT extends Types.Any> extends C {
+        constructor(
+          protected caller: T,
+          protected $columnName: string,
+          protected $dataType: Types.Any,
+        ) {
+          super();
+        }
+        override $fn0 = (columnName: string, dataType: Types.Any) =>
+          new Action(columnName, dataType).$from(this.super.$fn0(compile(columnName), compile(dataType)));
+        override collate = class Collate extends this.Collate {
+          $fn0 = (collation: string) => this.super.$fn0(compile(collation));
+        };
+        columnConstraint = () => columnConstraint(this.$dataType);
+      },
+    { references: "columnConstraint" },
+  );
 
-// ADD [ COLUMN ] [ IF NOT EXISTS ] column_name data_type [ COLLATE collation ] [ column_constraint [ ... ] ]
-const action = builder([
-  "ADD",
-  ["COLUMN"],
-  ["IF NOT EXISTS"],
-  "column_name",
-  "data_type",
-  ["COLLATE", "collation"],
-  ["column_constraint", ["..."]],
-]);
-
-type User = {
-  id: number;
-  name: string;
-  email: string;
-};
-
-const USER_KEYS = ["id", "name", "email"] as const;
-type ObjectToTuple<T, K extends readonly (keyof T)[]> = {
-  [N in keyof K as N extends `${number}` ? N : never]: T[K[N & string]];
-};
-type UserTuple = ObjectToTuple<User, typeof USER_KEYS>;
-
-class AlterTableBuilder {
-  alterTable(name: unknown, star?: unknown): Pick<this, "ifExists"> {
-    return { ifExists: this.ifExists };
-  }
-  ifExists = () => "foo";
-
-  $transitions = {
-    alterTable: { ifExists: this.ifExists, only: this.only },
-  };
-}
-
-class Atb<T extends string> extends AlterTableBuilder {
-  t: T;
-  constructor(t: T) {
-    super();
-    this.t = t;
-  }
-  override alterTable = <T extends string>(name: T, star?: "*") => {
-    return super.alterTable.call(new Atb(name), name, star);
-  };
-  ifExists = () => this.t
-}
-
-const atb = new Atb('1');
-atb.alterTable("foo").ifExists();
-
-atb.$()
+const columnConstraint = <DTO extends Types.Any>(dataType: DTO) =>
+  builder(
+    `[ CONSTRAINT constraint_name ]
+{ NOT NULL |
+  NULL |
+  CHECK ( expression ) [ NO INHERIT ] |
+  DEFAULT default_expr |
+  GENERATED ALWAYS AS ( generation_expr ) STORED |
+  GENERATED { ALWAYS | BY DEFAULT } AS IDENTITY [ ( sequence_options ) ] |
+  UNIQUE [ NULLS [ NOT ] DISTINCT ] index_parameters |
+  PRIMARY KEY index_parameters |
+  REFERENCES reftable [ ( refcolumn ) ] [ MATCH FULL | MATCH PARTIAL | MATCH SIMPLE ]
+    [ ON DELETE referential_action ] [ ON UPDATE referential_action ] }
+[ DEFERRABLE | NOT DEFERRABLE ] [ INITIALLY DEFERRED | INITIALLY IMMEDIATE ]`,
+    (C) =>
+      class ColumnConstraint<DT extends Types.Any = DTO> extends C {
+        constructor(protected $dataType: DT) {
+          super();
+        }
+        override notNull = () =>
+          new ColumnConstraint<MakeNonNullable<DT>>(this.$dataType as MakeNonNullable<DT>).$from(super.nonNull());
+      },
+  );
