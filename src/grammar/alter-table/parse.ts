@@ -1,6 +1,8 @@
+import { inspect } from "cross-inspect";
 import * as fs from "fs";
 import * as path from "path";
 import invariant from "tiny-invariant";
+import { is } from "tsafe";
 
 // Base Node class
 export abstract class Node<T = unknown> {
@@ -288,11 +290,11 @@ type Block = {
 };
 
 // Preprocess the file
-function preprocess(content: string): { [key: string]: Block } & { $root: Block } {
+function preprocess(content: string, isOneOf = true): { [key: string]: Block } & { $root: Block } {
   const blocks: { [key: string]: Block } & { $root: Block } = {
     $root: {
       lines: [],
-      isOneOf: true,
+      isOneOf,
     },
   };
   let currentBlock = "$root";
@@ -358,8 +360,8 @@ export const rawGrammar = (filePath?: string) => {
 }
 
 // Main parse function
-export const parse = (content: string = rawGrammar()) => {
-  const blocks = preprocess(content);
+export const parse = (content: string, isOneOf: boolean) => {
+  const blocks = preprocess(content, isOneOf);
   return Object.fromEntries(
     Object.entries(blocks).map(([k, v]) => {
       const parsed = v.isOneOf
@@ -372,6 +374,15 @@ export const parse = (content: string = rawGrammar()) => {
     }),
   );
 };
+
+export const parseSingle = (content: string) => {
+  const blocks = parse(content, false);
+  const [[name, block], ...rest]  = Object.entries(blocks); 
+  invariant(rest.length === 0, `Expected a single block, got ${inspect(rest)}`);
+  invariant(name === "$root", "Expected the block to be named $root");
+  return block.parsed;
+}
+
 
 export type ParsedBlock = Block & { parsed: NodeList | ChoiceNode };
 export type ParsedBlocks = { [k in string]: ParsedBlock };
@@ -387,7 +398,7 @@ export function* replay(blocks: ParsedBlocks)  {
 
 // Test
 if (require.main === module) {
-  const result = parse(rawGrammar());
+  const result = parse(rawGrammar(), true);
   for (const line of replay(result)) {
     console.log(line);
   }
