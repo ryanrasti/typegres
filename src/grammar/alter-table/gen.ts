@@ -3,8 +3,7 @@ import { NodeList, KeywordNode, parseSingle, ChoiceNode } from "./parse";
 import { Node } from "./parse";
 import camelCase from "camelcase";
 import { inspect } from "cross-inspect";
-import { Builder, grammars } from "./alter-table";
-import { g } from "vitest/dist/chunks/suite.B2jumIFP.js";
+import { Annotation, Builder, grammars } from "./alter-table";
 
 type BaseNode = KeywordNode | FunctionNode;
 
@@ -14,8 +13,14 @@ type FunctionNode = {
 };
 
 const functionNodeParameters = (node: FunctionNode) => {
+  const lastParam = node.parameters[node.parameters.length - 1];
+  if(lastParam?.annotationIndex != null) {
+    return `...args: ParameterType<typeof this.$annotations[${lastParam.annotationIndex}]>`;
+  }
+
   return node.parameters
     .map((p, i) => {
+      invariant(p.annotationIndex == null, 'Annotations must be on the last parameter of a function');
       const param = p.asNodeType();
       const name = param.type === "identifier" ? param.value : `param${i}`;
       return `${name}: Raw`;
@@ -250,6 +255,7 @@ const builderClassName = (name: string) => {
 // Generate a builder class for a block
 const generateBuilderClass = (name: string, block: ChoiceNode | NodeList) => {
   console.log(`export class ${builderClassName(name)} extends Builder {`);
+  console.log(`  $annotations = grammars.${name}.annotations;`);
 
   const graph = buildTransitions([block]);
   const emitted = new Set<string>();
@@ -264,7 +270,7 @@ const generateBuilderClass = (name: string, block: ChoiceNode | NodeList) => {
 export const generateClasses = () => {
   // Generate a class for each block
   console.log('import { RawBuilder } from "kysely";');
-  console.log('import { Builder } from "./alter-table";');
+  console.log('import { Builder, grammars, ParameterType } from "./alter-table";');
   console.log("type Raw = RawBuilder<any>;");
   console.log("");
 

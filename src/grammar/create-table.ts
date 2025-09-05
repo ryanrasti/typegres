@@ -215,7 +215,7 @@ export class Table {
   __brand: "Table" = "Table";
 }
 
-type TableDefinition<T extends Table> = typeof Table &{
+export type TableDefinition<T extends Table> = typeof Table &{
   new (): T;
   tableName?: string;
   opts?: (row: T) => TableOpts<T>;
