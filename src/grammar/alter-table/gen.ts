@@ -3,7 +3,8 @@ import { NodeList, KeywordNode, parseSingle, ChoiceNode } from "./parse";
 import { Node } from "./parse";
 import camelCase from "camelcase";
 import { inspect } from "cross-inspect";
-import { Builder, builders } from "./alter-table";
+import { Builder, grammars } from "./alter-table";
+import { g } from "vitest/dist/chunks/suite.B2jumIFP.js";
 
 type BaseNode = KeywordNode | FunctionNode;
 
@@ -244,7 +245,7 @@ function* rootsToMethods(
 
 const builderClassName = (name: string) => {
   return `${camelCase(name, { pascalCase: true })}Builder`;
-}
+};
 
 // Generate a builder class for a block
 const generateBuilderClass = (name: string, block: ChoiceNode | NodeList) => {
@@ -259,13 +260,6 @@ const generateBuilderClass = (name: string, block: ChoiceNode | NodeList) => {
   console.log(`}`);
 };
 
-function* collectGrammars(root: typeof Builder, name = "Root"): Generator<[string, string]> {
-  yield [name, root.grammar];
-  console.warn(`// References for ${Object.values(root.references?.() ?? {})}`);
-  for (const [name, ref] of Object.entries(root.references?.() ?? {})) {
-    yield* collectGrammars(ref, name);
-  }
-}
 
 export const generateClasses = () => {
   // Generate a class for each block
@@ -274,35 +268,11 @@ export const generateClasses = () => {
   console.log("type Raw = RawBuilder<any>;");
   console.log("");
 
-  for (const [key, builder] of Object.entries(builders)) {
-    console.warn(`// Grammar for ${builder.grammar}`);
-    generateBuilderClass(key, parseSingle(builder.grammar));
+  for (const [key, grammar] of Object.entries(grammars)) {
+    console.warn(`// Grammar for ${grammar.fragments.join("")}`);
+    generateBuilderClass(key, parseSingle(grammar));
     console.log("\n");
   }
-
-  console.log("// Collected grammars:");
-  console.log(
-    `const buildersByGrammar = {${Object.entries(builders)
-      .map(([k, b]) => `${JSON.stringify(b.grammar)}: ${builderClassName(k)}`)
-      .join(", ")}}`,
-  );
-  for (const [key, builder] of Object.entries(builders)) {
-    console.log(`export function builder<R>(grammar: ${JSON.stringify(builder.grammar)}, override: (base: typeof ${builderClassName(key)}) => R,
-        references?: () => { [key in string]: typeof Builder }): R`);
-  }
-  console.log(`export function builder<R>(
-  grammar: string,
-  override: (base: any) => R,
-  references?: () => { [key in string]: typeof Builder },
-): R {
-  const Class = buildersByGrammar[grammar as keyof typeof buildersByGrammar] as typeof Builder;
-  return override(
-    class extends Class {
-      static override grammar = grammar;
-      static override references = references ?? (() => ({}));
-    } as any,
-  );
-};`);
 };
 
 // Test

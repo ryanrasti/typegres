@@ -2,15 +2,23 @@ import { inspect } from "cross-inspect";
 import * as fs from "fs";
 import * as path from "path";
 import invariant from "tiny-invariant";
-import { is } from "tsafe";
+import { AnnotatedGrammar, grammars } from "./alter-table";
 
 // Base Node class
 export abstract class Node<T = unknown> {
   abstract type: string;
+  public annotationIndex?: number;
+
   constructor(public value: T) {}
   abstract render(): string;
   asNodeType(): NodeType {
     return this as NodeType;
+  }
+
+  withAnnotation(index: number) {
+    const copy = Object.create(this);
+    copy.annotationIndex = index;
+    return copy;
   }
 }
 
@@ -115,7 +123,7 @@ class OptionalNode extends Node<NodeList> {
 class RepetitionNode extends Node<" " | ", "> {
   type = "repetition" as const;
 
-  static parse(input: string) {
+  static parse(input: string): { node: RepetitionNode; remaining: string } | null {
     const { content, remaining } = balanceBrackets(input, "[", "]");
     if (!content) {
       return null;
@@ -128,6 +136,7 @@ class RepetitionNode extends Node<" " | ", "> {
         remaining,
       };
     }
+    return null;
   }
 
   render(): string {
@@ -170,14 +179,14 @@ export class ChoiceNode extends Node<NodeList[]> {
   }
 
   render(): string {
-    return this.value.map((group) => group.render()).join(this.isTopLevel ? '\n' : " | ");
+    return this.value.map((group) => group.render()).join(this.isTopLevel ? "\n" : " | ");
   }
 }
 
 export class GroupNode extends Node<ChoiceNode> {
   type = "group" as const;
 
-  static parse(input: string) {
+  static parse(input: string): { node: GroupNode; remaining: string } | null {
     // Optionally, match surrounding {}:
     const { content, remaining } = balanceBrackets(input, "{", "}");
     if (!content) {
@@ -208,12 +217,12 @@ export class IdentifierNode extends Node<string> {
   type = "identifier" as const;
 
   static parse(input: string): { node: IdentifierNode; remaining: string } | null {
-    // Try backticked parameter first
-    const backtickMatch = input.match(/^`([^`]+)`/);
-    if (backtickMatch) {
+    const match = input.match(/^([a-z_]+)/);
+    console.log
+    if (match) {
       return {
-        node: new IdentifierNode(backtickMatch[1]),
-        remaining: input.slice(backtickMatch[0].length).trimStart(),
+        node: new IdentifierNode(match[1]),
+        remaining: input.slice(match[0].length).trimStart(),
       };
     }
 
@@ -233,10 +242,37 @@ export class IdentifierNode extends Node<string> {
   }
 }
 
-type RawNode = ChoiceNode | KeywordNode | IdentifierNode | ExplicitParametersNode | OptionalNode | RepetitionNode | GroupNode;
+type RawNode =
+  | ChoiceNode
+  | KeywordNode
+  | IdentifierNode
+  | ExplicitParametersNode
+  | OptionalNode
+  | RepetitionNode
+  | GroupNode;
 
 export class NodeList extends Node<RawNode[]> {
   type = "nodelist" as const;
+
+  static tryParseAnnotation(result: { node: Node; remaining: string } | null) {
+    if (!result) {
+      return null;
+    }
+
+    const match = result.remaining.match(/^\$\{(\d+)\}/);
+        console.warn("tryParseAnnotation", result, match);
+
+    if (match) {
+      console.warn("tryParseAnnotation", result, match);
+
+      const index = parseInt(match[1], 10);
+      return {
+        node: result.node.withAnnotation(index),
+        remaining: result.remaining.slice(match[0].length).trimStart(),
+      };
+    }
+    return result;
+  }
 
   static parse(input: string, parseFully = false, omitParsers: ((...a: any) => any)[] = []) {
     const nodes: RawNode[] = [];
@@ -256,7 +292,7 @@ export class NodeList extends Node<RawNode[]> {
 
       let matched = false;
       for (const parser of parsers) {
-        const result = parser(remaining);
+        const result = NodeList.tryParseAnnotation(parser(remaining));
         if (result) {
           nodes.push(result.node);
           remaining = result.remaining;
@@ -290,7 +326,7 @@ type Block = {
 };
 
 // Preprocess the file
-function preprocess(content: string, isOneOf = true): { [key: string]: Block } & { $root: Block } {
+function preprocess(grammar: AnnotatedGrammar, isOneOf = true): { [key: string]: Block } & { $root: Block } {
   const blocks: { [key: string]: Block } & { $root: Block } = {
     $root: {
       lines: [],
@@ -298,6 +334,11 @@ function preprocess(content: string, isOneOf = true): { [key: string]: Block } &
     },
   };
   let currentBlock = "$root";
+
+  // Replace annotations in the grammar with a placeholder: ` ${index}`
+  const content = grammar.fragments
+    .flatMap((f, i) => (i < grammar.annotations.length ? [f, ` \${${i}}`] : [f]))
+    .join("");
 
   for (const line of normalizeLines(content.split("\n"))) {
     // Check for block header
@@ -355,13 +396,13 @@ function normalizeLines(lines: string[]): string[] {
 }
 
 export const rawGrammar = (filePath?: string) => {
-    const file = filePath || path.join(__dirname, "alter-table.md");
-    return fs.readFileSync(file, "utf-8");
-}
+  const file = filePath || path.join(__dirname, "alter-table.md");
+  return fs.readFileSync(file, "utf-8");
+};
 
 // Main parse function
-export const parse = (content: string, isOneOf: boolean) => {
-  const blocks = preprocess(content, isOneOf);
+export const parse = (grammar: AnnotatedGrammar, isOneOf: boolean) => {
+  const blocks = preprocess(grammar, isOneOf);
   return Object.fromEntries(
     Object.entries(blocks).map(([k, v]) => {
       const parsed = v.isOneOf
@@ -375,26 +416,25 @@ export const parse = (content: string, isOneOf: boolean) => {
   );
 };
 
-export const parseSingle = (content: string) => {
-  const blocks = parse(content, false);
-  const [[name, block], ...rest]  = Object.entries(blocks); 
+export const parseSingle = (grammar: AnnotatedGrammar) => {
+  const blocks = parse(grammar, false);
+  const [[name, block], ...rest] = Object.entries(blocks);
   invariant(rest.length === 0, `Expected a single block, got ${inspect(rest)}`);
   invariant(name === "$root", "Expected the block to be named $root");
   return block.parsed;
-}
-
+};
 
 export type ParsedBlock = Block & { parsed: NodeList | ChoiceNode };
 export type ParsedBlocks = { [k in string]: ParsedBlock };
 
-export function* replay(blocks: ParsedBlocks)  {
+export function* replay(blocks: ParsedBlocks) {
   for (const [name, { parsed, header }] of Object.entries(blocks)) {
     if (header) {
       yield header;
     }
-    yield parsed.render()
+    yield parsed.render();
   }
-};
+}
 
 // Test
 if (require.main === module) {

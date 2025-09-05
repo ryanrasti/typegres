@@ -2,7 +2,7 @@ import { RawBuilder } from "kysely";
 import { Builder } from "./alter-table";
 type Raw = RawBuilder<any>;
 
-export class RootBuilder extends Builder {
+export class TestBuilder extends Builder {
   $start = () => ({
     alterTableIfExistsOnly: this.alterTable0().ifExists0().only0().$fn2,
     alterTableIfExists: this.alterTable0().ifExists0().$fn2,
@@ -15,7 +15,7 @@ export class RootBuilder extends Builder {
   $fn2 = (name: Raw, param1: Raw, action: Raw) => ({});
 }
 
-export class ActionBuilder extends Builder {
+export class AddBuilder extends Builder {
   $start = () => ({
     addColumnIfNotExists: this.add0().column0().ifNotExists0().$fn5,
     addColumn: this.add0().column0().$fn5,
@@ -31,7 +31,7 @@ export class ActionBuilder extends Builder {
   $fn6 = (column_constraint: Raw) => ({});
 }
 
-export class ColumnConstraintBuilder extends Builder {
+export class ColConstraintBuilder extends Builder {
   $start = () => ({
     constraint: this.constraint0().$fn14,
     notNullDeferrableInitiallyDeferred: this.notNull0().deferrable0().initiallyDeferred0().$end,
@@ -214,40 +214,4 @@ export class ColumnConstraintBuilder extends Builder {
     initiallyDeferred: this.initiallyDeferred0().$end,
     initiallyImmediate: this.initiallyImmediate0().$end,
   });
-}
-
-// Collected grammars:
-export const buildersByGrammar = {
-  "ALTER TABLE [ IF EXISTS ] [ ONLY ] `name` [ * ] `action` [, ... ]": RootBuilder,
-  "ADD [ COLUMN ] [ IF NOT EXISTS ] `column_name` `data_type` [ COLLATE `collation` ] [ `column_constraint` [ ... ] ]":
-    ActionBuilder,
-  "[ CONSTRAINT `constraint_name` ]\n{ NOT NULL |\n  NULL |\n  CHECK ( `expression` ) [ NO INHERIT ] |\n  DEFAULT `default_expr` |\n  GENERATED ALWAYS AS ( `generation_expr` ) STORED |\n  GENERATED { ALWAYS | BY DEFAULT } AS IDENTITY [ ( `sequence_options` ) ] |\n  UNIQUE [ NULLS [ NOT ] DISTINCT ] `index_parameters` |\n  PRIMARY KEY `index_parameters` |\n  REFERENCES `reftable` [ ( `refcolumn` ) ] [ MATCH FULL | MATCH PARTIAL | MATCH SIMPLE ]\n    [ ON DELETE `referential_action` ] [ ON UPDATE `referential_action` ] }\n[ DEFERRABLE | NOT DEFERRABLE ] [ INITIALLY DEFERRED | INITIALLY IMMEDIATE ]":
-    ColumnConstraintBuilder,
-};
-export function builder<R extends typeof Builder>(
-  grammar: "ALTER TABLE [ IF EXISTS ] [ ONLY ] `name` [ * ] `action` [, ... ]",
-  references?: () => { [key in string]: typeof Builder },
-): typeof RootBuilder;
-export function builder<R>(
-  grammar: "ADD [ COLUMN ] [ IF NOT EXISTS ] `column_name` `data_type` [ COLLATE `collation` ] [ `column_constraint` [ ... ] ]",
-  override: (base: typeof ActionBuilder) => R,
-  references?: () => { [key in string]: typeof Builder },
-): R;
-export function builder<R>(
-  grammar: "[ CONSTRAINT `constraint_name` ]\n{ NOT NULL |\n  NULL |\n  CHECK ( `expression` ) [ NO INHERIT ] |\n  DEFAULT `default_expr` |\n  GENERATED ALWAYS AS ( `generation_expr` ) STORED |\n  GENERATED { ALWAYS | BY DEFAULT } AS IDENTITY [ ( `sequence_options` ) ] |\n  UNIQUE [ NULLS [ NOT ] DISTINCT ] `index_parameters` |\n  PRIMARY KEY `index_parameters` |\n  REFERENCES `reftable` [ ( `refcolumn` ) ] [ MATCH FULL | MATCH PARTIAL | MATCH SIMPLE ]\n    [ ON DELETE `referential_action` ] [ ON UPDATE `referential_action` ] }\n[ DEFERRABLE | NOT DEFERRABLE ] [ INITIALLY DEFERRED | INITIALLY IMMEDIATE ]",
-  override: (base: typeof ColumnConstraintBuilder) => R,
-  references?: () => { [key in string]: typeof Builder },
-): R;
-export function builder<R>(
-  grammar: string,
-  override: (base: any) => R,
-  references?: () => { [key in string]: typeof Builder },
-): R {
-  const Class = buildersByGrammar[grammar as keyof typeof buildersByGrammar] as typeof Builder;
-  return override(
-    class extends Class {
-      static override grammar = grammar;
-      static override references = references ?? (() => ({}));
-    } as any,
-  );
 }
