@@ -3,7 +3,7 @@ import { NodeList, KeywordNode, parseSingle, ChoiceNode } from "./parse";
 import { Node } from "./parse";
 import camelCase from "camelcase";
 import { inspect } from "cross-inspect";
-import { Builder, root } from "./alter-table";
+import { Builder, builders } from "./alter-table";
 
 type BaseNode = KeywordNode | FunctionNode;
 
@@ -99,16 +99,12 @@ const buildTransitions = (nodes: Node<unknown>[]): TransitionGraph => {
         to: { type: "function" as const, parameters: fnNodes },
         as: registerName("$fn"),
       };
-      console.warn(
-        "fnNodes.length",
-        fnNodes.length,
-        fnNodes.map((n) => n.asNodeType().type),
-      );
+
       const nextTransitions = traverse(nodes.slice(fnNodes.length), next);
       ret.set(asFunctionNode.to, nextTransitions);
       console.warn("nextTransitions", node.value, restTransitions);
 
-      return [asFunctionNode, ...nextTransitions];
+      return [asFunctionNode];
     } else if (node.type === "nodelist") {
       return traverse(node.value, restTransitions);
     } else if (node.type === "optional") {
@@ -246,11 +242,13 @@ function* rootsToMethods(
   yield* transitionToMethods(root, map, emitted);
 }
 
+const builderClassName = (name: string) => {
+  return `${camelCase(name, { pascalCase: true })}Builder`;
+}
+
 // Generate a builder class for a block
 const generateBuilderClass = (name: string, block: ChoiceNode | NodeList) => {
-  const className = `${camelCase(name, { pascalCase: true })}Builder`;
-
-  console.log(`export class ${className} extends Builder {`);
+  console.log(`export class ${builderClassName(name)} extends Builder {`);
 
   const graph = buildTransitions([block]);
   const emitted = new Set<string>();
@@ -261,7 +259,7 @@ const generateBuilderClass = (name: string, block: ChoiceNode | NodeList) => {
   console.log(`}`);
 };
 
-function* collectGrammars(root: Builder, name = "Root"): Generator<[string, string]> {
+function* collectGrammars(root: typeof Builder, name = "Root"): Generator<[string, string]> {
   yield [name, root.grammar];
   console.warn(`// References for ${Object.values(root.references?.() ?? {})}`);
   for (const [name, ref] of Object.entries(root.references?.() ?? {})) {
@@ -271,11 +269,40 @@ function* collectGrammars(root: Builder, name = "Root"): Generator<[string, stri
 
 export const generateClasses = () => {
   // Generate a class for each block
-  for (const [name, grammar] of collectGrammars(root)) {
-    console.warn(`// Grammar for ${grammar}`);
-    generateBuilderClass(name, parseSingle(grammar));
+  console.log('import { RawBuilder } from "kysely";');
+  console.log('import { Builder } from "./alter-table";');
+  console.log("type Raw = RawBuilder<any>;");
+  console.log("");
+
+  for (const [key, builder] of Object.entries(builders)) {
+    console.warn(`// Grammar for ${builder.grammar}`);
+    generateBuilderClass(key, parseSingle(builder.grammar));
     console.log("\n");
   }
+
+  console.log("// Collected grammars:");
+  console.log(
+    `const buildersByGrammar = {${Object.entries(builders)
+      .map(([k, b]) => `${JSON.stringify(b.grammar)}: ${builderClassName(k)}`)
+      .join(", ")}}`,
+  );
+  for (const [key, builder] of Object.entries(builders)) {
+    console.log(`export function builder<R>(grammar: ${JSON.stringify(builder.grammar)}, override: (base: typeof ${builderClassName(key)}) => R,
+        references?: () => { [key in string]: typeof Builder }): R`);
+  }
+  console.log(`export function builder<R>(
+  grammar: string,
+  override: (base: any) => R,
+  references?: () => { [key in string]: typeof Builder },
+): R {
+  const Class = buildersByGrammar[grammar as keyof typeof buildersByGrammar] as typeof Builder;
+  return override(
+    class extends Class {
+      static override grammar = grammar;
+      static override references = references ?? (() => ({}));
+    } as any,
+  );
+};`);
 };
 
 // Test
