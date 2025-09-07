@@ -1,24 +1,44 @@
 import { RawBuilder } from "kysely";
-import { Builder, grammars, ParameterType, AnnotationBuilder } from "./alter-table";
-
+import { AnnotationBuilder, Builder, grammars } from "./alter-table";
 
 type Raw = RawBuilder<any>;
 
-export class TestBuilder extends Builder {
+export class TestBuilder<Ctx extends {}> extends Builder<Ctx> {
+  $withCtx<NewCtx extends object>(ctx: NewCtx): TestBuilder<Ctx & NewCtx> {
+    return super.$withCtx(ctx);
+  }
+
   $annotations = grammars.test.annotations;
   $start = () => ({ alterTable: this.alterTable0().$fn1 });
   alterTable0 = () => this;
   $fn1 = this.$annotations[0](
-    new (class extends AnnotationBuilder<this> {
-      $end() {
+    new (class Ab<B extends TestBuilder<Ctx>> extends AnnotationBuilder<B> {
+      override ctx = <C extends object>(ctx: C) => {
+        return new Ab(this.builder.$withCtx(ctx));
+      };
+      override end() {
         return {
+          wrong: false,
           then: this.builder.then1().$fn2,
-        }
+          $debug: this.builder.$debug,
+        };
       }
-    })(this)
-  )
+    })(this),
+  );
   then1 = () => this;
-  $fn2 = (...args: ParameterType<(typeof this.$annotations)[1]>) => ({});
+  $fn2 = this.$annotations[1](
+    new (class Ab<B extends TestBuilder<{}>> extends AnnotationBuilder<B> {
+      ctx = <C extends object>(ctx: C) => {
+        return new Ab(this.builder.$withCtx(ctx));
+      };
+      end() {
+        return {
+          wrong: false,
+          $debug: this.builder.$debug,
+        };
+      }
+    })(this),
+  );
 }
 
 export class AddBuilder extends Builder {
