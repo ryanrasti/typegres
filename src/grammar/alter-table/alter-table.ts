@@ -45,7 +45,7 @@ type CtxAnnotation<Fn extends (...args: any) => typeof defer> = {
   fn: Fn;
 };
 
-const gram = <T extends ((a: AnnotationBuilder<any>) => (...args: any) => object)[]>(fragments: TemplateStringsArray, ...annotations: T) => {
+const gram = <T extends ((a: AnnotationBuilder<any>) => unknown)[]>(fragments: TemplateStringsArray, ...annotations: T) => {
   return { fragments, annotations } as const;
 };
 
@@ -75,7 +75,7 @@ class AlterTableBuilder2 extends AlterTableBuilder {
   $end = () => ({two: true})
 }
 
-const test = gram`ALTER TABLE name${(a) => <N extends string>(name: N) => a.$ctx({name}).$end()} THEN upper${(a) => <U extends string>(upper: U) => a.$ctx({upper, })}`; // TODO:  action [, ... ]
+const test = gram`ALTER TABLE name${(a) => <N extends string>(name: N) => a.$ctx({name}).$end()} THEN`; // TODO:  action [, ... ]
 const add = gram`ADD [ COLUMN ] [ IF NOT EXISTS ] column_name data_type [ COLLATE collation ] [ column_constraint [ ... ] ]`;
 
 const colConstraint = gram`[ CONSTRAINT constraint_name ]
@@ -97,27 +97,21 @@ export const grammars = {
   colConstraint,
 };
 
-// type Taking<F extends (...args: any) => any, T extends (f: F) => R> =  
 
-class Params<P extends any[]> {
-}
 
-function foo<N extends string>(this: Params<[N]>, name: N) { return this }
 
-const r = (new (class extends Params<[string]>{
-  foo = foo;
-}) ()).foo('hi')
+const indirect = grammars.test.annotations
+const direct = (<T extends ((a: AnnotationBuilder<any>) => unknown)[]>(t: T) => t)([(a: AnnotationBuilder<any>) => <N extends string>(name: N) => ({})] as const)
 
-const foo2 = (a: any) => <N extends string>(name: N) => name
-const bar = foo2(null)
+type TIndirect = typeof indirect;
+type TDirect = typeof direct;
 
-const z = grammars.test.annotations[0]
-type T1 = typeof z;
-type T2  = typeof z2;
-const z2 = <A extends AnnotationBuilder<any>>(a: A) => <N extends string>(name: N) => ({})
-assert<Equals<T1, T2>>()
-const z1 = z(null as any)
-const z3 = z2(null as any)
+assert<Equals<TIndirect, TDirect>>()
+
+const fnDirect = direct[0](null as any)
+const fnIndirect = indirect[0](null as any)
+
 class Foo {
-  bar = z2[0](null as any)
+  fn1 = fnDirect
+  fn2 = fnIndirect
 }
