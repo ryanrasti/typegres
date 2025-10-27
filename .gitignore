@@ -48,3 +48,4 @@ site/tsconfig.tsbuildinfo
 
 standup
 src/gen/tables.ts
+.strategy/*

@@ -14,3 +14,5 @@
 
 
 1. After you make non-trivial additions, add 2 additional clean-up tasks to scour the code for readability improvements (removing net-negative redundancy, etc.). We want concise code with great quailty.
+
+1. When evaluating ideas, strive for strict adherence to reality. Question assumptions and pushback. The goal is to arrive at the truth despite how it may come across. 
