@@ -1,10 +1,10 @@
 import { QueryResult, sql } from "kysely";
-import { Context } from "../expression";
-import * as Types from "../types";
-import { Typegres } from "../db";
-import { parseRowLike, RowLikeResult } from "../query/values";
 import invariant from "tiny-invariant";
-import { sqlJoin, compileClauses } from "./utils";
+import { Typegres } from "../db";
+import { Context } from "../expression";
+import { parseRowLike, RowLikeResult } from "../query/values";
+import * as Types from "../types";
+import { chainWhere, compileClauses, sqlJoin } from "./utils";
 
 /*
 https://www.postgresql.org/docs/current/sql-delete.html
@@ -23,7 +23,7 @@ type DeleteArgs<D extends Types.RowLike, U extends Types.RowLike, J extends Type
 
 export class Delete<
   D extends Types.RowLikeStrict = Types.RowLikeStrict,
-  U extends Types.RowLike = D,
+  U extends Types.RowLike = {},
   J extends Types.Joins = {},
   R extends Types.RowLike = D,
 > {
@@ -45,6 +45,28 @@ export class Delete<
   private get args(): DeleteArgs<D, U, J> {
     const [{ from }] = this.clause;
     return [from.toSelectArgs()[0], ...(this.usingItem?.toSelectArgs() ?? [])] as DeleteArgs<D, U, J>;
+  }
+
+  where(fn: (...args: DeleteArgs<D, U, J>) => Types.Bool<0 | 1>) {
+    const [args0, { where, ...rest }] = this.clause;
+    return new Delete<D, U, J, R>([
+      args0,
+      {
+        ...rest,
+        where: chainWhere(where, fn),
+      },
+    ]);
+  }
+
+  returning<R2 extends Types.RowLike>(fn: (...args: DeleteArgs<D, U, J>) => R2) {
+    const [args0, { returning, ...rest }] = this.clause;
+    return new Delete<D, U, J, R2>([
+      args0,
+      {
+        ...rest,
+        returning: fn,
+      },
+    ]);
   }
 
   compile(ctxIn = Context.new()) {
@@ -109,7 +131,7 @@ export class Delete<
 
 export const delete_ = <
   D extends Types.RowLikeStrict,
-  U extends Types.RowLike = D,
+  U extends Types.RowLike = {},
   J extends Types.Joins = {},
   R extends Types.RowLike = D,
 >(clauses: {

@@ -1,10 +1,10 @@
 import { QueryResult, sql } from "kysely";
-import { Context } from "../expression";
-import * as Types from "../types";
-import { Typegres } from "../db";
-import { parseRowLike, pickAny, RowLikeResult } from "../query/values";
 import invariant from "tiny-invariant";
-import { sqlJoin, compileClauses } from "./utils";
+import { Typegres } from "../db";
+import { Context } from "../expression";
+import { parseRowLike, pickAny, RowLikeResult } from "../query/values";
+import * as Types from "../types";
+import { chainWhere, compileClauses, sqlJoin } from "./utils";
 
 /*
 https://www.postgresql.org/docs/current/sql-update.html
@@ -38,19 +38,57 @@ export class Update<
     public clause: [
       { table: Types.Table<U>; only?: true },
       {
-        set: (...args: UpdateArgs<U, F, J>) => Partial<U>;
+        set?: (...args: UpdateArgs<U, F, J>) => Partial<U>;
         from?: Types.AsFromItem<F, J>;
         where?: (...args: UpdateArgs<U, F, J>) => Types.Bool<0 | 1>;
         returning?: (...args: UpdateArgs<U, F, J>) => R;
       },
     ],
   ) {
+    if (!this.clause[1].set) {
+      // SQL requires a SET clause but we allow omitting it to make the query
+      // builder simpler.
+      this.clause[1].set = () => ({});
+    }
     this.fromItem = clause[1].from?.asFromItem();
   }
 
   private updateAndFromArgs(): UpdateArgs<U, F, J> {
     const [{ table }] = this.clause;
     return [table.toSelectArgs()[0], ...(this.fromItem?.toSelectArgs() ?? [])] as UpdateArgs<U, F, J>;
+  }
+
+  set(fn: (...args: UpdateArgs<U, F, J>) => Partial<U>) {
+    const [args0, args1] = this.clause;
+    return new Update<U, F, J, R>([
+      args0,
+      {
+        ...args1,
+        set: fn,
+      },
+    ]);
+  }
+
+  where(fn: (...args: UpdateArgs<U, F, J>) => Types.Bool<0 | 1>) {
+    const [args0, { where, ...rest }] = this.clause;
+    return new Update<U, F, J, R>([
+      args0,
+      {
+        ...rest,
+        where: chainWhere(where, fn),
+      },
+    ]);
+  }
+
+  returning<R2 extends Types.RowLike>(fn: (...args: UpdateArgs<U, F, J>) => R2) {
+    const [args0, { returning, ...rest }] = this.clause;
+    return new Update<U, F, J, R2>([
+      args0,
+      {
+        ...rest,
+        returning: fn,
+      },
+    ]);
   }
 
   compile(ctxIn = Context.new()) {
@@ -137,8 +175,8 @@ export function update<
   R extends Types.RowLike = U,
 >(
   table: Types.Table<U>,
-  clauses: {
-    set: (...args: UpdateArgs<U, F, J>) => Partial<U>;
+  clauses?: {
+    set?: (...args: UpdateArgs<U, F, J>) => Partial<U>;
     from?: Types.AsFromItem<F, J>;
     where?: (...args: UpdateArgs<U, F, J>) => Types.Bool<0 | 1>;
     returning?: (...args: UpdateArgs<U, F, J>) => R;
@@ -147,5 +185,5 @@ export function update<
     only?: true;
   },
 ): Update<U, F, J, R> {
-  return new Update([{ table, only: opts?.only }, clauses]);
+  return new Update([{ table, only: opts?.only }, clauses ?? {}]);
 }

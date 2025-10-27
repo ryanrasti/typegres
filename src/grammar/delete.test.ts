@@ -1,12 +1,13 @@
-import { describe, it, expect } from "vitest";
-import { delete_ } from "./delete";
-import { Int4, Text } from "../types";
-import { dummyDb, withDb } from "../test/db";
-import * as db from "../gen/tables";
-import { testDb } from "../db.test";
-import { with_ } from "./with";
-import { values } from "../query/values";
 import { assert, Equals } from "tsafe";
+import { describe, expect, it } from "vitest";
+import { testDb } from "../db.test";
+import { now } from "../gen/functions";
+import * as db from "../gen/tables";
+import { values } from "../query/values";
+import { dummyDb, withDb } from "../test/db";
+import { Int4, Text } from "../types";
+import { delete_ } from "./delete";
+import { with_ } from "./with";
 
 describe("DELETE parser", () => {
   it("should parse and compile a basic DELETE statement", () => {
@@ -422,6 +423,139 @@ describe("DELETE parser", () => {
             "Comment on published by good",
           ]);
         });
+      });
+    });
+  });
+
+  describe("chaining methods", () => {
+    it("should support chaining multiple where clauses with AND", () => {
+      const parsed = delete_({ from: db.Users })
+        .where((u) => u.active["="](0))
+        .where((u) => u.role["="]("admin"));
+
+      const compiled = parsed.compile();
+      const result = compiled.compile(dummyDb);
+
+      expect(result.sql).toBe(
+        'DELETE FROM "users" as "users" WHERE (("users"."role" = $1) AND ("users"."active" = $2))',
+      );
+      expect(result.parameters).toEqual(["admin", 0]);
+    });
+
+    it("should support chaining where and returning", () => {
+      const parsed = delete_({ from: db.Users })
+        .where((u) => u.id[">="](Int4.new(100)))
+        .returning((u) => ({ id: u.id, name: u.name }));
+
+      const compiled = parsed.compile();
+      const result = compiled.compile(dummyDb);
+
+      expect(result.sql).toBe(
+        'DELETE FROM "users" as "users" WHERE ("users"."id" >= cast($1 as int4)) RETURNING "users"."id" AS "id", "users"."name" AS "name"',
+      );
+      expect(result.parameters).toEqual([100]);
+    });
+
+    it("should support chaining multiple where clauses and returning", () => {
+      const parsed = delete_({ from: db.Users })
+        .where((u) => u.active["="](0))
+        .where((u) => u.role["="]("user"))
+        .returning((u) => ({
+          id: u.id,
+          email: u.email,
+          deletedAt: now(),
+        }));
+
+      const compiled = parsed.compile();
+      const result = compiled.compile(dummyDb);
+
+      expect(result.sql).toBe(
+        'DELETE FROM "users" as "users" WHERE (("users"."role" = $1) AND ("users"."active" = $2)) RETURNING "users"."id" AS "id", "users"."email" AS "email", now() AS "deletedAt"',
+      );
+      expect(result.parameters).toEqual(["user", 0]);
+    });
+
+    it("should support chaining with USING clause", () => {
+      const parsed = delete_({
+        from: db.Comments,
+        using: db.Users,
+      })
+        .where((c, u) => c.user_id["="](u.id))
+        .where((_c, u) => u.active["="](0))
+        .returning((c, u) => ({
+          commentId: c.id,
+          userName: u.name,
+        }));
+
+      const compiled = parsed.compile();
+      const result = compiled.compile(dummyDb);
+
+      expect(result.sql).toBe(
+        'DELETE FROM "comments" as "comments" USING "users" as "users" WHERE (("users"."active" = $1) AND ("comments"."user_id" = "users"."id")) RETURNING "comments"."id" AS "commentId", "users"."name" AS "userName"',
+      );
+      expect(result.parameters).toEqual([0]);
+    });
+
+    it("should allow chaining returning after initial returning", () => {
+      const parsed = delete_({
+        from: db.Users,
+        returning: (u) => ({ id: u.id }),
+      })
+        .where((u) => u.active["="](0))
+        .returning((u) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+        }));
+
+      const compiled = parsed.compile();
+      const result = compiled.compile(dummyDb);
+
+      // The last returning should override the initial one
+      expect(result.sql).toBe(
+        'DELETE FROM "users" as "users" WHERE ("users"."active" = $1) RETURNING "users"."id" AS "id", "users"."name" AS "name", "users"."email" AS "email"',
+      );
+      expect(result.parameters).toEqual([0]);
+    });
+
+    it("should execute chained delete operations", async () => {
+      await withDb(testDb, async (kdb) => {
+        // Insert test data
+        await kdb.sql`
+          INSERT INTO users (name, email, active, role)
+          VALUES 
+            ('ChainTest1', 'chain1@test.com', 0, 'user'),
+            ('ChainTest2', 'chain2@test.com', 0, 'admin'),
+            ('ChainTest3', 'chain3@test.com', 0, 'user'),
+            ('ChainTest4', 'chain4@test.com', 1, 'user')
+        `.execute();
+
+        // Delete inactive users with 'user' role using chained where
+        const parsed = delete_({ from: db.Users })
+          .where((u) => u.active["="](0))
+          .where((u) => u.role["="]("user"))
+          .returning((u) => ({
+            name: u.name,
+            role: u.role,
+          }));
+
+        const result = await parsed.execute(kdb);
+
+        expect(result).toHaveLength(2);
+        expect(result).toContainEqual({ name: "ChainTest1", role: "user" });
+        expect(result).toContainEqual({ name: "ChainTest3", role: "user" });
+
+        // Verify correct users remain (admin and active user)
+        const remaining = await kdb.sql`
+          SELECT name FROM users WHERE name LIKE 'ChainTest%'
+          ORDER BY name
+        `.execute();
+
+        expect(remaining).toHaveLength(2);
+        expect(remaining.map((r: any) => r.name)).toEqual(["ChainTest2", "ChainTest4"]);
+
+        // Clean up
+        await kdb.sql`DELETE FROM users WHERE name LIKE 'ChainTest%'`.execute();
       });
     });
   });
