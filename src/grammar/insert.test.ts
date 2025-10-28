@@ -374,4 +374,263 @@ describe("INSERT parser", () => {
       });
     });
   });
+
+  describe("INSERT fluent API", () => {
+    describe("Basic fluent API", () => {
+      it("should support insert with default values", () => {
+        const query = insert({ into: db.Users });
+
+        const compiled = query.compile();
+        const result = compiled.compile(dummyDb);
+
+        expect(result.sql).toBe('INSERT INTO "users" DEFAULT VALUES');
+        expect(result.parameters).toEqual([]);
+      });
+
+      it("should support adding values after construction", () => {
+        const query = insert({ into: db.Users }).values(
+          values({
+            name: Text.new("John"),
+            email: Text.new("john@example.com"),
+          }),
+        );
+
+        const compiled = query.compile();
+        const result = compiled.compile(dummyDb);
+
+        expect(result.sql).toBe('INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text)))');
+        expect(result.parameters).toEqual(["john@example.com", "John"]);
+      });
+
+      it("should support adding SELECT as values", () => {
+        const query = insert({ into: db.Users }).values(
+          select(() => ({
+            name: Text.new("John"),
+            email: Text.new("john@example.com"),
+          })),
+        );
+
+        const compiled = query.compile();
+        const result = compiled.compile(dummyDb);
+
+        expect(result.sql).toBe(
+          'INSERT INTO "users" ("email", "name") (SELECT cast($1 as text) AS "email", cast($2 as text) AS "name")',
+        );
+        expect(result.parameters).toEqual(["john@example.com", "John"]);
+      });
+
+      it("should support returning clause with entire row", () => {
+        const query = insert({ into: db.Users })
+          .values(
+            values({
+              name: Text.new("John"),
+              email: Text.new("john@example.com"),
+            }),
+          )
+          .returning((row) => row);
+
+        const compiled = query.compile();
+        const result = compiled.compile(dummyDb);
+
+        expect(result.sql).toBe(
+          'INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text))) RETURNING "users"."active" AS "active", "users"."email" AS "email", "users"."id" AS "id", "users"."name" AS "name", "users"."role" AS "role"',
+        );
+        expect(result.parameters).toEqual(["john@example.com", "John"]);
+      });
+
+      it("should support returning clause with custom selection", () => {
+        const query = insert({ into: db.Users })
+          .values(
+            values({
+              name: Text.new("John"),
+              email: Text.new("john@example.com"),
+            }),
+          )
+          .returning((row) => ({ id: row.id, name: row.name }));
+
+        const compiled = query.compile();
+        const result = compiled.compile(dummyDb);
+
+        expect(result.sql).toBe(
+          'INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text))) RETURNING "users"."id" AS "id", "users"."name" AS "name"',
+        );
+        expect(result.parameters).toEqual(["john@example.com", "John"]);
+      });
+
+      it("should support onConflict clause", () => {
+        const query = insert({ into: db.Users })
+          .values(
+            values({
+              name: Text.new("John"),
+              email: Text.new("john@example.com"),
+            }),
+          )
+          .onConflict({ doNothing: true });
+
+        const compiled = query.compile();
+        const result = compiled.compile(dummyDb);
+
+        expect(result.sql).toBe(
+          'INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text))) ON CONFLICT DO NOTHING',
+        );
+        expect(result.parameters).toEqual(["john@example.com", "John"]);
+      });
+    });
+
+    describe("Method chaining order independence", () => {
+      it("should work with values -> returning -> onConflict", () => {
+        const query = insert({ into: db.Users })
+          .values(values({ name: Text.new("John"), email: Text.new("john@example.com") }))
+          .returning((row) => ({ id: row.id }))
+          .onConflict({ doNothing: true });
+
+        const result = query.compile().compile(dummyDb);
+        expect(result.sql).toBe(
+          'INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text))) ON CONFLICT DO NOTHING RETURNING "users"."id" AS "id"',
+        );
+        expect(result.parameters).toEqual(["john@example.com", "John"]);
+      });
+
+      it("should work with onConflict -> values -> returning", () => {
+        const query = insert({ into: db.Users })
+          .onConflict({ doNothing: true })
+          .values(values({ name: Text.new("John"), email: Text.new("john@example.com") }))
+          .returning((row) => ({ id: row.id }));
+
+        const result = query.compile().compile(dummyDb);
+        expect(result.sql).toBe(
+          'INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text))) ON CONFLICT DO NOTHING RETURNING "users"."id" AS "id"',
+        );
+        expect(result.parameters).toEqual(["john@example.com", "John"]);
+      });
+
+      it("should work with returning -> onConflict -> values", () => {
+        const query = insert({ into: db.Users })
+          .returning((row) => ({ id: row.id }))
+          .onConflict({ doNothing: true })
+          .values(values({ name: Text.new("John"), email: Text.new("john@example.com") }));
+
+        const result = query.compile().compile(dummyDb);
+        expect(result.sql).toBe(
+          'INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text))) ON CONFLICT DO NOTHING RETURNING "users"."id" AS "id"',
+        );
+        expect(result.parameters).toEqual(["john@example.com", "John"]);
+      });
+    });
+
+    describe("Latest value wins", () => {
+      it("should use the latest values", () => {
+        const query = insert({ into: db.Users })
+          .values(values({ name: Text.new("John"), email: Text.new("john@example.com") }))
+          .values(values({ name: Text.new("Jane"), email: Text.new("jane@example.com") }));
+
+        const result = query.compile().compile(dummyDb);
+        expect(result.sql).toBe('INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text)))');
+        expect(result.parameters).toEqual(["jane@example.com", "Jane"]);
+      });
+
+      it("should use the latest returning", () => {
+        const query = insert({ into: db.Users })
+          .values(values({ name: Text.new("John"), email: Text.new("john@example.com") }))
+          .returning((row) => ({ id: row.id }))
+          .returning((row) => ({ name: row.name }));
+
+        const result = query.compile().compile(dummyDb);
+        expect(result.sql).toBe(
+          'INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text))) RETURNING "users"."name" AS "name"',
+        );
+        expect(result.parameters).toEqual(["john@example.com", "John"]);
+      });
+
+      it("should use the latest onConflict", () => {
+        const query = insert({ into: db.Users })
+          .values(values({ name: Text.new("John"), email: Text.new("john@example.com") }))
+          .onConflict({ doNothing: true })
+          .onConflict({
+            target: (row) => row.email,
+            doUpdateSet: (_, excluded) => ({ name: excluded.name }),
+          });
+
+        const result = query.compile().compile(dummyDb);
+        expect(result.sql).toBe(
+          'INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text))) ON CONFLICT ("email") DO UPDATE SET "name" = "excluded"."name"',
+        );
+        expect(result.parameters).toEqual(["john@example.com", "John"]);
+      });
+    });
+
+    describe("Complex scenarios", () => {
+      it("should support VALUES with multiple rows and returning", () => {
+        const query = insert({ into: db.Users })
+          .values(
+            values(
+              { name: Text.new("John"), email: Text.new("john@example.com") },
+              { name: Text.new("Jane"), email: Text.new("jane@example.com") },
+            ),
+          )
+          .returning((row) => ({ id: row.id, name: row.name }));
+
+        const result = query.compile().compile(dummyDb);
+        expect(result.sql).toBe(
+          'INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text)), (cast($3 as text), cast($4 as text))) RETURNING "users"."id" AS "id", "users"."name" AS "name"',
+        );
+        expect(result.parameters).toEqual(["john@example.com", "John", "jane@example.com", "Jane"]);
+      });
+
+      it("should support SELECT with WHERE and returning", () => {
+        const query = insert({ into: db.Users })
+          .values(
+            select((u) => ({ name: u.name, email: u.email }), {
+              from: db.UpdateTestUsers,
+              where: (u) => u.active["="](Int4.new(1)),
+            }),
+          )
+          .returning((row) => row);
+
+        const result = query.compile().compile(dummyDb);
+        expect(result.sql).toBe(
+          'INSERT INTO "users" ("email", "name") (SELECT "update_test_users"."email" AS "email", "update_test_users"."name" AS "name" FROM "update_test_users" as "update_test_users" WHERE ("update_test_users"."active" = cast($1 as int4))) RETURNING "users"."active" AS "active", "users"."email" AS "email", "users"."id" AS "id", "users"."name" AS "name", "users"."role" AS "role"',
+        );
+        expect(result.parameters).toEqual([1]);
+      });
+
+      it("should support onConflict with DO UPDATE and WHERE", () => {
+        const query = insert({ into: db.Users })
+          .values(values({ name: Text.new("John"), email: Text.new("john@example.com") }))
+          .onConflict({
+            target: (row) => row.email,
+            doUpdateSet: [(_, excluded) => ({ name: excluded.name }), { where: (row) => row.active["="](Int4.new(1)) }],
+          })
+          .returning((row) => ({ id: row.id, name: row.name }));
+
+        const result = query.compile().compile(dummyDb);
+        expect(result.sql).toBe(
+          'INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text))) ON CONFLICT ("email") DO UPDATE SET "name" = "excluded"."name" WHERE ("users"."active" = cast($3 as int4)) RETURNING "users"."id" AS "id", "users"."name" AS "name"',
+        );
+        expect(result.parameters).toEqual(["john@example.com", "John", 1]);
+      });
+
+      it("should switch from default values to explicit values", () => {
+        const query1 = insert({ into: db.Users });
+        const query2 = query1.values(values({ name: Text.new("John"), email: Text.new("john@example.com") }));
+
+        const result1 = query1.compile().compile(dummyDb);
+        const result2 = query2.compile().compile(dummyDb);
+
+        expect(result1.sql).toBe('INSERT INTO "users" DEFAULT VALUES');
+        expect(result2.sql).toBe('INSERT INTO "users" ("email", "name") (VALUES (cast($1 as text), cast($2 as text)))');
+        expect(result2.parameters).toEqual(["john@example.com", "John"]);
+      });
+
+      it("should switch from explicit values back to default values", () => {
+        const query = insert({ into: db.Users })
+          .values(values({ name: Text.new("John"), email: Text.new("john@example.com") }))
+          .values("defaultValues");
+
+        const result = query.compile().compile(dummyDb);
+        expect(result.sql).toBe('INSERT INTO "users" DEFAULT VALUES');
+        expect(result.parameters).toEqual([]);
+      });
+    });
+  });
 });

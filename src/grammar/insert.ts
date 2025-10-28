@@ -40,7 +40,25 @@ export class Insert<
   R extends Types.RowLike = I,
   V extends TableSchemaToRowLikeStrict<TS> = TableSchemaToRowLikeStrict<TS>,
 > {
-  constructor(public clause: Parameters<typeof insert<I, TS, K, R, V>>) {}
+  constructor(public clause: Parameters<typeof insert<I, TS, K, R, V>>) {
+    if (!clause[1]) {
+      // insertion values are required, but we allow omitting them to make the
+      // query builder more ergonomic:
+      clause[1] = "defaultValues";
+    }
+  }
+
+  values(values: "defaultValues" | Values<V> | Select<V, any, any>) {
+    return new Insert<I, TS, K, R, V>([this.clause[0], values, this.clause[2]]);
+  }
+
+  onConflict(onConflict: OnConflictInput<I>) {
+    return new Insert<I, TS, K, R, V>([this.clause[0], this.clause[1], { ...this.clause[2], onConflict }]);
+  }
+
+  returning<R2 extends Types.RowLike = I>(fn?: (insertRow: I) => R2): Insert<I, TS, K, R2, V> {
+    return new Insert<I, TS, K, R2, V>([this.clause[0], this.clause[1], { ...this.clause[2], returning: fn }]);
+  }
 
   compile(ctxIn = Context.new()) {
     const [{ into, overriding }, values, { onConflict, returning } = {}] = this.clause;
@@ -238,7 +256,7 @@ export const insert = <
     into: Types.Table<I, TS>;
     overriding?: ["system" | "user", "value"];
   },
-  values: "defaultValues" | Values<V> | Select<V, any, any>,
+  values?: "defaultValues" | Values<V> | Select<V, any, any>,
   opts?: {
     onConflict?: OnConflictInput<I>;
     returning?: (insertRow: I) => R;
