@@ -9,7 +9,7 @@ import { inspect } from "util";
 import Bool from "../types/bool";
 import { FromItem } from "../query/from-item";
 
-import { sqlJoin, compileClauses } from "./utils";
+import { sqlJoin, compileClauses, chainWhere } from "./utils";
 import { dummyDb } from "../test/db";
 import { RecordExpression } from "../types/record";
 
@@ -110,7 +110,7 @@ export class Select<S extends Types.RowLike = any, F extends Types.RowLike = any
       select,
       {
         ...rest,
-        where: where ? (...args: Types.FromToSelectArgs<F, J>) => fn(...args).and(where(...args)) : fn,
+        where: chainWhere(where, fn),
       },
     ]);
   }

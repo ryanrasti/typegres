@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { update } from "./update";
-import { Int4, Text } from "../types";
-import { dummyDb, withDb } from "../test/db";
-import * as db from "../gen/tables";
-import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
+import { describe, expect, it } from "vitest";
+import { testDb } from "../db.test";
+import * as db from "../gen/tables";
+import { dummyDb, withDb } from "../test/db";
+import { Int4, Text } from "../types";
+import { update } from "./update";
 
 describe("UPDATE parser", () => {
   it("should parse and compile a basic UPDATE statement", () => {
@@ -446,6 +446,234 @@ describe("UPDATE parser", () => {
           `.execute();
           expect((verify2[0] as any).published).toBe("1");
         });
+      });
+    });
+  });
+
+  describe("chaining methods", () => {
+    it("should support chaining set method", () => {
+      const parsed = update(db.Users)
+        .set(() => ({ name: Text.new("Updated Name") }))
+        .set(() => ({ email: Text.new("new@email.com") }));
+
+      const compiled = parsed.compile();
+      const result = compiled.compile(dummyDb);
+
+      // The last set should override the previous one
+      expect(result.sql).toBe('UPDATE "users" as "users" SET "email" = cast($1 as text)');
+      expect(result.parameters).toEqual(["new@email.com"]);
+    });
+
+    it("should support chaining multiple where clauses with AND", () => {
+      const parsed = update(db.Users, {})
+        .set(() => ({ active: Int4.new(0) }))
+        .where((u) => u.role["="]("admin"))
+        .where((u) => u.id[">="](Int4.new(100)));
+
+      const compiled = parsed.compile();
+      const result = compiled.compile(dummyDb);
+
+      expect(result.sql).toBe(
+        'UPDATE "users" as "users" SET "active" = cast($1 as int4) WHERE (("users"."id" >= cast($2 as int4)) AND ("users"."role" = $3))',
+      );
+      expect(result.parameters).toEqual([0, 100, "admin"]);
+    });
+
+    it("should support chaining set, where and returning", () => {
+      const parsed = update(db.Users)
+        .set(() => ({ email: Text.new("updated@test.com") }))
+        .where((u) => u.active["="](1))
+        .returning((u) => ({ id: u.id, email: u.email }));
+
+      const compiled = parsed.compile();
+      const result = compiled.compile(dummyDb);
+
+      expect(result.sql).toBe(
+        'UPDATE "users" as "users" SET "email" = cast($1 as text) WHERE ("users"."active" = $2) RETURNING "users"."id" AS "id", "users"."email" AS "email"',
+      );
+      expect(result.parameters).toEqual(["updated@test.com", 1]);
+    });
+
+    it("should support complex chaining with multiple where and returning", () => {
+      const parsed = update(db.Users)
+        .set(() => ({
+          active: Int4.new(0),
+          role: Text.new("inactive"),
+        }))
+        .where((u) => u.email.like(Text.new("%old.com")))
+        .where((u) => u.active["="](1))
+        .returning((u) => ({
+          id: u.id,
+          name: u.name,
+          previousRole: u.role,
+        }));
+
+      const compiled = parsed.compile();
+      const result = compiled.compile(dummyDb);
+
+      expect(result.sql).toBe(
+        'UPDATE "users" as "users" SET "active" = cast($1 as int4), "role" = cast($2 as text) WHERE (("users"."active" = $3) AND ("users"."email" ~~ cast($4 as text))) RETURNING "users"."id" AS "id", "users"."name" AS "name", "users"."role" AS "previousRole"',
+      );
+      expect(result.parameters).toEqual([0, "inactive", 1, "%old.com"]);
+    });
+
+    it("should support chaining with FROM clause", () => {
+      const parsed = update(db.Posts, {
+        from: db.Users,
+      })
+        .set(() => ({ published: Int4.new(1) }))
+        .where((p, u) => p.user_id["="](u.id))
+        .where((_p, u) => u.role["="]("editor"))
+        .returning((p, u) => ({
+          postId: p.id,
+          postTitle: p.title,
+          editorName: u.name,
+        }));
+
+      const compiled = parsed.compile();
+      const result = compiled.compile(dummyDb);
+
+      expect(result.sql).toBe(
+        'UPDATE "posts" as "posts" SET "published" = cast($1 as int4) FROM "users" as "users" WHERE (("users"."role" = $2) AND ("posts"."user_id" = "users"."id")) RETURNING "posts"."id" AS "postId", "posts"."title" AS "postTitle", "users"."name" AS "editorName"',
+      );
+      expect(result.parameters).toEqual([1, "editor"]);
+    });
+
+    it("should allow overriding returning clause", () => {
+      const parsed = update(db.Users, {
+        returning: (u) => ({ id: u.id }),
+      })
+        .set(() => ({ active: Int4.new(0) }))
+        .where((u) => u.role["="]("temp"))
+        .returning((u) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+        }));
+
+      const compiled = parsed.compile();
+      const result = compiled.compile(dummyDb);
+
+      // The last returning should override the initial one
+      expect(result.sql).toBe(
+        'UPDATE "users" as "users" SET "active" = cast($1 as int4) WHERE ("users"."role" = $2) RETURNING "users"."id" AS "id", "users"."name" AS "name", "users"."email" AS "email"',
+      );
+      expect(result.parameters).toEqual([0, "temp"]);
+    });
+
+    it("should execute chained update operations", async () => {
+      await withDb(testDb, async (kdb) => {
+        // Insert test data
+        await kdb.sql`
+          INSERT INTO users (name, email, active, role)
+          VALUES 
+            ('ChainUpdate1', 'chain1@old.com', 1, 'admin'),
+            ('ChainUpdate2', 'chain2@new.com', 1, 'admin'),
+            ('ChainUpdate3', 'chain3@old.com', 1, 'user'),
+            ('ChainUpdate4', 'chain4@old.com', 0, 'admin')
+        `.execute();
+
+        // Update active admins with old.com emails using chained where
+        const parsed = update(db.Users, {})
+          .set(() => ({
+            active: Int4.new(0),
+            role: Text.new("archived"),
+          }))
+          .where((u) => u.active["="](1))
+          .where((u) => u.role["="]("admin"))
+          .where((u) => u.email.like(Text.new("%old.com")))
+          .returning((u) => ({
+            name: u.name,
+            email: u.email,
+          }));
+
+        const result = await parsed.execute(kdb);
+
+        // Only ChainUpdate1 should be updated (active admin with old.com email)
+        expect(result).toHaveLength(1);
+        expect(result[0]).toEqual({
+          name: "ChainUpdate1",
+          email: "chain1@old.com",
+        });
+
+        // Verify the update
+        const verify = await kdb.sql`
+          SELECT name, active, role 
+          FROM users 
+          WHERE name LIKE 'ChainUpdate%'
+          ORDER BY name
+        `.execute();
+
+        expect(verify).toHaveLength(4);
+        expect(verify[0]).toMatchObject({ name: "ChainUpdate1", active: "0", role: "archived" });
+        expect(verify[1]).toMatchObject({ name: "ChainUpdate2", active: "1", role: "admin" });
+        expect(verify[2]).toMatchObject({ name: "ChainUpdate3", active: "1", role: "user" });
+        expect(verify[3]).toMatchObject({ name: "ChainUpdate4", active: "0", role: "admin" });
+
+        // Clean up
+        await kdb.sql`DELETE FROM users WHERE name ~~ 'ChainUpdate%'`.execute();
+      });
+    });
+
+    it("should execute chained update with FROM clause", async () => {
+      await withDb(testDb, async (kdb) => {
+        // Insert test data
+        const userResult = await kdb.sql`
+          INSERT INTO users (name, email, active, role)
+          VALUES ('Editor1', 'editor@test.com', 1, 'editor')
+          RETURNING id
+        `.execute();
+        const editorId = Number((userResult[0] as any).id);
+
+        // Insert another user for Draft3
+        const otherUserResult = await kdb.sql`
+          INSERT INTO users (name, email, active, role)
+          VALUES ('NotEditor', 'noteditor@test.com', 1, 'user')
+          RETURNING id
+        `.execute();
+        const otherUserId = Number((otherUserResult[0] as any).id);
+
+        await kdb.sql`
+          INSERT INTO posts (title, content, user_id, published)
+          VALUES 
+            ('Draft1', 'Content1', ${editorId}, 0),
+            ('Draft2', 'Content2', ${editorId}, 0),
+            ('Draft3', 'Content3', ${otherUserId}, 0)
+        `.execute();
+
+        // Update posts using chained where with FROM clause
+        const parsed = update(db.Posts, { from: db.Users })
+          .set(() => ({ published: Int4.new(1) }))
+          .where((p, u) => p.user_id["="](u.id))
+          .where((_p, u) => u.role["="]("editor"))
+          .where((p) => p.title.like(Text.new("Draft%")))
+          .returning((p) => ({
+            title: p.title,
+            published: p.published,
+          }));
+
+        const result = await parsed.execute(kdb);
+
+        // Only Draft1 and Draft2 should be updated (belong to editor)
+        expect(result).toHaveLength(2);
+        expect(result).toContainEqual({ title: "Draft1", published: 1 });
+        expect(result).toContainEqual({ title: "Draft2", published: 1 });
+
+        // Verify updates
+        const verify = await kdb.sql`
+          SELECT title, published 
+          FROM posts 
+          WHERE title LIKE 'Draft%'
+          ORDER BY title
+        `.execute();
+
+        expect(verify[0]).toMatchObject({ title: "Draft1", published: "1" });
+        expect(verify[1]).toMatchObject({ title: "Draft2", published: "1" });
+        expect(verify[2]).toMatchObject({ title: "Draft3", published: "0" });
+
+        // Clean up
+        await kdb.sql`DELETE FROM posts WHERE title LIKE 'Draft%'`.execute();
+        await kdb.sql`DELETE FROM users WHERE id IN (${editorId}, ${otherUserId})`.execute();
       });
     });
   });
