@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest'
-import { typegres } from 'typegres'
-import { Todo } from '../models/base'
+import { describe, it, expect } from "vitest";
+import { typegres } from "typegres";
+import { Todo } from "../models/base";
 
-describe('Simple Typegres Query', () => {
-  it('should run a basic query', async () => {
-    const tg = await typegres({ type: 'pglite' })
-    
+describe("Simple Typegres Query", () => {
+  it("should run a basic query", async () => {
+    const tg = await typegres({ type: "pglite" });
+
     // Create schema
     await tg.sql`
       CREATE TABLE IF NOT EXISTS "Todo" (
@@ -15,29 +15,27 @@ describe('Simple Typegres Query', () => {
         "userId" TEXT NOT NULL,
         priority INTEGER DEFAULT 0
       )
-    `.execute()
-    
+    `.execute();
+
     // Insert test data
     await tg.sql`
       INSERT INTO "Todo" (id, content, "userId", priority) 
       VALUES ('todo-1', 'Test Todo', 'user-1', 5)
-    `.execute()
-    
+    `.execute();
+
     // Query with Typegres
-    console.log('About to query...')
-    const todos = await Todo
-      .select(t => ({
-        id: t.id,
-        content: t.content,
-        priority: t.priority
-      }))
-      .execute(tg)
-    
-    console.log('Query result:', todos)
-    
-    expect(todos).toHaveLength(1)
-    expect(todos[0].content).toBe('Test Todo')
-    
-    await tg.end()
-  })
-})
+    console.log("About to query...");
+    const todos = await Todo.select((t) => ({
+      id: t.id,
+      content: t.content,
+      priority: t.priority,
+    })).execute(tg);
+
+    console.log("Query result:", todos);
+
+    expect(todos).toHaveLength(1);
+    expect(todos[0].content).toBe("Test Todo");
+
+    await tg.end();
+  });
+});

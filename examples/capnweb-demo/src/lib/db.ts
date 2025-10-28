@@ -1,16 +1,16 @@
-import { PGlite } from '@electric-sql/pglite'
-import { QueryClient } from 'typegres'
+import { PGlite } from "@electric-sql/pglite";
+import { QueryClient } from "typegres";
 
 // Initialize PGlite with in-memory database
-let pgLiteInstance: PGlite | null = null
-let queryClient: QueryClient | null = null
+let pgLiteInstance: PGlite | null = null;
+let queryClient: QueryClient | null = null;
 
 export async function initializeDatabase() {
-  if (pgLiteInstance) return { pgLite: pgLiteInstance, queryClient }
+  if (pgLiteInstance) return { pgLite: pgLiteInstance, queryClient };
 
   // Create PGlite instance
-  pgLiteInstance = new PGlite()
-  
+  pgLiteInstance = new PGlite();
+
   // Run initial migration
   await pgLiteInstance.exec(`
     -- Create users table
@@ -53,26 +53,26 @@ export async function initializeDatabase() {
       ('todo-2', 'Test capabilities', 'user-1', 3),
       ('todo-3', 'Write documentation', 'user-1', 2)
     ON CONFLICT (id) DO NOTHING;
-  `)
+  `);
 
   // Create Typegres query client
   // For PGlite, we need to create a custom query function
   queryClient = new QueryClient({
     query: async (sql: string, params?: any[]) => {
-      const result = await pgLiteInstance!.query(sql, params)
+      const result = await pgLiteInstance!.query(sql, params);
       return {
         rows: result.rows,
-        rowCount: result.rows.length
-      }
-    }
-  })
+        rowCount: result.rows.length,
+      };
+    },
+  });
 
-  return { pgLite: pgLiteInstance, queryClient }
+  return { pgLite: pgLiteInstance, queryClient };
 }
 
 export function getQueryClient() {
   if (!queryClient) {
-    throw new Error('Database not initialized. Call initializeDatabase() first.')
+    throw new Error("Database not initialized. Call initializeDatabase() first.");
   }
-  return queryClient
+  return queryClient;
 }

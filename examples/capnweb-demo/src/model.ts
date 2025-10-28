@@ -1,23 +1,16 @@
 class User {
+  createTodo() {}
 
-    createTodo() {
-
-    }
-
-    todos() {
-
-    }
+  todos() {}
 }
 
 class TodoNote {
-    delete() {
+  delete() {}
 
-    }
-
-    update() {
-        // content
-        // due date
-        // priority
-        // tag
-    }
+  update() {
+    // content
+    // due date
+    // priority
+    // tag
+  }
 }
