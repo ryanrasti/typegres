@@ -11,6 +11,8 @@ import { inspect } from "cross-inspect";
 type ColumnDefinition = {
   type: string;
   not_null: boolean;
+  has_default: boolean;
+  is_generated: boolean;
 };
 
 type TableGenFile = {
@@ -70,7 +72,9 @@ const introspectCommand = Command.make(
                     attrelid,
                     json_object_agg(attname, json_build_object(
                       'type', t.typname,
-                      'not_null', a.attnotnull
+                      'not_null', a.attnotnull,
+                      'has_default', a.atthasdef,
+                      'is_generated', a.attgenerated != ''
                     ) ORDER BY attname) AS columns
                   FROM pg_attribute a
                   JOIN pg_type t ON a.atttypid = t.oid
@@ -109,12 +113,14 @@ const introspectCommand = Command.make(
 
             return [
               `export const ${className} = Table("${tableName}", {`,
-              ...Object.entries(columns as TableGenFile[string][string]).map(
-                ([column, definition]) =>
-                  `  ${column}: ${asType(canonicalType(definition.type), {
-                    nullable: definition.not_null ? false : undefined,
-                  })},`,
-              ),
+              ...Object.entries(columns as TableGenFile[string][string]).map(([column, definition]) => {
+                const typeStr = asType(canonicalType(definition.type), {
+                  nullable: definition.not_null ? false : undefined,
+                });
+                // Column is required if: not null AND no default AND not generated
+                const isRequired = definition.not_null && !definition.has_default && !definition.is_generated;
+                return `  ${column}: { type: ${typeStr}, required: ${isRequired} },`;
+              }),
               `});`,
               ``,
             ];

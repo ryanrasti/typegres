@@ -1,16 +1,16 @@
-import { describe, expect, it, beforeEach } from "vitest";
-import { values } from "./values";
-import { Int4, Text } from "../types";
-import { testDb } from "../db.test";
+import { beforeEach, describe, expect, it } from "vitest";
 import { TypegresTransaction } from "../db";
+import { testDb } from "../db.test";
+import { insert, select, update } from "../grammar";
+import { Int4, Text } from "../types";
 import { Table } from "./db";
-import { select, insert, update } from "../grammar";
+import { values } from "./values";
 
 // Define the schema for our test tables
 class TestUsers extends Table("test_users", {
-  id: Int4<1>,
-  name: Text<1>,
-  balance: Int4<0 | 1>,
+  id: { type: Int4<1>, required: false }, // has default (SERIAL)
+  name: { type: Text<1>, required: true },
+  balance: { type: Int4<0 | 1>, required: false }, // nullable with default
 }) {}
 
 describe("Transactions", () => {
@@ -46,7 +46,7 @@ describe("Transactions", () => {
           },
         );
 
-        await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery).execute(tx);
+        await insert({ into: TestUsers }, selectQuery).execute(tx);
       });
 
       const users = await select((u) => ({ name: u.name, balance: u.balance }), {
@@ -73,7 +73,7 @@ describe("Transactions", () => {
             },
           );
 
-          await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery).execute(tx);
+          await insert({ into: TestUsers }, selectQuery).execute(tx);
 
           throw new Error("Transaction error");
 
@@ -88,7 +88,7 @@ describe("Transactions", () => {
             },
           );
 
-          await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery2).execute(tx);
+          await insert({ into: TestUsers }, selectQuery2).execute(tx);
         });
       } catch (e) {
         expect((e as Error).message).toBe("Transaction error");
@@ -113,7 +113,7 @@ describe("Transactions", () => {
           },
         );
 
-        await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery).execute(tx);
+        await insert({ into: TestUsers }, selectQuery).execute(tx);
 
         // Query using new select syntax
         const txResult = await select((u) => ({ name: u.name, balance: u.balance }), {
@@ -145,7 +145,7 @@ describe("Transactions", () => {
           },
         );
 
-        const result = await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery, {
+        const result = await insert({ into: TestUsers }, selectQuery, {
           returning: (u) => ({
             id: u.id,
             name: u.name,
@@ -185,7 +185,7 @@ describe("Transactions", () => {
         },
       );
 
-      await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery).execute(testDb);
+      await insert({ into: TestUsers }, selectQuery).execute(testDb);
 
       // Use transaction to update
       await testDb.transaction(async (tx) => {
@@ -221,7 +221,7 @@ describe("Transactions", () => {
           },
         );
 
-        await insert({ into: TestUsers, columns: ["name", "balance"] }, selectQuery).execute(tx);
+        await insert({ into: TestUsers }, selectQuery).execute(tx);
 
         // Complex query within transaction
         const richUsers = await select(

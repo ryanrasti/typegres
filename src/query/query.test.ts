@@ -347,7 +347,6 @@ describe("Mutations", async () => {
       const res = await insert(
         {
           into: db.Pet,
-          columns: ["ownerId", "name", "age", "species"],
         },
         selectQuery,
         {

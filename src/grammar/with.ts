@@ -227,7 +227,7 @@ type WithQueryTables = {
 type Withable<T extends RowLike> =
   | Values<T extends RowLikeStrict ? T : never>
   | Select<T>
-  | Insert<any, any, any, T>
+  | Insert<any, any, any, T, any>
   | Update<any, any, any, T>
   | Delete<any, any, any, T>
   | Merge<any, any, any, T>;

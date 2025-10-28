@@ -1,18 +1,18 @@
-import { describe, it, expect } from "vitest";
-import { insert } from "./insert";
-import { values } from "../query/values";
-import { Int4, Text } from "../types";
-import { dummyDb, withDb } from "../test/db";
-import * as db from "../gen/tables";
-import { testDb } from "../db.test";
-import { assert, Equals } from "tsafe";
 import { sql } from "kysely";
+import { assert, Equals } from "tsafe";
+import { describe, expect, it } from "vitest";
+import { testDb } from "../db.test";
+import * as db from "../gen/tables";
+import { values } from "../query/values";
+import { dummyDb, withDb } from "../test/db";
+import { Int4, Text } from "../types";
+import { insert } from "./insert";
 
 describe("INSERT ON CONFLICT tests", () => {
   describe("Compilation tests", () => {
     it("should parse INSERT with ON CONFLICT DO NOTHING", () => {
       const parsed = insert(
-        { into: db.Users, columns: ["id", "name", "email"] },
+        { into: db.Users },
         values({
           id: Int4.new(1),
           name: Text.new("John"),
@@ -34,7 +34,7 @@ describe("INSERT ON CONFLICT tests", () => {
 
     it("should parse INSERT with ON CONFLICT on index column", async () => {
       const parsed = insert(
-        { into: db.Users, columns: ["id", "name", "email"] },
+        { into: db.Users },
         values({
           id: Int4.new(1),
           name: Text.new("John"),
@@ -59,7 +59,7 @@ describe("INSERT ON CONFLICT tests", () => {
 
     it("should parse INSERT with ON CONFLICT on multiple columns", async () => {
       const parsed = insert(
-        { into: db.Users, columns: ["id", "name", "email"] },
+        { into: db.Users },
         values({
           id: Int4.new(1),
           name: Text.new("John"),
@@ -84,7 +84,7 @@ describe("INSERT ON CONFLICT tests", () => {
 
     it("should parse INSERT with ON CONFLICT with WHERE clause", async () => {
       const parsed = insert(
-        { into: db.Users, columns: ["id", "name", "email", "active"] },
+        { into: db.Users },
         values({
           id: Int4.new(1),
           name: Text.new("John"),
@@ -111,7 +111,7 @@ describe("INSERT ON CONFLICT tests", () => {
 
     it("should parse INSERT with ON CONFLICT ON CONSTRAINT", async () => {
       const parsed = insert(
-        { into: db.Users, columns: ["id", "name", "email"] },
+        { into: db.Users },
         values({
           id: Int4.new(1),
           name: Text.new("John"),
@@ -136,7 +136,7 @@ describe("INSERT ON CONFLICT tests", () => {
 
     it("should parse INSERT with ON CONFLICT DO UPDATE SET", async () => {
       const parsed = insert(
-        { into: db.Users, columns: ["id", "name", "email"] },
+        { into: db.Users },
         values({
           id: Int4.new(1),
           name: Text.new("John"),
@@ -164,7 +164,7 @@ describe("INSERT ON CONFLICT tests", () => {
 
     it("should parse INSERT with ON CONFLICT DO UPDATE SET with WHERE", async () => {
       const parsed = insert(
-        { into: db.Users, columns: ["id", "name", "email", "active"] },
+        { into: db.Users },
         values({
           id: Int4.new(1),
           name: Text.new("John"),
@@ -215,7 +215,7 @@ describe("INSERT ON CONFLICT tests", () => {
         // - do update set using excluded table
         // - where clause on update
         const parsed = insert(
-          { into: db.Users, columns: ["active", "email", "id", "name"] },
+          { into: db.Users },
           values({
             id: Int4.new(1),
             name: Text.new("UpdatedUser"),

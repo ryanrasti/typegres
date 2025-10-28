@@ -1,15 +1,15 @@
-import { describe, it, expect } from "vitest";
-import { with_, Cte } from "./with";
-import { select } from "./select";
-import { insert } from "./insert";
-import { update } from "./update";
-import { merge } from "./merge";
-import { values } from "../query/values";
-import { Int4, Text } from "../types";
-import { dummyDb, withDb } from "../test/db";
+import { assert, Equals } from "tsafe";
+import { describe, expect, it } from "vitest";
 import { testDb } from "../db.test";
 import * as db from "../gen/tables";
-import { assert, Equals } from "tsafe";
+import { values } from "../query/values";
+import { dummyDb, withDb } from "../test/db";
+import { Int4, Text } from "../types";
+import { insert } from "./insert";
+import { merge } from "./merge";
+import { select } from "./select";
+import { update } from "./update";
+import { Cte, with_ } from "./with";
 
 describe("WITH (CTE) parser", () => {
   describe("Basic CTEs", () => {
@@ -184,7 +184,7 @@ describe("WITH (CTE) parser", () => {
   describe("CTEs with DML", () => {
     it("should support INSERT with RETURNING in CTE", () => {
       const inserted = insert(
-        { into: db.Users, columns: ["name", "email"] },
+        { into: db.Users },
         values({
           name: Text.new("Alice"),
           email: Text.new("alice@example.com"),
