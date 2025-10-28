@@ -1,14 +1,13 @@
 import { sql } from "kysely";
-import { Expression, QueryAlias } from "../expression";
-import { Bool, RowLikeStrict } from "../types";
-import { maybePrimitiveToSqlType } from "../types/primitive";
-import { Context } from "../expression";
-import Any, { MakeNullable } from "../types/any";
-import { aliasRowLike, AnyOrParsed, RowLike, ValuesExpression } from "./values";
 import invariant from "tiny-invariant";
-import { View, type TableSchema, type TableSchemaToRowLike } from "./db";
-import { withMixinProxy } from "./mixin";
+import { Context, Expression, QueryAlias } from "../expression";
 import { Select, select } from "../grammar/select";
+import { Bool, RowLikeStrict } from "../types";
+import Any, { MakeNullable } from "../types/any";
+import { maybePrimitiveToSqlType } from "../types/primitive";
+import { RowSchema, RowSchemaToRowLike, View } from "./db";
+import { withMixinProxy } from "./mixin";
+import { aliasRowLike, AnyOrParsed, RowLike, ValuesExpression } from "./values";
 
 // Helper type to make all columns in a RowLike nullable
 type MakeRowNullable<R extends RowLike> = {
@@ -82,10 +81,10 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins> impl
     public joins: J = {} as J,
   ) {}
 
-  static ofSchema<T extends TableSchema>(columns: T) {
+  static ofSchema<T extends RowSchema>(columns: T) {
     const rowLike = Object.fromEntries(
       Object.entries(columns).map(([name, col]) => [name, col.new("")]),
-    ) as TableSchemaToRowLike<T>;
+    ) as RowSchemaToRowLike<T>;
     return FromItem.of(rowLike);
   }
 

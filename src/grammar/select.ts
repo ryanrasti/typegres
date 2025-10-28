@@ -1,17 +1,17 @@
 import { QueryResult, RawBuilder, sql } from "kysely";
-import { Context, Expression, ExistsExpression, NotExistsExpression, QueryAlias } from "../expression";
-import * as Types from "../types";
-import type { XOR } from "ts-xor";
-import { Typegres } from "../db";
-import { parseRowLike, RowLikeResult, aliasRowLike, pickAny } from "../query/values";
 import invariant from "tiny-invariant";
+import type { XOR } from "ts-xor";
 import { inspect } from "util";
-import Bool from "../types/bool";
+import { Typegres } from "../db";
+import { Context, ExistsExpression, Expression, NotExistsExpression, QueryAlias } from "../expression";
 import { FromItem } from "../query/from-item";
+import { aliasRowLike, parseRowLike, pickAny, RowLikeResult } from "../query/values";
+import * as Types from "../types";
+import Bool from "../types/bool";
 
-import { sqlJoin, compileClauses, chainWhere } from "./utils";
 import { dummyDb } from "../test/db";
 import { RecordExpression } from "../types/record";
+import { chainWhere, compileClauses, sqlJoin } from "./utils";
 
 export type NumericLike =
   | Types.Int4<0 | 1>
@@ -66,7 +66,7 @@ SELECT [ ALL | DISTINCT [ ON ( expression [, ...] ) ] ]
 export class Select<S extends Types.RowLike = any, F extends Types.RowLike = any, J extends Types.Joins = any> {
   private _fromItem: Types.FromItem<F, J> | undefined;
 
-  constructor(private _clause: Parameters<typeof select<S, F, J>>) {
+  constructor(private _clause: [select: (...args: Types.FromToSelectArgs<F, J>) => S, opts?: SelectOpts<S, F, J>]) {
     // Don't resolve fromItem here - defer to avoid triggering the select callback
   }
 
@@ -372,35 +372,37 @@ export class Select<S extends Types.RowLike = any, F extends Types.RowLike = any
   }
 }
 
+type SelectOpts<S extends Types.RowLike, F extends Types.RowLike, J extends Types.Joins> = XOR<
+  { all?: true },
+  { distinct?: true },
+  { distinctOn?: (...args: Types.FromToSelectArgs<F, J>) => Types.Any[] }
+> & {
+  from?: Types.AsFromItem<F, J>;
+  where?: (...args: Types.FromToSelectArgs<F, J>) => Types.Bool<0 | 1>;
+  groupBy?: GroupByInput<F, J>;
+  having?: (...args: Types.FromToSelectArgs<F, J>) => Types.Bool<0 | 1>;
+  window?: never; // TODO: Implement window functions
+} & SetOps<S> & {
+    orderBy?: OrderByInput<F, J>;
+    limit?: NumericLike | "all";
+    offset?: NumericLike | [NumericLike, { row?: true; rows?: true }];
+    fetch?: ["first" | "next", NumericLike, "row" | "rows", "only" | "withTies"];
+    for?: [
+      "update" | "noKeyUpdate" | "share" | "keyShare",
+      {
+        of?: [Types.Table<any, any>, ...Types.Table<any, any>[]];
+      } & (
+        | {
+            nowait?: true;
+          }
+        | { skipLocked?: true }
+      ),
+    ];
+  };
+
 export const select = <S extends Types.RowLike, F extends Types.RowLike, J extends Types.Joins>(
   select: (...args: Types.FromToSelectArgs<F, J>) => S,
-  opts?: XOR<
-    { all?: true },
-    { distinct?: true },
-    { distinctOn?: (...args: Types.FromToSelectArgs<F, J>) => Types.Any[] }
-  > & {
-    from?: Types.AsFromItem<F, J>;
-    where?: (...args: Types.FromToSelectArgs<F, J>) => Types.Bool<0 | 1>;
-    groupBy?: GroupByInput<F, J>;
-    having?: (...args: Types.FromToSelectArgs<F, J>) => Types.Bool<0 | 1>;
-    window?: never; // TODO: Implement window functions
-  } & SetOps<S> & {
-      orderBy?: OrderByInput<F, J>;
-      limit?: NumericLike | "all";
-      offset?: NumericLike | [NumericLike, { row?: true; rows?: true }];
-      fetch?: ["first" | "next", NumericLike, "row" | "rows", "only" | "withTies"];
-      for?: [
-        "update" | "noKeyUpdate" | "share" | "keyShare",
-        {
-          of?: [Types.Table<any>, ...Types.Table<any>[]];
-        } & (
-          | {
-              nowait?: true;
-            }
-          | { skipLocked?: true }
-        ),
-      ];
-    },
+  opts?: SelectOpts<S, F, J>,
 ) => {
   return new Select<S, F, J>([select, opts]);
 };

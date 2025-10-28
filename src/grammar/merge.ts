@@ -1,12 +1,12 @@
-import { QueryResult, sql } from "kysely";
-import { Context } from "../expression";
-import * as Types from "../types";
-import { Typegres } from "../db";
-import { parseRowLike, PickAny, RowLikeResult } from "../query/values";
-import invariant from "tiny-invariant";
-import { compileClauses, sqlJoin } from "./utils";
-import type { XOR } from "ts-xor";
 import { inspect } from "cross-inspect";
+import { QueryResult, sql } from "kysely";
+import invariant from "tiny-invariant";
+import type { XOR } from "ts-xor";
+import { Typegres } from "../db";
+import { Context } from "../expression";
+import { parseRowLike, PickAny, RowLikeResult } from "../query/values";
+import * as Types from "../types";
+import { compileClauses, sqlJoin } from "./utils";
 
 // https://www.postgresql.org/docs/current/sql-merge.html
 //

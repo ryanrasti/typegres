@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { insert } from "./insert";
-import { select } from "./select";
-import { values } from "../query/values";
-import { Int4, Text } from "../types";
-import { dummyDb, withDb } from "../test/db";
-import * as db from "../gen/tables";
-import { testDb } from "../db.test";
 import { assert, Equals } from "tsafe";
+import { describe, expect, it } from "vitest";
+import { testDb } from "../db.test";
+import * as db from "../gen/tables";
+import { values } from "../query/values";
+import { dummyDb, withDb } from "../test/db";
+import { Int4, Text } from "../types";
+import { insert } from "./insert";
+import { Select, select } from "./select";
 
 describe("INSERT parser", () => {
   it("should parse and compile a basic INSERT statement with SELECT", () => {
@@ -15,7 +15,7 @@ describe("INSERT parser", () => {
       email: Text.new("john@example.com"),
     }));
 
-    const parsed = insert({ into: db.Users, columns: ["name", "email"] }, selectQuery);
+    const parsed = insert({ into: db.Users }, selectQuery);
 
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
@@ -28,7 +28,7 @@ describe("INSERT parser", () => {
 
   it("should parse and compile a basic INSERT statement with VALUES", () => {
     const parsed = insert(
-      { into: db.Users, columns: ["name", "email"] },
+      { into: db.Users },
       values(
         { name: Text.new("John"), email: Text.new("john@example.com") },
         { name: Text.new("Jane"), email: Text.new("jane@example.com") },
@@ -50,7 +50,7 @@ describe("INSERT parser", () => {
       email: Text.new("jane@example.com"),
     }));
 
-    const parsed = insert({ into: db.Users, columns: ["name", "email"] }, selectQuery, {
+    const parsed = insert({ into: db.Users }, selectQuery, {
       returning: (insertRow) => ({ id: insertRow.id, name: insertRow.name }),
     });
 
@@ -72,7 +72,7 @@ describe("INSERT parser", () => {
       { from: db.UpdateTestUsers },
     );
 
-    const parsed = insert({ into: db.Users, columns: ["name", "email"] }, selectQuery);
+    const parsed = insert({ into: db.Users }, selectQuery);
 
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
@@ -89,7 +89,7 @@ describe("INSERT parser", () => {
       email: Text.new("test@example.com"),
     }));
 
-    const parsed = insert({ into: db.Users, columns: ["name", "email"] }, selectQuery);
+    const parsed = insert({ into: db.Users }, selectQuery);
 
     const compiled = parsed.compile();
     const result = compiled.compile(dummyDb);
@@ -110,16 +110,30 @@ describe("INSERT parser", () => {
   });
 
   it("should parse INSERT with OVERRIDING SYSTEM VALUE", () => {
+    const insufficientSelectQuery = select(() => ({
+      id: Int4.new(999),
+    }));
+
     const selectQuery = select(() => ({
       id: Int4.new(999),
       name: Text.new("Override User"),
       email: Text.new("override@example.com"),
     }));
+    selectQuery satisfies Select<{ id: Int4<1>; email: Text<1> }, any, any>;
+
+    // This should error at compile time due to missing required columns:
+    insert(
+      {
+        into: db.Users,
+        overriding: ["system", "value"],
+      },
+      // @ts-expect-error - missing required columns:
+      insufficientSelectQuery,
+    );
 
     const parsed = insert(
       {
         into: db.Users,
-        columns: ["id", "name", "email"],
         overriding: ["system", "value"],
       },
       selectQuery,
@@ -139,7 +153,7 @@ describe("INSERT parser", () => {
       it("should execute INSERT on person table", async () => {
         await withDb(testDb, async (kdb) => {
           const parsed = insert(
-            { into: db.Person, columns: ["firstName", "lastName", "gender"] },
+            { into: db.Person },
             values({
               firstName: Text.new("InsertTest"),
               lastName: Text.new("User"),
@@ -195,7 +209,7 @@ describe("INSERT parser", () => {
             },
           );
 
-          const parsed = insert({ into: db.Person, columns: ["firstName", "lastName", "gender"] }, selectQuery, {
+          const parsed = insert({ into: db.Person }, selectQuery, {
             returning: (insertRow) => ({
               id: insertRow.id,
               firstName: insertRow.firstName,
@@ -232,7 +246,7 @@ describe("INSERT parser", () => {
             age: Int4.new(2),
           }));
 
-          const parsed = insert({ into: db.Pet, columns: ["name", "ownerId", "species", "age"] }, selectQuery, {
+          const parsed = insert({ into: db.Pet }, selectQuery, {
             returning: (insertRow) => ({
               id: insertRow.id,
               name: insertRow.name,
@@ -286,7 +300,6 @@ describe("INSERT parser", () => {
           const parsed = insert(
             {
               into: db.Posts,
-              columns: ["title", "content", "user_id", "published"],
             },
             selectQuery,
             {
@@ -343,7 +356,7 @@ describe("INSERT parser", () => {
             },
           );
 
-          const parsed = insert({ into: db.Users, columns: ["name", "email"] }, selectQuery, {
+          const parsed = insert({ into: db.Users }, selectQuery, {
             returning: (insertRow) => ({
               id: insertRow.id,
               name: insertRow.name,

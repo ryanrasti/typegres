@@ -1,13 +1,14 @@
 import { QueryResult, RawBuilder, sql } from "kysely";
-import { Context } from "../expression";
-import * as Types from "../types";
-import { Typegres } from "../db";
-import { bareRowLike, parseRowLike, PickAny, pickAny, rawAliasRowLike, RowLikeResult, Values } from "../query/values";
 import invariant from "tiny-invariant";
-import { sqlJoin, compileClauses } from "./utils";
-import { Select } from "./select";
-import { Repeated } from "../types";
 import { XOR } from "ts-xor";
+import { Typegres } from "../db";
+import { Context } from "../expression";
+import { TableSchema } from "../query/db";
+import { bareRowLike, parseRowLike, PickAny, pickAny, rawAliasRowLike, RowLikeResult, Values } from "../query/values";
+import * as Types from "../types";
+import { Repeated } from "../types";
+import { Select } from "./select";
+import { compileClauses, sqlJoin } from "./utils";
 
 /*
 [ WITH [ RECURSIVE ] with_query [, ...] ]
@@ -34,21 +35,22 @@ and conflict_action is one of:
 
 export class Insert<
   I extends Types.RowLikeStrict = Types.RowLikeStrict,
+  TS extends TableSchema = TableSchema,
   K extends keyof I = keyof I,
-  S extends Pick<I, K> = Pick<I, K>,
   R extends Types.RowLike = I,
+  V extends TableSchemaToRowLikeStrict<TS> = TableSchemaToRowLikeStrict<TS>,
 > {
-  constructor(public clause: Parameters<typeof insert<I, K, S, R>>) {}
+  constructor(public clause: Parameters<typeof insert<I, TS, K, R, V>>) {}
 
   compile(ctxIn = Context.new()) {
-    const [{ into, columns, overriding }, values, { onConflict, returning } = {}] = this.clause;
+    const [{ into, overriding }, values, { onConflict, returning } = {}] = this.clause;
 
     const ctx = into.getContext(ctxIn);
 
     const clauses = compileClauses(
       {
         into,
-        columns,
+        columns: values === "defaultValues" ? undefined : values,
         overriding,
         values,
         onConflict,
@@ -59,7 +61,14 @@ export class Insert<
           // For INSERT, we just need the table name, not a full FROM item compilation
           return sql`INTO ${table.rawFromExpr.compile(ctx)}`;
         },
-        columns: (cols) => sql`(${sqlJoin(cols.toSorted().map((col) => sql.ref(col as string)))})`,
+        columns: (vals) => {
+          const cols = Object.keys(pickAny(vals.asFromItem().from));
+          invariant(
+            cols.every((col) => col in into.schema),
+            `All specified columns must exist in the target table schema: ${cols.join(", ")} not in ${Object.keys(into.schema).join(", ")}`,
+          );
+          return sql`(${sqlJoin(cols.toSorted().map((col) => sql.ref(col)))})`;
+        },
         overriding: ([systemOrUser, _value]) =>
           sql`OVERRIDING ${systemOrUser === "system" ? sql`SYSTEM` : sql`USER`} VALUE`,
         values: (vals) => {
@@ -206,25 +215,34 @@ const compileOnConflictInput = <I extends Types.RowLike>(onConflict: OnConflictI
   return sql`ON CONFLICT ${ret}`;
 };
 
-// Type for the VALUES clause - either literal values, VALUES clause, or a subquery
-type ValuesInput<S extends Types.RowLikeStrict> = "defaultValues" | Values<S> | Select<S, any, any>;
+type Expand<T> = T extends object ? { [K in keyof T]: T[K] } : T;
+
+export type TableSchemaToRowLikeStrict<TS extends TableSchema> = Expand<
+  {
+    [K in keyof TS as TS[K]["required"] extends true ? K : never]: InstanceType<TS[K]["type"]>;
+  } & Partial<{
+    [K in keyof TS as TS[K]["required"] extends false ? K : never]: InstanceType<TS[K]["type"]>;
+  }>
+>;
 
 export const insert = <
   I extends Types.RowLikeStrict,
+  TS extends TableSchema,
   K extends keyof I,
-  S extends Pick<I, K> = Pick<I, K>,
   R extends Types.RowLike = I,
+  V extends TableSchemaToRowLikeStrict<TS> = TableSchemaToRowLikeStrict<TS>,
 >(
   tableClause: {
-    into: Types.Table<I>;
-    columns?: K[];
+    // we omit `columns` here becase we can always infer them from the `values` parameter
+    // and including them introduces both complexity and potential for mismatch
+    into: Types.Table<I, TS>;
     overriding?: ["system" | "user", "value"];
   },
-  values: ValuesInput<S>,
+  values: "defaultValues" | Values<V> | Select<V, any, any>,
   opts?: {
     onConflict?: OnConflictInput<I>;
     returning?: (insertRow: I) => R;
   },
 ) => {
-  return new Insert<I, K, S, R>([tableClause, values, opts]);
+  return new Insert<I, TS, K, R, V>([tableClause, values, opts]);
 };

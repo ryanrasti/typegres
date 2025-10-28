@@ -1,11 +1,11 @@
+import { assert, Equals } from "tsafe";
 import { describe, expect, it } from "vitest";
+import { testDb } from "../db.test";
+import * as db from "../gen/tables";
+import { insert, select } from "../grammar";
+import { withDb } from "../test/db";
 import { Int4, Text } from "../types/index";
 import { values } from "./values";
-import { assert, Equals } from "tsafe";
-import { withDb } from "../test/db";
-import * as db from "../gen/tables";
-import { testDb } from "../db.test";
-import { select, insert } from "../grammar";
 
 describe("Extending table classes", () => {
   class User extends db.Users.extend<User>() {
@@ -42,7 +42,6 @@ describe("Extending table classes", () => {
       await insert(
         {
           into: User,
-          columns: ["name", "email", "role", "active"],
         },
         select(
           (v) => ({
@@ -104,7 +103,6 @@ describe("Extending table classes", () => {
       await insert(
         {
           into: db.Users,
-          columns: ["name", "email", "role", "active"],
         },
         select(
           (v) => ({
@@ -165,7 +163,6 @@ describe("Extending table classes", () => {
       const users = await insert(
         {
           into: User,
-          columns: ["name", "email", "role", "active"],
         },
         select(
           (v) => ({
@@ -200,7 +197,6 @@ describe("Extending table classes", () => {
       const posts = await insert(
         {
           into: db.Posts,
-          columns: ["user_id", "title", "content", "published"],
         },
         select(
           (v) => ({
@@ -241,7 +237,6 @@ describe("Extending table classes", () => {
       await insert(
         {
           into: db.Comments,
-          columns: ["user_id", "post_id", "content"],
         },
         select(
           (v) => ({
@@ -298,7 +293,6 @@ describe("Extending table classes", () => {
       const [userData] = await insert(
         {
           into: db.Users,
-          columns: ["name", "email", "role", "active"],
         },
         select(
           (v) => ({
@@ -331,7 +325,6 @@ describe("Extending table classes", () => {
       const posts = await insert(
         {
           into: db.Posts,
-          columns: ["user_id", "title", "content", "published"],
         },
         select(
           (v) => ({
@@ -371,7 +364,6 @@ describe("Extending table classes", () => {
       await insert(
         {
           into: db.Comments,
-          columns: ["user_id", "post_id", "content"],
         },
         select(
           (v) => ({
@@ -424,7 +416,6 @@ describe("Extending table classes", () => {
       const [author] = await insert(
         {
           into: db.Users,
-          columns: ["name", "email", "role", "active"],
         },
         select(
           (v) => ({
@@ -451,7 +442,6 @@ describe("Extending table classes", () => {
       const [post] = await insert(
         {
           into: db.Posts,
-          columns: ["user_id", "title", "content", "published"],
         },
         select(
           (v) => ({
@@ -477,7 +467,6 @@ describe("Extending table classes", () => {
       await insert(
         {
           into: db.Comments,
-          columns: ["user_id", "post_id", "content"],
         },
         select(
           (v) => ({
