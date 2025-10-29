@@ -24,7 +24,8 @@
     "declarationMap": true,
 
     "paths": {
-      "typegres": ["./src/index.ts"]
+      "typegres": ["./src/index.ts"],
+      "capnweb": ["./capnweb/src/index.ts"]
     }
   },
   "include": ["src"]

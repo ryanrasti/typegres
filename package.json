@@ -58,7 +58,6 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.2.0",
     "camelcase": "^8.0.0",
-    "capnweb": "^0.1.0",
     "kysely": "^0.27.4",
     "kysely-pglite-dialect": "^1.1.1",
     "postgres-array": "^3.0.2",

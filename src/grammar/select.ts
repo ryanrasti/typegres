@@ -70,6 +70,7 @@ export class Select<
   J extends Types.Joins = any,
 > extends RpcTarget {
   private _fromItem: Types.FromItem<F, J> | undefined;
+  private _cachedSelectResult: S | undefined;
 
   constructor(private _clause: [select: (...args: Types.FromToSelectArgs<F, J>) => S, opts?: SelectOpts<S, F, J>]) {
     super();
@@ -114,6 +115,18 @@ export class Select<
   }
 
   select<S2 extends Types.RowLike>(fn: (...args: Types.FromToSelectArgs<F, J>) => S2): Select<S2, F, J> {
+    console.log("Select.select called with fn:", fn);
+    console.log("fn.name:", (fn as any).name);
+    console.log("Is fn callbackFunc?", (fn as any).name === 'callbackFunc');
+    
+    // Test: call the function to see what it returns
+    if ((fn as any).name === 'callbackFunc') {
+      const testArgs = this.selectArgs();
+      console.log("TEST: Calling fn with args to see what it returns");
+      const testResult = fn(...testArgs);
+      console.log("TEST: fn returned:", testResult);
+    }
+    
     const [, ...opts] = this.clause;
     const { union, unionAll, intersect, intersectAll, except, exceptAll, ...rest } = opts[0] ?? {};
     invariant(
@@ -207,6 +220,20 @@ export class Select<
     const { all, distinct, distinctOn, ...rest } = opts ?? {};
     const args = this.selectArgs();
     const ctx = this.fromItem?.getContext(ctxIn) ?? ctxIn;
+    
+    // Cache the select result to avoid multiple RPC calls
+    const getSelectResult = () => {
+      if (!this._cachedSelectResult) {
+        console.log("Calling select function in compile with args:", args);
+        console.log("select function is:", select);
+        console.log("Is select a function?", typeof select === 'function');
+        console.log("select.name:", (select as any).name);
+        this._cachedSelectResult = select(...args);
+        console.log("Result from select function:", this._cachedSelectResult);
+      }
+      return this._cachedSelectResult;
+    };
+    
     const clauses = compileClauses(
       {
         all,
@@ -219,12 +246,17 @@ export class Select<
         all: () => sql`ALL`,
         distinct: () => sql`DISTINCT`,
         distinctOn: (fn) => sql`DISTINCT ON (${compileExpressionList(fn(...args), ctx)})`,
-        select: (fn) =>
-          sqlJoin(
-            Object.entries(fn(...args))
+        select: (fn) => {
+          console.log("compileClauses select handler called with fn:", fn);
+          console.log("About to call getSelectResult()");
+          const result = getSelectResult();
+          console.log("getSelectResult returned:", result);
+          return sqlJoin(
+            Object.entries(result)
               .sort(([a], [b]) => a.localeCompare(b))
               .map(([alias, v]) => sql`${v.toExpression().compile(ctx)} AS ${sql.ref(alias)}`),
-          ),
+          );
+        },
         from: () => sql`FROM ${this.fromItem?.compile(ctx)}`,
         where: (fn) =>
           sql`WHERE ${fn(...args)
@@ -315,7 +347,10 @@ export class Select<
   }
 
   getRowLike(): S {
-    return this.clause[0](...this.selectArgs());
+    if (!this._cachedSelectResult) {
+      this._cachedSelectResult = this.clause[0](...this.selectArgs());
+    }
+    return this._cachedSelectResult;
   }
 
   async execute(typegres: Typegres): Promise<RowLikeResult<S>[]> {

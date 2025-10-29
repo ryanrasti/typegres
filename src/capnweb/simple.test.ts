@@ -1,4 +1,4 @@
-import { RpcStub, RpcTarget } from "capnweb";
+import { newMessagePortRpcSession, RpcStub, RpcTarget } from "capnweb";
 import { describe, expect, it } from "vitest";
 import { select } from "../grammar/select";
 import { Int4, Text } from "../types";

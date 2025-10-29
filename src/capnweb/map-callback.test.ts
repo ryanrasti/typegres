@@ -1,6 +1,6 @@
 import { RpcStub, RpcTarget, newMessagePortRpcSession } from "capnweb";
-import { describe, it } from "vitest";
-import { select } from "../grammar/select";
+import { describe, it, expect } from "vitest";
+import { select, Select } from "../grammar/select";
 import { Int4, Text } from "../types";
 
 class QueryService extends RpcTarget {
@@ -13,9 +13,24 @@ class QueryService extends RpcTarget {
       .subquery()
       .select();
   }
+
+  test() {
+    return { foo: "bar" };
+  }
 }
 
 describe("Cap'n Web map() with Select callbacks", () => {
+  it("should test if foo() works with Select's map method", async () => {
+    const channel = new MessageChannel();
+    const server = newMessagePortRpcSession(channel.port1, new QueryService());
+    const client: RpcStub<QueryService> = newMessagePortRpcSession<QueryService>(channel.port2);
+
+    const mapped = client.test();
+    console.log("Mapped type:", typeof mapped);
+    console.log("awaited mapped:", await mapped);
+    expect(await mapped).toEqual({ foo: "bar" });
+  });
+
   it("should test if map() works with Select's map method", async () => {
     const channel = new MessageChannel();
     const server = newMessagePortRpcSession(channel.port1, new QueryService());
@@ -26,22 +41,32 @@ describe("Cap'n Web map() with Select callbacks", () => {
     console.log("Query type:", typeof query);
 
     // Let's see what map returns
-    const mapped = query.map((q) => {
-      console.log("Inside map callback, q is:", q);
-      return q.select((row) => ({
+    const mapped = query.select((row) => {
+      console.log("Inside map callback, q is:", row);
+      return {
         userId: row.id,
         userName: row.name,
-      }));
+      };
     });
     console.log("Mapped type:", typeof mapped);
-    console.log("awaited mapped:", await mapped);
+    console.log("mapped object (not awaited):", mapped);
+    
+    // Don't await mapped - call sql() directly on the promise/stub
+    const sql = mapped.sql();
+    console.log("sql:", sql);
 
     try {
-      const result = await mapped.sql();
+      const result = await sql;
       console.log("Result:", result);
+      // Add actual assertion
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+      expect(result).toContain('SELECT');
     } catch (e) {
       console.log("Error calling sql():", e.message);
+      console.log("Stack trace:", e.stack);
       console.log("Mapped object:", mapped);
+      throw e; // Re-throw to fail the test
     }
 
     client[Symbol.dispose]();
