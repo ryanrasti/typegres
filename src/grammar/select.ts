@@ -9,6 +9,7 @@ import { aliasRowLike, parseRowLike, pickAny, RowLikeResult } from "../query/val
 import * as Types from "../types";
 import Bool from "../types/bool";
 
+import { RpcTarget } from "capnweb";
 import { dummyDb } from "../test/db";
 import { RecordExpression } from "../types/record";
 import { chainWhere, compileClauses, sqlJoin } from "./utils";
@@ -63,10 +64,15 @@ SELECT [ ALL | DISTINCT [ ON ( expression [, ...] ) ] ]
     [ FOR { UPDATE | NO KEY UPDATE | SHARE | KEY SHARE } [ OF from_reference [, ...] ] [ NOWAIT | SKIP LOCKED ] [...] ]
 */
 
-export class Select<S extends Types.RowLike = any, F extends Types.RowLike = any, J extends Types.Joins = any> {
+export class Select<
+  S extends Types.RowLike = any,
+  F extends Types.RowLike = any,
+  J extends Types.Joins = any,
+> extends RpcTarget {
   private _fromItem: Types.FromItem<F, J> | undefined;
 
   constructor(private _clause: [select: (...args: Types.FromToSelectArgs<F, J>) => S, opts?: SelectOpts<S, F, J>]) {
+    super();
     // Don't resolve fromItem here - defer to avoid triggering the select callback
   }
 
@@ -367,8 +373,12 @@ export class Select<S extends Types.RowLike = any, F extends Types.RowLike = any
   }
 
   debug() {
-    console.log("Debugging query:", this.compile().compile(dummyDb));
+    console.log("Debugging query:", this.sql());
     return this;
+  }
+
+  sql() {
+    return this.compile().compile(dummyDb).sql;
   }
 }
 

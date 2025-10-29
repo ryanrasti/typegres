@@ -14,12 +14,15 @@
     "@prisma/client": "^6.18.0",
     "@tailwindcss/postcss": "^4.1.16",
     "@vitejs/plugin-react": "^5.1.0",
+    "@vitest/ui": "^4.0.5",
     "autoprefixer": "^10.4.21",
+    "jsdom": "^27.0.1",
     "postcss": "^8.5.6",
     "prisma": "^6.18.0",
     "tailwindcss": "^4.1.16",
     "typescript": "~5.9.3",
-    "vite": "^7.1.7"
+    "vite": "^7.1.7",
+    "vitest": "^4.0.5"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.11",
