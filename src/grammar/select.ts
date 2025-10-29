@@ -9,7 +9,7 @@ import { aliasRowLike, parseRowLike, pickAny, RowLikeResult } from "../query/val
 import * as Types from "../types";
 import Bool from "../types/bool";
 
-import { RpcTarget } from "capnweb";
+import { RpcPromise, RpcTarget } from "capnweb";
 import { dummyDb } from "../test/db";
 import { RecordExpression } from "../types/record";
 import { chainWhere, compileClauses, sqlJoin } from "./utils";
@@ -75,6 +75,28 @@ export class Select<
     super();
     // Don't resolve fromItem here - defer to avoid triggering the select callback
   }
+
+  public map<R>(cb: (self: Select<S, F, J>) => R): RpcPromise<R> {
+    return cb(this) as any;
+  }
+
+  /**
+   * POC: Intercept where() calls and use map machinery for callbacks
+   */
+  whereWithCallback(fn: (...args: Types.FromToSelectArgs<F, J>) => Types.Bool<0 | 1>) {
+    // Instead of calling where directly, use map to record the callback
+    return (this as any).map((query: Select<S, F, J>) => {
+      // This will be recorded and replayed on server
+      return query.where(fn);
+    });
+  }
+
+  /**
+   * Map method that just calls select - for testing Cap'n Web callback serialization
+   */
+  //map<S2 extends Types.RowLike>(fn: (...args: Types.FromToSelectArgs<F, J>) => S2): Select<S2, F, J> {
+  //  return this.select(fn);
+  //}
 
   private get fromItem(): Types.FromItem<F, J> | undefined {
     if (!this._fromItem) {
