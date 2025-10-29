@@ -40,11 +40,14 @@ export class Insert<
   R extends Types.RowLike = I,
   V extends TableSchemaToRowLikeStrict<TS> = TableSchemaToRowLikeStrict<TS>,
 > {
-  constructor(public clause: Parameters<typeof insert<I, TS, K, R, V>>) {
-    if (!clause[1]) {
+  public clause: Parameters<typeof insert<I, TS, K, R, V>>;
+
+  constructor(clause: Parameters<typeof insert<I, TS, K, R, V>>) {
+    this.clause = [...clause];
+    if (!this.clause[1]) {
       // insertion values are required, but we allow omitting them to make the
       // query builder more ergonomic:
-      clause[1] = "defaultValues";
+      this.clause[1] = "defaultValues";
     }
   }
 
