@@ -123,7 +123,7 @@ describe("Cap'n Web map() with Select callbacks", () => {
     const result = await sql;
     console.log("Result:", result);
     expect(result).toBe(
-      'SELECT "subquery"."id" AS "userId", "subquery"."name" AS "userName" FROM (SELECT cast($1 as int4) AS "age", cast($2 as int4) AS "id", cast($3 as text) AS "name") as "subquery" WHERE ("subquery"."age" >= 31) ORDER BY "subquery"."name"',
+      'SELECT "subquery"."id" AS "userId", "subquery"."name" AS "userName" FROM (SELECT cast($1 as int4) AS "age", cast($2 as int4) AS "id", cast($3 as text) AS "name") as "subquery" WHERE ("subquery"."age" >= $4) ORDER BY "subquery"."name"',
     );
   });
 });

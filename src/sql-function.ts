@@ -15,13 +15,8 @@ const genericArgs = { T: Sentinel, R: Sentinel };
 
 const getRetType = (args: unknown[], defn: TypedFunctionDefinition) => {
   const { args: params, ret, isVariadic } = typeof defn === "function" ? defn(genericArgs) : defn;
-  
-  console.log("DBG getRetType: args.length:", args.length);
-  console.log("DBG getRetType: params.length:", params.length);
-  console.log("DBG getRetType: isVariadic:", isVariadic);
 
   if (args.length !== params.length && (!isVariadic || params.length > args.length)) {
-    console.log("DBG getRetType: returning false because args length mismatch");
     return false;
   }
 
@@ -29,11 +24,6 @@ const getRetType = (args: unknown[], defn: TypedFunctionDefinition) => {
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     const param = params[i] ?? params[params.length - 1];
-    
-    console.log(`DBG getRetType: arg[${i}]:`, arg);
-    console.log(`DBG getRetType: param[${i}]:`, param);
-    console.log(`DBG getRetType: arg instanceof Any:`, arg instanceof Any);
-    console.log(`DBG getRetType: arg.constructor.name:`, arg?.constructor?.name);
 
     if (param === Sentinel) {
       if (arg instanceof Any) {
@@ -45,9 +35,6 @@ const getRetType = (args: unknown[], defn: TypedFunctionDefinition) => {
 
     const subtype = param.subtype();
     const argSubtype = arg instanceof Any ? arg.getClass().subtype() : null;
-    console.log(`DBG getRetType: subtype:`, subtype);
-    console.log(`DBG getRetType: argSubtype:`, argSubtype);
-    
     if (argSubtype != null && subtype?.subtype === Sentinel) {
       // If the argument is a subtype of the parameter, we can bind it
       // to the generic type.
@@ -59,10 +46,6 @@ const getRetType = (args: unknown[], defn: TypedFunctionDefinition) => {
       // Note that if the argument type is not an `Any` (i.e., its a primitive type),
       //  we assume it matches -- it shouldn't matter because we assert that primitive
       //  types will only be passed if all return types are the same.
-      console.log(`DBG getRetType: returning false because type mismatch`);
-      console.log(`DBG getRetType: arg.getClass().typeString():`, arg.getClass().typeString());
-      console.log(`DBG getRetType: param.typeString():`, param.typeString());
-      console.log(`DBG getRetType: arg instanceof param:`, arg instanceof param);
       return false;
     }
   }
@@ -112,12 +95,8 @@ type TypedFunctionDefinition =
     });
 
 export const sqlFunction = (name: string, defn: TypedFunctionDefinition[], args: unknown[]): Any | FromItem<any> => {
-  console.log("DBG sqlFunction called with name:", name);
-  console.log("DBG sqlFunction defn:", defn);
-  console.log("DBG sqlFunction args:", args);
-  const flatMapped = defn.flatMap((def) => {
+  const [{ matchingDef, RetType }] = defn.flatMap((def) => {
     const RetType = getRetType(args, def);
-    console.log("DBG sqlFunction getRetType returned:", RetType);
     return RetType
       ? [
           {
@@ -128,8 +107,6 @@ export const sqlFunction = (name: string, defn: TypedFunctionDefinition[], args:
         ]
       : [];
   });
-  console.log("DBG sqlFunction flatMapped:", flatMapped);
-  const [{ matchingDef, RetType }] = flatMapped;
   if (!RetType) {
     console.error(
       `No matching function found for ${name}`,
