@@ -17,3 +17,4 @@ export * from "./gen/tables";
 export { typegres } from "./db";
 export type { Typegres } from "./db";
 export { select, insert, update, delete_, merge, with_ } from "./grammar";
+export { generateModelsTsForDb, generateModelsTs } from "./cli/generateModels";
