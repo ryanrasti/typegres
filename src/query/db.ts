@@ -1,3 +1,4 @@
+import { RpcTarget } from "capnweb";
 import { QueryAlias } from "../expression";
 import { Any, RowLike, RowLikeStrict } from "../types";
 import { FromItem, Joins, withFromItem, WithFromItem } from "./from-item";
@@ -32,11 +33,12 @@ export type Table<R extends RowLikeStrict, S extends TableSchema = TableSchema, 
   schema: S;
 } & WithFromItem<R & E, {}>;
 
-class RowImpl<R extends RowLikeStrict> {
+class RowImpl<R extends RowLikeStrict> extends RpcTarget {
   static schema: TableSchema;
   static asFromItem: <T extends typeof RowImpl>(this: T) => FromItem<T["prototype"], {}>;
 
   constructor(data: AnyOrParsed<R>) {
+    super();
     Object.assign(
       this,
       Object.fromEntries(

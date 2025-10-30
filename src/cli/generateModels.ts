@@ -46,6 +46,7 @@ export const generateModelsTsForDb = async (db: Awaited<ReturnType<typeof typegr
       GROUP BY n.nspname
     ) per_schema
   `.execute();
+  console.log(rows);
   const parsed: TableGenFile | null = rows[0]?.result ? JSON.parse(rows[0].result) : null;
   if (!parsed) throw new Error("No result returned from database");
   const tables = parsed[schema];

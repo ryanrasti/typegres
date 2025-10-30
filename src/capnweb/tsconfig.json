@@ -13,10 +13,7 @@
     "strict": true
   },
   "include": ["src"],
-  "paths": {
-    "typegres": ["../index.ts"],
-    "capnweb": ["../../capnweb/src/index.ts"]
-  }
+  "paths": {}
 }
 
 

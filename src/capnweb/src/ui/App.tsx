@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useApi } from '../use-capnweb'
 
 type Todo = { id: number; title: string; completed: boolean }
 
@@ -7,34 +8,46 @@ export const App = () => {
   const [query, setQuery] = useState('')
   const [title, setTitle] = useState('')
   const [sql, setSql] = useState('')
+  const api = useApi()
 
   // TODO: Wire to worker/capnweb; placeholder local state for now
   const filtered = useMemo(() => todos.filter(t => t.title.toLowerCase().includes(query.toLowerCase())), [todos, query])
 
   useEffect(() => {
-    // placeholder initial data
+    // placeholder initial data (local UI), but source SQL from RPC
     setTodos([
       { id: 1, title: 'Try Cap\'n Web', completed: false },
       { id: 2, title: 'Build Typegres query', completed: true },
     ])
-  }, [])
+    ;(async () => {
+      const s = await api.todos().sql()
+      setSql(s as unknown as string)
+    })()
+  }, [api])
 
-  const create = () => {
+  const create = async () => {
     if (!title.trim()) return
     const next: Todo = { id: Math.max(0, ...todos.map(t => t.id)) + 1, title: title.trim(), completed: false }
     setTodos([next, ...todos])
     setTitle('')
-    setSql('INSERT INTO todos (title, completed) VALUES ($1, $2)')
+    const s = await api
+      .users()
+      .where(u => u.id.eq(1))
+      .select()
+      .map(u => u.createTodo(next.title))
+      .sql()
+    setSql(s as unknown as string)
   }
 
-  const update = (id: number, patch: Partial<Todo>) => {
+  const update = async (id: number, patch: Partial<Todo>) => {
     setTodos(prev => prev.map(t => (t.id === id ? { ...t, ...patch } : t)))
-    setSql('UPDATE todos SET ... WHERE id = $1')
-  }
-
-  const remove = (id: number) => {
-    setTodos(prev => prev.filter(t => t.id !== id))
-    setSql('DELETE FROM todos WHERE id = $1')
+    const s = await api
+      .todos()
+      .where(t => t.id.eq(id))
+      .select()
+      .map(t => ('title' in patch ? t.update(patch.title ?? '') : t.setCompleted(!!patch.completed)))
+      .sql()
+    setSql(s as unknown as string)
   }
 
   return (
@@ -55,7 +68,11 @@ export const App = () => {
           <li key={t.id} className="flex items-center gap-2">
             <input type="checkbox" checked={t.completed} onChange={e => update(t.id, { completed: e.target.checked })} />
             <input className="flex-1 rounded border px-3 py-2" value={t.title} onChange={e => update(t.id, { title: e.target.value })} />
-            <button className="rounded bg-red-600 px-3 py-2 text-white" onClick={() => remove(t.id)}>Delete</button>
+            <button className="rounded bg-red-600 px-3 py-2 text-white" onClick={async () => {
+              setTodos(prev => prev.filter(item => item.id !== t.id))
+              const s = await api.todos().where(todo => todo.id.eq(t.id)).select().map(todo => todo.delete()).sql()
+              setSql(s as unknown as string)
+            }}>Delete</button>
           </li>
         ))}
       </ul>

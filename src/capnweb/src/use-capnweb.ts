@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { newMessagePortRpcSession, type RpcStub } from 'capnweb'
+import { Api } from './api'
 
 /**
  * Very basic hook to invoke an RPC-producing factory once and cache the result.
@@ -46,6 +48,24 @@ export const useCapnwebQuery = <T = any>(factory: () => any) => {
   }
 
   return { ...state, refetch }
+}
+
+// -- Bootstrap a MessageChannel-based client matching map-callback.test.ts --
+let singletonClient: RpcStub<Api> | null = null
+
+export const createCapnwebClient = (): RpcStub<Api> => {
+  if (singletonClient) return singletonClient
+  const channel = new MessageChannel()
+  // Server: bind our Api implementation
+  newMessagePortRpcSession(channel.port1, new Api())
+  // Client: return an Rpc stub
+  singletonClient = newMessagePortRpcSession<Api>(channel.port2)
+  return singletonClient
+}
+
+export const useApi = () => {
+  // Stable singleton across renders
+  return useMemo(() => createCapnwebClient(), [])
 }
 
 
