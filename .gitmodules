@@ -1,0 +1,3 @@
+[submodule "capnweb"]
+	path = capnweb
+	url = git@github.com:ryanrasti/capnweb.git

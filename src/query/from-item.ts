@@ -114,21 +114,6 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins> impl
   }
 
   toSelectArgs(): FromToSelectArgs<F, J> {
-    // HACK: Convert typegres types to plain objects for capnweb serialization
-    const from = this.from;
-    if (from && typeof from === 'object') {
-      const plainFrom: any = {};
-      for (const [key, value] of Object.entries(from)) {
-        // Check if it's a typegres type with a value property
-        if (value && typeof value === 'object' && 'v' in value) {
-          // For now, just pass the whole object through
-          plainFrom[key] = value;
-        } else {
-          plainFrom[key] = value;
-        }
-      }
-      return [plainFrom, this.joinTables()];
-    }
     return [this.from, this.joinTables()];
   }
 

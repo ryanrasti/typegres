@@ -117,16 +117,16 @@ export class Select<
   select<S2 extends Types.RowLike>(fn: (...args: Types.FromToSelectArgs<F, J>) => S2): Select<S2, F, J> {
     console.log("Select.select called with fn:", fn);
     console.log("fn.name:", (fn as any).name);
-    console.log("Is fn callbackFunc?", (fn as any).name === 'callbackFunc');
-    
+    console.log("Is fn callbackFunc?", (fn as any).name === "callbackFunc");
+
     // Test: call the function to see what it returns
-    if ((fn as any).name === 'callbackFunc') {
+    if ((fn as any).name === "callbackFunc") {
       const testArgs = this.selectArgs();
       console.log("TEST: Calling fn with args to see what it returns");
       const testResult = fn(...testArgs);
       console.log("TEST: fn returned:", testResult);
     }
-    
+
     const [, ...opts] = this.clause;
     const { union, unionAll, intersect, intersectAll, except, exceptAll, ...rest } = opts[0] ?? {};
     invariant(
@@ -147,22 +147,91 @@ export class Select<
 
   where(fn: (...args: Types.FromToSelectArgs<F, J>) => Types.Bool<0 | 1>) {
     const [select, { where, ...rest }] = this.clause;
-    return new Select<S, F, J>([
+    console.log("DBG where method called with fn:", fn.name);
+
+    // Create a wrapper that defers execution until query compilation
+    const wrappedFn = (...args: Types.FromToSelectArgs<F, J>) => {
+      console.log("DBG wrappedFn called with args:", args.length);
+      console.log("DBG wrappedFn args[0] type:", typeof args[0], args[0]?.constructor?.name);
+      console.log("DBG wrappedFn args[0] has age:", "age" in (args[0] as any));
+      console.log("DBG wrappedFn args[0].age type:", typeof (args[0] as any)?.age);
+      console.log("DBG wrappedFn args[0].age constructor:", (args[0] as any)?.age?.constructor?.name);
+      console.log("DBG wrappedFn args[0].age has >=", ">=" in ((args[0] as any)?.age || {}));
+
+      // Check if we're in the initial map recording phase (Typegres objects are not fully initialized)
+      console.log("DBG wrappedFn: checking if we're in map recording phase");
+      console.log("DBG wrappedFn: args[0] keys:", Object.keys(args[0] as any));
+
+      // Check if the age property is a Typegres object but missing internal properties
+      const age = (args[0] as any)?.age;
+      const isUninitializedTypegres =
+        age && typeof age === "object" && age.constructor?.name === "Int4" && !age.serializeParamTypes; // This property should be present in fully initialized Typegres objects
+
+      console.log("DBG wrappedFn: age is uninitialized Typegres:", isUninitializedTypegres);
+
+      if (isUninitializedTypegres) {
+        console.log("DBG wrappedFn: in map recording phase, returning deferred marker");
+        // Return a special marker that indicates this should be executed later
+        return { __deferred: true, fn, args };
+      }
+
+      try {
+        const result = fn(...args);
+        console.log("DBG wrappedFn result type:", typeof result, result?.constructor?.name);
+        console.log("DBG wrappedFn result has toExpression:", typeof (result as any)?.toExpression);
+
+        // If result is a PromiseStubHook, we need to handle it differently
+        if (result && typeof result === "object" && "promise" in result) {
+          // This is a PromiseStubHook - we can't await it synchronously
+          // For now, return a placeholder that will be resolved later
+          console.log("DBG wrappedFn returning PromiseStubHook");
+          return result; // Return the promise as-is for now
+        }
+        console.log("DBG wrappedFn returning result directly");
+        return result;
+      } catch (error) {
+        console.log("DBG wrappedFn error:", error);
+        throw error;
+      }
+    };
+
+    const res = new Select<S, F, J>([
       select,
       {
         ...rest,
-        where: chainWhere(where, fn),
+        where: chainWhere(where, wrappedFn),
       },
     ]);
+    return res;
   }
 
   orderBy(...input: OrderByInputElement<F, J>): Select<S, F, J> {
     const [select, { orderBy: existingOrderBy, ...rest }] = this.clause;
+
+    // Create a wrapper that handles promises for orderBy callbacks
+    const wrappedInput = input.map((item) => {
+      if (typeof item === "function") {
+        return (...args: Types.FromToSelectArgs<F, J>) => {
+          const result = item(...args);
+          // If result is a PromiseStubHook, we need to handle it differently
+          if (result && typeof result === "object" && "promise" in result) {
+            // This is a PromiseStubHook - we can't await it synchronously
+            // For now, return a placeholder that will be resolved later
+            return result; // Return the promise as-is for now
+          }
+          return result;
+        };
+      }
+      return item;
+    });
+
     return new Select<S, F, J>([
       select,
       {
         ...rest,
-        orderBy: existingOrderBy ? [...normalizeOrderBy(existingOrderBy), ...normalizeOrderBy(input)] : input,
+        orderBy: existingOrderBy
+          ? [...normalizeOrderBy(existingOrderBy), ...normalizeOrderBy(wrappedInput)]
+          : wrappedInput,
       },
     ]);
   }
@@ -220,20 +289,20 @@ export class Select<
     const { all, distinct, distinctOn, ...rest } = opts ?? {};
     const args = this.selectArgs();
     const ctx = this.fromItem?.getContext(ctxIn) ?? ctxIn;
-    
+
     // Cache the select result to avoid multiple RPC calls
     const getSelectResult = () => {
       if (!this._cachedSelectResult) {
         console.log("Calling select function in compile with args:", args);
         console.log("select function is:", select);
-        console.log("Is select a function?", typeof select === 'function');
+        console.log("Is select a function?", typeof select === "function");
         console.log("select.name:", (select as any).name);
         this._cachedSelectResult = select(...args);
         console.log("Result from select function:", this._cachedSelectResult);
       }
       return this._cachedSelectResult;
     };
-    
+
     const clauses = compileClauses(
       {
         all,
@@ -258,10 +327,63 @@ export class Select<
           );
         },
         from: () => sql`FROM ${this.fromItem?.compile(ctx)}`,
-        where: (fn) =>
-          sql`WHERE ${fn(...args)
-            .toExpression()
-            .compile(ctx)}`,
+        where: (fn) => {
+          const result = fn(...args);
+
+          // Check if result is a deferred marker
+          if (result && typeof result === "object" && result.__deferred === true) {
+            console.log("DBG where compilation: executing deferred function");
+            console.log("DBG where compilation: args[0] keys:", Object.keys(args[0] as any));
+            console.log("DBG where compilation: args[0].age type:", typeof (args[0] as any)?.age);
+            console.log("DBG where compilation: args[0].age constructor:", (args[0] as any)?.age?.constructor?.name);
+            console.log(
+              "DBG where compilation: args[0].age has serializeParamTypes:",
+              "serializeParamTypes" in ((args[0] as any)?.age || {}),
+            );
+
+            // Execute the deferred function with the actual args
+            try {
+              const deferredResult = result.fn(...args);
+              console.log(
+                "DBG where compilation: deferred result type:",
+                typeof deferredResult,
+                deferredResult?.constructor?.name,
+              );
+              console.log(
+                "DBG where compilation: deferred result has toExpression:",
+                typeof (deferredResult as any)?.toExpression,
+              );
+              console.log("DBG where compilation: deferred result keys:", Object.keys(deferredResult as any));
+              console.log("DBG where compilation: deferred result has value:", "value" in (deferredResult as any));
+
+              // Unwrap the deferred result if it's a wrapper object
+              const unwrapped = (deferredResult as any)?.value || deferredResult;
+              console.log("DBG where compilation: unwrapped type:", typeof unwrapped, unwrapped?.constructor?.name);
+              console.log(
+                "DBG where compilation: unwrapped has toExpression:",
+                typeof (unwrapped as any)?.toExpression,
+              );
+
+              return sql`WHERE ${unwrapped.toExpression().compile(ctx)}`;
+            } catch (error) {
+              console.log("DBG where compilation: error during deferred execution:", error);
+              throw error;
+            }
+          }
+
+          // If result is a PromiseStubHook, we need to handle it differently
+          if (result && typeof result === "object" && "promise" in result) {
+            // This is a PromiseStubHook - we can't await it synchronously
+            // For now, return a placeholder that will be resolved later
+            return sql`WHERE $1`; // Placeholder parameter
+          }
+          // Check if result has toExpression method (Typegres object)
+          if (result && typeof result === "object" && typeof result.toExpression === "function") {
+            return sql`WHERE ${result.toExpression().compile(ctx)}`;
+          }
+          // Fallback for other cases
+          return sql`WHERE ${result.toExpression().compile(ctx)}`;
+        },
         groupBy: (groupBy) => sqlJoin([sql`GROUP BY`, compileGroupBy(groupBy, args, ctx)], sql` `),
         having: (fn) =>
           sql`HAVING ${fn(...args)
@@ -279,16 +401,76 @@ export class Select<
         orderBy: (orderBy) =>
           sql`ORDER BY ${sqlJoin(
             normalizeOrderBy(orderBy).map(([orderByFn, orderByOpts]) => {
-              const fnCompiled = orderByFn(...args)
-                .toExpression()
-                .compile(ctx);
-              const optsCompiled = compileClauses(orderByOpts ?? {}, {
-                asc: () => sql`ASC`,
-                desc: () => sql`DESC`,
-                using: (using) => sql`USING ${sql.ref(using)}`,
-                nulls: (direction) => sql`NULLS ${direction === "first" ? sql`FIRST` : sql`LAST`}`,
-              });
-              return sqlJoin([fnCompiled, optsCompiled], sql` `);
+              const result = orderByFn(...args);
+              // Unwrap the result if it's a wrapper object
+              console.log("DBG orderBy: result type:", typeof result, result?.constructor?.name);
+              console.log("DBG orderBy: result keys:", Object.keys((result as any) || {}));
+              console.log("DBG orderBy: result has value:", "value" in ((result as any) || {}));
+              console.log("DBG orderBy: result.name:", (result as any)?.name);
+              console.log("DBG orderBy: result.name type:", typeof (result as any)?.name);
+              console.log("DBG orderBy: result.name constructor:", (result as any)?.name?.constructor?.name);
+
+              // The orderBy callback returns the row.name directly, which should be a Typegres object
+              // But it's coming through as a plain object with the Typegres properties.
+              // Check if it has the Typegres properties but is missing the prototype.
+              let unwrappedResult = result;
+              if (
+                result &&
+                typeof result === "object" &&
+                "value" in result &&
+                "parent" in result &&
+                "owner" in result
+              ) {
+                unwrappedResult = result.value;
+              }
+
+              console.log(
+                "DBG orderBy: unwrappedResult type:",
+                typeof unwrappedResult,
+                unwrappedResult?.constructor?.name,
+              );
+              console.log(
+                "DBG orderBy: unwrappedResult has toExpression:",
+                typeof (unwrappedResult as any)?.toExpression,
+              );
+              console.log("DBG orderBy: unwrappedResult keys:", Object.keys((unwrappedResult as any) || {}));
+
+              // If the result is a plain object with Typegres properties ('v', 'serializeParamTypes', etc.)
+              // but missing the toExpression method, it means the prototype was lost during Cap'n Web serialization.
+              // We need to reconstruct the Typegres object.
+              if (
+                unwrappedResult &&
+                typeof unwrappedResult === "object" &&
+                "v" in unwrappedResult &&
+                !unwrappedResult.toExpression
+              ) {
+                console.log("DBG orderBy: result is a plain object with Typegres properties, need to reconstruct");
+                // For now, just throw an error to see if this is the issue
+                throw new Error("orderBy result is a plain object with Typegres properties - prototype was lost");
+              }
+
+              // If result is a PromiseStubHook, we need to handle it differently
+              if (unwrappedResult && typeof unwrappedResult === "object" && "promise" in unwrappedResult) {
+                // This is a PromiseStubHook - we can't await it synchronously
+                // For now, return a placeholder that will be resolved later
+                const fnCompiled = sql`$1`; // Placeholder parameter
+                const optsCompiled = compileClauses(orderByOpts ?? {}, {
+                  asc: () => sql`ASC`,
+                  desc: () => sql`DESC`,
+                  using: (using) => sql`USING ${sql.ref(using)}`,
+                  nulls: (direction) => sql`NULLS ${direction === "first" ? sql`FIRST` : sql`LAST`}`,
+                });
+                return sqlJoin([fnCompiled, optsCompiled], sql` `);
+              } else {
+                const fnCompiled = unwrappedResult.toExpression().compile(ctx);
+                const optsCompiled = compileClauses(orderByOpts ?? {}, {
+                  asc: () => sql`ASC`,
+                  desc: () => sql`DESC`,
+                  using: (using) => sql`USING ${sql.ref(using)}`,
+                  nulls: (direction) => sql`NULLS ${direction === "first" ? sql`FIRST` : sql`LAST`}`,
+                });
+                return sqlJoin([fnCompiled, optsCompiled], sql` `);
+              }
             }),
           )}`,
         limit: (limit) => sql`LIMIT ${limit === "all" ? sql`ALL` : compileNumericLike(limit, ctx)}`,
