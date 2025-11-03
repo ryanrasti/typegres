@@ -432,4 +432,167 @@ describe("SELECT parser", () => {
       expect(result.parameters).toEqual([10, "A", "X", 20, "B", "Y"]);
     });
   });
+
+  describe("one() method", () => {
+    describe("with values", () => {
+      it("should return null when no rows found", async () => {
+        await withDb(testDb, async (kdb) => {
+          const query = select(
+            (v) => ({
+              id: v.id,
+              name: v.name,
+            }),
+            {
+              from: values(
+                { id: Int4.new(1), name: Text.new("Alice") },
+                { id: Int4.new(2), name: Text.new("Bob") },
+              ),
+              where: (v) => v.id["="](Int4.new(999)),
+            },
+          );
+
+          const result = await query.one(kdb);
+          expect(result).toBeNull();
+        });
+      });
+
+      it("should return POJO when exactly one row found", async () => {
+        await withDb(testDb, async (kdb) => {
+          const query = select(
+            (v) => ({
+              userId: v.id,
+              userName: v.name,
+              isActive: v.active,
+            }),
+            {
+              from: values({
+                id: Int4.new(1),
+                name: Text.new("Alice"),
+                active: Bool.new(true),
+              }),
+            },
+          );
+
+          const result = await query.one(kdb);
+          // one() selects all columns from the from clause, not the selected columns
+          expect(result).toEqual({
+            id: 1,
+            name: "Alice",
+            active: true,
+          });
+          expect(typeof (result as any)?.id).toBe("number");
+          expect(typeof (result as any)?.name).toBe("string");
+          expect(typeof (result as any)?.active).toBe("boolean");
+        });
+      });
+
+      it("should throw error when multiple rows found", async () => {
+        await withDb(testDb, async (kdb) => {
+          const query = select(
+            (v) => ({
+              id: v.id,
+              name: v.name,
+            }),
+            {
+              from: values(
+                { id: Int4.new(1), name: Text.new("Alice") },
+                { id: Int4.new(2), name: Text.new("Bob") },
+              ),
+            },
+          );
+
+          await expect(query.one(kdb)).rejects.toThrow("Expected no more than one row");
+        });
+      });
+
+      it("should return POJO when WHERE clause filters to exactly one row", async () => {
+        await withDb(testDb, async (kdb) => {
+          const query = select(
+            (v) => ({
+              petName: v.name,
+              petAge: v.age,
+            }),
+            {
+              from: values(
+                { name: Text.new("Fluffy"), age: Int4.new(2), species: Text.new("cat") },
+                { name: Text.new("Max"), age: Int4.new(5), species: Text.new("dog") },
+                { name: Text.new("Buddy"), age: Int4.new(3), species: Text.new("dog") },
+              ),
+              where: (v) => v.name["="](Text.new("Max")),
+            },
+          );
+
+          const result = await query.one(kdb);
+          // one() selects all columns from the from clause, not the selected columns
+          expect(result).toEqual({
+            name: "Max",
+            age: 5,
+            species: "dog",
+          });
+          expect(typeof (result as any)?.name).toBe("string");
+          expect(typeof (result as any)?.age).toBe("number");
+        });
+      });
+    });
+
+    describe("with tables", () => {
+      it("should return null when no rows found", async () => {
+        await withDb(testDb, async (kdb) => {
+          const query = select(
+            (p) => p,
+            {
+              from: db.Person,
+              where: (p) => p.id["="](Int4.new(99999)),
+            },
+          );
+
+          const result = await query.one(kdb);
+          expect(result).toBeNull();
+        });
+      });
+
+      it("should return table instance when exactly one row found", async () => {
+        await withDb(testDb, async (kdb) => {
+          // Insert a test person first
+          const personId = await kdb.sql`
+            INSERT INTO person ("firstName", gender)
+            VALUES ('Test Person', 'other')
+            RETURNING id
+          `.execute();
+
+          const id = Number((personId[0] as any).id);
+
+          const query = select(
+            (p) => p,
+            {
+              from: db.Person,
+              where: (p) => p.id["="](Int4.new(id)),
+            },
+          );
+
+          const result = await query.one(kdb);
+          expect(result).not.toBeNull();
+          expect(result).toBeInstanceOf(db.Person);
+          if (result) {
+            // Table instances wrap values in Typegres type instances
+            expect(result.id).toEqual(Int4.new(id));
+            expect(result.firstName).toEqual(Text.new("Test Person"));
+          }
+        });
+      });
+
+      it("should throw error when multiple rows found", async () => {
+        await withDb(testDb, async (kdb) => {
+          const query = select(
+            (p) => p,
+            {
+              from: db.Person,
+            },
+          );
+
+          await expect(query.one(kdb)).rejects.toThrow("Expected no more than one row");
+        });
+      });
+    });
+  });
 });

@@ -59,6 +59,10 @@ class RowImpl<R extends RowLikeStrict> extends RpcTarget {
   }
 }
 
+export const isTableClass = (v: unknown): v is Table<any, any, any> => {
+  return typeof v === "function" && "asFromItem" in v;
+};
+
 export const Table = <S extends TableSchema>(name: string, schema: S) => {
   const alias = new QueryAlias(name);
   const row = aliasRowLike(

@@ -13,6 +13,7 @@ import { RpcPromise, RpcTarget } from "capnweb";
 import { dummyDb } from "../test/db";
 import { RecordExpression } from "../types/record";
 import { chainWhere, compileClauses, sqlJoin } from "./utils";
+import { isTableClass } from "../query/db";
 
 export type NumericLike =
   | Types.Int4<0 | 1>
@@ -441,6 +442,20 @@ export class Select<
 
   sql() {
     return this.compile().compile(dummyDb).sql;
+  }
+
+  /**
+   * Execute query and return a single hydrated row instance (if from a table) or POJO (if from subquery).
+   * Returns null if no rows found, throws if more than one row.
+   */
+  async one(typegres: Typegres): Promise<null | (F extends Types.Table<any, any, any> ? F : RowLikeResult<S>)> {
+    const source = this.clause[1]?.from;
+    const [row, ...rest] = await this.select(
+      (x) =>  x
+    ).execute(typegres);
+    invariant(rest.length === 0, "Expected no more than one row"); 
+
+    return !row ? null :(isTableClass(source) ? new source(row) : row ) as any;
   }
 }
 
