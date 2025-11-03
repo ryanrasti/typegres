@@ -3,16 +3,20 @@ import { Kysely, PostgresDialect, Transaction } from "kysely";
 import { PGliteDialect } from "kysely-pglite-dialect";
 import { PGlite, PGliteOptions } from "@electric-sql/pglite";
 import { sql } from "kysely";
+import { RpcTarget } from "capnweb";
 
 // Transaction interface for callback-based transactions
 export interface TypegresTransaction extends Typegres {
   readonly isTransaction: true;
 }
 
-export class Typegres {
+export class Typegres extends RpcTarget {
   protected kysely: Kysely<{}> | Transaction<{}>;
+  private _lastSql: string | undefined;
+  private _lastParams: unknown[] | undefined;
 
   protected constructor(kysely: Kysely<{}> | Transaction<{}>) {
+    super();
     this.kysely = kysely;
   }
 
@@ -20,10 +24,12 @@ export class Typegres {
   sql<T = unknown>(strings: TemplateStringsArray, ...values: unknown[]): { execute: () => Promise<T[]> } {
     const kysely = this.kysely;
     return {
-      async execute(): Promise<T[]> {
+      execute: async (): Promise<T[]> => {
         // Use kysely's sql template literal directly
         const query = sql(strings, ...values);
         const compiled = query.compile(kysely);
+        this._lastSql = compiled.sql;
+        this._lastParams = [...compiled.parameters];
         const result = await kysely.executeQuery(compiled);
 
         return result.rows as T[];
@@ -33,6 +39,8 @@ export class Typegres {
 
   // Execute a compiled query with parameters
   async executeCompiled(compiledSql: string, parameters: unknown[]): Promise<unknown[]> {
+    this._lastSql = compiledSql;
+    this._lastParams = parameters;
     const result = await this.kysely.executeQuery({
       sql: compiledSql,
       parameters: parameters,
@@ -42,9 +50,18 @@ export class Typegres {
   }
 
   // Get the internal Kysely instance for query execution
-  // This is used by the query builder's execute method
+  // This is used by the query builder's compile method
   get _internal(): Kysely<{}> | Transaction<{}> {
     return this.kysely;
+  }
+
+  // Track and retrieve the last executed query
+  getLastQuery(): { sql: string; params: unknown[] } | undefined {
+    if (this._lastSql === undefined) return undefined;
+    return {
+      sql: this._lastSql,
+      params: this._lastParams ?? [],
+    };
   }
 
   // Close the connection

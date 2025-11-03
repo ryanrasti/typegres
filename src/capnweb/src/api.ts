@@ -5,7 +5,10 @@ import { insert, update, delete_ } from "../../grammar";
 import { values } from "../../query/values";
 import * as Models from "./models";
 import { RpcTarget } from "capnweb";
-
+import { typegres, Typegres } from "../../db";
+import { migrate } from "./migrate";
+import { runSeeds } from "./seeds";
+import invariant from "tiny-invariant";
 
 export class Api extends RpcTarget {
     users() {
@@ -16,6 +19,10 @@ export class Api extends RpcTarget {
 	todos() {
 		return Models.Todos.select()
 	}
+
+    async getTg() {
+        return await getTg();
+    }
 }
 
 export class User extends Models.User {
@@ -50,4 +57,18 @@ export class Todo extends Models.Todos {
     delete() {
 		return delete_({ from: Models.Todos }).where((t) => t.id.eq(this.id))
     }
+}
+
+let tgSingleton: Typegres | undefined;
+
+const getTg = async (): Promise<Typegres> => {
+    if (!tgSingleton) {
+        const tg = await typegres({
+            type: "pglite",
+        })
+        await migrate(tg);
+        await runSeeds(tg);
+        tgSingleton = tg;
+    }
+    return tgSingleton;
 }

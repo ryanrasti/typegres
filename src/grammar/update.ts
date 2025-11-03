@@ -147,9 +147,9 @@ export class Update<
     const compiled = this.compile();
     const compiledRaw = compiled.compile(typegres._internal);
 
-    let raw: QueryResult<any>;
+    let rows: unknown[];
     try {
-      raw = await typegres._internal.executeQuery(compiledRaw);
+      rows = await typegres.executeCompiled(compiledRaw.sql, [...compiledRaw.parameters]);
     } catch (error) {
       console.error("Error executing query: ", compiledRaw.sql, compiledRaw.parameters);
       throw error;
@@ -158,13 +158,13 @@ export class Update<
     // If there's a RETURNING clause, parse the returned rows
     const returnShape = this.getRowLike();
     if (returnShape) {
-      return raw.rows.map((row) => {
+      return rows.map((row) => {
         invariant(typeof row === "object" && row !== null, "Expected each row to be an object");
         return parseRowLike(returnShape, row);
       }) as RowLikeResult<R>[];
     }
 
-    return raw.rows as RowLikeResult<R>[];
+    return rows as RowLikeResult<R>[];
   }
 }
 

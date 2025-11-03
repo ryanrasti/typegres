@@ -111,18 +111,18 @@ export class Delete<
     const compiled = this.compile();
     const compiledRaw = compiled.compile(typegres._internal);
 
-    let raw: QueryResult<any>;
+    let rows: unknown[];
     try {
-      raw = await typegres._internal.executeQuery(compiledRaw);
+      rows = await typegres.executeCompiled(compiledRaw.sql, [...compiledRaw.parameters]);
     } catch (error) {
       console.error("Error executing query: ", compiledRaw.sql, compiledRaw.parameters);
       throw error;
     }
 
     const returnShape = this.getRowLike();
-    if (!returnShape) return raw.rows as RowLikeResult<R>[];
+    if (!returnShape) return rows as RowLikeResult<R>[];
 
-    return raw.rows.map((row) => {
+    return rows.map((row) => {
       invariant(typeof row === "object" && row !== null, "Expected each row to be an object");
       return parseRowLike(returnShape, row);
     }) as RowLikeResult<R>[];

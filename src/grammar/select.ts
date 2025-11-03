@@ -13,7 +13,7 @@ import { RpcPromise, RpcTarget } from "capnweb";
 import { dummyDb } from "../test/db";
 import { RecordExpression } from "../types/record";
 import { chainWhere, compileClauses, sqlJoin } from "./utils";
-import { isTableClass } from "../query/db";
+import { isTableClass, Table } from "../query/db";
 
 export type NumericLike =
   | Types.Int4<0 | 1>
@@ -359,13 +359,17 @@ export class Select<
     return this._cachedSelectResult;
   }
 
+  executeTest(): {value: 1} {
+    return {value:1};
+  }
+
   async execute(typegres: Typegres): Promise<RowLikeResult<S>[]> {
     const compiled = this.compile();
     const compiledRaw = compiled.compile(typegres._internal);
 
-    let raw: QueryResult<any>;
+    let rows: unknown[];
     try {
-      raw = await typegres._internal.executeQuery(compiledRaw);
+      rows = await typegres.executeCompiled(compiledRaw.sql, [...compiledRaw.parameters]);
     } catch (error) {
       console.error("Error executing query: ", compiledRaw.sql, compiledRaw.parameters);
       throw error;
@@ -373,11 +377,11 @@ export class Select<
     const returnShape = this.getRowLike();
     return (
       returnShape
-        ? raw.rows.map((row) => {
+        ? rows.map((row) => {
             invariant(typeof row === "object" && row !== null, "Expected each row to be an object");
             return parseRowLike(returnShape, row);
           })
-        : raw
+        : rows
     ) as RowLikeResult<S>[];
   }
 
@@ -448,7 +452,7 @@ export class Select<
    * Execute query and return a single hydrated row instance (if from a table) or POJO (if from subquery).
    * Returns null if no rows found, throws if more than one row.
    */
-  async one(typegres: Typegres): Promise<null | (F extends Types.Table<any, any, any> ? F : RowLikeResult<S>)> {
+  async one(typegres: Typegres): Promise<null | (F extends Table<any> ? InstanceType<F> : RowLikeResult<S>)> {
     const source = this.clause[1]?.from;
     const [row, ...rest] = await this.select(
       (x) =>  x

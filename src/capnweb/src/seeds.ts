@@ -6,7 +6,7 @@ import { values } from "../../query/values";
 import { User, Todos } from "./models";
 import { Text, Int4 } from "../../types";
 
-const runSeeds = async (tg: Typegres) => {
+export const runSeeds = async (tg: Typegres) => {
     const [john] = await insert({ into: User }, values({
         username: Text.new("John Doe"),
     })).execute(tg);
