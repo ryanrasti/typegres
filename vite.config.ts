@@ -7,7 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       typegres: fileURLToPath(new URL("./src/index.ts", import.meta.url)),
-      capnweb: fileURLToPath(new URL("./capnweb/src/index.ts", import.meta.url)),
+      capnweb: fileURLToPath(new URL("./src/capnweb-demo/src/capnweb/src/index.ts", import.meta.url)),
     },
   },
 });

@@ -4,6 +4,7 @@ import { select, Select } from "../grammar/select";
 import { Int4, Text } from "../types";
 import { values } from "../query/values";
 import { doRpc } from "./src/do-rpc";
+import { typegres } from "typegres";
 
 class QueryService extends RpcTarget {
   values() {
@@ -38,6 +39,10 @@ class QueryService extends RpcTarget {
 
   test() {
     return { foo: "bar" };
+  }
+
+  tg() {
+    return typegres({ type: "pglite" });
   }
 }
 
@@ -131,30 +136,33 @@ describe("Cap'n Web map() with Select callbacks", () => {
   it("should test if can do more complex queries -- using doRpc", async () => {
     const client = createClient();
 
-    const mapped = await doRpc((query) => {
-
-      return query.select((row) => {
-        console.log("Inside map callback, q is:", row);
-        return {
-          userId: row.id,
-          userName: row.name,
-        };
-      })
-      .where((row) => {
-        const pred = row.age[">="](31);
-        console.log("DBG row type:", typeof row, (row as any)?.constructor?.name);
-        console.log("DBG row.age type:", typeof (row as any)?.age, (row as any)?.age?.constructor?.name);
-        console.log(
-          "DBG pred type:",
-          typeof pred,
-          (pred as any)?.constructor?.name,
-          "toExpression:",
-          typeof (pred as any)?.toExpression,
-        );
-        return pred;
-      })
-      .orderBy((row) => row.name);
-    }, [client.getQuery()] as const);
+    const mapped = await doRpc(
+      (query) => {
+        return query
+          .select((row) => {
+            console.log("Inside map callback, q is:", row);
+            return {
+              userId: row.id,
+              userName: row.name,
+            };
+          })
+          .where((row) => {
+            const pred = row.age[">="](31);
+            console.log("DBG row type:", typeof row, (row as any)?.constructor?.name);
+            console.log("DBG row.age type:", typeof (row as any)?.age, (row as any)?.age?.constructor?.name);
+            console.log(
+              "DBG pred type:",
+              typeof pred,
+              (pred as any)?.constructor?.name,
+              "toExpression:",
+              typeof (pred as any)?.toExpression,
+            );
+            return pred;
+          })
+          .orderBy((row) => row.name);
+      },
+      [client.getQuery()] as const,
+    );
     console.log("Mapped type:", typeof mapped);
     console.log("mapped object (not awaited):", mapped);
 
@@ -166,5 +174,57 @@ describe("Cap'n Web map() with Select callbacks", () => {
     expect(result).toBe(
       'SELECT "subquery"."id" AS "userId", "subquery"."name" AS "userName" FROM (SELECT cast($1 as int4) AS "age", cast($2 as int4) AS "id", cast($3 as text) AS "name") as "subquery" WHERE ("subquery"."age" >= $4) ORDER BY "subquery"."name"',
     );
+  });
+
+  it("should test if can do more complex queries -- using doRpc E2e", async () => {
+    const client = createClient();
+    const tg = client.tg();
+
+    tg.sql`
+    CREATE TABLE IF NOT EXISTS "users" (
+      "id" SERIAL PRIMARY KEY,
+      "name" TEXT NOT NULL,
+      "age" INTEGER NOT NULL
+    );
+    `.execute();
+
+    tg.sql`
+    INSERT INTO "users" ("name", "age")
+    VALUES ('Alice', 30), ('Bob', 31), ('Charlie', 32);
+    `.execute();
+
+    const rows = await doRpc(
+      (query, tg) => {
+        return query
+          .select((row) => {
+            console.log("Inside map callback, q is:", row);
+            return {
+              userId: row.id,
+              userName: row.name,
+            };
+          })
+          .where((row) => {
+            const pred = row.age[">="](31);
+            console.log("DBG row type:", typeof row, (row as any)?.constructor?.name);
+            console.log("DBG row.age type:", typeof (row as any)?.age, (row as any)?.age?.constructor?.name);
+            console.log(
+              "DBG pred type:",
+              typeof pred,
+              (pred as any)?.constructor?.name,
+              "toExpression:",
+              typeof (pred as any)?.toExpression,
+            );
+            return pred;
+          })
+          .orderBy((row) => row.name)
+          .execute(tg);
+      },
+      [client.getQuery(), tg] as const,
+    );
+    console.log("Rows:", rows);
+    expect(rows).toEqual([
+      { userId: 3, userName: "Charlie" },
+      { userId: 2, userName: "Bob" },
+    ]);
   });
 });
