@@ -1,7 +1,7 @@
 import { QueryResult, RawBuilder, sql } from "kysely";
 import invariant from "tiny-invariant";
 import type { XOR } from "ts-xor";
-import { inspect } from "util";
+import { inspect } from "cross-inspect";
 import { Typegres } from "../db";
 import { Context, ExistsExpression, Expression, NotExistsExpression, QueryAlias, LiteralExpression, LiteralUnknownExpression, BinaryOperatorExpression } from "../expression";
 import { FromItem } from "../query/from-item";

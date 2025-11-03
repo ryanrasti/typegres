@@ -3,7 +3,41 @@ import type { RowLike } from "./query/values";
 import type { Any } from "./types";
 import type { OrderBySpec } from "./query/order-by";
 import { compileOrderBy } from "./query/order-by";
-import { escapeLiteral } from "pg";
+
+// Local copy of escapeLiteral from pg to avoid importing pg directly
+const escapeLiteral = function (str: string | null) {
+  let hasBackslash = false
+  let escaped = "'"
+
+  if (str == null) {
+    return "''"
+  }
+
+  if (typeof str !== 'string') {
+    return "''"
+  }
+
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i]
+    if (c === "'") {
+      escaped += c + c
+    } else if (c === '\\') {
+      escaped += c + c
+      hasBackslash = true
+    } else {
+      escaped += c
+    }
+  }
+
+  escaped += "'"
+
+  if (hasBackslash === true) {
+    escaped = ' E' + escaped
+  }
+
+  return escaped
+}
+
 
 export class QueryAlias {
   constructor(public name: string) {}

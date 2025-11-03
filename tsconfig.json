@@ -25,7 +25,7 @@
 
     "paths": {
       "typegres": ["./src/index.ts"],
-      "capnweb": ["./capnweb/src/index.ts"]
+      "capnweb": ["./src/capnweb-demo/src/capnweb/src/index.ts"]
     }
   },
   "include": ["src"]
