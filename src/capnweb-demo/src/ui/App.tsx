@@ -45,8 +45,11 @@ export const App = () => {
     try {
       const tg = api.getTg()
       const result = await doRpc((api, tg) => {
-        return api.users().select((u) => u).where((u) => u.id["="](Int4.new(1))).one(tg)
+        const one = api.users().select((u) => u).execute(tg);
+        return one;
       }, [api, tg] as const)
+      console.log('>>>>>> result', result)
+      //console.log('>> result 2:', await api.users().select((u) => u).sql());
       const user = result as User | null
       if (!user) {
         console.error('User not found')

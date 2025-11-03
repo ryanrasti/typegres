@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import { select, Select } from "../grammar/select";
 import { Int4, Text } from "../types";
 import { values } from "../query/values";
+import { doRpc } from "./src/do-rpc";
 
 class QueryService extends RpcTarget {
   values() {
@@ -114,6 +115,46 @@ describe("Cap'n Web map() with Select callbacks", () => {
         return pred;
       })
       .orderBy((row) => row.name);
+    console.log("Mapped type:", typeof mapped);
+    console.log("mapped object (not awaited):", mapped);
+
+    const sql = mapped.sql();
+    console.log("sql:", sql);
+
+    const result = await sql;
+    console.log("Result:", result);
+    expect(result).toBe(
+      'SELECT "subquery"."id" AS "userId", "subquery"."name" AS "userName" FROM (SELECT cast($1 as int4) AS "age", cast($2 as int4) AS "id", cast($3 as text) AS "name") as "subquery" WHERE ("subquery"."age" >= $4) ORDER BY "subquery"."name"',
+    );
+  });
+
+  it("should test if can do more complex queries -- using doRpc", async () => {
+    const client = createClient();
+
+    const mapped = await doRpc((query) => {
+
+      return query.select((row) => {
+        console.log("Inside map callback, q is:", row);
+        return {
+          userId: row.id,
+          userName: row.name,
+        };
+      })
+      .where((row) => {
+        const pred = row.age[">="](31);
+        console.log("DBG row type:", typeof row, (row as any)?.constructor?.name);
+        console.log("DBG row.age type:", typeof (row as any)?.age, (row as any)?.age?.constructor?.name);
+        console.log(
+          "DBG pred type:",
+          typeof pred,
+          (pred as any)?.constructor?.name,
+          "toExpression:",
+          typeof (pred as any)?.toExpression,
+        );
+        return pred;
+      })
+      .orderBy((row) => row.name);
+    }, [client.getQuery()] as const);
     console.log("Mapped type:", typeof mapped);
     console.log("mapped object (not awaited):", mapped);
 
