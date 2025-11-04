@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { testDb } from "../db.test";
 import * as db from "../gen/tables";
 import { insert, select } from "../grammar";
-import { withDb } from "../test/db";
+import { dummyDb, withDb } from "../test/db";
 import { Int4, Text } from "../types/index";
 import { values } from "./values";
 
@@ -519,6 +519,181 @@ describe("Extending table classes", () => {
           totalComments: 2n,
         },
       ]);
+    });
+  });
+
+  it("can use lateral joins with callback functions", async () => {
+    await withDb(testDb, async (kdb) => {
+      // Insert test users
+      const [user1, user2] = await insert(
+        {
+          into: db.Users,
+        },
+        select(
+          (v) => ({
+            name: v.name,
+            email: v.email,
+            role: v.role,
+            active: v.active,
+          }),
+          {
+            from: values(
+              {
+                name: Text.new("User One"),
+                email: Text.new("user1@test.com"),
+                role: Text.new("user"),
+                active: Int4.new(1),
+              },
+              {
+                name: Text.new("User Two"),
+                email: Text.new("user2@test.com"),
+                role: Text.new("user"),
+                active: Int4.new(1),
+              },
+            ),
+          },
+        ),
+        {
+          returning: (u) => ({ id: u.id }),
+        },
+      ).execute(kdb);
+
+      // Insert posts for both users
+      const [post1, post2] = await insert(
+        {
+          into: db.Posts,
+        },
+        select(
+          (v) => ({
+            user_id: v.user_id,
+            title: v.title,
+            content: v.content,
+            published: v.published,
+          }),
+          {
+            from: values(
+              {
+                user_id: Int4.new(user1.id),
+                title: Text.new("Post 1"),
+                content: Text.new("Content 1"),
+                published: Int4.new(1),
+              },
+              {
+                user_id: Int4.new(user2.id),
+                title: Text.new("Post 2"),
+                content: Text.new("Content 2"),
+                published: Int4.new(1),
+              },
+            ),
+          },
+        ),
+        {
+          returning: (p) => ({ id: p.id }),
+        },
+      ).execute(kdb);
+
+      // Insert comments - user1 has 2 comments, user2 has 1
+      await insert(
+        {
+          into: db.Comments,
+        },
+        select(
+          (v) => ({
+            user_id: v.user_id,
+            post_id: v.post_id,
+            content: v.content,
+          }),
+          {
+            from: values(
+              {
+                user_id: Int4.new(user1.id),
+                post_id: Int4.new(post1.id),
+                content: Text.new("Comment 1"),
+              },
+              {
+                user_id: Int4.new(user1.id),
+                post_id: Int4.new(post1.id),
+                content: Text.new("Comment 2"),
+              },
+              {
+                user_id: Int4.new(user2.id),
+                post_id: Int4.new(post2.id),
+                content: Text.new("Comment 3"),
+              },
+            ),
+          },
+        ),
+      ).execute(kdb);
+
+      // Use lateral join to get first comment for each user
+      // The callback function references u.id, making this a lateral join
+      const res = await select(
+        (u, { firstComment }) => ({
+          userName: u.name,
+          commentContent: firstComment.content,
+        }),
+        {
+          from: db.Users.asFromItem().join(
+            // Callback function makes this a LATERAL join
+            // The callback receives the outer query's row (u) and can reference it
+            (u) => {
+              // This subquery references u.id from the outer query, requiring LATERAL
+              return select((c) => c, {
+                from: db.Comments,
+                where: (c) => c.user_id["="](u.id),
+                orderBy: [(c) => c.id, { asc: true }],
+              })
+                .limit(1)
+                .asFromItem();
+            },
+            "firstComment",
+            (u, { firstComment }) => u.id["="](firstComment.user_id),
+          ),
+          where: (u) => u.active["="](1),
+          orderBy: [(u) => u.id, { asc: true }],
+        },
+      ).execute(kdb);
+
+      assert<Equals<typeof res, { userName: string; commentContent: string }[]>>();
+
+      expect(res).toHaveLength(2);
+      expect(res[0].userName).toBe("User One");
+      expect(res[0].commentContent).toBe("Comment 1");
+      expect(res[1].userName).toBe("User Two");
+      expect(res[1].commentContent).toBe("Comment 3");
+
+      // Verify the SQL is correctly generated with LATERAL
+      const query = select(
+        (u, { firstComment }) => ({
+          userName: u.name,
+          commentContent: firstComment.content,
+        }),
+        {
+          from: db.Users.asFromItem().join(
+            (u) => {
+              return select((c) => c, {
+                from: db.Comments,
+                where: (c) => c.user_id["="](u.id),
+                orderBy: [(c) => c.id, { asc: true }],
+              })
+                .limit(1)
+                .asFromItem();
+            },
+            "firstComment",
+            (u, { firstComment }) => u.id["="](firstComment.user_id),
+          ),
+        },
+      );
+      
+      const compiled = query.compile();
+      const sqlResult = compiled.compile(dummyDb);
+      
+      // Verify the complete SQL includes LATERAL join syntax
+      // Note: Columns are sorted alphabetically in SELECT, and LIMIT is parameterized
+      expect(sqlResult.sql).toBe(
+        'SELECT "firstComment"."content" AS "commentContent", "users"."name" AS "userName" FROM "users" as "users" JOIN LATERAL (SELECT "comments"."content" AS "content", "comments"."id" AS "id", "comments"."post_id" AS "post_id", "comments"."user_id" AS "user_id" FROM "comments" as "comments" WHERE ("comments"."user_id" = "users"."id") ORDER BY "comments"."id" ASC LIMIT $1) as "firstComment" ON ("users"."id" = "firstComment"."user_id")',
+      );
+      expect(sqlResult.parameters).toEqual([1]);
     });
   });
 });

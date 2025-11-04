@@ -8,7 +8,6 @@ import { maybePrimitiveToSqlType } from "../types/primitive";
 import { RowSchema, RowSchemaToRowLike, View } from "./db";
 import { withMixinProxy } from "./mixin";
 import { aliasRowLike, AnyOrParsed, RowLike, ValuesExpression } from "./values";
-import { RpcTarget } from "capnweb";
 
 // Helper type to make all columns in a RowLike nullable
 type MakeRowNullable<R extends RowLike> = {
@@ -22,6 +21,7 @@ type Join = {
   row: RowLike;
   on: Bool<0 | 1>;
   type: JoinType;
+  isLateral?: boolean;
 };
 
 export type Joins = { [key: string]: Join };
@@ -106,7 +106,7 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins> impl
       this.joinAliases,
       aliasRowLike(queryAlias, this.from),
       this.joins,
-    );
+    ) as any;
   }
 
   asFromItem(): FromItem<F, J> {
@@ -124,15 +124,33 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins> impl
   }
 
   joinWithType<F2 extends RowLike, A extends string>(
-    j: WithFromItem<F2>,
+    j: WithFromItem<F2> | ((from: F, js: JoinTables<J>) => WithFromItem<F2>),
     as: A,
     type: JoinType,
     on: (from: F & MakeRowNullable<F>, js: any) => Bool<0 | 1> | boolean,
   ): FromItem<any, any> {
     const alias = new QueryAlias(as);
-    const row = aliasRowLike(alias, j.from);
+    // Check if j is a callback function (not a table class)
+    // Table classes are functions but have asFromItem property
+    const isCallback = typeof j === "function" && !("asFromItem" in j);
+    const fromItem = isCallback
+      ? j(this.from, this.joinTables() as JoinTables<J>).asFromItem()
+      : (j as WithFromItem<F2>).asFromItem();
+    const row = aliasRowLike(alias, fromItem.from);
 
     const [from, joins] = this.toSelectArgs();
+    const newJoin: Join = {
+      fromItem,
+      on: maybePrimitiveToSqlType(
+        on(from as F & MakeRowNullable<F>, {
+          ...joins,
+          ...({ [as]: row } as { [a in A]: F2 }),
+        }),
+      ),
+      row,
+          type,
+          isLateral: isCallback,
+    };
     return new FromItem(
       this.rawFromExpr,
       this.fromAlias,
@@ -143,23 +161,13 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins> impl
       this.from,
       {
         ...this.joins,
-        [as]: {
-          fromItem: j,
-          on: maybePrimitiveToSqlType(
-            on(from as F & MakeRowNullable<F>, {
-              ...joins,
-              ...({ [as]: row } as { [a in A]: F2 }),
-            }),
-          ),
-          row,
-          type,
-        },
+        [as]: newJoin,
       },
     ) as any;
   }
 
   join<F2 extends RowLike, A extends string>(
-    j: WithFromItem<F2>,
+    j: WithFromItem<F2> | ((from: F, js: JoinTables<J>) => WithFromItem<F2>),
     as: A,
     on: (from: F, js: JoinTables<J> & { [a in A]: F2 }) => Bool<0 | 1> | boolean,
   ): FromItem<
@@ -271,7 +279,7 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins> impl
 
     const joins = Object.entries(this.joins ?? {}).map(([alias, join]) => {
       invariant(Object.keys(join.fromItem.joins).length === 0, "Joins in expression joining to");
-      return sql`${sql.raw(join.type)} ${join.fromItem.compileJustFrom(ctx, alias)} ON ${join.on.toExpression().compile(ctx)}`;
+      return sql`${sql.raw(join.type)}${join.isLateral ? sql` LATERAL` : sql``} ${join.fromItem.compileJustFrom(ctx, alias)} ON ${join.on.toExpression().compile(ctx)}`;
     });
 
     return sql.join([from, ...joins], sql` `);

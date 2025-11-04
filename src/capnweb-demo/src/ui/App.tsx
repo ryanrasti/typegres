@@ -19,8 +19,8 @@ type QueryHistoryEntry = { sql: string; params: unknown[]; timestamp: number };
 
 export const App = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [users, setUsers] = useState<Array<{ id: number; username: string }>>([]);
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [users, setUsers] = useState<Array<{ username: string }>>([]);
+  const [selectedUsername, setSelectedUsername] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [title, setTitle] = useState("");
   const [queryHistory, setQueryHistory] = useState<QueryHistoryEntry[]>([]);
@@ -33,50 +33,66 @@ export const App = () => {
       const tg = api.getTg();
       const result = await doRpc(
         (api, tg) => {
-          return api
-            .users()
-            .select((u) => ({
-              id: u.id,
-              username: u.username,
-            }))
-            .execute(tg);
+          return api.usersNames().execute(tg);
         },
         [api, tg] as const,
       );
-      const usersList = result as unknown as Array<{ id: number; username: string }>;
-      setUsers(usersList);
+      setUsers(result);
       // Auto-select first user if none selected
-      if (selectedUserId === null && usersList.length > 0) {
-        setSelectedUserId(usersList[0].id);
+      if (selectedUsername === null && result.length > 0) {
+        setSelectedUsername(result[0].username);
       }
     } catch (error) {
       console.error("Failed to load users:", error);
     }
   };
 
-  const loadTodos = async (userId?: number, searchQuery?: string) => {
+  const loadTodos = async (username?: string, searchQuery?: string) => {
     try {
       const tg = api.getTg();
+      
+      // If no user selected, show empty list
+      if (username === null || username === undefined) {
+        setTodos([]);
+        const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
+        setQueryHistory(history as QueryHistoryEntry[]);
+        setLoading(false);
+        return;
+      }
+
+      // Two-pass pattern: Get user by name, then query their todos
+      const user = await doRpc(
+        (api, username) => {
+          return api.getUserByName(username);
+        },
+        [api, username] as const,
+      ) as User | null;
+
+      if (!user) {
+        console.error("User not found");
+        setTodos([]);
+        setLoading(false);
+        return;
+      }
+
+      // Second pass: Use user to query todos
       const result = await doRpc(
-        (api, tg, userId, searchQuery) => {
-          let query = api.todos().select((t) => ({
+        (user, tg, searchQuery) => {
+          let query = user.todos().select((t) => ({
             id: t.id,
             title: t.title,
             completed: t.completed,
             user_id: t.user_id,
           }));
-          // Filter by user if specified
-          if (userId !== undefined && userId !== null) {
-            query = query.where((t) => t.user_id.eq(userId));
-          }
           // Filter by search query if provided
           if (searchQuery && searchQuery.trim()) {
             query = query.where((t) => t.title.ilike(`%${searchQuery.trim()}%`));
           }
           return query.execute(tg);
         },
-        [api, tg, userId, searchQuery] as const,
+        [user, tg, searchQuery] as const,
       );
+      
       setTodos(result as unknown as Todo[]);
       const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
       setQueryHistory(history as QueryHistoryEntry[]);
@@ -93,19 +109,19 @@ export const App = () => {
 
   useEffect(() => {
     if (users.length > 0) {
-      loadTodos(selectedUserId ?? undefined, query);
+      loadTodos(selectedUsername ?? undefined, query);
     }
-  }, [api, selectedUserId, users.length, query]);
+  }, [api, selectedUsername, users.length, query]);
 
   const create = async () => {
-    if (!title.trim() || selectedUserId === null) return;
+    if (!title.trim() || selectedUsername === null) return;
     try {
       const tg = api.getTg();
       const user = await doRpc(
-        (api, userId) => {
-          return api.getUser(userId);
+        (api, username) => {
+          return api.getUserByName(username);
         },
-        [api, selectedUserId] as const,
+        [api, selectedUsername] as const,
       ) as User | null;
       if (!user) {
         console.error("User not found");
@@ -120,25 +136,35 @@ export const App = () => {
       setTitle("");
       const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
       setQueryHistory(history as QueryHistoryEntry[]);
-      await loadTodos(selectedUserId, query);
+      await loadTodos(selectedUsername, query);
     } catch (error) {
       console.error("Failed to create todo:", error);
     }
   };
 
   const update = async (id: number, patch: Partial<Todo>) => {
+    if (!selectedUsername) return;
     try {
       const tg = api.getTg();
-      const todo = (await doRpc(
-        (api, tg) => {
-          return api
-            .todos()
-            .select((t) => t)
-            .where((t) => t.id["="](id))
-            .one(tg);
+      const user = await doRpc(
+        (api, username) => {
+          return api.getUserByName(username);
         },
-        [api, tg] as const,
-      )) as TodoInstance | null;
+        [api, selectedUsername] as const,
+      ) as User | null;
+      
+      if (!user) {
+        console.error("User not found");
+        return;
+      }
+
+      const todo = await doRpc(
+        (user, tg, id) => {
+          return user.todos().where((t) => t.id.eq(id)).one(tg);
+        },
+        [user, tg, id] as const,
+      ) as TodoInstance | null;
+      
       if (!todo) {
         console.error("Todo not found");
         return;
@@ -160,25 +186,35 @@ export const App = () => {
       }
       const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
       setQueryHistory(history as QueryHistoryEntry[]);
-      await loadTodos(selectedUserId ?? undefined, query);
+      await loadTodos(selectedUsername ?? undefined, query);
     } catch (error) {
       console.error("Failed to update todo:", error);
     }
   };
 
   const deleteTodo = async (id: number) => {
+    if (!selectedUsername) return;
     try {
       const tg = api.getTg();
-      const todo = (await doRpc(
-        (api, tg) => {
-          return api
-            .todos()
-            .select((t) => t)
-            .where((t) => t.id["="](id))
-            .one(tg);
+      const user = await doRpc(
+        (api, username) => {
+          return api.getUserByName(username);
         },
-        [api, tg] as const,
-      )) as TodoInstance | null;
+        [api, selectedUsername] as const,
+      ) as User | null;
+      
+      if (!user) {
+        console.error("User not found");
+        return;
+      }
+
+      const todo = await doRpc(
+        (user, tg, id) => {
+          return user.todos().where((t) => t.id.eq(id)).one(tg);
+        },
+        [user, tg, id] as const,
+      ) as TodoInstance | null;
+      
       if (!todo) {
         console.error("Todo not found");
         return;
@@ -191,7 +227,7 @@ export const App = () => {
       );
       const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
       setQueryHistory(history as QueryHistoryEntry[]);
-      await loadTodos(selectedUserId ?? undefined, query);
+      await loadTodos(selectedUsername ?? undefined, query);
     } catch (error) {
       console.error("Failed to delete todo:", error);
     }
@@ -220,8 +256,8 @@ export const App = () => {
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">User:</span>
           <Select
-            value={selectedUserId?.toString() ?? "all"}
-            onValueChange={(value) => setSelectedUserId(value === "all" ? null : Number(value))}
+            value={selectedUsername ?? "all"}
+            onValueChange={(value) => setSelectedUsername(value === "all" ? null : value)}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Select a user" />
@@ -229,7 +265,7 @@ export const App = () => {
             <SelectContent>
               <SelectItem value="all">All Users</SelectItem>
               {users.map((user) => (
-                <SelectItem key={user.id} value={user.id.toString()}>
+                <SelectItem key={user.username} value={user.username}>
                   {user.username}
                 </SelectItem>
               ))}
@@ -242,11 +278,11 @@ export const App = () => {
         <Card className="shadow-md border-2 border-primary/20 flex flex-col">
           <CardHeader>
             <CardTitle className="text-xl">Todos</CardTitle>
-            <CardDescription>
-              {selectedUserId === null
-                ? "Select a user to view their todos"
-                : `${todos.length} todo${todos.length !== 1 ? "s" : ""} found`}
-            </CardDescription>
+                <CardDescription>
+                  {selectedUsername === null
+                    ? "Select a user to view their todos"
+                    : `${todos.length} todo${todos.length !== 1 ? "s" : ""} found`}
+                </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 flex-1 flex flex-col">
             <Input
@@ -270,7 +306,7 @@ export const App = () => {
                       type="checkbox"
                       checked={t.completed}
                       onChange={(e) => update(t.id, { completed: e.target.checked })}
-                      disabled={selectedUserId === null}
+                          disabled={selectedUsername === null}
                       className="h-4 w-4 rounded border-primary/30 disabled:cursor-not-allowed"
                     />
                     <Input
@@ -278,13 +314,13 @@ export const App = () => {
                       value={t.title}
                       onChange={(e) => update(t.id, { title: e.target.value })}
                       onBlur={(e) => update(t.id, { title: e.target.value })}
-                      disabled={selectedUserId === null}
+                          disabled={selectedUsername === null}
                     />
                     <Button
                       variant="destructive"
                       size="sm"
                       onClick={() => deleteTodo(t.id)}
-                      disabled={selectedUserId === null}
+                          disabled={selectedUsername === null}
                     >
                       Delete
                     </Button>
@@ -294,20 +330,20 @@ export const App = () => {
             )}
             <div className="flex gap-2 pt-4 border-t border-primary/20">
               <Input
-                placeholder={selectedUserId === null ? "Select a user to create todos" : "New todo..."}
+                placeholder={selectedUsername === null ? "Select a user to create todos" : "New todo..."}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && selectedUserId !== null && title.trim()) {
+                  if (e.key === "Enter" && selectedUsername !== null && title.trim()) {
                     create();
                   }
                 }}
-                disabled={selectedUserId === null}
+                          disabled={selectedUsername === null}
                 className="flex-1"
               />
               <Button 
                 onClick={create} 
-                disabled={selectedUserId === null || !title.trim()}
+                    disabled={selectedUsername === null || !title.trim()}
               >
                 Create
               </Button>

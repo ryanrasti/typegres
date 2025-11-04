@@ -10,14 +10,9 @@ import { migrate } from "./migrate";
 import { runSeeds } from "./seeds";
 
 export class Api extends RpcTarget {
-    users() {
-        return User.select()
+    usersNames() {
+        return User.select((u) => ({username: u.username}))
     }
-
-	// All todos (for demo convenience in FE)
-	todos() {
-		return Todo.select()
-	}
 
     async getTg() {
         return await getTg();
@@ -28,11 +23,12 @@ export class Api extends RpcTarget {
         return tg.getQueryHistory();
     }
 
-    async getUser(id: number) {
+    async getUserByName(username: string) {
         const tg = await getTg();
-        const userQuery = this.users().where((u) => u.id.eq(id));
+        const userQuery = User.select().where((u) => u.username.eq(username));
         return await userQuery.one(tg);
     }
+
 }
 
 export class User extends Models.User {
