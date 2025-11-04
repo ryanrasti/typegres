@@ -479,8 +479,11 @@ export class Select<
     const source = this.clause[1]?.from;
     const [row, ...rest] = await this.select((x) => x).execute(typegres);
     invariant(rest.length === 0, "Expected no more than one row");
+    console.log(">>>>>> source", source);
 
-    return !row ? null : ((isTableClass(source) ? new source(row) : row) as any);
+    const ret = !row ? null : ((isTableClass(source) ? new source(row) : row) as any);
+    console.log(">>>>>> one result", ret);
+    return ret;
   }
 }
 

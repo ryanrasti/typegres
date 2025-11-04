@@ -10,4 +10,7 @@ export default defineConfig({
       capnweb: fileURLToPath(new URL("./src/capnweb-demo/src/capnweb/src/index.ts", import.meta.url)),
     },
   },
+  optimizeDeps: {
+    exclude: ["@electric-sql/pglite"],
+  },
 });
