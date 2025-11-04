@@ -11,8 +11,7 @@ import { runSeeds } from "./seeds";
 
 export class Api extends RpcTarget {
     users() {
-        console.log(">>>>>> users called");
-        return select((u) => /*foo */ u, { from: User })
+        return User.select()
     }
 
 	// All todos (for demo convenience in FE)
