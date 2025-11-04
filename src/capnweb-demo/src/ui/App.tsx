@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useApi } from "../use-capnweb";
 import { doRpc } from "../do-rpc";
-import type { Todo as TodoInstance } from "../api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -57,7 +56,7 @@ export const App = () => {
   };
 
   const loadTodos = async (username?: string, searchQuery?: string) => {
-    if (username === null || username === undefined) {
+    if (!username) {
       setTodos([]);
       await loadQueryHistory();
       setLoading(false);
@@ -73,7 +72,6 @@ export const App = () => {
 
     const result = await doRpc(
       async (user, searchQuery, api) => {
-        const tg = await api.tg();
         let query = user.todos().select((t: any) => ({
           id: t.id,
           title: t.title,
@@ -83,7 +81,7 @@ export const App = () => {
         if (searchQuery && searchQuery.trim()) {
           query = query.where((t: any) => t.title.ilike(`%${searchQuery.trim()}%`));
         }
-        return query.execute(tg);
+        return query.execute(await api.tg());
       },
       [user, searchQuery, api] as const,
     );
@@ -108,13 +106,11 @@ export const App = () => {
     const user = await getCurrentUser(selectedUsername);
     if (!user) return;
     
-    const todoTitle = title.trim();
     await doRpc(
-      async (user, api, todoTitle) => {
-        const tg = await api.tg();
-        return user.createTodo(todoTitle).execute(tg);
+      async (user, api) => {
+        return user.createTodo(title.trim()).execute(await api.tg());
       },
-      [user, api, todoTitle] as const,
+      [user, api] as const,
     );
     setTitle("");
     await loadQueryHistory();
@@ -127,28 +123,25 @@ export const App = () => {
     if (!user) return;
 
     const todo = await doRpc(
-      async (user, id, api) => {
-        const tg = await api.tg();
-        return user.todos().where((t: any) => t.id.eq(id)).one(tg);
+      async (user, api) => {
+        return user.todos().where((t: any) => t.id.eq(id)).one(await api.tg());
       },
-      [user, id, api] as const,
-    ) as TodoInstance | null;
+      [user, api] as const,
+    );
     
     if (!todo) return;
     
     if ("title" in patch && patch.title !== undefined) {
       await doRpc(
         async (todo, api) => {
-          const tg = await api.tg();
-          return todo.update(patch.title!).execute(tg);
+          return todo.update(patch.title!).execute(await api.tg());
         },
         [todo, api] as const,
       );
     } else if ("completed" in patch && patch.completed !== undefined) {
       await doRpc(
         async (todo, api) => {
-          const tg = await api.tg();
-          return todo.setCompleted(patch.completed!).execute(tg);
+          return todo.setCompleted(patch.completed!).execute(await api.tg());
         },
         [todo, api] as const,
       );
@@ -163,19 +156,17 @@ export const App = () => {
     if (!user) return;
 
     const todo = await doRpc(
-      async (user, id, api) => {
-        const tg = await api.tg();
-        return user.todos().where((t: any) => t.id.eq(id)).one(tg);
+      async (user, api) => {
+        return user.todos().where((t: any) => t.id.eq(id)).one(await api.tg());
       },
-      [user, id, api] as const,
-    ) as TodoInstance | null;
+      [user, api] as const,
+    );
     
     if (!todo) return;
     
     await doRpc(
       async (todo, api) => {
-        const tg = await api.tg();
-        return todo.delete().execute(tg);
+        return todo.delete().execute(await api.tg());
       },
       [todo, api] as const,
     );

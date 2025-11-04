@@ -25,7 +25,7 @@ export class Api extends RpcTarget {
 
 export class User extends Models.User {
     todos() {
-        return Todo.select().where((t) => t.user_id.eq(this.id))
+        return Todo.select((t) => new Todo(t)).where((t) => t.user_id.eq(this.id))
     }
 
     // The only way to create a new Todo is to call createTodo on a User instance.
