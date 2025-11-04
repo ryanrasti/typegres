@@ -27,80 +27,70 @@ export const App = () => {
   const [loading, setLoading] = useState(true);
   const api = useApi();
 
+  const loadQueryHistory = async () => {
+    const history = await doRpc(async (api) => (await api.tg()).getQueryHistory(), [api] as const);
+    setQueryHistory(history);
+  };
+
+  const getCurrentUser = async (username: string) => {
+    return await doRpc(
+      async (api, username) => {
+        const tg = await api.tg();
+        return api.getUserByName(username).one(tg);
+      },
+      [api, username] as const,
+    );
+  };
 
   const loadUsers = async () => {
-    try {
-      const tg = api.getTg();
-      const result = await doRpc(
-        (api, tg) => {
-          return api.usersNames().execute(tg);
-        },
-        [api, tg] as const,
-      );
-      setUsers(result);
-      // Auto-select first user if none selected
-      if (selectedUsername === null && result.length > 0) {
-        setSelectedUsername(result[0].username);
-      }
-    } catch (error) {
-      console.error("Failed to load users:", error);
+    const result = await doRpc(
+      async (api) => {
+        const tg = await api.tg();
+        return api.usersNames().execute(tg);
+      },
+      [api] as const,
+    );
+    setUsers(result);
+    if (selectedUsername === null && result.length > 0) {
+      setSelectedUsername(result[0].username);
     }
   };
 
   const loadTodos = async (username?: string, searchQuery?: string) => {
-    try {
-      const tg = api.getTg();
-      
-      // If no user selected, show empty list
-      if (username === null || username === undefined) {
-        setTodos([]);
-        const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
-        setQueryHistory(history);
-        setLoading(false);
-        return;
-      }
-
-      // Two-pass pattern: Get user by name, then query their todos
-      const user = await doRpc(
-        (api, username, tg) => {
-          return api.getUserByName(username).one(tg);
-        },
-        [api, username, tg] as const,
-      );
-
-      if (!user) {
-        console.error("User not found");
-        setTodos([]);
-        setLoading(false);
-        return;
-      }
-
-      // Second pass: Use user to query todos
-      const result = await doRpc(
-        (user, tg, searchQuery) => {
-          let query = user.todos().select((t) => ({
-            id: t.id,
-            title: t.title,
-            completed: t.completed,
-            user_id: t.user_id,
-          }));
-          // Filter by search query if provided
-          if (searchQuery && searchQuery.trim()) {
-            query = query.where((t) => t.title.ilike(`%${searchQuery.trim()}%`));
-          }
-          return query.execute(tg);
-        },
-        [user, tg, searchQuery] as const,
-      );
-      
-      setTodos(result as Todo[]);
-      const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
-      setQueryHistory(history);
-    } catch (error) {
-      console.error("Failed to load todos:", error);
-    } finally {
+    if (username === null || username === undefined) {
+      setTodos([]);
+      await loadQueryHistory();
       setLoading(false);
+      return;
     }
+
+    const user = await getCurrentUser(username);
+    if (!user) {
+      setTodos([]);
+      setLoading(false);
+      return;
+    }
+
+    const result = await doRpc(
+      async (user, searchQuery, api) => {
+        const tg = await api.tg();
+        let query = user.todos().select((t: any) => ({
+          id: t.id,
+          title: t.title,
+          completed: t.completed,
+          user_id: t.user_id,
+        }));
+        if (searchQuery && searchQuery.trim()) {
+          query = query.where((t: any) => t.title.ilike(`%${searchQuery.trim()}%`));
+        }
+        return query.execute(tg);
+      },
+      [user, searchQuery, api] as const,
+    );
+    
+    setTodos(result as Todo[]);
+    await loadQueryHistory();
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -115,122 +105,82 @@ export const App = () => {
 
   const create = async () => {
     if (!title.trim() || selectedUsername === null) return;
-    try {
-      const tg = api.getTg();
-      const user = await doRpc(
-        (api, username, tg) => {
-          return api.getUserByName(username).one(tg);
-        },
-        [api, selectedUsername, tg] as const,
-      );
-      if (!user) {
-        console.error("User not found");
-        return;
-      }
-      await doRpc(
-        (user, tg) => {
-          return user.createTodo(title.trim()).execute(tg);
-        },
-        [user, tg] as const,
-      );
-      setTitle("");
-      const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
-      setQueryHistory(history);
-      await loadTodos(selectedUsername, query);
-    } catch (error) {
-      console.error("Failed to create todo:", error);
-    }
+    const user = await getCurrentUser(selectedUsername);
+    if (!user) return;
+    
+    const todoTitle = title.trim();
+    await doRpc(
+      async (user, api, todoTitle) => {
+        const tg = await api.tg();
+        return user.createTodo(todoTitle).execute(tg);
+      },
+      [user, api, todoTitle] as const,
+    );
+    setTitle("");
+    await loadQueryHistory();
+    await loadTodos(selectedUsername, query);
   };
 
   const update = async (id: number, patch: Partial<Todo>) => {
     if (!selectedUsername) return;
-    try {
-      const tg = api.getTg();
-      const user = await doRpc(
-        (api, username, tg) => {
-          return api.getUserByName(username).one(tg);
-        },
-        [api, selectedUsername, tg] as const,
-      );
-      
-      if (!user) {
-        console.error("User not found");
-        return;
-      }
+    const user = await getCurrentUser(selectedUsername);
+    if (!user) return;
 
-      const todo = await doRpc(
-        (user, tg, id) => {
-          return user.todos().where((t) => t.id.eq(id)).one(tg);
+    const todo = await doRpc(
+      async (user, id, api) => {
+        const tg = await api.tg();
+        return user.todos().where((t: any) => t.id.eq(id)).one(tg);
+      },
+      [user, id, api] as const,
+    ) as TodoInstance | null;
+    
+    if (!todo) return;
+    
+    if ("title" in patch && patch.title !== undefined) {
+      await doRpc(
+        async (todo, api) => {
+          const tg = await api.tg();
+          return todo.update(patch.title!).execute(tg);
         },
-        [user, tg, id] as const,
-      ) as TodoInstance | null;
-      
-      if (!todo) {
-        console.error("Todo not found");
-        return;
-      }
-      if ("title" in patch && patch.title !== undefined) {
-        await doRpc(
-          (todo, tg) => {
-            return todo.update(patch.title!).execute(tg);
-          },
-          [todo, tg] as const,
-        );
-      } else if ("completed" in patch && patch.completed !== undefined) {
-        await doRpc(
-          (todo, tg) => {
-            return todo.setCompleted(patch.completed!).execute(tg);
-          },
-          [todo, tg] as const,
-        );
-      }
-      const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
-      setQueryHistory(history);
-      await loadTodos(selectedUsername ?? undefined, query);
-    } catch (error) {
-      console.error("Failed to update todo:", error);
+        [todo, api] as const,
+      );
+    } else if ("completed" in patch && patch.completed !== undefined) {
+      await doRpc(
+        async (todo, api) => {
+          const tg = await api.tg();
+          return todo.setCompleted(patch.completed!).execute(tg);
+        },
+        [todo, api] as const,
+      );
     }
+    await loadQueryHistory();
+    await loadTodos(selectedUsername ?? undefined, query);
   };
 
   const deleteTodo = async (id: number) => {
     if (!selectedUsername) return;
-    try {
-      const tg = api.getTg();
-      const user = await doRpc(
-        (api, username, tg) => {
-          return api.getUserByName(username).one(tg);
-        },
-        [api, selectedUsername, tg] as const,
-      );
-      
-      if (!user) {
-        console.error("User not found");
-        return;
-      }
+    const user = await getCurrentUser(selectedUsername);
+    if (!user) return;
 
-      const todo = await doRpc(
-        (user, tg, id) => {
-          return user.todos().where((t) => t.id.eq(id)).one(tg);
-        },
-        [user, tg, id] as const,
-      ) as TodoInstance | null;
-      
-      if (!todo) {
-        console.error("Todo not found");
-        return;
-      }
-      await doRpc(
-        (todo, tg) => {
-          return todo.delete().execute(tg);
-        },
-        [todo, tg] as const,
-      );
-      const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
-      setQueryHistory(history);
-      await loadTodos(selectedUsername ?? undefined, query);
-    } catch (error) {
-      console.error("Failed to delete todo:", error);
-    }
+    const todo = await doRpc(
+      async (user, id, api) => {
+        const tg = await api.tg();
+        return user.todos().where((t: any) => t.id.eq(id)).one(tg);
+      },
+      [user, id, api] as const,
+    ) as TodoInstance | null;
+    
+    if (!todo) return;
+    
+    await doRpc(
+      async (todo, api) => {
+        const tg = await api.tg();
+        return todo.delete().execute(tg);
+      },
+      [todo, api] as const,
+    );
+    await loadQueryHistory();
+    await loadTodos(selectedUsername ?? undefined, query);
   };
 
   if (loading) {

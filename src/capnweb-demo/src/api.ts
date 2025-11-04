@@ -14,19 +14,13 @@ export class Api extends RpcTarget {
         return User.select((u) => ({username: u.username}))
     }
 
-    async getTg() {
-        return await getTg();
-    }
-
-    async getQueryHistory() {
-        const tg = await getTg();
-        return tg.getQueryHistory();
+    tg() {
+        return getTg();
     }
 
     getUserByName(username: string) {
         return  User.select(u => new User(u)).where((u) => u.username.eq(username));
     }
-
 }
 
 export class User extends Models.User {
@@ -34,32 +28,34 @@ export class User extends Models.User {
         return Todo.select().where((t) => t.user_id.eq(this.id))
     }
 
-    //
+    // The only way to create a new Todo is to call createTodo on a User instance.
+    // i.e., a User is a capability that can create Todos.
     createTodo(title: string) {
-		const ret = insert({ into: Models.Todos }, values({
+		return insert({ into: Models.Todos }, values({
 			title: Text.new(title),
+            // Created Todos are automatically scoped to the User that created them:
 			user_id: this.id,
 		}))
-        console.log(">>>>>> createTodo ret", ret);
-        return ret;
     }
 }
 
 export class Todo extends Models.Todos {
-    // Update
+    // The only way to update a Todo is to call update on a Todo instance.
+    // i.e., a Todo is the capability to update itself.
     update(title: string) {
 		return update(Todo)
 			.set(() => ({ title: Text.new(title) }))
 			.where((t) => t.id.eq(this.id))
     }
 
+    // Ditto for setCompleted.
 	setCompleted(completed: boolean) {
 		return update(Todo)
 			.set(() => ({ completed: Bool.new(completed) }))
 			.where((t) => t.id.eq(this.id))
 	}
 
-    // Delete
+    // Ditto for delete.
     delete() {
 		return delete_({ from: Models.Todos }).where((t) => t.id.eq(this.id))
     }
