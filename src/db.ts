@@ -28,7 +28,7 @@ export class Typegres extends RpcTarget {
     this.kysely = kysely;
   }
 
-  private _addToHistory(sql: string, params: unknown[]): void {
+  private _addToHistory(sql: string, params: readonly unknown[]): void {
     const entry: QueryHistoryEntry = {
       sql,
       params: [...params],
@@ -51,7 +51,7 @@ export class Typegres extends RpcTarget {
         const compiled = query.compile(kysely);
         this._lastSql = compiled.sql;
         this._lastParams = [...compiled.parameters];
-        this._addToHistory(compiled.sql, compiled.parameters);
+        this._addToHistory(compiled.sql, [...compiled.parameters]);
         const result = await kysely.executeQuery(compiled);
 
         return result.rows as T[];

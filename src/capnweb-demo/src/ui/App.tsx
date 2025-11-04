@@ -43,10 +43,7 @@ export const App = () => {
 
   const loadUsers = async () => {
     const result = await doRpc(
-      async (api) => {
-        const tg = await api.tg();
-        return api.usersNames().execute(tg);
-      },
+      async (api) => api.usersNames().execute(await api.tg()),
       [api] as const,
     );
     setUsers(result);
@@ -72,14 +69,16 @@ export const App = () => {
 
     const result = await doRpc(
       async (user, searchQuery, api) => {
-        let query = user.todos().select((t: any) => ({
+        let query = user.todos().select((t) => ({
           id: t.id,
           title: t.title,
           completed: t.completed,
           user_id: t.user_id,
         }));
         if (searchQuery && searchQuery.trim()) {
-          query = query.where((t: any) => t.title.ilike(`%${searchQuery.trim()}%`));
+          // We can dynamically modify the query using any Postgres primitive.
+          // (the BE doesn't need to manually specify that we're doing an ilike)
+          query = query.where((t) => t.title.ilike(`%${searchQuery.trim()}%`));
         }
         return query.execute(await api.tg());
       },
@@ -107,9 +106,7 @@ export const App = () => {
     if (!user) return;
     
     await doRpc(
-      async (user, api) => {
-        return user.createTodo(title.trim()).execute(await api.tg());
-      },
+      async (user, api) => user.createTodo(title.trim()).execute(await api.tg()),
       [user, api] as const,
     );
     setTitle("");
@@ -123,29 +120,16 @@ export const App = () => {
     if (!user) return;
 
     const todo = await doRpc(
-      async (user, api) => {
-        return user.todos().where((t: any) => t.id.eq(id)).one(await api.tg());
-      },
+      async (user, api) => user.todos().where((t) => t.id.eq(id)).one(await api.tg()),
       [user, api] as const,
     );
     
     if (!todo) return;
-    
-    if ("title" in patch && patch.title !== undefined) {
-      await doRpc(
-        async (todo, api) => {
-          return todo.update(patch.title!).execute(await api.tg());
-        },
-        [todo, api] as const,
-      );
-    } else if ("completed" in patch && patch.completed !== undefined) {
-      await doRpc(
-        async (todo, api) => {
-          return todo.setCompleted(patch.completed!).execute(await api.tg());
-        },
-        [todo, api] as const,
-      );
-    }
+
+    await doRpc(
+      async (todo, api) => todo.update(patch).execute(await api.tg()),
+      [todo, api] as const,
+    );
     await loadQueryHistory();
     await loadTodos(selectedUsername ?? undefined, query);
   };
@@ -156,18 +140,14 @@ export const App = () => {
     if (!user) return;
 
     const todo = await doRpc(
-      async (user, api) => {
-        return user.todos().where((t: any) => t.id.eq(id)).one(await api.tg());
-      },
+      async (user, api) => user.todos().where((t) => t.id.eq(id)).one(await api.tg()),
       [user, api] as const,
     );
     
     if (!todo) return;
     
     await doRpc(
-      async (todo, api) => {
-        return todo.delete().execute(await api.tg());
-      },
+      async (todo, api) => todo.delete().execute(await api.tg()),
       [todo, api] as const,
     );
     await loadQueryHistory();

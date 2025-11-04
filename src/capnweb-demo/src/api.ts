@@ -1,29 +1,37 @@
-// Intentionally left blank.
-// This file will host Typegres models and capabilities for the demo.
 import { Text, Bool } from "../../types";
 import { insert, update, delete_ } from "../../grammar";
 import { values } from "../../query/values";
 import * as Models from "./models";
 import { RpcTarget } from "capnweb";
-import { typegres, Typegres } from "../../db";
-import { migrate } from "./migrate";
-import { runSeeds } from "./seeds";
+import { getTg } from "./db";
+
+// Typegres provides: a capability-first API to augment your models.
+// Cap'n Web provides: a RPC system to execute the capabilities remotely.
+
+// Together: a system where your models are your API. You specify the business **context**
+//   in a **composable** interface -- with security enforced by capabilities.
 
 export class Api extends RpcTarget {
-    usersNames() {
-        return User.select((u) => ({username: u.username}))
-    }
-
     tg() {
         return getTg();
     }
 
+    // Entry point to get a `User` instance. In real life, we'd need to pass a credential
+    // (not just the username) to get the user.
     getUserByName(username: string) {
         return  User.select(u => new User(u)).where((u) => u.username.eq(username));
+    }
+
+    // To populate the user dropdown in the UI. In real life, this wouldn't exist.
+    usersNames() {
+        return User.select((u) => ({username: u.username}))
     }
 }
 
 export class User extends Models.User {
+    // The `Todos` capability is just a relation -- this returns a `Select` instance
+    // (i.e., a query builder) that can be further modified. It doesn't return a flat result!
+    // It is both secure (user can only see own Todos) and flexible (can modify the query).
     todos() {
         return Todo.select((t) => new Todo(t)).where((t) => t.user_id.eq(this.id))
     }
@@ -42,18 +50,11 @@ export class User extends Models.User {
 export class Todo extends Models.Todos {
     // The only way to update a Todo is to call update on a Todo instance.
     // i.e., a Todo is the capability to update itself.
-    update(title: string) {
+    update({title, completed}: {title?: string, completed?: boolean}) {
 		return update(Todo)
-			.set(() => ({ title: Text.new(title) }))
+			.set((t) => ({ title: title ? Text.new(title) : t.title, completed: completed ? Bool.new(completed) : t.completed }))
 			.where((t) => t.id.eq(this.id))
     }
-
-    // Ditto for setCompleted.
-	setCompleted(completed: boolean) {
-		return update(Todo)
-			.set(() => ({ completed: Bool.new(completed) }))
-			.where((t) => t.id.eq(this.id))
-	}
 
     // Ditto for delete.
     delete() {
@@ -61,16 +62,3 @@ export class Todo extends Models.Todos {
     }
 }
 
-let tgSingleton: Typegres | undefined;
-
-const getTg = async (): Promise<Typegres> => {
-    if (!tgSingleton) {
-        const tg = await typegres({
-            type: "pglite",
-        })
-        await migrate(tg);
-        await runSeeds(tg);
-        tgSingleton = tg;
-    }
-    return tgSingleton;
-}
