@@ -33,7 +33,7 @@ export type Table<R extends RowLikeStrict, S extends TableSchema = TableSchema, 
   schema: S;
 } & WithFromItem<R & E, {}>;
 
-class RowImpl<R extends RowLikeStrict> extends RpcTarget {
+export class RowImpl<R extends RowLikeStrict> extends RpcTarget {
   static schema: TableSchema;
   static asFromItem: <T extends typeof RowImpl>(this: T) => FromItem<T["prototype"], {}>;
 
@@ -62,6 +62,8 @@ class RowImpl<R extends RowLikeStrict> extends RpcTarget {
 export const isTableClass = (v: unknown): v is Table<any, any, any> => {
   return typeof v === "function" && "asFromItem" in v;
 };
+
+
 
 export const Table = <S extends TableSchema>(name: string, schema: S) => {
   const alias = new QueryAlias(name);

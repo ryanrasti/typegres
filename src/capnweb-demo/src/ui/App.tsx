@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useApi } from "../use-capnweb";
 import { doRpc } from "../do-rpc";
-import type { Todo as TodoInstance, User } from "../api";
+import type { Todo as TodoInstance } from "../api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -55,18 +55,18 @@ export const App = () => {
       if (username === null || username === undefined) {
         setTodos([]);
         const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
-        setQueryHistory(history as QueryHistoryEntry[]);
+        setQueryHistory(history);
         setLoading(false);
         return;
       }
 
       // Two-pass pattern: Get user by name, then query their todos
       const user = await doRpc(
-        (api, username) => {
-          return api.getUserByName(username);
+        (api, username, tg) => {
+          return api.getUserByName(username).one(tg);
         },
-        [api, username] as const,
-      ) as User | null;
+        [api, username, tg] as const,
+      );
 
       if (!user) {
         console.error("User not found");
@@ -93,9 +93,9 @@ export const App = () => {
         [user, tg, searchQuery] as const,
       );
       
-      setTodos(result as unknown as Todo[]);
+      setTodos(result as Todo[]);
       const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
-      setQueryHistory(history as QueryHistoryEntry[]);
+      setQueryHistory(history);
     } catch (error) {
       console.error("Failed to load todos:", error);
     } finally {
@@ -118,11 +118,11 @@ export const App = () => {
     try {
       const tg = api.getTg();
       const user = await doRpc(
-        (api, username) => {
-          return api.getUserByName(username);
+        (api, username, tg) => {
+          return api.getUserByName(username).one(tg);
         },
-        [api, selectedUsername] as const,
-      ) as User | null;
+        [api, selectedUsername, tg] as const,
+      );
       if (!user) {
         console.error("User not found");
         return;
@@ -135,7 +135,7 @@ export const App = () => {
       );
       setTitle("");
       const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
-      setQueryHistory(history as QueryHistoryEntry[]);
+      setQueryHistory(history);
       await loadTodos(selectedUsername, query);
     } catch (error) {
       console.error("Failed to create todo:", error);
@@ -147,11 +147,11 @@ export const App = () => {
     try {
       const tg = api.getTg();
       const user = await doRpc(
-        (api, username) => {
-          return api.getUserByName(username);
+        (api, username, tg) => {
+          return api.getUserByName(username).one(tg);
         },
-        [api, selectedUsername] as const,
-      ) as User | null;
+        [api, selectedUsername, tg] as const,
+      );
       
       if (!user) {
         console.error("User not found");
@@ -185,7 +185,7 @@ export const App = () => {
         );
       }
       const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
-      setQueryHistory(history as QueryHistoryEntry[]);
+      setQueryHistory(history);
       await loadTodos(selectedUsername ?? undefined, query);
     } catch (error) {
       console.error("Failed to update todo:", error);
@@ -197,11 +197,11 @@ export const App = () => {
     try {
       const tg = api.getTg();
       const user = await doRpc(
-        (api, username) => {
-          return api.getUserByName(username);
+        (api, username, tg) => {
+          return api.getUserByName(username).one(tg);
         },
-        [api, selectedUsername] as const,
-      ) as User | null;
+        [api, selectedUsername, tg] as const,
+      );
       
       if (!user) {
         console.error("User not found");
@@ -226,7 +226,7 @@ export const App = () => {
         [todo, tg] as const,
       );
       const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
-      setQueryHistory(history as QueryHistoryEntry[]);
+      setQueryHistory(history);
       await loadTodos(selectedUsername ?? undefined, query);
     } catch (error) {
       console.error("Failed to delete todo:", error);

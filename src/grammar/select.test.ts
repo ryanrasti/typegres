@@ -523,14 +523,10 @@ describe("SELECT parser", () => {
           );
 
           const result = await query.one(kdb);
-          // one() selects all columns from the from clause, not the selected columns
           expect(result).toEqual({
-            name: "Max",
-            age: 5,
-            species: "dog",
+            petName: "Max",
+            petAge: 5,
           });
-          expect(typeof (result as any)?.name).toBe("string");
-          expect(typeof (result as any)?.age).toBe("number");
         });
       });
     });

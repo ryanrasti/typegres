@@ -23,10 +23,8 @@ export class Api extends RpcTarget {
         return tg.getQueryHistory();
     }
 
-    async getUserByName(username: string) {
-        const tg = await getTg();
-        const userQuery = User.select().where((u) => u.username.eq(username));
-        return await userQuery.one(tg);
+    getUserByName(username: string) {
+        return  User.select(u => new User(u)).where((u) => u.username.eq(username));
     }
 
 }

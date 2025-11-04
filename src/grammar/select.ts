@@ -22,7 +22,7 @@ import { RpcPromise, RpcTarget } from "capnweb";
 import { dummyDb } from "../test/db";
 import { RecordExpression } from "../types/record";
 import { chainWhere, compileClauses, sqlJoin } from "./utils";
-import { isTableClass, Table } from "../query/db";
+import { isTableClass, RowImpl, Table } from "../query/db";
 
 export type NumericLike =
   | Types.Int4<0 | 1>
@@ -475,15 +475,15 @@ export class Select<
    * Execute query and return a single hydrated row instance (if from a table) or POJO (if from subquery).
    * Returns null if no rows found, throws if more than one row.
    */
-  async one(typegres: Typegres): Promise<null | (F extends Table<any> ? InstanceType<F> : RowLikeResult<S>)> {
-    const source = this.clause[1]?.from;
-    const [row, ...rest] = await this.select((x) => x).execute(typegres);
+  async one(typegres: Typegres): Promise<null | S> {
+    const [row, ...rest] = await this.execute(typegres);
     invariant(rest.length === 0, "Expected no more than one row");
-    console.log(">>>>>> source", source);
 
-    const ret = !row ? null : ((isTableClass(source) ? new source(row) : row) as any);
-    console.log(">>>>>> one result", ret, ret?.createTodo);
-    return ret;
+    const [select] = this.clause;
+    const resultShape = select(...this.selectArgs());
+    console.log(">>>>>> resultShape", resultShape);
+
+    return !row ? null : resultShape instanceof RowImpl ? new (resultShape.constructor as any)(row) : row;
   }
 }
 
