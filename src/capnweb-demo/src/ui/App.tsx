@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useApi } from "../use-capnweb";
 import { doRpc } from "../do-rpc";
 import type { Todo as TodoInstance, User } from "../api";
@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SyntaxHighlight } from "@/components/SyntaxHighlight";
 
 type Todo = { id: number; title: string; completed: boolean };
 type QueryHistoryEntry = { sql: string; params: unknown[]; timestamp: number };
@@ -26,10 +27,6 @@ export const App = () => {
   const [loading, setLoading] = useState(true);
   const api = useApi();
 
-  const filtered = useMemo(
-    () => todos.filter((t) => t.title.toLowerCase().includes(query.toLowerCase())),
-    [todos, query],
-  );
 
   const loadUsers = async () => {
     try {
@@ -57,12 +54,12 @@ export const App = () => {
     }
   };
 
-  const loadTodos = async (userId?: number) => {
+  const loadTodos = async (userId?: number, searchQuery?: string) => {
     try {
       const tg = api.getTg();
       const result = await doRpc(
-        (api, tg) => {
-          const query = api.todos().select((t) => ({
+        (api, tg, userId, searchQuery) => {
+          let query = api.todos().select((t) => ({
             id: t.id,
             title: t.title,
             completed: t.completed,
@@ -70,11 +67,15 @@ export const App = () => {
           }));
           // Filter by user if specified
           if (userId !== undefined && userId !== null) {
-            return query.where((t) => t.user_id.eq(userId)).execute(tg);
+            query = query.where((t) => t.user_id.eq(userId));
+          }
+          // Filter by search query if provided
+          if (searchQuery && searchQuery.trim()) {
+            query = query.where((t) => t.title.ilike(`%${searchQuery.trim()}%`));
           }
           return query.execute(tg);
         },
-        [api, tg] as const,
+        [api, tg, userId, searchQuery] as const,
       );
       setTodos(result as unknown as Todo[]);
       const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
@@ -92,9 +93,9 @@ export const App = () => {
 
   useEffect(() => {
     if (users.length > 0) {
-      loadTodos(selectedUserId ?? undefined);
+      loadTodos(selectedUserId ?? undefined, query);
     }
-  }, [api, selectedUserId, users.length]);
+  }, [api, selectedUserId, users.length, query]);
 
   const create = async () => {
     if (!title.trim() || selectedUserId === null) return;
@@ -119,7 +120,7 @@ export const App = () => {
       setTitle("");
       const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
       setQueryHistory(history as QueryHistoryEntry[]);
-      await loadTodos(selectedUserId);
+      await loadTodos(selectedUserId, query);
     } catch (error) {
       console.error("Failed to create todo:", error);
     }
@@ -159,7 +160,7 @@ export const App = () => {
       }
       const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
       setQueryHistory(history as QueryHistoryEntry[]);
-      await loadTodos(selectedUserId ?? undefined);
+      await loadTodos(selectedUserId ?? undefined, query);
     } catch (error) {
       console.error("Failed to update todo:", error);
     }
@@ -190,7 +191,7 @@ export const App = () => {
       );
       const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
       setQueryHistory(history as QueryHistoryEntry[]);
-      await loadTodos(selectedUserId ?? undefined);
+      await loadTodos(selectedUserId ?? undefined, query);
     } catch (error) {
       console.error("Failed to delete todo:", error);
     }
@@ -208,25 +209,21 @@ export const App = () => {
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-6 md:p-8 space-y-6">
-      <div className="mb-8 space-y-2">
-        <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-          Cap'n Web + Typegres
-        </h1>
-        <p className="text-lg text-muted-foreground">Type-safe PostgreSQL queries over RPC</p>
-      </div>
-
-      <Card className="shadow-sm border-2">
-        <CardHeader>
-          <CardTitle className="text-xl">Select User</CardTitle>
-          <CardDescription>Choose a user to view and manage their todos</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="mx-auto max-w-7xl p-6 md:p-8 space-y-6">
+      <div className="mb-8 flex items-start justify-between">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+            Cap'n Web + Typegres
+          </h1>
+          <p className="text-lg text-muted-foreground">Type-safe PostgreSQL queries over RPC</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">User:</span>
           <Select
             value={selectedUserId?.toString() ?? "all"}
             onValueChange={(value) => setSelectedUserId(value === "all" ? null : Number(value))}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Select a user" />
             </SelectTrigger>
             <SelectContent>
@@ -238,127 +235,127 @@ export const App = () => {
               ))}
             </SelectContent>
           </Select>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="shadow-sm border-2">
-        <CardHeader>
-          <CardTitle className="text-xl">Create Todo</CardTitle>
-          <CardDescription>Add a new todo item for the selected user</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 shadow-md border-2 border-primary/20 flex flex-col">
+          <CardHeader>
+            <CardTitle className="text-xl">Todos</CardTitle>
+            <CardDescription>
+              {selectedUserId === null
+                ? "Select a user to view their todos"
+                : `${todos.length} todo${todos.length !== 1 ? "s" : ""} found`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 flex-1 flex flex-col">
             <Input
-              placeholder="New todo"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && create()}
-              disabled={selectedUserId === null}
-              className="flex-1"
+              placeholder="Search todos..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full"
             />
-            <Button onClick={create} disabled={selectedUserId === null || !title.trim()}>
-              Create
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm border-2">
-        <CardHeader>
-          <CardTitle className="text-xl">Todos</CardTitle>
-          <CardDescription>
-            {selectedUserId === null
-              ? "Select a user to view their todos"
-              : `${filtered.length} todo${filtered.length !== 1 ? "s" : ""} found`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Input
-            placeholder="Search todos..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full"
-          />
-          {filtered.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              {query ? "No todos match your search" : "No todos found"}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {filtered.map((t) => (
-                <div
-                  key={t.id}
-                  className="flex items-center gap-3 rounded-lg border-2 p-4 hover:bg-accent/50 hover:border-primary/20 transition-all shadow-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={t.completed}
-                    onChange={(e) => update(t.id, { completed: e.target.checked })}
-                    disabled={selectedUserId === null}
-                    className="h-4 w-4 rounded border-gray-300 disabled:cursor-not-allowed"
-                  />
-                  <Input
-                    className="flex-1"
-                    value={t.title}
-                    onChange={(e) => update(t.id, { title: e.target.value })}
-                    onBlur={(e) => update(t.id, { title: e.target.value })}
-                    disabled={selectedUserId === null}
-                  />
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => deleteTodo(t.id)}
-                    disabled={selectedUserId === null}
+            {todos.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                {query ? "No todos match your search" : "No todos found"}
+              </p>
+            ) : (
+              <div className="space-y-2 flex-1 overflow-y-auto max-h-[600px]">
+                {todos.map((t: Todo) => (
+                  <div
+                    key={t.id}
+                    className="flex items-center gap-3 rounded-lg border-2 border-primary/10 p-4 hover:bg-accent/50 hover:border-primary/30 transition-all shadow-sm bg-card"
                   >
-                    Delete
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm border-2">
-        <CardHeader>
-          <CardTitle className="text-xl">SQL Query History</CardTitle>
-          <CardDescription>Last 5 executed queries</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {queryHistory.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No queries executed yet</p>
-          ) : (
-            <div className="space-y-3">
-              {queryHistory
-                .slice()
-                .reverse()
-                .map((entry, idx) => (
-                  <Card key={idx} className="bg-gradient-to-br from-muted to-muted/50 border-2 shadow-sm">
-                    <CardContent className="pt-6">
-                      <div className="mb-3 text-xs font-medium text-muted-foreground flex items-center gap-2">
-                        <span className="inline-block w-2 h-2 rounded-full bg-primary"></span>
-                        {new Date(entry.timestamp).toLocaleTimeString()}
-                      </div>
-                      <pre className="mb-3 overflow-auto rounded-lg bg-background p-4 text-sm font-mono whitespace-pre-wrap break-words border-2 shadow-inner">
-                        {entry.sql}
-                      </pre>
-                      {entry.params.length > 0 && (
-                        <details className="mt-2">
-                          <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-                            Parameters ({entry.params.length})
-                          </summary>
-                          <pre className="mt-2 overflow-auto rounded-lg bg-background p-3 text-xs font-mono border-2 shadow-inner">
-                            {JSON.stringify(entry.params, null, 2)}
-                          </pre>
-                        </details>
-                      )}
-                    </CardContent>
-                  </Card>
+                    <input
+                      type="checkbox"
+                      checked={t.completed}
+                      onChange={(e) => update(t.id, { completed: e.target.checked })}
+                      disabled={selectedUserId === null}
+                      className="h-4 w-4 rounded border-primary/30 disabled:cursor-not-allowed"
+                    />
+                    <Input
+                      className="flex-1"
+                      value={t.title}
+                      onChange={(e) => update(t.id, { title: e.target.value })}
+                      onBlur={(e) => update(t.id, { title: e.target.value })}
+                      disabled={selectedUserId === null}
+                    />
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => deleteTodo(t.id)}
+                      disabled={selectedUserId === null}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 ))}
+              </div>
+            )}
+            <div className="flex gap-2 pt-4 border-t border-primary/20">
+              <Input
+                placeholder={selectedUserId === null ? "Select a user to create todos" : "New todo..."}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && selectedUserId !== null && title.trim()) {
+                    create();
+                  }
+                }}
+                disabled={selectedUserId === null}
+                className="flex-1"
+              />
+              <Button 
+                onClick={create} 
+                disabled={selectedUserId === null || !title.trim()}
+              >
+                Create
+              </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-md border-2 border-primary/20">
+          <CardHeader>
+            <CardTitle className="text-xl">SQL Query History</CardTitle>
+            <CardDescription>Last 5 executed queries</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {queryHistory.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">No queries executed yet</p>
+            ) : (
+              <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                {queryHistory
+                  .slice()
+                  .reverse()
+                  .map((entry, idx) => (
+                    <Card key={idx} className="bg-gradient-to-br from-muted to-muted/50 border-2 border-primary/20 shadow-sm">
+                      <CardContent className="pt-6">
+                        <div className="mb-3 text-xs font-medium text-muted-foreground flex items-center gap-2">
+                          <span className="inline-block w-2 h-2 rounded-full bg-primary"></span>
+                          {new Date(entry.timestamp).toLocaleTimeString()}
+                        </div>
+                        <div className="mb-3 rounded-lg bg-[#1e1e1e] p-4 border border-primary/20 shadow-inner">
+                          <SyntaxHighlight code={entry.sql} language="sql" className="text-xs" />
+                        </div>
+                        {entry.params.length > 0 && (
+                          <details className="mt-2">
+                            <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
+                              Parameters ({entry.params.length})
+                            </summary>
+                            <pre className="mt-2 overflow-auto rounded-lg bg-background p-2 text-xs font-mono border border-primary/20 shadow-inner">
+                              {JSON.stringify(entry.params, null, 2)}
+                            </pre>
+                          </details>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
