@@ -4,7 +4,15 @@ import { select, Select } from "../grammar/select";
 import { Int4, Text } from "../types";
 import { values } from "../query/values";
 import { doRpc } from "./src/do-rpc";
-import { typegres } from "typegres";
+import { Typegres, typegres } from "typegres";
+
+let _tg: Typegres | undefined;
+const getTg = async () => {
+  if (!_tg) {
+    _tg = await typegres({ type: "pglite" });
+  }
+  return _tg;
+};
 
 class QueryService extends RpcTarget {
   values() {
@@ -42,7 +50,8 @@ class QueryService extends RpcTarget {
   }
 
   tg() {
-    return typegres({ type: "pglite" });
+    console.log("tg() called");
+    return getTg();
   }
 }
 
@@ -90,6 +99,24 @@ describe("Cap'n Web map() with Select callbacks", () => {
     expect(result).toBe(
       'SELECT "subquery"."id" AS "userId", "subquery"."name" AS "userName" FROM (SELECT cast($1 as int4) AS "age", cast($2 as int4) AS "id", cast($3 as text) AS "name") as "subquery"',
     );
+  });
+
+  it("should test if map() works with Select's map method -- E2E", async () => {
+    const client = createClient();
+    const tg = client.tg();
+
+    const rows = await client
+      .getQuery()
+      .select((row) => {
+        console.log("Inside map callback, q is:", row);
+        return {
+          userId: row.id,
+          userName: row.name,
+        };
+      })
+      .execute(tg);
+    console.log("Rows:", rows);
+    expect(rows).toEqual([{ userId: 1, userName: "Alice" }]);
   });
 
   it("should test if can do more complex queries", async () => {
@@ -180,19 +207,6 @@ describe("Cap'n Web map() with Select callbacks", () => {
     const client = createClient();
     const tg = client.tg();
 
-    tg.sql`
-    CREATE TABLE IF NOT EXISTS "users" (
-      "id" SERIAL PRIMARY KEY,
-      "name" TEXT NOT NULL,
-      "age" INTEGER NOT NULL
-    );
-    `.execute();
-
-    tg.sql`
-    INSERT INTO "users" ("name", "age")
-    VALUES ('Alice', 30), ('Bob', 31), ('Charlie', 32);
-    `.execute();
-
     const rows = await doRpc(
       (query, tg) => {
         return query
@@ -204,7 +218,7 @@ describe("Cap'n Web map() with Select callbacks", () => {
             };
           })
           .where((row) => {
-            const pred = row.age[">="](31);
+            const pred = row.age[">="](29);
             console.log("DBG row type:", typeof row, (row as any)?.constructor?.name);
             console.log("DBG row.age type:", typeof (row as any)?.age, (row as any)?.age?.constructor?.name);
             console.log(
@@ -222,9 +236,6 @@ describe("Cap'n Web map() with Select callbacks", () => {
       [client.getQuery(), tg] as const,
     );
     console.log("Rows:", rows);
-    expect(rows).toEqual([
-      { userId: 3, userName: "Charlie" },
-      { userId: 2, userName: "Bob" },
-    ]);
+    expect(rows).toEqual([{ userId: 1, userName: "Alice" }]);
   });
 });

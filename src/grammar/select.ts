@@ -3,7 +3,16 @@ import invariant from "tiny-invariant";
 import type { XOR } from "ts-xor";
 import { inspect } from "cross-inspect";
 import { Typegres } from "../db";
-import { Context, ExistsExpression, Expression, NotExistsExpression, QueryAlias, LiteralExpression, LiteralUnknownExpression, BinaryOperatorExpression } from "../expression";
+import {
+  Context,
+  ExistsExpression,
+  Expression,
+  NotExistsExpression,
+  QueryAlias,
+  LiteralExpression,
+  LiteralUnknownExpression,
+  BinaryOperatorExpression,
+} from "../expression";
 import { FromItem } from "../query/from-item";
 import { aliasRowLike, parseRowLike, pickAny, RowLikeResult } from "../query/values";
 import * as Types from "../types";
@@ -116,18 +125,6 @@ export class Select<
   }
 
   select<S2 extends Types.RowLike>(fn: (...args: Types.FromToSelectArgs<F, J>) => S2): Select<S2, F, J> {
-    console.log("Select.select called with fn:", fn);
-    console.log("fn.name:", (fn as any).name);
-    console.log("Is fn callbackFunc?", (fn as any).name === 'callbackFunc');
-    
-    // Test: call the function to see what it returns
-    if ((fn as any).name === 'callbackFunc') {
-      const testArgs = this.selectArgs();
-      console.log("TEST: Calling fn with args to see what it returns");
-      const testResult = fn(...testArgs);
-      console.log("TEST: fn returned:", testResult);
-    }
-    
     const [, ...opts] = this.clause;
     const { union, unionAll, intersect, intersectAll, except, exceptAll, ...rest } = opts[0] ?? {};
     invariant(
@@ -222,20 +219,20 @@ export class Select<
     const { all, distinct, distinctOn, ...rest } = opts ?? {};
     const args = this.selectArgs();
     const ctx = this.fromItem?.getContext(ctxIn) ?? ctxIn;
-    
+
     // Cache the select result to avoid multiple RPC calls
     const getSelectResult = () => {
       if (!this._cachedSelectResult) {
         console.log("Calling select function in compile with args:", args);
         console.log("select function is:", select);
-        console.log("Is select a function?", typeof select === 'function');
+        console.log("Is select a function?", typeof select === "function");
         console.log("select.name:", (select as any).name);
         this._cachedSelectResult = select(...args);
         console.log("Result from select function:", this._cachedSelectResult);
       }
       return this._cachedSelectResult;
     };
-    
+
     const clauses = compileClauses(
       {
         all,
@@ -359,12 +356,38 @@ export class Select<
     return this._cachedSelectResult;
   }
 
-  executeTest(): {value: 1} {
-    return {value:1};
+  executeTest(): { value: 1 } {
+    return { value: 1 };
   }
 
   async execute(typegres: Typegres): Promise<RowLikeResult<S>[]> {
     const compiled = this.compile();
+    console.log("Compiled query:", compiled.compile(dummyDb).sql);
+    // typegres should be an instance of Typegres, not an RpcStub
+    // If it's an RpcStub, try to resolve it
+    // RpcStubs are callable functions, so check for 'raw' property
+    if (typegres && !(typegres instanceof Typegres) && (typegres as any).raw) {
+      console.log("WARNING: typegres is still an RpcStub, attempting to resolve...");
+      const raw = (typegres as any).raw;
+      if (raw?.hook) {
+        const hook = raw.hook as any;
+        if (typeof hook.getTarget === "function") {
+          try {
+            typegres = hook.getTarget() as Typegres;
+            console.log("Resolved typegres from hook.getTarget()");
+          } catch (e) {
+            console.error("Failed to resolve typegres:", e);
+          }
+        } else if (hook.target !== undefined) {
+          typegres = hook.target as Typegres;
+          console.log("Resolved typegres from hook.target");
+        }
+      }
+    }
+    // typegres should now be a Typegres instance after resolution in deliverCall
+    if (!(typegres instanceof Typegres)) {
+      console.error("ERROR: typegres is not a Typegres instance:", typegres?.constructor?.name, typegres);
+    }
     const compiledRaw = compiled.compile(typegres._internal);
 
     let rows: unknown[];
@@ -454,12 +477,10 @@ export class Select<
    */
   async one(typegres: Typegres): Promise<null | (F extends Table<any> ? InstanceType<F> : RowLikeResult<S>)> {
     const source = this.clause[1]?.from;
-    const [row, ...rest] = await this.select(
-      (x) =>  x
-    ).execute(typegres);
-    invariant(rest.length === 0, "Expected no more than one row"); 
+    const [row, ...rest] = await this.select((x) => x).execute(typegres);
+    invariant(rest.length === 0, "Expected no more than one row");
 
-    return !row ? null :(isTableClass(source) ? new source(row) : row ) as any;
+    return !row ? null : ((isTableClass(source) ? new source(row) : row) as any);
   }
 }
 

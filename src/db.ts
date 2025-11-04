@@ -41,6 +41,7 @@ export class Typegres extends RpcTarget {
   async executeCompiled(compiledSql: string, parameters: unknown[]): Promise<unknown[]> {
     this._lastSql = compiledSql;
     this._lastParams = parameters;
+    console.log("Executing query:", this.kysely);
     const result = await this.kysely.executeQuery({
       sql: compiledSql,
       parameters: parameters,
