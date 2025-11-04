@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApi } from "../use-capnweb";
-import { Int4 } from "../../../types";
 import { doRpc } from "../do-rpc";
 import type { User, Todo as TodoInstance } from "../api";
 import { RpcStub, RpcTarget } from "capnweb";
@@ -99,7 +98,7 @@ export const App = () => {
           return api
             .todos()
             .select((t) => t)
-            .where((t) => t.id["="](Int4.new(id)))
+            .where((t) => t.id["="](id))
             .one(tg);
         },
         [api, tg] as const,
@@ -139,7 +138,7 @@ export const App = () => {
           return api
             .todos()
             .select((t) => t)
-            .where((t) => t.id["="](Int4.new(id)))
+            .where((t) => t.id["="](id))
             .one(tg);
         },
         [api, tg] as const,

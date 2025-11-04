@@ -5,6 +5,7 @@ import { Context } from "../expression";
 import { parseRowLike, RowLikeResult } from "../query/values";
 import * as Types from "../types";
 import { chainWhere, compileClauses, sqlJoin } from "./utils";
+import { RpcTarget } from "capnweb";
 
 /*
 https://www.postgresql.org/docs/current/sql-delete.html
@@ -26,7 +27,7 @@ export class Delete<
   U extends Types.RowLike = {},
   J extends Types.Joins = {},
   R extends Types.RowLike = D,
-> {
+> extends RpcTarget {
   private usingItem: Types.FromItem<U, J> | undefined;
 
   constructor(
@@ -39,6 +40,7 @@ export class Delete<
       },
     ],
   ) {
+    super();
     this.usingItem = clause[1].using?.asFromItem();
   }
 

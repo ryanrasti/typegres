@@ -5,6 +5,7 @@ import { Context } from "../expression";
 import { parseRowLike, pickAny, RowLikeResult } from "../query/values";
 import * as Types from "../types";
 import { chainWhere, compileClauses, sqlJoin } from "./utils";
+import { RpcTarget } from "capnweb";
 
 /*
 https://www.postgresql.org/docs/current/sql-update.html
@@ -31,7 +32,7 @@ export class Update<
   F extends Types.RowLike = U,
   J extends Types.Joins = {},
   R extends Types.RowLike = U,
-> {
+> extends RpcTarget {
   private fromItem: Types.FromItem<F, J> | undefined;
 
   constructor(
@@ -45,6 +46,7 @@ export class Update<
       },
     ],
   ) {
+    super();
     if (!this.clause[1].set) {
       // SQL requires a SET clause but we allow omitting it to make the query
       // builder simpler.
