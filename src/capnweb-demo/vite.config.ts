@@ -12,6 +12,7 @@ export default defineConfig({
       capnweb: path.resolve(__dirname, "src/capnweb/src/index.ts"),
       // Ignore pg module (Node.js only, not used in browser)
       pg: path.resolve(__dirname, "src/empty-module.ts"),
+      "@": path.resolve(__dirname, "src"),
     },
   },
   optimizeDeps: {

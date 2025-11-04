@@ -7,35 +7,49 @@ import { User, Todos } from "./models";
 import { Text, Int4 } from "../../types";
 
 export const runSeeds = async (tg: Typegres) => {
-  const [john] = await insert(
+  // Create "Mr. Typegres" user
+  const [mrTypegres] = await insert(
     { into: User },
     values({
-      username: Text.new("John Doe"),
+      username: Text.new("Mr. Typegres"),
     }),
   )
-    .returning((j) => j)
+    .returning((u) => u)
     .execute(tg);
 
-  const todo1 = await insert(
-    { into: Todos },
-    values({
-      title: Text.new("Buy groceries"),
-      user_id: Int4.new(john.id),
-    }),
-  ).execute(tg);
-
-  const todo2 = await insert(
-    { into: Todos },
-    values({
-      title: Text.new("Buy a new car"),
-      user_id: Int4.new(john.id),
-    }),
-  ).execute(tg);
-
-  const [jane] = await insert(
+  // Create "Mrs. Cap'n Web" user
+  const [mrsCapnWeb] = await insert(
     { into: User },
     values({
-      username: Text.new("Jane Doe"),
+      username: Text.new("Mrs. Cap'n Web"),
+    }),
+  )
+    .returning((u) => u)
+    .execute(tg);
+
+  // Add some initial todos for Mr. Typegres
+  await insert(
+    { into: Todos },
+    values({
+      title: Text.new("Build amazing type-safe queries"),
+      user_id: Int4.new(mrTypegres.id),
+    }),
+  ).execute(tg);
+
+  await insert(
+    { into: Todos },
+    values({
+      title: Text.new("Demonstrate RPC capabilities"),
+      user_id: Int4.new(mrTypegres.id),
+    }),
+  ).execute(tg);
+
+  // Add some initial todos for Mrs. Cap'n Web
+  await insert(
+    { into: Todos },
+    values({
+      title: Text.new("Enable seamless browser-server communication"),
+      user_id: Int4.new(mrsCapnWeb.id),
     }),
   ).execute(tg);
 };

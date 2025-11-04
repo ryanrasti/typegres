@@ -1,7 +1,7 @@
 // Intentionally left blank.
 // This file will host Typegres models and capabilities for the demo.
 import { Text, Bool } from "../../types";
-import { insert, update, delete_, select } from "../../grammar";
+import { insert, update, delete_ } from "../../grammar";
 import { values } from "../../query/values";
 import * as Models from "./models";
 import { RpcTarget } from "capnweb";
@@ -26,6 +26,12 @@ export class Api extends RpcTarget {
     async getQueryHistory() {
         const tg = await getTg();
         return tg.getQueryHistory();
+    }
+
+    async getUser(id: number) {
+        const tg = await getTg();
+        const userQuery = this.users().where((u) => u.id.eq(id));
+        return await userQuery.one(tg);
     }
 }
 

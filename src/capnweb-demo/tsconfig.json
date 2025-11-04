@@ -15,7 +15,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "capnweb": ["./src/capnweb/src/index.ts"]
+      "capnweb": ["./src/capnweb/src/index.ts"],
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]
