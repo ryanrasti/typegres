@@ -5,6 +5,7 @@ import { Int4, Text } from "../types";
 import { values } from "../query/values";
 import { doRpc } from "./src/do-rpc";
 import { Typegres, typegres } from "typegres";
+import { User } from "./src/models";
 
 let _tg: Typegres | undefined;
 const getTg = async () => {
@@ -43,6 +44,10 @@ class QueryService extends RpcTarget {
     }))
       .subquery()
       .select();
+  }
+
+  getRealQuery() {
+    return User.select();
   }
 
   test() {
@@ -237,5 +242,32 @@ describe("Cap'n Web map() with Select callbacks", () => {
     );
     console.log("Rows:", rows);
     expect(rows).toEqual([{ userId: 1, userName: "Alice" }]);
+  });
+
+
+  it("should test if can do more complex queries -- using doRpc E2e with one()", async () => {
+    const client = createClient();
+    const tg = client.tg();
+    const tgLocal = await getTg();
+    await tgLocal.sql`CREATE TABLE IF NOT EXISTS "user" (id INT PRIMARY KEY, username TEXT, created_at TIMESTAMP)`.execute();
+    await tgLocal.sql`INSERT INTO "user" (id, username, created_at) VALUES (1, 'Alice', '2021-01-01 00:00:00')`.execute();
+
+    const user = await doRpc(
+      (query, tg) => {
+        return query
+          .select((row) => {
+            console.log("Inside map callback, q is:", row);
+            return {
+              userId: row.id,
+              userName: row.username,
+            };
+          })
+          .execute(tg);
+      },
+      [client.getRealQuery(), tg] as const,
+    );
+    console.log("User:", user);
+    expect(user).toBeInstanceOf(User);
+    expect(user).toEqual({ userId: 1, userName: "Alice" });
   });
 });

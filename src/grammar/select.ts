@@ -482,7 +482,7 @@ export class Select<
     console.log(">>>>>> source", source);
 
     const ret = !row ? null : ((isTableClass(source) ? new source(row) : row) as any);
-    console.log(">>>>>> one result", ret);
+    console.log(">>>>>> one result", ret, ret?.createTodo);
     return ret;
   }
 }
@@ -519,6 +519,7 @@ export const select = <S extends Types.RowLike, F extends Types.RowLike, J exten
   select: (...args: Types.FromToSelectArgs<F, J>) => S,
   opts?: SelectOpts<S, F, J>,
 ) => {
+  console.log(">>>>>> select called with select:", select.toString(), "opts:", opts);
   return new Select<S, F, J>([select, opts]);
 };
 

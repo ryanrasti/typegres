@@ -9,6 +9,7 @@ import * as Types from "../types";
 import { Repeated } from "../types";
 import { Select } from "./select";
 import { compileClauses, sqlJoin } from "./utils";
+import { RpcTarget } from "capnweb";
 
 /*
 [ WITH [ RECURSIVE ] with_query [, ...] ]
@@ -39,10 +40,11 @@ export class Insert<
   K extends keyof I = keyof I,
   R extends Types.RowLike = I,
   V extends TableSchemaToRowLikeStrict<TS> = TableSchemaToRowLikeStrict<TS>,
-> {
+> extends RpcTarget {
   public clause: Parameters<typeof insert<I, TS, K, R, V>>;
 
   constructor(clause: Parameters<typeof insert<I, TS, K, R, V>>) {
+    super();
     this.clause = [...clause];
     if (!this.clause[1]) {
       // insertion values are required, but we allow omitting them to make the

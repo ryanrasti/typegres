@@ -3,6 +3,7 @@ import { useApi } from "../use-capnweb";
 import { Int4 } from "../../../types";
 import { doRpc } from "../do-rpc";
 import type { User, Todo as TodoInstance } from "../api";
+import { RpcStub, RpcTarget } from "capnweb";
 
 type Todo = { id: number; title: string; completed: boolean };
 
@@ -53,7 +54,7 @@ export const App = () => {
     if (!title.trim()) return;
     try {
       const tg = api.getTg();
-      const result = await doRpc(
+      const r1 = doRpc(
         (api, tg) => {
           const one = api
             .users()
@@ -64,9 +65,13 @@ export const App = () => {
         },
         [api, tg] as const,
       );
-      console.log(">>>>>> user result", await result);
+      console.log(">>>>>> r1", r1);
+      const result = await r1;
+      console.log(">>>>>> user result", result);
       //console.log('>> result 2:', await api.users().select((u) => u).sql());
-      const user = result as User | null;
+      const user = result as RpcStub<User>;
+      console.log(">>>>>> user as stub", user.createTodo, user.createTodo("foo"));
+      console.log(">>>>>> await user.createTodo('foo')", await user.createTodo("foo"));
       if (!user) {
         console.error("User not found");
         return;

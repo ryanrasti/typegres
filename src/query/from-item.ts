@@ -291,6 +291,7 @@ export class FromItem<F extends RowLike = RowLike, J extends Joins = Joins> impl
     this: WithFromItem<F, J>,
     cb?: ((f: F, j: JoinTables<J>) => S) | ((f: F) => S),
   ): Select<S, F, J> {
+    console.log(">>>>>> select called with this:", this);
     return select<S, F, J>(cb ?? ((f: F) => f as unknown as S), {
       from: this,
     }) as Select<S, F, J>;

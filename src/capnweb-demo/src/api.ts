@@ -1,23 +1,23 @@
 // Intentionally left blank.
 // This file will host Typegres models and capabilities for the demo.
-import { Text, Int4, Bool } from "../../types";
-import { insert, update, delete_ } from "../../grammar";
+import { Text, Bool } from "../../types";
+import { insert, update, delete_, select } from "../../grammar";
 import { values } from "../../query/values";
 import * as Models from "./models";
 import { RpcTarget } from "capnweb";
 import { typegres, Typegres } from "../../db";
 import { migrate } from "./migrate";
 import { runSeeds } from "./seeds";
-import invariant from "tiny-invariant";
 
 export class Api extends RpcTarget {
     users() {
-        return Models.User.select()
+        console.log(">>>>>> users called");
+        return select((u) => /*foo */ u, { from: User })
     }
 
 	// All todos (for demo convenience in FE)
 	todos() {
-		return Models.Todos.select()
+		return Todo.select()
 	}
 
     async getTg() {
@@ -27,28 +27,30 @@ export class Api extends RpcTarget {
 
 export class User extends Models.User {
     todos() {
-        return Models.Todos.select().where((t) => t.user_id.eq(this.id))
+        return Todo.select().where((t) => t.user_id.eq(this.id))
     }
 
     //
     createTodo(title: string) {
-		return insert({ into: Models.Todos }, values({
+		const ret = insert({ into: Models.Todos }, values({
 			title: Text.new(title),
 			user_id: this.id,
 		}))
+        console.log(">>>>>> createTodo ret", ret);
+        return ret;
     }
 }
 
 export class Todo extends Models.Todos {
     // Update
     update(title: string) {
-		return update(Models.Todos)
+		return update(Todo)
 			.set(() => ({ title: Text.new(title) }))
 			.where((t) => t.id.eq(this.id))
     }
 
 	setCompleted(completed: boolean) {
-		return update(Models.Todos)
+		return update(Todo)
 			.set(() => ({ completed: Bool.new(completed) }))
 			.where((t) => t.id.eq(this.id))
 	}
