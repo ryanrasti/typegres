@@ -22,6 +22,11 @@ export class Api extends RpcTarget {
     async getTg() {
         return await getTg();
     }
+
+    async getQueryHistory() {
+        const tg = await getTg();
+        return tg.getQueryHistory();
+    }
 }
 
 export class User extends Models.User {

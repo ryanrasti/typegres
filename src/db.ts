@@ -10,14 +10,35 @@ export interface TypegresTransaction extends Typegres {
   readonly isTransaction: true;
 }
 
+export type QueryHistoryEntry = {
+  sql: string;
+  params: unknown[];
+  timestamp: number;
+};
+
 export class Typegres extends RpcTarget {
   protected kysely: Kysely<{}> | Transaction<{}>;
   private _lastSql: string | undefined;
   private _lastParams: unknown[] | undefined;
+  private _queryHistory: QueryHistoryEntry[] = [];
+  private readonly MAX_HISTORY = 5;
 
   protected constructor(kysely: Kysely<{}> | Transaction<{}>) {
     super();
     this.kysely = kysely;
+  }
+
+  private _addToHistory(sql: string, params: unknown[]): void {
+    const entry: QueryHistoryEntry = {
+      sql,
+      params: [...params],
+      timestamp: Date.now(),
+    };
+    this._queryHistory.push(entry);
+    // Keep only last MAX_HISTORY entries
+    if (this._queryHistory.length > this.MAX_HISTORY) {
+      this._queryHistory.shift();
+    }
   }
 
   // Execute raw SQL query using template literal
@@ -30,6 +51,7 @@ export class Typegres extends RpcTarget {
         const compiled = query.compile(kysely);
         this._lastSql = compiled.sql;
         this._lastParams = [...compiled.parameters];
+        this._addToHistory(compiled.sql, compiled.parameters);
         const result = await kysely.executeQuery(compiled);
 
         return result.rows as T[];
@@ -41,6 +63,7 @@ export class Typegres extends RpcTarget {
   async executeCompiled(compiledSql: string, parameters: unknown[]): Promise<unknown[]> {
     this._lastSql = compiledSql;
     this._lastParams = parameters;
+    this._addToHistory(compiledSql, parameters);
     console.log("Executing query:", this.kysely);
     const result = await this.kysely.executeQuery({
       sql: compiledSql,
@@ -63,6 +86,11 @@ export class Typegres extends RpcTarget {
       sql: this._lastSql,
       params: this._lastParams ?? [],
     };
+  }
+
+  // Get query history (last 5 queries)
+  getQueryHistory(): QueryHistoryEntry[] {
+    return [...this._queryHistory];
   }
 
   // Close the connection

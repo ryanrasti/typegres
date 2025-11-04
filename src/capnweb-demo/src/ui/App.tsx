@@ -2,15 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useApi } from "../use-capnweb";
 import { doRpc } from "../do-rpc";
 import type { User, Todo as TodoInstance } from "../api";
-import { RpcStub, RpcTarget } from "capnweb";
+import { RpcStub } from "capnweb";
 
 type Todo = { id: number; title: string; completed: boolean };
+type QueryHistoryEntry = { sql: string; params: unknown[]; timestamp: number };
 
 export const App = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [query, setQuery] = useState("");
   const [title, setTitle] = useState("");
-  const [sql, setSql] = useState("");
+  const [queryHistory, setQueryHistory] = useState<QueryHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const api = useApi();
 
@@ -36,8 +37,8 @@ export const App = () => {
         [api, tg] as const,
       );
       setTodos(result as unknown as Todo[]);
-      const lastQuery = await doRpc((tg) => tg.getLastQuery(), [tg] as const);
-      if (lastQuery) setSql(`${lastQuery.sql}\n\nParams: ${JSON.stringify(lastQuery.params, null, 2)}`);
+      const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
+      setQueryHistory(history as QueryHistoryEntry[]);
     } catch (error) {
       console.error("Failed to load todos:", error);
     } finally {
@@ -82,8 +83,8 @@ export const App = () => {
         [user, tg] as const,
       );
       setTitle("");
-      const lastQuery = await doRpc((tg) => tg.getLastQuery(), [tg] as const);
-      if (lastQuery) setSql(`${lastQuery.sql}\n\nParams: ${JSON.stringify(lastQuery.params, null, 2)}`);
+      const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
+      setQueryHistory(history as QueryHistoryEntry[]);
       await loadTodos();
     } catch (error) {
       console.error("Failed to create todo:", error);
@@ -122,8 +123,8 @@ export const App = () => {
           [todo, tg] as const,
         );
       }
-      const lastQuery = await doRpc((tg) => tg.getLastQuery(), [tg] as const);
-      if (lastQuery) setSql(`${lastQuery.sql}\n\nParams: ${JSON.stringify(lastQuery.params, null, 2)}`);
+      const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
+      setQueryHistory(history as QueryHistoryEntry[]);
       await loadTodos();
     } catch (error) {
       console.error("Failed to update todo:", error);
@@ -153,8 +154,8 @@ export const App = () => {
         },
         [todo, tg] as const,
       );
-      const lastQuery = await doRpc((tg) => tg.getLastQuery(), [tg] as const);
-      if (lastQuery) setSql(`${lastQuery.sql}\n\nParams: ${JSON.stringify(lastQuery.params, null, 2)}`);
+      const history = await doRpc((api) => api.getQueryHistory(), [api] as const);
+      setQueryHistory(history as QueryHistoryEntry[]);
       await loadTodos();
     } catch (error) {
       console.error("Failed to delete todo:", error);
@@ -219,10 +220,33 @@ export const App = () => {
       </ul>
 
       <div className="mt-6">
-        <h3 className="text-lg font-medium">Last SQL Query</h3>
-        <pre className="mt-2 max-h-64 overflow-auto rounded bg-zinc-900 p-3 text-zinc-100 text-sm">
-          {sql || "/* SQL for last action will appear here */"}
-        </pre>
+        <h3 className="text-lg font-medium">SQL Query History (Last 5)</h3>
+        {queryHistory.length === 0 ? (
+          <p className="mt-2 text-gray-500 text-sm">No queries executed yet</p>
+        ) : (
+          <div className="mt-2 space-y-3">
+            {queryHistory.slice().reverse().map((entry, idx) => (
+              <div key={idx} className="rounded bg-zinc-900 p-3">
+                <div className="mb-2 text-xs text-zinc-400">
+                  {new Date(entry.timestamp).toLocaleTimeString()}
+                </div>
+                <pre className="mb-2 overflow-auto text-zinc-100 text-sm whitespace-pre-wrap break-words">
+                  {entry.sql}
+                </pre>
+                {entry.params.length > 0 && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs text-zinc-400 hover:text-zinc-300">
+                      Parameters ({entry.params.length})
+                    </summary>
+                    <pre className="mt-1 overflow-auto text-zinc-300 text-xs">
+                      {JSON.stringify(entry.params, null, 2)}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
