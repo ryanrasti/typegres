@@ -1,0 +1,6 @@
+{
+  "startCommand": "cd src/capnweb-demo npm run dev",
+  "installCommand": "npm run setup:demo",
+  "openFile": "src/capnweb-demo/src/ui/App.tsx"
+}
+
