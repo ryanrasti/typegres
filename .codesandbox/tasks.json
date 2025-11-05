@@ -1,0 +1,20 @@
+{
+  "$schema": "https://codesandbox.io/schemas/tasks.json",
+  "setupTasks": [
+    {
+      "name": "Install Dependencies",
+      "command": "npm run setup:demo"
+    }
+  ],
+  "tasks": {
+    "dev": {
+      "name": "Start Development Server",
+      "command": "cd src/capnweb-demo && npm run dev",
+      "runAtStart": true,
+      "preview": {
+        "port": 5173
+      }
+    }
+  }
+}
+

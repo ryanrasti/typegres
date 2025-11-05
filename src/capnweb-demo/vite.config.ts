@@ -24,6 +24,12 @@ export default defineConfig({
     target: "esnext", // Also set for dev mode
   },
   server: {
+    host: true, // Allow external connections
+    allowedHosts: [
+      ".csb.app", // CodeSandbox wildcard
+      ".stackblitz.io", // StackBlitz wildcard
+      "localhost",
+    ],
     fs: {
       // Allow serving files from one level up to the project root
       allow: ["../.."],
