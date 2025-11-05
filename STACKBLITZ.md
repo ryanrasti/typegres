@@ -1,5 +1,10 @@
 # Deploying to StackBlitz
 
+**Note**: If StackBlitz is slow on your machine, try:
+- **CodeSandbox** (see `CODESANDBOX.md`) - often faster
+- **Replit** (see `REPLIT.md`) - runs on their servers, not your laptop
+- **GitHub Codespaces** (see `REPLIT.md`) - very fast, professional
+
 ## Simplest Method: Import Entire Repo
 
 Since your project is on GitHub and has multiple npm projects, you can import the entire repository:
