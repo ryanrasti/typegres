@@ -2,6 +2,10 @@
   "$schema": "https://codesandbox.io/schemas/tasks.json",
   "setupTasks": [
     {
+      "name": "Init submodules",
+      "command": "git submodule update --init --recursive"
+    },
+    {
       "name": "Install Dependencies",
       "command": "npm run setup:demo"
     }
@@ -17,4 +21,3 @@
     }
   }
 }
-
