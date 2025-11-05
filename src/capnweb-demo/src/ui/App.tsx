@@ -73,7 +73,6 @@ export const App = () => {
           id: t.id,
           title: t.title,
           completed: t.completed,
-          user_id: t.user_id,
         }));
         if (searchQuery && searchQuery.trim()) {
           // We can dynamically modify the query using any Postgres primitive.
@@ -85,7 +84,7 @@ export const App = () => {
       [user, searchQuery, api] as const,
     );
     
-    setTodos(result as Todo[]);
+    setTodos(result);
     await loadQueryHistory();
     setLoading(false);
   };
@@ -114,18 +113,19 @@ export const App = () => {
     await loadTodos(selectedUsername, query);
   };
 
-  const update = async (id: number, patch: Partial<Todo>) => {
-    if (!selectedUsername) return;
+  const getTodoById = async (id: number) => {
+    if (!selectedUsername) return null;
     const user = await getCurrentUser(selectedUsername);
-    if (!user) return;
-
-    const todo = await doRpc(
+    if (!user) return null;
+    return await doRpc(
       async (user, api) => user.todos().where((t) => t.id.eq(id)).one(await api.tg()),
       [user, api] as const,
     );
-    
-    if (!todo) return;
+  };
 
+  const update = async (id: number, patch: Partial<Todo>) => {
+    const todo = await getTodoById(id);
+    if (!todo) return;
     await doRpc(
       async (todo, api) => todo.update(patch).execute(await api.tg()),
       [todo, api] as const,
@@ -135,17 +135,8 @@ export const App = () => {
   };
 
   const deleteTodo = async (id: number) => {
-    if (!selectedUsername) return;
-    const user = await getCurrentUser(selectedUsername);
-    if (!user) return;
-
-    const todo = await doRpc(
-      async (user, api) => user.todos().where((t) => t.id.eq(id)).one(await api.tg()),
-      [user, api] as const,
-    );
-    
+    const todo = await getTodoById(id);
     if (!todo) return;
-    
     await doRpc(
       async (todo, api) => todo.delete().execute(await api.tg()),
       [todo, api] as const,
@@ -282,93 +273,83 @@ export const App = () => {
               <p className="text-center text-muted-foreground py-8">No queries executed yet</p>
             ) : (
               <div className="grid grid-cols-2 gap-4 max-h-[600px] overflow-y-auto">
-                {/* Select Queries Column */}
-                <div className="space-y-3">
-                  <div className="text-sm font-semibold text-primary mb-2 sticky top-0 bg-background pb-2 z-10">
-                    Select
-                  </div>
-                  {queryHistory
-                    .slice()
-                    .reverse()
-                    .filter((entry) => entry.sql.trim().toUpperCase().startsWith("SELECT"))
-                    .map((entry, idx) => (
-                      <Card key={idx} className="bg-gradient-to-br from-muted to-muted/50 border-2 border-primary/20 shadow-sm">
-                        <CardContent className="pt-6">
-                          <div className="mb-3 text-xs font-medium text-muted-foreground flex items-center gap-2">
-                            <span className="inline-block w-2 h-2 rounded-full bg-primary"></span>
-                            {new Date(entry.timestamp).toLocaleTimeString()}
-                          </div>
-                          <div className="mb-3 rounded-lg bg-[#1e1e1e] p-4 border border-primary/20 shadow-inner">
-                            <SyntaxHighlight code={entry.sql} language="sql" className="text-xs" />
-                          </div>
-                          {entry.params.length > 0 && (
-                            <details className="mt-2">
-                              <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
-                                Parameters ({entry.params.length})
-                              </summary>
-                              <pre className="mt-2 overflow-auto rounded-lg bg-background p-2 text-xs font-mono border border-primary/20 shadow-inner">
-                                {JSON.stringify(entry.params, null, 2)}
-                              </pre>
-                            </details>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  {queryHistory
-                    .slice()
-                    .reverse()
-                    .filter((entry) => entry.sql.trim().toUpperCase().startsWith("SELECT"))
-                    .length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">No SELECT queries</p>
-                  )}
-                </div>
+                {(() => {
+                  const reversed = queryHistory.slice().reverse();
+                  const isSelect = (sql: string) => sql.trim().toUpperCase().startsWith("SELECT");
+                  return (
+                    <>
+                      {/* Select Queries Column */}
+                      <div className="space-y-3">
+                        <div className="text-sm font-semibold text-primary mb-2 sticky top-0 bg-background pb-2 z-10">
+                          Select
+                        </div>
+                        {reversed
+                          .filter((entry) => isSelect(entry.sql))
+                          .map((entry, idx) => (
+                            <Card key={idx} className="bg-gradient-to-br from-muted to-muted/50 border-2 border-primary/20 shadow-sm">
+                              <CardContent className="pt-6">
+                                <div className="mb-3 text-xs font-medium text-muted-foreground flex items-center gap-2">
+                                  <span className="inline-block w-2 h-2 rounded-full bg-primary"></span>
+                                  {new Date(entry.timestamp).toLocaleTimeString()}
+                                </div>
+                                <div className="mb-3 rounded-lg bg-[#1e1e1e] p-4 border border-primary/20 shadow-inner">
+                                  <SyntaxHighlight code={entry.sql} language="sql" className="text-xs" />
+                                </div>
+                                {entry.params.length > 0 && (
+                                  <details className="mt-2">
+                                    <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
+                                      Parameters ({entry.params.length})
+                                    </summary>
+                                    <pre className="mt-2 overflow-auto rounded-lg bg-background p-2 text-xs font-mono border border-primary/20 shadow-inner">
+                                      {JSON.stringify(entry.params, null, 2)}
+                                    </pre>
+                                  </details>
+                                )}
+                              </CardContent>
+                            </Card>
+                          ))}
+                        {reversed.filter((entry) => isSelect(entry.sql)).length === 0 && (
+                          <p className="text-xs text-muted-foreground text-center py-4">No SELECT queries</p>
+                        )}
+                      </div>
 
-                {/* Mutations Column */}
-                <div className="space-y-3">
-                  <div className="text-sm font-semibold text-primary mb-2 sticky top-0 bg-background pb-2 z-10">
-                    Mutations
-                  </div>
-                  {queryHistory
-                    .slice()
-                    .reverse()
-                    .filter(
-                      (entry) =>
-                        !entry.sql.trim().toUpperCase().startsWith("SELECT")
-                    )
-                    .map((entry, idx) => (
-                      <Card key={idx} className="bg-gradient-to-br from-muted to-muted/50 border-2 border-primary/20 shadow-sm">
-                        <CardContent className="pt-6">
-                          <div className="mb-3 text-xs font-medium text-muted-foreground flex items-center gap-2">
-                            <span className="inline-block w-2 h-2 rounded-full bg-primary"></span>
-                            {new Date(entry.timestamp).toLocaleTimeString()}
-                          </div>
-                          <div className="mb-3 rounded-lg bg-[#1e1e1e] p-4 border border-primary/20 shadow-inner">
-                            <SyntaxHighlight code={entry.sql} language="sql" className="text-xs" />
-                          </div>
-                          {entry.params.length > 0 && (
-                            <details className="mt-2">
-                              <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
-                                Parameters ({entry.params.length})
-                              </summary>
-                              <pre className="mt-2 overflow-auto rounded-lg bg-background p-2 text-xs font-mono border border-primary/20 shadow-inner">
-                                {JSON.stringify(entry.params, null, 2)}
-                              </pre>
-                            </details>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  {queryHistory
-                    .slice()
-                    .reverse()
-                    .filter(
-                      (entry) =>
-                        !entry.sql.trim().toUpperCase().startsWith("SELECT")
-                    )
-                    .length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">No mutations</p>
-                  )}
-                </div>
+                      {/* Mutations Column */}
+                      <div className="space-y-3">
+                        <div className="text-sm font-semibold text-primary mb-2 sticky top-0 bg-background pb-2 z-10">
+                          Mutations
+                        </div>
+                        {reversed
+                          .filter((entry) => !isSelect(entry.sql))
+                          .map((entry, idx) => (
+                            <Card key={idx} className="bg-gradient-to-br from-muted to-muted/50 border-2 border-primary/20 shadow-sm">
+                              <CardContent className="pt-6">
+                                <div className="mb-3 text-xs font-medium text-muted-foreground flex items-center gap-2">
+                                  <span className="inline-block w-2 h-2 rounded-full bg-primary"></span>
+                                  {new Date(entry.timestamp).toLocaleTimeString()}
+                                </div>
+                                <div className="mb-3 rounded-lg bg-[#1e1e1e] p-4 border border-primary/20 shadow-inner">
+                                  <SyntaxHighlight code={entry.sql} language="sql" className="text-xs" />
+                                </div>
+                                {entry.params.length > 0 && (
+                                  <details className="mt-2">
+                                    <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
+                                      Parameters ({entry.params.length})
+                                    </summary>
+                                    <pre className="mt-2 overflow-auto rounded-lg bg-background p-2 text-xs font-mono border border-primary/20 shadow-inner">
+                                      {JSON.stringify(entry.params, null, 2)}
+                                    </pre>
+                                  </details>
+                                )}
+                              </CardContent>
+                            </Card>
+                          ))}
+                        {reversed.filter((entry) => !isSelect(entry.sql)).length === 0 && (
+                          <p className="text-xs text-muted-foreground text-center py-4">No mutations</p>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
           </CardContent>

@@ -19,7 +19,7 @@ export class Api extends RpcTarget {
     // Entry point to get a `User` instance. In real life, we'd need to pass a credential
     // (not just the username) to get the user.
     getUserByName(username: string) {
-        return  User.select(u => new User(u)).where((u) => u.username.eq(username));
+        return User.select(u => new User(u)).where((u) => u.username.eq(username));
     }
 
     // To populate the user dropdown in the UI. In real life, this wouldn't exist.
