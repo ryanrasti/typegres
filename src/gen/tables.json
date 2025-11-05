@@ -1,0 +1,68 @@
+{
+  "public": {
+    "person": {
+      "firstName": {
+        "type": "varchar",
+        "not_null": true
+      },
+      "lastName": {
+        "type": "varchar",
+        "not_null": false
+      },
+      "gender": {
+        "type": "varchar",
+        "not_null": true
+      },
+      "id": {
+        "type": "int4",
+        "not_null": true
+      },
+      "createdAt": {
+        "type": "timestamp",
+        "not_null": true
+      }
+    },
+    "kysely_migration": {
+      "name": {
+        "type": "varchar",
+        "not_null": true
+      },
+      "timestamp": {
+        "type": "varchar",
+        "not_null": true
+      }
+    },
+    "pet": {
+      "name": {
+        "type": "varchar",
+        "not_null": true
+      },
+      "ownerId": {
+        "type": "int4",
+        "not_null": true
+      },
+      "species": {
+        "type": "varchar",
+        "not_null": true
+      },
+      "age": {
+        "type": "int4",
+        "not_null": true
+      },
+      "id": {
+        "type": "int4",
+        "not_null": true
+      }
+    },
+    "kysely_migration_lock": {
+      "id": {
+        "type": "varchar",
+        "not_null": true
+      },
+      "is_locked": {
+        "type": "int4",
+        "not_null": true
+      }
+    }
+  }
+}

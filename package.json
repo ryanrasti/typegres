@@ -20,7 +20,7 @@
     "codegen:tables": "./bin/tg introspect -d postgres://postgres:postgres@localhost:1234/test > ./src/gen/tables.ts",
     "clean": "(rm ./src/gen/functions.ts; rm -r ./src/gen/types; rm ./src/gen/tables.json; rm ./src/gen/tables.ts) || true",
     "prepublishOnly": "npm version $(npm pkg get version | tr -d '\"')-$(git rev-parse --short HEAD) --no-git-tag-version",
-    "setup:demo": "npm run install && npm run codegen && cd src/capnweb-demo && npm install && cd src/capnweb && npm run install"
+    "setup:demo": "npm install && cd src/capnweb-demo && npm install && cd src/capnweb && npm install"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "^1.0.77",
