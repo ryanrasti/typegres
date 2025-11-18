@@ -1,10 +1,116 @@
-# Typegres: PostgreSQL, expressed in TypeScript
+# Typegres: SQL-over-RPC, Safely
 
-[![CI](https://github.com/ryanrasti/typegres/actions/workflows/main.yml/badge.svg)](https://github.com/ryanrasti/typegres/actions/workflows/main.yml) [![npm version](https://img.shields.io/npm/v/typegres.svg)](https://www.npmjs.com/package/typegres) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![npm version](https://img.shields.io/npm/v/typegres.svg)](https://www.npmjs.com/package/typegres) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-Import the full power of PostgreSQL as a TypeScript library.
+A TypeScript API framework that lets clients compose any queries they need within boundaries you control.
 
-![Typegres Demo GIF](https://raw.githubusercontent.com/ryanrasti/typegres/main/site/public/typegres_landing_page_demo.gif)
+## Core Principles
+
+### 1. Decouple Your Interface from Your Schema - With All of Postgres, Fully Typed
+
+Wrap your tables in a stable, public interface. You can refactor your "private" tables and columns without ever breaking clients.
+
+```typescript
+// api.ts
+export class User extends Models.User {
+  // Your public interface stays stable as your schema evolves
+  createdAt() {
+    // Before: accessing from JSONB metadata
+    // return this.metadata['->>'](createdAt).cast(Timestamptz);
+
+    // After: direct column access (schema refactored)
+    return this.created_at;
+  }
+}
+```
+
+```typescript
+// route.ts
+// Compiles to the single SQL query you'd write manually.
+const user = await User.select()
+  .orderBy((u) => u.createdAt(), { desc: true })
+  .limit(1)
+  .one(tg);
+```
+
+### 2. Your Interface Defines Your Data Boundaries
+
+Allowed operations are just methods on your interface, including relations and mutations. Everything fully composable and typed.
+
+```typescript
+// api.ts
+export class User extends Models.User {
+  todos() {
+    return Todo.select().where((t) => t.user_id.eq(this.id));
+  }
+}
+
+export class Todo extends Models.Todos {
+  update({ completed }: { completed: boolean }) {
+    return update(Todo)
+      .set((t) => ({ completed }))
+      .where((t) => t.id.eq(this.id));
+  }
+}
+```
+
+```typescript
+// route.ts
+const user = ...
+
+// The only way to get a todo is through a user:
+const todo = await user.todos()
+  .where((t) => t.id.eq(todoId))
+  .one(tg);
+
+// The only way to update a todo is by getting it from a user:
+await todo.update({ completed: true }).execute(tg);
+```
+
+### 3. Expose your API over RPC, Safely (coming soon)
+
+Give clients a composable query builder with your unescapable data boundaries. Compose queries in the client with every Postgres feature (joins, window functions, CTEs, etc.) and function as primitives.
+
+```typescript
+// api.ts
+export class User extends Models.User {
+  // ...
+}
+
+export class Todo extends Models.Todos {
+  // ...
+}
+
+export class Api extends RpcTarget {
+  getUserFromToken(token: string) {
+    return User.select((u) => new User(u)).where((u) => u.token.eq(token));
+  }
+}
+
+// Clients receive composable query builders
+// not flat results
+```
+
+```typescript
+// frontend.tsx
+export function TodoList({ searchQuery }: { searchQuery: string }) {
+  const todos = useTypegresQuery((user) => user.todos()
+    // Arbitrarily compose your base query...
+    .select((t) => ({ id: t.id, title: t.title }))
+    // ...using any Postgres function such as `ilike`:
+    .where((t) => t.title.ilike(`%${searchQuery}%`))
+    .execute(tg)
+  );
+
+  return (
+    <ul>
+      {todos.map((todo) => (
+        <li key={todo.id}>{todo.title}</li>
+      ))}
+    </ul>
+  );
+}
+```
 
 > [!WARNING]
 > **Developer Preview**: Typegres is experimental and not production-ready. The API is evolving rapidly. Try the [playground](https://typegres.com/play/) and star the repo to follow along!
@@ -37,7 +143,7 @@ const activeUsers = await select(
   {
     from: db.users,
     where: (u) => u.isActive,
-  }
+  },
 ).execute(tg);
 
 console.log(activeUsers);
@@ -50,73 +156,6 @@ See the [examples](https://github.com/ryanrasti/typegres/tree/main/examples) dir
 
 - **Try it live**: https://typegres.com/play/
 - **API Reference**: https://typegres.com/api/
-
-## Key Features & Design Goals
-
-While traditional ORMs and query builders abstract over multiple SQL dialects, Typegres goes all-in on PostgreSQL to provide the most powerful and type-safe experience possible. In a single import, you can access the full power of Postgres with complete TypeScript type safety.
-
-- **Not an ORM** – Direct access to every PostgreSQL function as TypeScript methods
-- **Zero SQL strings** – Write complex queries in pure TypeScript with full type inference  
-- **One language** – No context switching between SQL and application code
-
-Focus on learning Postgres itself — Typegres just gives you autocomplete, type-checking, and all other benefits of TypeScript.
-
-## Advanced example
-
-```typescript
-// Find all authors who have published more than 10 posts
-const authorCounts = select(
-  (p) => ({
-    author_id: p.author_id,
-    postCount: p.id.count(),
-  }),
-  {
-    from: db.posts,
-    groupBy: (p) => [p.author_id],
-  }
-);
-
-const prolificAuthors = await select(
-  (ac, { u }) => ({
-    id: u.id,
-    name: u.name,
-    totalPosts: ac.postCount,
-  }),
-  {
-    from: authorCounts.asFromItemjoin(db.users, "u", (ac, { u }) => ac.author_id["="](u.id)),
-    where: (ac) => ac.postCount[">"](10),
-  }
-).execute(tg);
-
-// Type of prolificAuthors is { id: number; name: string; totalPosts: bigint }[]
-```
-
-## Roadmap
-
-🧪 Current Features (Developer Preview)
-
-The project is currently in an early but powerful state. The core foundation is in place:
-
-- [x] Complete Postgres API: Generated types, operators, and functions for the entire Postgres surface.
-- [x] Query Builder Core: A proof-of-concept query builder with SELECT, JOIN, and GROUP BY.
-- [x] Interactive Playground: A live, in-browser demo powered by PGlite.
-
-🚀 Road to v1.0: Production Readiness
-
-The immediate priority is building a rock-solid foundation to make Typegres stable and ready for production use. This includes:
-- [ ] Full query builder: Full support for aggregation, window functions, CTEs.
-- [ ] Full Mutation Support: Robust implementations for INSERT, UPDATE, and DELETE.
-- [ ] Essential Keywords: First-class support for IS NULL, AND, OR, IN, BETWEEN, etc.
-- [ ] Comprehensive Test Suite: Dramatically expand test coverage across all features.
-- [ ] Advanced Type Support: Refined typing for JSONB, arrays, and custom enums.
-- [ ] Inline Documentation: Add TSDoc comments for better in-editor help and discoverability.
-
-🔭 Long-Term Vision: A New Data Layer
-
-Once that stable v1.0 foundation is in place, the roadmap will focus on solving deeper, more fundamental problems that can make significant headway into resolving the object-relational impedance mismatch.
-- [ ] Truly Type-Safe Migrations: Typesafe migrations without codegen.
-- [ ] First-Class Relations: A simple and composable API for relations that feels natural in TypeScript.
-- [ ] An Even More Idiomatic API: Write code that feels even more like TypeScript but produces clean, predictable SQL.
 
 ## Project Structure
 
