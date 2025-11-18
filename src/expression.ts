@@ -3,7 +3,7 @@ import type { RowLike } from "./query/values";
 import type { Any } from "./types";
 import type { OrderBySpec } from "./query/order-by";
 import { compileOrderBy } from "./query/order-by";
-import { escapeLiteral } from "pg";
+import { escapeLiteral } from "./escape-literal";
 
 export class QueryAlias {
   constructor(public name: string) {}

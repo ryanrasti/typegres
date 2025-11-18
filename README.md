@@ -1,6 +1,6 @@
 # Typegres: SQL-over-RPC, Safely
 
-[![npm version](https://img.shields.io/npm/v/typegres.svg)](https://www.npmjs.com/package/typegres) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/ryanrasti/typegres/actions/workflows/main.yml/badge.svg)](https://github.com/ryanrasti/typegres/actions/workflows/main.yml) [![npm version](https://img.shields.io/npm/v/typegres.svg)](https://www.npmjs.com/package/typegres) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 A TypeScript API framework that lets clients compose any queries they need within boundaries you control.
 
@@ -16,7 +16,7 @@ export class User extends Models.User {
   // Your public interface stays stable as your schema evolves
   createdAt() {
     // Before: accessing from JSONB metadata
-    // return this.metadata['->>'](createdAt).cast(Timestamptz);
+    // return this.metadata['->>']('createdAt').cast(Timestamptz);
 
     // After: direct column access (schema refactored)
     return this.created_at;
