@@ -3,17 +3,17 @@ import { Typegres, Text, Int4, Bool, Table } from "typegres";
 
 // Define the database schema using the new Table pattern
 export class Users extends Table("users", {
-  id: Int4<1>,
-  name: Text<1>,
-  age: Int4<1>,
-  isActive: Bool<1>,
+  id: { type: Int4<1>, required: false },
+  name: { type: Text<1>, required: true },
+  age: { type: Int4<1>, required: true },
+  isActive: { type: Bool<1>, required: true },
 }) {}
 
 export class Posts extends Table("posts", {
-  id: Int4<1>,
-  author_id: Int4<1>,
-  title: Text<1>,
-  created_at: Text<1>, // Treating timestamp as text for simplicity
+  id: { type: Int4<1>, required: false },
+  author_id: { type: Int4<1>, required: true },
+  title: { type: Text<1>, required: true },
+  created_at: { type: Text<1>, required: true }, // Treating timestamp as text for simplicity
 }) {}
 
 // Create tables using raw SQL
