@@ -44,39 +44,65 @@ Fields map 1:1 with Postgres types. All safe Postgres functions are exposed as m
 A capability-based RPC endpoint essentially exposes a subset of JS with `User` rooted
 as a top-level object. All `@expose` methods are chainable/discoverable by clients.
 
-This means that we define our logic (data, persmissions, state transitions) in a single place with a single language (Postgres DSL).
+This means that we define our logic (data, permissions, state transitions) in a single place with a single language (Postgres DSL).
 
 ## Core Features
 
-1. All Postgres types represented as TS classes. Functions are represented as methods on the types.
-2. Query builder allows rich semantics:
+### 1. Type System — ✅ DONE
 
-- `select` (including subselect/correlated subqueries)
-- `join` (including multiple join types)
-- `where`
-- `groupBy`
-- `having`
-- `with` (CTE)
+All Postgres types represented as TS classes. Functions are represented as methods on the types.
 
-3. Codegen
+- [x] 77 types codegen'd from pg catalog via pglite introspection
+- [x] Full type hierarchy: Any → Anycompatible → Anyelement → Anynonarray → concrete types
+- [x] Generic container types: Anyarray<T>, Anyrange<T>, Anymultirange<T>
+- [x] Operator overloads with all pg overloads preserved
+- [x] Compile-time nullability tracking (StrictNull, MaybeNull, NullOf)
+- [x] TS primitive acceptance on args (number, string, boolean, bigint)
+- [x] Auto-casting constructors: `new Int4(5)` → `CAST($1 AS int4)`
+- [x] Runtime type resolution: pgType, pgElement, __class
+- [x] Deserialize registry: single source of truth for type mappings
+- [x] Container .of() for element type wiring
 
-- Runs migration in pglite
-- Finds all classes that `extend Table(<name>)`
-- Adds/replaces inline definitions
+### 2. Query Builder
 
-4. Mutations:
+- [x] `select` (computed columns, identity passthrough)
+- [ ] `select` with subselect/correlated subqueries — needs subquery as Fromable
+- [x] `where`
+- [ ] `join` (inner, left, right, full, cross) — next up
+- [x] `groupBy` (with tuple inference, numeric index access)
+- [x] `having`
+- [x] `orderBy` (single, tuple, array forms; stacking)
+- [x] `limit` / `offset`
+- [x] `values` (typed rows, primitive second+ rows, column references)
+- [ ] `with` (CTE) — next up
+- [ ] aggregates (`count`, `sum`, `avg` — need prokind='a' in codegen) — next up
+- [ ] TODO: after groupBy, namespace should transform to aggregate types
 
-- `update` - allow joining during update
-- `insert`
-- transactions
+### 3. Codegen
 
-5. Raw SQL fallback
+- [x] Introspects pg_type, pg_proc, pg_operator via pglite
+- [x] Excludes: volatile fns, operator implementations, index support fns, internal types
+- [x] Generates typed classes with methods, operator overloads, nullability, TsTypeOf
+- [x] Override system: overrides/ extend generated/ classes
+- [x] Barrel (index.ts) auto-generated with override detection
+- [ ] Table codegen: run migration in pglite, find `extend Table(<name>)`, generate inline definitions
 
-We aim to caputre the common case of most Postgres, but advanced features will need a raw SQL fallback:
+### 4. Mutations — next up after joins
 
-- sql`... ${foo}` allows interpolating expressions directly in raw SQL
+- [ ] `insert`
+- [ ] `update` (with join support)
+- [ ] `delete`
+- [ ] transactions
 
-6. RPC & DoS protection
+### 5. Raw SQL Fallback — ✅ DONE
+
+- [x] `sql` tagged template with parameterization
+- [x] `sql.param`, `sql.raw`, `sql.ident`, `sql.join`
+- [x] Compiles to pg ($1) or sqlite (?) style
+- [x] Immutable Sql builder
+- [x] Expressions compose via tagged template nesting
+
+### 6. RPC & DoS protection
 
 We will use `exoeval`, a JS subset, as the mechanism to send capability-based RPCs to the BE. Wire format is JavaScript itself, allowing for easy debugging.
 
@@ -90,15 +116,16 @@ For DoS protection there are two layers:
 - Send `analyze` before sending query
   - Perhaps can do this standalone with a histogram snapshot instead of doing it against live DB.
 
-6. `.live()`
-   We are in a unique position:
+### 7. `.live()`
+
+We are in a unique position:
 1. See all queries in our DSL
 1. We directly serve clients
 
 We can upgrade connection/implement a long-poll, so clients can request updates to their queries. Simplest for v1 to limit scope to the common case:
 
 1. Every table must have a simple predicate
-2. Instead of any incremental maintainance, just re-run the query when we detect a change.
+2. Instead of any incremental maintenance, just re-run the query when we detect a change.
 
 Implementation:
 
