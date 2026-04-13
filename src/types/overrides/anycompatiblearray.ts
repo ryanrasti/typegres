@@ -34,9 +34,10 @@ export class Anycompatiblearray<T extends Any<number>, N extends number> extends
     return elements.map((el) => elDeser(el)) as TsTypeOf<T>[];
   }
 
-  static of<T>(element: T) {
+  static of<T extends { __typname: string }>(element: T) {
     return class extends (this as any) {
       static __element = element;
+      static __typname = `${element.__typname}[]`;
     };
   }
 }

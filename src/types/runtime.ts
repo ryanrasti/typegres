@@ -22,10 +22,22 @@ export const pgType = (expr: Any<any>): typeof Any => expr.__class as typeof Any
 // pgElement(expr) — returns the element type constructor from a container's __element
 export const pgElement = (expr: Any<any>): typeof Any => (expr.__class as any).__element;
 
-// Compile an arg — either a pg expression (has __raw) or a TS primitive (becomes a param)
+// Map JS typeof to pg type name for casting primitives
+const JS_TO_PG: Record<string, string> = {
+  number: "int4",
+  string: "text",
+  boolean: "bool",
+  bigint: "int8",
+};
+
+// Compile an arg — either a pg expression (has __raw) or a TS primitive (becomes a CAST'd param)
 const compileArg = (arg: unknown): Sql => {
   if (arg !== null && typeof arg === "object" && "__raw" in arg) {
     return (arg as { __raw: Sql }).__raw;
+  }
+  const pgType = JS_TO_PG[typeof arg];
+  if (pgType) {
+    return sql`CAST(${sql.param(arg)} AS ${sql.raw(pgType)})`;
   }
   return sql.param(arg);
 };
