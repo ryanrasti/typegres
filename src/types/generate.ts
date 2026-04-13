@@ -488,11 +488,11 @@ const generateTypeFile = (
 
     if (f.isOperator) {
       lines.push(
-        `  ['${f.name}']${genericDecl}(${params}): ${retType} { return PgOp("${f.name}", [${allArgs}], ${typeArg}) as any; }`,
+        `  ['${f.name}']${genericDecl}(${params}): ${retType} { return PgOp("${f.name}", [${allArgs}], ${typeArg}); }`,
       );
     } else {
       lines.push(
-        `  ${camelcase(f.name)}${genericDecl}(${params}): ${retType} { return PgFunc("${f.name}", [${allArgs}], ${typeArg}) as any; }`,
+        `  ${camelcase(f.name)}${genericDecl}(${params}): ${retType} { return PgFunc("${f.name}", [${allArgs}], ${typeArg}); }`,
       );
     }
   }
