@@ -172,6 +172,26 @@ test("groupBy compiles to SQL", () => {
   expect(compiled.text).toContain("GROUP BY");
 });
 
+test("e2e: groupBy select using original column ref", async () => {
+  // n.values.category is the same expression used in groupBy — should work directly
+  const result = await db
+    .values(
+      { category: new Text("x"), val: new Int4(1) },
+      { category: "x", val: 2 },
+      { category: "y", val: 3 },
+    )
+    .groupBy((n) => [n.values.category])
+    .select((n) => ({
+      cat: n.values.category,
+    }))
+    .execute();
+  expectTypeOf(result).toEqualTypeOf<{ cat: string }[]>();
+  expect(result.sort((a, b) => a.cat.localeCompare(b.cat))).toEqual([
+    { cat: "x" },
+    { cat: "y" },
+  ]);
+});
+
 test("e2e: groupBy with select", async () => {
   const result = await db
     .values(
