@@ -1,6 +1,6 @@
 import { Executor } from "./executor";
 import { Sql, sql } from "./sql-builder";
-import { Any } from "./types";
+import { Any, Bool } from "./types";
 import { TsTypeOf } from "./types/runtime";
 
 // Mapping of row name to type (class instance)
@@ -12,6 +12,10 @@ type Namespace = {
 
 type RowTypeToTsType<R extends RowType> = {
   [k in keyof R]: TsTypeOf<R[k]>;
+};
+
+type KeepIndices<T extends unknown[]> = {
+  [K in keyof T & number]: T[K];
 };
 
 const sortRowColumns = <R extends RowType>(row: R): R => {
@@ -31,29 +35,74 @@ const aliasRowType = <R extends RowType>(row: R, tableAlias: string): R => {
   ) as R;
 };
 
-class QueryBuilder<N extends Namespace, O extends RowType> implements Fromable {
-  private namespace: N;
-  private output: O;
-  private from?: Fromable;
-  private executor: Executor;
-  public readonly alias: string;
+type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<0 | 1>[]> = {
+  namespace: N;
+  output: O;
+  executor: Executor;
+  alias: string;
+  from?: Fromable;
+  where?: Bool<0 | 1>;
+  groupBy?: GB;
+};
 
-  constructor(namespace: N, outputType: O, executor: Executor, alias: string, from?: Fromable) {
-    this.namespace = namespace;
-    this.output = outputType;
-    this.executor = executor;
-    this.alias = alias;
-    this.from = from;
+class QueryBuilder<
+  N extends Namespace,
+  O extends RowType,
+  GB extends Any<0 | 1>[],
+> implements Fromable {
+  private opts: QueryBuilderOptions<N, O, GB>;
+  get alias(): string {
+    return this.opts.alias;
   }
 
-  select<O2 extends RowType>(selectFn: (n: N) => O2): QueryBuilder<N, O2> {
-    return new QueryBuilder(
-      this.namespace,
-      selectFn(this.namespace),
-      this.executor,
-      this.alias,
-      this.from,
-    );
+  constructor(opts: QueryBuilderOptions<N, O, GB>) {
+    this.opts = opts;
+  }
+
+  // Must come after any 'groupBy' or 'having' calls (because they modify the output type).
+  select<O2 extends RowType>(
+    selectFn: (n: N) => O2,
+  ): Omit<QueryBuilder<N, O2, GB>, "groupBy" | "having"> {
+    return new QueryBuilder({
+      ...this.opts,
+      output: selectFn(this.opts.namespace),
+    });
+  }
+
+  where(whereFn: (n: N) => Bool<0 | 1>): QueryBuilder<N, O, GB> {
+    return new QueryBuilder({
+      ...this.opts,
+      where: whereFn(this.opts.namespace),
+    });
+  }
+
+  // TODO: after groupBy, namespace values should be transformed to aggregate types
+  // so that select can only reference group-by columns or aggregate functions
+  groupBy<G extends Any<0 | 1>[]>(
+    groupByFn: (n: N) => G,
+  ): QueryBuilder<N & KeepIndices<G>, O, [...GB, ...G]> {
+    let rawGroupBy = groupByFn(this.opts.namespace);
+    const mergedGroupBy = [...(this.opts.groupBy ?? []), ...rawGroupBy];
+
+    const indices = Object.keys(mergedGroupBy);
+    for (const i of indices) {
+      if (i in this.opts.namespace) {
+        throw new Error(
+          `Group by column index ${i} present in namespace. Namespace should only contain string keys by default.`,
+        );
+      }
+    }
+
+    return new QueryBuilder({
+      ...this.opts,
+      namespace: {
+        ...this.opts.namespace,
+        // We add the group by columns to the namespace -- they are accessible by index
+        //  e.g., .select({ 0: g0 }) => select(n => ({ ret: g0 }))
+        ...mergedGroupBy,
+      },
+      groupBy: mergedGroupBy,
+    });
   }
 
   compile(isSubquery = false) {
@@ -62,11 +111,14 @@ class QueryBuilder<N extends Namespace, O extends RowType> implements Fromable {
         isSubquery && sql`(`,
         // TODO: we should only select the `exposed` fields.
         sql`SELECT ${sql.join(
-          Object.entries(this.output).flatMap(([k, v]) =>
+          Object.entries(this.opts.output).flatMap(([k, v]) =>
             v instanceof Any ? [sql`${v.compile()} as ${sql.ident(k)}`] : [],
           ),
         )}`,
-        this.from && sql`FROM ${this.from.compile(true)}`,
+        this.opts.from && sql`FROM ${this.opts.from.compile(true)}`,
+        this.opts.where && sql`WHERE ${this.opts.where.compile()}`,
+        this.opts.groupBy && this.opts.groupBy.length > 0 &&
+          sql`GROUP BY ${sql.join(this.opts.groupBy.map((g) => g.compile()))}`,
         isSubquery && sql`) AS ${sql.ident(this.alias)}`,
       ],
       sql`\n`,
@@ -74,11 +126,11 @@ class QueryBuilder<N extends Namespace, O extends RowType> implements Fromable {
   }
 
   async execute(): Promise<RowTypeToTsType<O>[]> {
-    const rows = await this.executor.execute(this.compile());
+    const rows = await this.opts.executor.execute(this.compile());
     return rows.map((row: Record<string, string>) =>
       Object.fromEntries(
         Object.entries(row).map(([k, v]) => {
-          const type = this.output[k as keyof O];
+          const type = this.opts.output[k as keyof O];
           if (!(type instanceof Any)) {
             throw new Error(`Expected ${k} to be an Any type, got ${typeof v}`);
           }
@@ -144,12 +196,12 @@ export class Database {
   ): QueryBuilder<{ values: R }, R> {
     const vals = new Values(vals0, ...valsRest);
     const aliased = aliasRowType(vals0, "values");
-    return new QueryBuilder(
-      { values: aliased },
-      aliased,
-      this.executor,
-      "q",
-      vals,
-    ) as any;
+    return new QueryBuilder({
+      namespace: { values: aliased },
+      output: aliased,
+      from: vals,
+      executor: this.executor,
+      alias: "q",
+    }) as any;
   }
 }

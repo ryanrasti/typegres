@@ -115,3 +115,69 @@ test("e2e: values with primitive second row", async () => {
     .execute();
   expect(result).toEqual([{ a: 1 }, { a: 2 }, { a: 3 }]);
 });
+
+// --- where ---
+
+test("e2e: where filters rows", async () => {
+  const result = await db
+    .values(
+      { a: new Int4(1), b: new Text("yes") },
+      { a: 2, b: "no" },
+      { a: 3, b: "yes" },
+    )
+    .where((n) => n.values.a[">"](2))
+    .execute();
+  expect(result).toEqual([{ a: 3, b: "yes" }]);
+});
+
+test("e2e: where with equality", async () => {
+  const result = await db
+    .values(
+      { x: new Int4(10) },
+      { x: 20 },
+      { x: 10 },
+    )
+    .where((n) => n.values.x["="](10))
+    .execute();
+  expect(result).toEqual([{ x: 10 }, { x: 10 }]);
+});
+
+test("where compiles to SQL", () => {
+  const q = db
+    .values({ a: new Int4(1) })
+    .where((n) => n.values.a[">"](5));
+  const compiled = q.compile().compile("pg");
+  expect(compiled.text).toContain("WHERE");
+});
+
+// --- groupBy ---
+
+test("groupBy compiles to SQL", () => {
+  const q = db
+    .values(
+      { category: new Text("a"), amount: new Int4(10) },
+      { category: "a", amount: 20 },
+      { category: "b", amount: 30 },
+    )
+    .groupBy((n) => [n.values.category]);
+  const compiled = q.compile().compile("pg");
+  expect(compiled.text).toContain("GROUP BY");
+});
+
+test("e2e: groupBy with select", async () => {
+  const result = await db
+    .values(
+      { category: new Text("a"), amount: new Int4(10) },
+      { category: "a", amount: 20 },
+      { category: "b", amount: 30 },
+    )
+    .groupBy((n) => [n.values.category])
+    .select((n) => ({
+      category: n.values.category,
+    }))
+    .execute();
+  expect(result.sort((a, b) => a.category.localeCompare(b.category))).toEqual([
+    { category: "a" },
+    { category: "b" },
+  ]);
+});
