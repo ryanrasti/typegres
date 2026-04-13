@@ -2,3 +2,5 @@
 node_modules/
 dist/
 .direnv/
+pg_data/
+src/types/generated/

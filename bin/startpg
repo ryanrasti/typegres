@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PGDATA="$(cd "$(dirname "$0")/.." && pwd)/pg_data"
+
+if [ ! -d "$PGDATA" ]; then
+  echo "Initializing pg_data..."
+  initdb -D "$PGDATA" --no-locale -E UTF8
+  # Listen on unix socket only, in pg_data dir
+  cat >> "$PGDATA/postgresql.conf" <<EOF
+unix_socket_directories = '$PGDATA'
+listen_addresses = ''
+EOF
+fi
+
+echo "Starting PostgreSQL (data: $PGDATA)"
+echo "Connect with: psql -h $PGDATA -d postgres"
+exec pg_ctl -D "$PGDATA" -l "$PGDATA/server.log" start -w && echo "PostgreSQL started"
