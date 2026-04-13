@@ -1,7 +1,7 @@
 import { test } from "vitest";
 import { expectTypeOf } from "vitest";
-import type { StrictNull, MaybeNull, NullOf, TsTypeOf } from "./runtime.js";
-import type { Any, Int4, Text, Bool, Float8, Int8 } from "./index.js";
+import type { StrictNull, MaybeNull, NullOf, TsTypeOf } from "./runtime";
+import type { Any, Int4, Text, Bool, Float8, Int8, Anyarray, Anyrange, Anymultirange } from "./index";
 
 // --- Nullability helpers ---
 
@@ -32,6 +32,22 @@ test("TsTypeOf extracts TS primitive from pg types", () => {
   expectTypeOf<TsTypeOf<Bool<1>>>().toEqualTypeOf<boolean>();
   expectTypeOf<TsTypeOf<Float8<1>>>().toEqualTypeOf<number>();
   expectTypeOf<TsTypeOf<Int8<1>>>().toEqualTypeOf<bigint>();
+});
+
+test("TsTypeOf on container types", () => {
+  // Array of int4 → number[]
+  expectTypeOf<TsTypeOf<Anyarray<Int4<1>, 1>>>().toEqualTypeOf<number[]>();
+  // Array of text → string[]
+  expectTypeOf<TsTypeOf<Anyarray<Text<1>, 1>>>().toEqualTypeOf<string[]>();
+  // Range of int4 → [number, number]
+  expectTypeOf<TsTypeOf<Anyrange<Int4<1>, 1>>>().toEqualTypeOf<[number, number]>();
+  // Multirange of int4 → [number, number][]
+  expectTypeOf<TsTypeOf<Anymultirange<Int4<1>, 1>>>().toEqualTypeOf<[number, number][]>();
+});
+
+test("TsTypeOf falls through for TS primitives", () => {
+  expectTypeOf<TsTypeOf<number>>().toEqualTypeOf<number>();
+  expectTypeOf<TsTypeOf<string>>().toEqualTypeOf<string>();
 });
 
 // --- Method return type nullability ---

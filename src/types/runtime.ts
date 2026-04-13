@@ -1,4 +1,4 @@
-import type { Any } from "./index.js";
+import type { Any } from "./index";
 
 // Nullability: 0 = null, 1 = non-null, 0|1 = nullable, number = aggregate/unknown
 // StrictNull: null propagates — if any arg is null, result is null (proisstrict = true)
@@ -11,22 +11,15 @@ export type MaybeNull<T extends number> = number extends T ? number : 0 | T;
 export type NullOf<T> = T extends Any<infer N extends number> ? N : 1;
 
 // Extract the TS type that a pg type deserializes to
-// Each pg type carries a phantom __tsType. For primitives passed directly, it's the type itself.
-export type TsTypeOf<T> = T extends { __tsType: infer U } ? U : T;
+// Uses the return type of the instance deserialize() method. For primitives passed directly, it's the type itself.
+// eslint-disable-next-line no-unused-vars
+export type TsTypeOf<T> = T extends { deserialize: (_: any) => infer U } ? U : T;
 
-// Runtime type resolution helpers
-// pgType(expr) — returns the constructor of the expression (for self-returning generics)
-export const pgType = (expr: unknown): unknown => {
-  const ctor = (expr as any).constructor;
-  if (!ctor) throw new Error("pgType: expression has no constructor");
-  return ctor;
-};
-// pgElement(expr) — returns the element type of a container (for T-returning generics)
-export const pgElement = (expr: unknown): unknown => {
-  const el = (expr as any).constructor?.__element;
-  if (!el) throw new Error("pgElement: container type has no __element — did you call .of()?");
-  return el;
-};
+// Runtime type resolution — typed, no checks needed
+// pgType(expr) — returns the constructor via __class (set once in Any, narrowed by subclasses)
+export const pgType = (expr: Any<any>): unknown => expr.__class;
+// pgElement(expr) — returns the element type constructor from a container's __element
+export const pgElement = (expr: Any<any>): unknown => (expr.__class as any).__element;
 
 // Placeholder — these will be the real expression node builders
 export const PgFunc = (name: string, args: unknown[], type: unknown): unknown => {

@@ -1,9 +1,10 @@
-import { Anyrange as Generated } from "../generated/anyrange.js";
-import type { Any } from "../index.js";
+import type { TsTypeOf } from "../runtime";
+import { Anyrange as Generated } from "../generated/anyrange";
+import type { Any } from "../index";
 
 export class Anyrange<T extends Any<number>, N extends number> extends Generated<T, N> {
-  declare __tsType: [T["__tsType"], T["__tsType"]];
   static __element: unknown;
+  deserialize(raw: unknown): [TsTypeOf<T>, TsTypeOf<T>] { return raw as [TsTypeOf<T>, TsTypeOf<T>]; }
 
   static of<T>(element: T) {
     return class extends (this as any) {

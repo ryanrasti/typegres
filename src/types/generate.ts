@@ -12,25 +12,10 @@ const pgNameToClassName = (name: string): string => {
   return camelcase(name, { pascalCase: true });
 };
 
-// Map pg type names to their corresponding TS primitive type for ser/deser
-// Default is "string" — only specify non-string types here
-const TS_PRIMITIVE_MAP: Record<string, string | undefined> = {
-  // Numbers (fits in JS number: 64-bit float or less)
-  int2: "number",
-  int4: "number",
-  float4: "number",
-  float8: "number",
-  oid: "number",
-  // Bigint (> 32 bits integer)
-  int8: "bigint",
-  // Boolean
-  bool: "boolean",
-  // Binary
-  bytea: "Uint8Array",
-};
+import { getTypeDef } from "./deserialize.ts";
 
 const tsPrimitiveFor = (typname: string): string =>
-  TS_PRIMITIVE_MAP[typname] ?? "string";
+  getTypeDef(typname).tsType;
 
 // Types that get a generic <T extends Any<number>> parameter
 const GENERIC_TYPES = new Set([
@@ -372,14 +357,18 @@ const generateTypeFile = (
     ...(needsPgElement ? ["pgElement"] : []),
   ];
   if (runtimeImports.length > 0) {
-    lines.push(`import { ${runtimeImports.join(", ")} } from "../runtime.js";`);
+    lines.push(`import { ${runtimeImports.join(", ")} } from "../runtime";`);
+  }
+  // Any needs getTypeDef for deserialize dispatch
+  if (pgType.typname === "any") {
+    lines.push('import { getTypeDef } from "../deserialize";');
   }
 
   // Value imports (for extends)
   if (valueImports.size > 0) {
     const sorted = [...valueImports].sort();
     for (const name of sorted) {
-      lines.push(`import { ${name} } from "../index.js";`);
+      lines.push(`import { ${name} } from "../index";`);
     }
   }
 
@@ -387,7 +376,7 @@ const generateTypeFile = (
   const typeOnlyImports = [...referencedTypes].filter((n) => !valueImports.has(n)).sort();
   if (typeOnlyImports.length > 0) {
     for (const name of typeOnlyImports) {
-      lines.push(`import type { ${name} } from "../index.js";`);
+      lines.push(`import type { ${name} } from "../index";`);
     }
   }
 
@@ -413,14 +402,22 @@ const generateTypeFile = (
   classDecl += " {";
   lines.push(classDecl);
 
-  // Phantom __tsType for type-level TS primitive mapping
-  // Only emit on Any (root) and concrete types. The any* hierarchy
-  // narrows __tsType through overrides (hand-written).
+  // __class: typed constructor reference. Set once in Any, narrowed by subclasses.
+  // __typname: pg type name for registry lookup. Set on Any and concrete types.
+  // deserialize(): defined on Any via registry, concrete types narrow the return type.
   if (pgType.typname === "any") {
-    lines.push("  declare __tsType: unknown;");
+    lines.push("  __class = this.constructor as typeof Any;");
+    lines.push("  static __typname = \"any\";");
+    lines.push("  deserialize(raw: string): unknown { return getTypeDef((this.constructor as typeof Any).__typname).deserialize(raw); }");
   } else if (!EXTENDS_MAP[pgType.typname]) {
-    // Concrete type — not in the any* hierarchy
-    lines.push(`  declare __tsType: ${tsPrimitiveFor(pgType.typname)};`);
+    // Concrete type — narrow __class and deserialize return type
+    const tsType = tsPrimitiveFor(pgType.typname);
+    lines.push(`  declare __class: typeof ${pgType.className};`);
+    lines.push(`  static __typname = "${pgType.typname}";`);
+    lines.push(`  declare deserialize: (raw: string) => ${tsType};`);
+  } else {
+    // any* hierarchy type — __class narrows through inheritance
+    lines.push(`  declare __class: typeof ${pgType.className};`);
   }
 
   for (const f of emitted) {
@@ -534,11 +531,11 @@ const generateIndex = (typeMap: Map<number, PgType>) => {
   for (const t of sortedTypes) {
     if (overrides.has(t.typname)) {
       lines.push(
-        `export { ${t.className} } from "./overrides/${t.typname}.js";`,
+        `export { ${t.className} } from "./overrides/${t.typname}";`,
       );
     } else {
       lines.push(
-        `export { ${t.className} } from "./generated/${t.typname}.js";`,
+        `export { ${t.className} } from "./generated/${t.typname}";`,
       );
     }
   }
