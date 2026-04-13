@@ -427,8 +427,8 @@ const generateTypeFile = (
     lines.push(`  constructor(raw: Sql | ${tsType}) { super(raw); }`);
     lines.push(`  declare deserialize: (raw: string) => ${tsType};`);
   } else {
-    // any* hierarchy type — __class narrows through inheritance
-    lines.push(`  declare __class: typeof ${pgType.className};`);
+    // any* hierarchy type — inherits __class from parent, no re-declaration needed
+    // (re-declaring causes structural mismatch due to __nullability phantom field)
   }
 
   // Owner's TS primitive — used to decide if an operator overload arg gets a TS primitive union
