@@ -1,5 +1,6 @@
-import { Sql, sql } from "./raw-builder";
-import type { Any } from "./types";
+import { Sql, sql } from "./sql-builder";
+import { Any } from "./types";
+import { TsTypeOf } from "./types/runtime";
 
 // Mapping of row name to type (class instance)
 type RowType = object;
@@ -29,7 +30,7 @@ class QueryBuilder<N extends Namespace, O extends RowType> implements Fromable {
         isSubquery && sql`(`,
         // TODO: we should only select the `exposed` fields.
         sql`SELECT ${Object.entries(this.output).flatMap(([k, v]) =>
-          isCompilable(v) ? [sql`${v.compile()} as ${sql.ident(k)}`] : [],
+          v instanceof Any ? [sql`${v.compile()} as ${sql.ident(k)}`] : [],
         )}`,
         this.from && sql`FROM ${this.from.compile(true)}`,
         isSubquery && sql`) AS ${sql.ident(this.alias)}`,
@@ -38,25 +39,23 @@ class QueryBuilder<N extends Namespace, O extends RowType> implements Fromable {
     );
   }
 
-  execute() {
-    return this.executor.execute(this.compile());
+  execute(): { [k in keyof O]: TsTypeOf<O[k]> } {
+    const rows = this.executor.execute(this.compile());
+    return rows.map((row) =>
+      Object.fromEntries(
+        Object.entries(row).map(([k, v]) => {
+          const type = this.output[k as keyof O];
+          if (!(type instanceof Any)) {
+            throw new Error(`Expected ${k} to be an Any type, got ${typeof v}`);
+          }
+          return [k, type.deserialize(v)];
+        }),
+      ),
+    );
   }
 }
 
 type Fromable = {
   alias: string;
   compile: (isSubquery?: boolean) => Sql;
-};
-
-type Compilable = {
-  compile: () => Sql;
-};
-
-const isCompilable = (value: unknown): value is Compilable => {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "compile" in value &&
-    typeof value.compile === "function"
-  );
 };

@@ -1,3 +1,4 @@
+import { sql, Sql } from "../sql-builder";
 import type { Any } from "./index";
 
 // Nullability: 0 = null, 1 = non-null, 0|1 = nullable, number = aggregate/unknown
@@ -23,9 +24,9 @@ export const pgElement = (expr: Any<any>): unknown => (expr.__class as any).__el
 
 // Placeholder — these will be the real expression node builders
 export const PgFunc = (name: string, args: unknown[], type: unknown): unknown => {
-  return { __pg: true, kind: "func", func: name, args, type };
+  return sql`${sql.ident(name)}(${sql.join(args.map((a) => (a instanceof Sql ? a : sql`${a}`)))}`;
 };
 
-export const PgOp = (op: string, args: unknown[], type: unknown): unknown => {
-  return { __pg: true, kind: "op", op, args, type };
+export const PgOp = (op: string, args: [unknown, unknown], type: unknown): unknown => {
+  return sql`${args[0]} ${sql.raw(op)} ${args[1]}`;
 };

@@ -359,11 +359,6 @@ const generateTypeFile = (
   if (runtimeImports.length > 0) {
     lines.push(`import { ${runtimeImports.join(", ")} } from "../runtime";`);
   }
-  // Any needs getTypeDef for deserialize dispatch
-  if (pgType.typname === "any") {
-    lines.push('import { getTypeDef } from "../deserialize";');
-  }
-
   // Value imports (for extends)
   if (valueImports.size > 0) {
     const sorted = [...valueImports].sort();
@@ -402,13 +397,11 @@ const generateTypeFile = (
   classDecl += " {";
   lines.push(classDecl);
 
-  // __class: typed constructor reference. Set once in Any, narrowed by subclasses.
-  // __typname: pg type name for registry lookup. Set on Any and concrete types.
-  // deserialize(): defined on Any via registry, concrete types narrow the return type.
+  // __class: typed constructor reference. Set once in Any override, narrowed by subclasses.
+  // __typname: pg type name for registry lookup. Set on Any override and concrete types.
+  // deserialize(): defined on Any override via registry, concrete types narrow the return type.
   if (pgType.typname === "any") {
-    lines.push("  __class = this.constructor as typeof Any;");
-    lines.push("  static __typname = \"any\";");
-    lines.push("  deserialize(raw: string): unknown { return getTypeDef((this.constructor as typeof Any).__typname).deserialize(raw); }");
+    // Handled by override — no-op here
   } else if (!EXTENDS_MAP[pgType.typname]) {
     // Concrete type — narrow __class and deserialize return type
     const tsType = tsPrimitiveFor(pgType.typname);

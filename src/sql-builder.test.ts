@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { sql } from "./raw-builder";
+import { sql } from "./sql-builder";
 
 test("param compiles with pg style", () => {
   const q = sql`SELECT ${1}, ${2}`;

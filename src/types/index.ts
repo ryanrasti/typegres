@@ -1,7 +1,7 @@
 // Auto-generated block — do not edit between markers
 // [generated-start]
 export { Aclitem } from "./generated/aclitem";
-export { Any } from "./generated/any";
+export { Any } from "./overrides/any";
 export { Anyarray } from "./overrides/anyarray";
 export { Anycompatible } from "./generated/anycompatible";
 export { Anycompatiblearray } from "./overrides/anycompatiblearray";
