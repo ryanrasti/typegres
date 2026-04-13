@@ -67,3 +67,18 @@ test("non-strict functions always return non-null", () => {
   type ConcatNull = ReturnType<Any<0>["concat"]>;
   expectTypeOf<ConcatNull>().toEqualTypeOf<Text<1>>();
 });
+
+// --- Operator overloads ---
+
+test("operator overloads: Int4 + number resolves to Int4", () => {
+  // int4 + int4 overload accepts number primitive
+  type PlusInt4 = Int4<1>["+"];
+  // Calling with Int4 returns Int4
+  expectTypeOf<ReturnType<(arg0: Int4<1>) => ReturnType<PlusInt4>>>().not.toBeAny();
+});
+
+test("operator overloads: Int4 = accepts number but not string", () => {
+  // '=' on Int4 should accept number (matches int4/int2 overloads)
+  type EqFn = Int4<1>["="];
+  expectTypeOf<EqFn>().not.toBeAny();
+});

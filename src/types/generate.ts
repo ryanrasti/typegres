@@ -265,21 +265,32 @@ const generateTypeFile = (
   const extendsClass = EXTENDS_MAP[pgType.typname];
   const needsGenericT = isGeneric || isElement;
 
-  // First pass: deduplicate and collect only emitted functions
-  const seen = new Set<string>();
-  const emitted: PgFunc[] = [];
+  // Separate functions (dedup by name) and operators (keep all overloads, group by name)
+  const seenFuncs = new Set<string>();
+  const emittedFuncs: PgFunc[] = [];
+  const operatorGroups = new Map<string, PgFunc[]>();
 
   for (const f of funcs) {
-    const key = f.isOperator ? `['${f.name}']` : camelcase(f.name);
-    if (seen.has(key)) continue;
     // Skip operators/functions overloaded incompatibly by subtypes — each subtype defines its own version
     if (pgType.typname === "anyelement" && f.isOperator && f.name === "<@") continue; // overloaded: array<@array, range<@range, elem<@multirange
     if (pgType.typname === "anycompatible" && f.isOperator && f.name === "||") continue; // overloaded: text||text, array||array, bytea||bytea, etc.
     if (pgType.typname === "anynonarray" && f.isOperator && f.name === "||") continue; // overloaded: text||anynonarray, but concrete types define their own ||
     if (pgType.typname === "anycompatible" && !f.isOperator && f.name === "width_bucket") continue; // overloaded with different arities by float8, numeric
-    seen.add(key);
-    emitted.push(f);
+
+    if (f.isOperator) {
+      if (!operatorGroups.has(f.name)) operatorGroups.set(f.name, []);
+      operatorGroups.get(f.name)!.push(f);
+    } else {
+      const key = camelcase(f.name);
+      if (seenFuncs.has(key)) continue;
+      seenFuncs.add(key);
+      emittedFuncs.push(f);
+    }
   }
+
+  // Flatten for import collection
+  const allOperators = [...operatorGroups.values()].flat();
+  const emitted = [...emittedFuncs, ...allOperators];
 
   // Collect referenced types only from emitted functions
   const referencedTypes = new Set<string>();
@@ -413,87 +424,120 @@ const generateTypeFile = (
     lines.push(`  declare __class: typeof ${pgType.className};`);
   }
 
-  for (const f of emitted) {
+  // Owner's TS primitive — used to decide if an operator overload arg gets a TS primitive union
+  const ownerTsPrimitive = tsPrimitiveFor(pgType.typname);
+
+  // Helper: build a single method signature for a function/operator
+  // allowPrimitive: whether to add TS primitive union to arg constraints
+  // isOverloadSig: if true, emit as overload declaration (no body)
+  const buildMethodSig = (f: PgFunc, allowPrimitive: boolean, isOverloadSig: boolean): string => {
     const restArgs = f.argTypes.slice(1);
     const isMaybeNullOp = f.isOperator && MAYBE_NULL_OPS.has(f.name);
 
-    // Build generic constraint for each arg: M0 extends Int4<any> | number
+    // Build generic constraint for each arg
+    // For operator overloads: only allow TS primitive when allowPrimitive is true
     const genericParams = restArgs.map((oid, i) => {
       const baseName = resolveBaseTypeName(oid, pgType, typeMap);
       const pgTypeConstraint = formatTypeWithNull(baseName, "any");
       const t = typeMap.get(oid);
       if (!t) return `M${i} extends ${pgTypeConstraint}`;
       if (GENERIC_TYPES.has(t.typname) && needsGenericT) {
-        // Container types on a generic class — accept TS array of element's TS type
-        return `M${i} extends ${pgTypeConstraint} | TsTypeOf<T>[]`;
+        return `M${i} extends ${pgTypeConstraint}${allowPrimitive ? " | TsTypeOf<T>[]" : ""}`;
       }
       if (ELEMENT_TYPES.has(t.typname) && needsGenericT) {
-        // Element types on a generic class — accept the element's TS type directly
-        return `M${i} extends ${pgTypeConstraint} | TsTypeOf<T>`;
+        return `M${i} extends ${pgTypeConstraint}${allowPrimitive ? " | TsTypeOf<T>" : ""}`;
       }
       if (GENERIC_TYPES.has(t.typname) || ELEMENT_TYPES.has(t.typname)) {
-        // any* type referenced from a concrete class — accept unknown
-        return `M${i} extends ${pgTypeConstraint} | unknown`;
+        return `M${i} extends ${pgTypeConstraint}`;
       }
-      // Concrete types — accept the TS primitive
-      return `M${i} extends ${pgTypeConstraint} | ${tsPrimitiveFor(t.typname)}`;
+      // Concrete type — only add TS primitive if allowPrimitive
+      if (allowPrimitive) {
+        return `M${i} extends ${pgTypeConstraint} | ${tsPrimitiveFor(t.typname)}`;
+      }
+      return `M${i} extends ${pgTypeConstraint}`;
     });
     const genericDecl = genericParams.length > 0 ? `<${genericParams.join(", ")}>` : "";
 
-    // Build parameter list — arg type is just M0 (the generic captures both pg type and primitive)
-    const params = restArgs
-      .map((_, i) => `arg${i}: M${i}`)
-      .join(", ");
+    // Build parameter list
+    const params = restArgs.map((_, i) => `arg${i}: M${i}`).join(", ");
 
     // Build return type with null propagation
-    // NullOf<M> extracts N from pg types, defaults to 1 for primitives
-    // Three modes:
-    //   1. Strict (proisstrict=true): null in → null out, StrictNull<N | NullOf<M>...>
-    //   2. Non-strict (proisstrict=false): handles nulls explicitly, always returns non-null (1)
-    //   3. Maybe-null operators (-> ->> #> #>>): can introduce nulls, MaybeNull<N | NullOf<M>...>
     const retBase = resolveBaseTypeName(f.returnType, pgType, typeMap);
     let retType: string;
     const nullParts = ["N", ...restArgs.map((_, i) => `NullOf<M${i}>`)];
     const nullUnion = nullParts.join(" | ");
     if (isMaybeNullOp) {
-      // JSON access etc. — can return null even from non-null inputs
       retType = formatTypeWithNull(retBase, `MaybeNull<${nullUnion}>`);
     } else if (!f.isStrict) {
-      // Non-strict functions handle nulls explicitly — always return non-null
       retType = formatTypeWithNull(retBase, "1");
     } else if (restArgs.length === 0) {
-      // Strict, no extra args — nullability passes through from this
       retType = formatTypeWithNull(retBase, "N");
     } else {
-      // Strict, multiple args — union all nullability params
       retType = formatTypeWithNull(retBase, `StrictNull<${nullUnion}>`);
+    }
+
+    // Determine runtime type arg
+    // pgType/pgElement return the right class at runtime but TS can't verify generics — needs `as any`
+    let typeArg: string;
+    let needsCast = false;
+    if (retBase === "T") {
+      typeArg = "pgElement(this)";
+      needsCast = true; // TS can't know element type at compile time
+    } else if (f.returnType === f.argTypes[0] && (isGeneric || isElement)) {
+      typeArg = "pgType(this)";
+      needsCast = true; // TS can't know self type for generics at compile time
+    } else {
+      const retT = typeMap.get(f.returnType);
+      typeArg = retT?.className ?? "undefined";
+      // If return type is a generic any* type, TS can't verify T flows through the constructor
+      if (retT && (GENERIC_TYPES.has(retT.typname) || ELEMENT_TYPES.has(retT.typname))) {
+        needsCast = true;
+      }
     }
 
     const argsExpr = restArgs.map((_, i) => `arg${i}`).join(", ");
     const allArgs = argsExpr ? `this, ${argsExpr}` : "this";
 
-    // Determine runtime type arg:
-    //   - Return is T (element of container) → pgElement(this)
-    //   - Return is same type as self and class is generic → pgType(this)
-    //   - Otherwise → concrete class reference
-    let typeArg: string;
-    if (retBase === "T") {
-      typeArg = "pgElement(this)";
-    } else if (f.returnType === f.argTypes[0] && (isGeneric || isElement)) {
-      typeArg = "pgType(this)";
-    } else {
-      const retT = typeMap.get(f.returnType);
-      typeArg = retT?.className ?? "undefined";
+    if (isOverloadSig) {
+      // Overload declaration — no body
+      if (f.isOperator) {
+        return `  ['${f.name}']${genericDecl}(${params}): ${retType};`;
+      }
+      return `  ${camelcase(f.name)}${genericDecl}(${params}): ${retType};`;
     }
 
+    // Implementation — has body. Cast needed when pgType/pgElement can't be verified by TS.
+    const cast = needsCast ? " as any" : "";
     if (f.isOperator) {
-      lines.push(
-        `  ['${f.name}']${genericDecl}(${params}): ${retType} { return PgOp("${f.name}", [${allArgs}], ${typeArg}); }`,
-      );
+      return `  ['${f.name}']${genericDecl}(${params}): ${retType} { return PgOp("${f.name}", [${allArgs}], ${typeArg})${cast}; }`;
+    }
+    return `  ${camelcase(f.name)}${genericDecl}(${params}): ${retType} { return PgFunc("${f.name}", [${allArgs}], ${typeArg})${cast}; }`;
+  };
+
+  // Emit functions — single signature with TS primitive allowed
+  for (const f of emittedFuncs) {
+    lines.push(buildMethodSig(f, true, false));
+  }
+
+  // Emit operators — grouped by name, each group becomes TS overloads
+  // Rule: only the overload where tsPrimitiveFor(argType) === ownerTsPrimitive gets the primitive union.
+  // This prevents ambiguous overload resolution when passing raw TS values.
+  for (const [opName, overloads] of operatorGroups) {
+    if (overloads.length === 1) {
+      // Single overload — just emit with primitive allowed
+      lines.push(buildMethodSig(overloads[0]!, true, false));
     } else {
-      lines.push(
-        `  ${camelcase(f.name)}${genericDecl}(${params}): ${retType} { return PgFunc("${f.name}", [${allArgs}], ${typeArg}); }`,
-      );
+      // Multiple overloads — emit overload signatures, then implementation
+      for (const overload of overloads) {
+        // Allow TS primitive only when all arg types share the same TS primitive as the owner
+        const argAllowPrimitive = overload.argTypes.slice(1).every((oid) => {
+          const t = typeMap.get(oid);
+          return t && tsPrimitiveFor(t.typname) === ownerTsPrimitive;
+        });
+        lines.push(buildMethodSig(overload, argAllowPrimitive, true));
+      }
+      // Implementation signature — accepts unknown, dispatches at runtime
+      lines.push(`  ['${opName}'](${overloads[0]!.argTypes.slice(1).map((_, i) => `arg${i}: unknown`).join(", ")}): any { return PgOp("${opName}", [this, ${overloads[0]!.argTypes.slice(1).map((_, i) => `arg${i}`).join(", ")}], ${pgType.className}); }`);
     }
   }
 

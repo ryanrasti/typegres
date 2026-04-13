@@ -1,4 +1,4 @@
-import { sql } from "../sql-builder";
+import { sql, Sql } from "../sql-builder";
 import type { Any } from "./index";
 
 // Nullability: 0 = null, 1 = non-null, 0|1 = nullable, number = aggregate/unknown
@@ -22,10 +22,10 @@ export const pgType = (expr: Any<any>): typeof Any => expr.__class as typeof Any
 // pgElement(expr) — returns the element type constructor from a container's __element
 export const pgElement = (expr: Any<any>): typeof Any => (expr.__class as any).__element;
 
-// Compile an arg — either a pg expression (has compile()) or a TS primitive (becomes a param)
+// Compile an arg — either a pg expression (has __raw) or a TS primitive (becomes a param)
 const compileArg = (arg: unknown): Sql => {
-  if (typeof arg === "object" && arg !== null && "compile" in arg && typeof arg.compile === "function") {
-    return (arg as { compile(): Sql }).compile();
+  if (arg !== null && typeof arg === "object" && "__raw" in arg) {
+    return (arg as { __raw: Sql }).__raw;
   }
   return sql.param(arg);
 };
