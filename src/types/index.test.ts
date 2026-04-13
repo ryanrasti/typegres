@@ -1,8 +1,8 @@
 import { test, expect, beforeAll, afterAll } from "vitest";
-import { expectTypeOf } from "vitest";
 import type { StrictNull, MaybeNull, NullOf, TsTypeOf } from "./runtime";
-import type { Any, Int4 as Int4T, Text as TextT, Bool as BoolT, Float8, Int8 as Int8T, Anyarray, Anyrange, Anymultirange } from "./index";
+import type { Any, Float8, Anyarray, Anyrange, Anymultirange } from "./index";
 import { Int4, Text, Bool, Int8 } from "./index";
+import { assert, Equals } from "tsafe";
 import { sql } from "../sql-builder";
 import { pgliteExecutor } from "../executor";
 import type { Executor } from "../executor";
@@ -200,4 +200,21 @@ test("e2e: nested expressions", async () => {
   const result = left["*"](right);
   const rows = await exec.execute(sql`SELECT ${result.compile()} as ${sql.ident("result")}`);
   expect(rows[0]?.["result"]).toBe("21");
+});
+
+// --- Column descriptor ---
+
+test("column() returns typed descriptor", () => {
+  const id = (Int4<1>).column({ nonNull: true });
+  const name = (Text<0 | 1>).column();
+
+  // Exact type checks via tsafe
+  assert<Equals<typeof id, Int4<1>>>();
+  assert<Equals<typeof name, Text<0 | 1>>>();
+
+  // Runtime: column descriptor has metadata
+  expect((id as any).__column).toBe(true);
+  expect((id as any).__class).toBe(Int4);
+  expect((id as any).nonNull).toBe(true);
+  expect((name as any).__class).toBe(Text);
 });

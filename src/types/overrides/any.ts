@@ -5,6 +5,7 @@ import { sql, Sql } from "../../sql-builder";
 export class Any<N extends number> extends Generated<N> {
   __class = this.constructor as typeof Any;
   __raw: Sql;
+  declare __nullability: N;
   static __typname = "any";
 
   constructor(raw: Sql | unknown) {
