@@ -2,6 +2,7 @@ import { test, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
 import type { StrictNull, MaybeNull, NullOf, TsTypeOf } from "./runtime";
 import type { Any, Float8, Anyarray, Anyrange, Anymultirange } from "./index";
 import { Int4, Text, Bool, Int8 } from "./index";
+import { assert, Equals } from "tsafe";
 import { sql } from "../sql-builder";
 import { pgliteExecutor } from "../executor";
 import type { Executor } from "../executor";
@@ -208,7 +209,9 @@ test("column() returns typed descriptor", () => {
   const name = (Text<0 | 1>).column();
 
   expectTypeOf(id).toEqualTypeOf<Int4<1>>();
-  expectTypeOf(name).toEqualTypeOf<Text<1>>();
+  expectTypeOf(name).toEqualTypeOf<Text<0 | 1>>();
+  assert<Equals<typeof id, Int4<1>>>();
+  assert<Equals<typeof name, Text<0 | 1>>>();
 
   // Runtime: column descriptor has metadata
   expect((id as any).__column).toBe(true);

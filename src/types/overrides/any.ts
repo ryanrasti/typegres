@@ -5,6 +5,8 @@ import { sql, Sql } from "../../sql-builder";
 export class Any<N extends number> extends Generated<N> {
   __class = this.constructor as typeof Any;
   __raw: Sql;
+  // Phantom field — makes N structurally visible so TS distinguishes e.g. Text<0> from Text<0|1>.
+  // Without this, generic-only differences are erased and type assertions can't catch mismatches.
   declare __nullability: N;
   static __typname = "any";
 
