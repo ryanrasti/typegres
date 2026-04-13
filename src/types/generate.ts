@@ -259,6 +259,7 @@ const generateTypeFile = (
   pgType: PgType,
   funcs: PgFunc[],
   typeMap: Map<number, PgType>,
+  overrideNames: Set<string>,
 ): string => {
   const isGeneric = GENERIC_TYPES.has(pgType.typname);
   const isElement = ELEMENT_TYPES.has(pgType.typname);
@@ -370,21 +371,22 @@ const generateTypeFile = (
   if (runtimeImports.length > 0) {
     lines.push(`import { ${runtimeImports.join(", ")} } from "../runtime";`);
   }
-  // Value imports (for extends)
-  if (valueImports.size > 0) {
-    const sorted = [...valueImports].sort();
-    for (const name of sorted) {
-      lines.push(`import { ${name} } from "../index";`);
+  // Extends: import parent class directly from its source file.
+  // This avoids circular deps at class definition time — the parent must be
+  // fully loaded before the child class evaluates `extends`.
+  for (const name of [...valueImports].sort()) {
+    const matchingType = [...typeMap.values()].find((t) => t.className === name);
+    if (matchingType && overrideNames.has(matchingType.typname)) {
+      lines.push(`import { ${name} } from "../overrides/${matchingType.typname}";`);
+    } else if (matchingType) {
+      lines.push(`import { ${name} } from "../generated/${matchingType.typname}";`);
     }
   }
 
-  // Type-only imports (exclude any that are already value-imported)
-  const typeOnlyImports = [...referencedTypes].filter((n) => !valueImports.has(n)).sort();
-  if (typeOnlyImports.length > 0) {
-    for (const name of typeOnlyImports) {
-      lines.push(`import type { ${name} } from "../index";`);
-    }
-  }
+  // Everything else (PgFunc/PgOp type args, type annotations): namespace import
+  // from the barrel. `types.ClassName` is only accessed in method bodies at call
+  // time, so all modules are loaded by then — no circular dep issue.
+  lines.push('import * as types from "../index";');
 
   lines.push("");
 
@@ -488,7 +490,8 @@ const generateTypeFile = (
       needsCast = true; // TS can't know self type for generics at compile time
     } else {
       const retT = typeMap.get(f.returnType);
-      typeArg = retT?.className ?? "undefined";
+      // Use types.ClassName namespace for lazy resolution (avoids circular deps at load time)
+      typeArg = retT ? `types.${retT.className}` : "undefined";
       // If return type is a generic any* type, TS can't verify T flows through the constructor
       if (retT && (GENERIC_TYPES.has(retT.typname) || ELEMENT_TYPES.has(retT.typname))) {
         needsCast = true;
@@ -537,7 +540,7 @@ const generateTypeFile = (
         lines.push(buildMethodSig(overload, argAllowPrimitive, true));
       }
       // Implementation signature — accepts unknown, dispatches at runtime
-      lines.push(`  ['${opName}'](${overloads[0]!.argTypes.slice(1).map((_, i) => `arg${i}: unknown`).join(", ")}): any { return PgOp("${opName}", [this, ${overloads[0]!.argTypes.slice(1).map((_, i) => `arg${i}`).join(", ")}], ${pgType.className}); }`);
+      lines.push(`  ['${opName}'](${overloads[0]!.argTypes.slice(1).map((_, i) => `arg${i}: unknown`).join(", ")}): any { return PgOp("${opName}", [this, ${overloads[0]!.argTypes.slice(1).map((_, i) => `arg${i}`).join(", ")}], types.${pgType.className}); }`);
     }
   }
 
@@ -547,7 +550,7 @@ const generateTypeFile = (
   return lines.join("\n");
 };
 
-const generateIndex = (typeMap: Map<number, PgType>) => {
+const scanOverrides = (): Set<string> => {
   const overrides = new Set<string>();
   if (fs.existsSync(OVERRIDES_DIR)) {
     for (const file of fs.readdirSync(OVERRIDES_DIR)) {
@@ -556,6 +559,10 @@ const generateIndex = (typeMap: Map<number, PgType>) => {
       }
     }
   }
+  return overrides;
+};
+
+const generateIndex = (typeMap: Map<number, PgType>, overrides: Set<string>) => {
 
   const lines: string[] = [];
   lines.push("// Auto-generated block — do not edit between markers");
@@ -589,6 +596,7 @@ export const generate = async () => {
   try {
     const { typeMap, pgFuncs } = await introspect(db);
     const grouped = groupByFirstArg(pgFuncs);
+    const overrideNames = scanOverrides();
 
     // Clean generated dir
     fs.rmSync(GENERATED_DIR, { recursive: true, force: true });
@@ -597,13 +605,13 @@ export const generate = async () => {
     // Generate a file per type
     for (const [oid, pgType] of typeMap) {
       const funcs = grouped.get(oid) ?? [];
-      const content = generateTypeFile(pgType, funcs, typeMap);
+      const content = generateTypeFile(pgType, funcs, typeMap, overrideNames);
       const filePath = path.join(GENERATED_DIR, `${pgType.typname}.ts`);
       fs.writeFileSync(filePath, content);
     }
 
     // Generate index
-    const indexContent = generateIndex(typeMap);
+    const indexContent = generateIndex(typeMap, overrideNames);
     fs.writeFileSync(TYPES_INDEX, indexContent);
 
     console.log(`Generated ${typeMap.size} types in ${GENERATED_DIR}`);
