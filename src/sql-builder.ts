@@ -37,7 +37,7 @@ export class Sql {
 const _sql = (strings: TemplateStringsArray, ...exprs: unknown[]): Sql => {
   const fragments: Fragment[] = [];
   for (const [i, s] of strings.entries()) {
-    if (s) fragments.push({ kind: "raw", sql: s });
+    if (s) { fragments.push({ kind: "raw", sql: s }); }
     if (i < exprs.length) {
       const expr = exprs[i];
       if (expr instanceof Sql) {
@@ -59,8 +59,8 @@ _sql.ident = (name: string): Sql => new Sql([{ kind: "ident", name }]);
 _sql.join = (builders: (Sql | null | undefined | false)[], separator = sql`, `): Sql => {
   const fragments: Fragment[] = [];
   for (const [i, b] of builders.entries()) {
-    if (b === null || b === undefined || b === false) continue;
-    if (i > 0) fragments.push(...separator.fragments);
+    if (b === null || b === undefined || b === false) { continue; }
+    if (i > 0) { fragments.push(...separator.fragments); }
     fragments.push(...b.fragments);
   }
   return new Sql(fragments);

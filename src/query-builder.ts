@@ -164,9 +164,9 @@ class QueryBuilder<
           this.opts.orderBy.length > 0 &&
           sql`ORDER BY ${sql.join(
             this.opts.orderBy.map((entry) => {
-              if (entry instanceof Any) return entry.compile();
+              if (entry instanceof Any) { return entry.compile(); }
               const [expr, dir] = entry;
-              if (dir === "desc") return sql`${expr.compile()} DESC`;
+              if (dir === "desc") { return sql`${expr.compile()} DESC`; }
               return sql`${expr.compile()} ASC`;
             }),
           )}`,

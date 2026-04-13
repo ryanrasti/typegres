@@ -8,7 +8,7 @@ export class Anycompatiblearray<T extends Any<number>, N extends number> extends
   deserialize(raw: string): TsTypeOf<T>[] {
     // Delegates to Anyarray's parsing — same pg array format
     const inner = raw.slice(1, -1);
-    if (inner === "") return [];
+    if (inner === "") { return []; }
     const elements: string[] = [];
     let current = "";
     let inQuotes = false;

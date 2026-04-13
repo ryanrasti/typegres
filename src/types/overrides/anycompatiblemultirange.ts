@@ -9,7 +9,7 @@ export class Anycompatiblemultirange<T extends Any<number>, N extends number> ex
     // pg multirange format: {[lower,upper),[lower,upper)}
     // strip outer { }
     const inner = raw.slice(1, -1);
-    if (inner === "") return [];
+    if (inner === "") { return []; }
     // split on ],[  or ),( boundaries between ranges
     const ranges: [TsTypeOf<T>, TsTypeOf<T>][] = [];
     const elDeser = (this.__class as any).__element.prototype.deserialize;

@@ -13,6 +13,7 @@ export default [
       "prefer-const": "error",
       "no-var": "error",
       eqeqeq: "error",
+      curly: ["error", "all"],
       "no-undef": "off",
     },
   },

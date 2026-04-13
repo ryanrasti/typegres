@@ -115,7 +115,7 @@ const introspect = async (db: PGlite) => {
 
   const typeMap = new Map<number, PgType>();
   for (const t of types) {
-    if (EXCLUDED_TYPES.has(t.typname)) continue;
+    if (EXCLUDED_TYPES.has(t.typname)) { continue; }
     typeMap.set(t.oid, {
       oid: t.oid,
       typname: t.typname,
@@ -204,7 +204,7 @@ const groupByFirstArg = (pgFuncs: PgFunc[]) => {
 
   for (const f of pgFuncs) {
     const firstArg = f.argTypes[0];
-    if (firstArg === undefined) continue;
+    if (firstArg === undefined) { continue; }
     if (!grouped.has(firstArg)) {
       grouped.set(firstArg, []);
     }
@@ -222,7 +222,7 @@ const resolveBaseTypeName = (
   typeMap: Map<number, PgType>,
 ): string => {
   const t = typeMap.get(oid);
-  if (!t) return "unknown";
+  if (!t) { return "unknown"; }
 
   const ownerIsGeneric = GENERIC_TYPES.has(ownerType.typname) || ELEMENT_TYPES.has(ownerType.typname);
 
@@ -248,9 +248,9 @@ const resolveBaseTypeName = (
 // Format a type reference with nullability param
 const formatTypeWithNull = (baseName: string, nullParam: string): string => {
   // "T" is a raw generic — no nullability param on it
-  if (baseName === "T") return "T";
+  if (baseName === "T") { return "T"; }
   // Types that already opened a generic (end with ", ") just need the null param + close
-  if (baseName.endsWith(", ")) return `${baseName}${nullParam}>`;
+  if (baseName.endsWith(", ")) { return `${baseName}${nullParam}>`; }
   // Regular types get <nullParam>
   return `${baseName}<${nullParam}>`;
 };
@@ -273,17 +273,17 @@ const generateTypeFile = (
 
   for (const f of funcs) {
     // Skip operators/functions overloaded incompatibly by subtypes — each subtype defines its own version
-    if (pgType.typname === "anyelement" && f.isOperator && f.name === "<@") continue; // overloaded: array<@array, range<@range, elem<@multirange
-    if (pgType.typname === "anycompatible" && f.isOperator && f.name === "||") continue; // overloaded: text||text, array||array, bytea||bytea, etc.
-    if (pgType.typname === "anynonarray" && f.isOperator && f.name === "||") continue; // overloaded: text||anynonarray, but concrete types define their own ||
-    if (pgType.typname === "anycompatible" && !f.isOperator && f.name === "width_bucket") continue; // overloaded with different arities by float8, numeric
+    if (pgType.typname === "anyelement" && f.isOperator && f.name === "<@") { continue; } // overloaded: array<@array, range<@range, elem<@multirange
+    if (pgType.typname === "anycompatible" && f.isOperator && f.name === "||") { continue; } // overloaded: text||text, array||array, bytea||bytea, etc.
+    if (pgType.typname === "anynonarray" && f.isOperator && f.name === "||") { continue; } // overloaded: text||anynonarray, but concrete types define their own ||
+    if (pgType.typname === "anycompatible" && !f.isOperator && f.name === "width_bucket") { continue; } // overloaded with different arities by float8, numeric
 
     if (f.isOperator) {
-      if (!operatorGroups.has(f.name)) operatorGroups.set(f.name, []);
+      if (!operatorGroups.has(f.name)) { operatorGroups.set(f.name, []); }
       operatorGroups.get(f.name)!.push(f);
     } else {
       const key = camelcase(f.name);
-      if (seenFuncs.has(key)) continue;
+      if (seenFuncs.has(key)) { continue; }
       seenFuncs.add(key);
       emittedFuncs.push(f);
     }
@@ -447,7 +447,7 @@ const generateTypeFile = (
       const baseName = resolveBaseTypeName(oid, pgType, typeMap);
       const pgTypeConstraint = formatTypeWithNull(baseName, "any");
       const t = typeMap.get(oid);
-      if (!t) return `M${i} extends ${pgTypeConstraint}`;
+      if (!t) { return `M${i} extends ${pgTypeConstraint}`; }
       if (GENERIC_TYPES.has(t.typname) && needsGenericT) {
         return `M${i} extends ${pgTypeConstraint}${allowPrimitive ? " | TsTypeOf<T>[]" : ""}`;
       }
