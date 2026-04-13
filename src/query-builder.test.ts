@@ -243,28 +243,46 @@ test("e2e: where + groupBy + having", async () => {
 test("orderBy compiles to SQL", () => {
   const q = db
     .values({ a: new Int4(1) })
-    .orderBy((n) => [[n.values.a, "desc"]]);
+    .orderBy((n) => [n.values.a, "desc"]);
   const compiled = q.compile().compile("pg");
   expect(compiled.text).toContain("ORDER BY");
   expect(compiled.text).toContain("DESC");
 });
 
-test("e2e: orderBy ascending", async () => {
+test("e2e: orderBy single expr (default asc)", async () => {
   const result = await db
     .values({ x: new Int4(3) }, { x: 1 }, { x: 2 })
-    .orderBy((n) => [[n.values.x, "asc"]])
+    .orderBy((n) => n.values.x)
     .execute();
   expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
   expect(result).toEqual([{ x: 1 }, { x: 2 }, { x: 3 }]);
 });
 
-test("e2e: orderBy descending", async () => {
+test("e2e: orderBy single tuple", async () => {
   const result = await db
     .values({ x: new Int4(3) }, { x: 1 }, { x: 2 })
-    .orderBy((n) => [[n.values.x, "desc"]])
+    .orderBy((n) => [n.values.x, "desc"])
     .execute();
   expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
   expect(result).toEqual([{ x: 3 }, { x: 2 }, { x: 1 }]);
+});
+
+test("e2e: orderBy stacking", async () => {
+  const result = await db
+    .values(
+      { a: new Text("x"), b: new Int4(2) },
+      { a: "x", b: 1 },
+      { a: "y", b: 3 },
+    )
+    .orderBy((n) => n.values.a)
+    .orderBy((n) => [n.values.b, "desc"])
+    .execute();
+  expectTypeOf(result).toEqualTypeOf<{ a: string; b: number }[]>();
+  expect(result).toEqual([
+    { a: "x", b: 2 },
+    { a: "x", b: 1 },
+    { a: "y", b: 3 },
+  ]);
 });
 
 test("e2e: orderBy multiple columns", async () => {

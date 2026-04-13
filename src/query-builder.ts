@@ -122,10 +122,24 @@ class QueryBuilder<
     });
   }
 
-  orderBy(orderByFn: (n: N) => [Any<any>, OrderDirection][]): QueryBuilder<N, O, GB> {
+  orderBy(
+    orderByFn: (n: N) => Any<any> | [Any<any>, OrderDirection] | [Any<any>, OrderDirection][],
+  ): QueryBuilder<N, O, GB> {
+    const result = orderByFn(this.opts.namespace);
+    let entries: OrderBy[];
+    if (result instanceof Any) {
+      // Single expression, default asc
+      entries = [{ expr: result, dir: "asc" }];
+    } else if (Array.isArray(result) && result.length === 2 && result[0] instanceof Any && typeof result[1] === "string") {
+      // Single [expr, dir] tuple
+      entries = [{ expr: result[0], dir: result[1] as OrderDirection }];
+    } else {
+      // Array of [expr, dir] tuples
+      entries = (result as [Any<any>, OrderDirection][]).map(([expr, dir]) => ({ expr, dir }));
+    }
     return new QueryBuilder({
       ...this.opts,
-      orderBy: orderByFn(this.opts.namespace).map(([expr, dir]) => ({ expr, dir })),
+      orderBy: [...(this.opts.orderBy ?? []), ...entries],
     });
   }
 
