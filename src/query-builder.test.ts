@@ -237,3 +237,96 @@ test("e2e: where + groupBy + having", async () => {
     { cat: "b" },
   ]);
 });
+
+// --- orderBy ---
+
+test("orderBy compiles to SQL", () => {
+  const q = db
+    .values({ a: new Int4(1) })
+    .orderBy((n) => [[n.values.a, "desc"]]);
+  const compiled = q.compile().compile("pg");
+  expect(compiled.text).toContain("ORDER BY");
+  expect(compiled.text).toContain("DESC");
+});
+
+test("e2e: orderBy ascending", async () => {
+  const result = await db
+    .values({ x: new Int4(3) }, { x: 1 }, { x: 2 })
+    .orderBy((n) => [[n.values.x, "asc"]])
+    .execute();
+  expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
+  expect(result).toEqual([{ x: 1 }, { x: 2 }, { x: 3 }]);
+});
+
+test("e2e: orderBy descending", async () => {
+  const result = await db
+    .values({ x: new Int4(3) }, { x: 1 }, { x: 2 })
+    .orderBy((n) => [[n.values.x, "desc"]])
+    .execute();
+  expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
+  expect(result).toEqual([{ x: 3 }, { x: 2 }, { x: 1 }]);
+});
+
+test("e2e: orderBy multiple columns", async () => {
+  const result = await db
+    .values(
+      { a: new Text("x"), b: new Int4(2) },
+      { a: "x", b: 1 },
+      { a: "y", b: 3 },
+    )
+    .orderBy((n) => [
+      [n.values.a, "asc"],
+      [n.values.b, "desc"],
+    ])
+    .execute();
+  expectTypeOf(result).toEqualTypeOf<{ a: string; b: number }[]>();
+  expect(result).toEqual([
+    { a: "x", b: 2 },
+    { a: "x", b: 1 },
+    { a: "y", b: 3 },
+  ]);
+});
+
+// --- limit / offset ---
+
+test("e2e: limit", async () => {
+  const result = await db
+    .values({ x: new Int4(1) }, { x: 2 }, { x: 3 })
+    .orderBy((n) => [[n.values.x, "asc"]])
+    .limit(2)
+    .execute();
+  expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
+  expect(result).toEqual([{ x: 1 }, { x: 2 }]);
+});
+
+test("e2e: offset", async () => {
+  const result = await db
+    .values({ x: new Int4(1) }, { x: 2 }, { x: 3 })
+    .orderBy((n) => [[n.values.x, "asc"]])
+    .offset(1)
+    .execute();
+  expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
+  expect(result).toEqual([{ x: 2 }, { x: 3 }]);
+});
+
+test("e2e: limit + offset (pagination)", async () => {
+  const result = await db
+    .values({ x: new Int4(1) }, { x: 2 }, { x: 3 }, { x: 4 }, { x: 5 })
+    .orderBy((n) => [[n.values.x, "asc"]])
+    .limit(2)
+    .offset(2)
+    .execute();
+  expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
+  expect(result).toEqual([{ x: 3 }, { x: 4 }]);
+});
+
+test("e2e: where + orderBy + limit", async () => {
+  const result = await db
+    .values({ x: new Int4(10) }, { x: 5 }, { x: 20 }, { x: 1 }, { x: 15 })
+    .where((n) => n.values.x[">"](5))
+    .orderBy((n) => [[n.values.x, "asc"]])
+    .limit(2)
+    .execute();
+  expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
+  expect(result).toEqual([{ x: 10 }, { x: 15 }]);
+});

@@ -37,6 +37,9 @@ const aliasRowType = <R extends RowType>(row: R, tableAlias: string): R => {
   ) as R;
 };
 
+type OrderDirection = "asc" | "desc";
+type OrderBy = { expr: Any<any>; dir: OrderDirection };
+
 type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<0 | 1>[]> = {
   namespace: N;
   output: O;
@@ -46,6 +49,9 @@ type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<
   where?: Bool<0 | 1>;
   groupBy?: GB;
   having?: Bool<0 | 1>;
+  orderBy?: OrderBy[];
+  limit?: number;
+  offset?: number;
 };
 
 class QueryBuilder<
@@ -116,6 +122,21 @@ class QueryBuilder<
     });
   }
 
+  orderBy(orderByFn: (n: N) => [Any<any>, OrderDirection][]): QueryBuilder<N, O, GB> {
+    return new QueryBuilder({
+      ...this.opts,
+      orderBy: orderByFn(this.opts.namespace).map(([expr, dir]) => ({ expr, dir })),
+    });
+  }
+
+  limit(n: number): QueryBuilder<N, O, GB> {
+    return new QueryBuilder({ ...this.opts, limit: n });
+  }
+
+  offset(n: number): QueryBuilder<N, O, GB> {
+    return new QueryBuilder({ ...this.opts, offset: n });
+  }
+
   compile(isSubquery = false) {
     return sql.join(
       [
@@ -132,6 +153,13 @@ class QueryBuilder<
           this.opts.groupBy.length > 0 &&
           sql`GROUP BY ${sql.join(this.opts.groupBy.map((g) => g.compile()))}`,
         this.opts.having && sql`HAVING ${this.opts.having.compile()}`,
+        this.opts.orderBy &&
+          this.opts.orderBy.length > 0 &&
+          sql`ORDER BY ${sql.join(
+            this.opts.orderBy.map((o) => sql`${o.expr.compile()} ${sql.raw(o.dir.toUpperCase())}`),
+          )}`,
+        this.opts.limit !== undefined && sql`LIMIT ${sql.param(this.opts.limit)}`,
+        this.opts.offset !== undefined && sql`OFFSET ${sql.param(this.opts.offset)}`,
         isSubquery && sql`) AS ${sql.ident(this.alias)}`,
       ],
       sql`\n`,
