@@ -18,6 +18,19 @@ const sortRowColumns = <R extends RowType>(row: R): R => {
   return Object.fromEntries(Object.entries(row).sort(([a], [b]) => a.localeCompare(b))) as R;
 };
 
+const aliasRowType = <R extends RowType>(row: R, tableAlias: string): R => {
+  return Object.fromEntries(
+    Object.entries(row).map(([k, v]) => {
+      // Create a column reference expression with the same type as the original
+      // e.g., Int4 instance with __raw = "values"."col"
+      if (v instanceof Any) {
+        return [k, new (v.__class as any)(sql`${sql.ident(tableAlias)}.${sql.ident(k)}`)];
+      }
+      return [k, v];
+    }),
+  ) as R;
+};
+
 class QueryBuilder<N extends Namespace, O extends RowType> implements Fromable {
   private namespace: N;
   private output: O;
@@ -34,7 +47,13 @@ class QueryBuilder<N extends Namespace, O extends RowType> implements Fromable {
   }
 
   select<O2 extends RowType>(selectFn: (n: N) => O2): QueryBuilder<N, O2> {
-    return new QueryBuilder(this.namespace, selectFn(this.namespace), this.executor, this.alias, this.from);
+    return new QueryBuilder(
+      this.namespace,
+      selectFn(this.namespace),
+      this.executor,
+      this.alias,
+      this.from,
+    );
   }
 
   compile(isSubquery = false) {
@@ -42,8 +61,10 @@ class QueryBuilder<N extends Namespace, O extends RowType> implements Fromable {
       [
         isSubquery && sql`(`,
         // TODO: we should only select the `exposed` fields.
-        sql`SELECT ${Object.entries(this.output).flatMap(([k, v]) =>
-          v instanceof Any ? [sql`${v.compile()} as ${sql.ident(k)}`] : [],
+        sql`SELECT ${sql.join(
+          Object.entries(this.output).flatMap(([k, v]) =>
+            v instanceof Any ? [sql`${v.compile()} as ${sql.ident(k)}`] : [],
+          ),
         )}`,
         this.from && sql`FROM ${this.from.compile(true)}`,
         isSubquery && sql`) AS ${sql.ident(this.alias)}`,
@@ -122,6 +143,13 @@ export class Database {
     ...valsRest: (R | RowTypeToTsType<R>)[]
   ): QueryBuilder<{ values: R }, R> {
     const vals = new Values(vals0, ...valsRest);
-    return new QueryBuilder({ values: vals0 }, vals0, this.executor, "q", vals) as any;
+    const aliased = aliasRowType(vals0, "values");
+    return new QueryBuilder(
+      { values: aliased },
+      aliased,
+      this.executor,
+      "q",
+      vals,
+    ) as any;
   }
 }

@@ -158,40 +158,40 @@ test("chained operations", () => {
 
 // --- E2E ---
 
-test("e2e: integer addition", async () => {
+test("e2e: integer addition (raw strings)", async () => {
   const expr = new Int4(1)["+"](new Int4(2));
   const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
-  expect(rows[0]?.["result"]).toBe(3);
+  expect(rows[0]?.["result"]).toBe("3");
 });
 
-test("e2e: string upper", async () => {
+test("e2e: string upper (raw strings)", async () => {
   const expr = new Text("hello").upper();
   const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
   expect(rows[0]?.["result"]).toBe("HELLO");
 });
 
-test("e2e: boolean equality", async () => {
+test("e2e: boolean equality (raw strings)", async () => {
   const expr = new Bool(true)["="](new Bool(true));
   const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
-  expect(rows[0]?.["result"]).toBe(true);
+  expect(rows[0]?.["result"]).toBe("t");
 });
 
-test("e2e: integer comparison", async () => {
+test("e2e: integer comparison (raw strings)", async () => {
   const expr = new Int4(5)[">"](new Int4(3));
   const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
-  expect(rows[0]?.["result"]).toBe(true);
+  expect(rows[0]?.["result"]).toBe("t");
 });
 
-test("e2e: string concatenation", async () => {
+test("e2e: string concatenation (raw strings)", async () => {
   const expr = new Text("hello")["||"](new Text(" world"));
   const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
   expect(rows[0]?.["result"]).toBe("hello world");
 });
 
-test("e2e: primitive arg", async () => {
+test("e2e: primitive arg (raw strings)", async () => {
   const expr = new Int4(10)["+"](5);
   const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
-  expect(rows[0]?.["result"]).toBe(15);
+  expect(rows[0]?.["result"]).toBe("15");
 });
 
 test("e2e: nested expressions", async () => {
@@ -199,5 +199,5 @@ test("e2e: nested expressions", async () => {
   const right = new Int4(3)["+"](new Int4(4));
   const result = left["*"](right);
   const rows = await exec.execute(sql`SELECT ${result.compile()} as ${sql.ident("result")}`);
-  expect(rows[0]?.["result"]).toBe(21);
+  expect(rows[0]?.["result"]).toBe("21");
 });
