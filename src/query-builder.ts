@@ -38,7 +38,7 @@ const aliasRowType = <R extends RowType>(row: R, tableAlias: string): R => {
 };
 
 type OrderDirection = "asc" | "desc";
-type OrderBy = { expr: Any<any>; dir: OrderDirection };
+type OrderByEntry = Any<any> | [Any<any>, OrderDirection];
 
 type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<0 | 1>[]> = {
   namespace: N;
@@ -49,7 +49,7 @@ type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<
   where?: Bool<0 | 1>;
   groupBy?: GB;
   having?: Bool<0 | 1>;
-  orderBy?: OrderBy[];
+  orderBy?: OrderByEntry[];
   limit?: number;
   offset?: number;
 };
@@ -123,20 +123,13 @@ class QueryBuilder<
   }
 
   orderBy(
-    orderByFn: (n: N) => Any<any> | [Any<any>, OrderDirection] | [Any<any>, OrderDirection][],
+    orderByFn: (n: N) => OrderByEntry | OrderByEntry[],
   ): QueryBuilder<N, O, GB> {
     const result = orderByFn(this.opts.namespace);
-    let entries: OrderBy[];
-    if (result instanceof Any) {
-      // Single expression, default asc
-      entries = [{ expr: result, dir: "asc" }];
-    } else if (Array.isArray(result) && result.length === 2 && result[0] instanceof Any && typeof result[1] === "string") {
-      // Single [expr, dir] tuple
-      entries = [{ expr: result[0], dir: result[1] as OrderDirection }];
-    } else {
-      // Array of [expr, dir] tuples
-      entries = (result as [Any<any>, OrderDirection][]).map(([expr, dir]) => ({ expr, dir }));
-    }
+    // Normalize: single entry → array
+    const entries: OrderByEntry[] = result instanceof Any || (Array.isArray(result) && result[0] instanceof Any && typeof result[1] === "string")
+      ? [result as OrderByEntry]
+      : result as OrderByEntry[];
     return new QueryBuilder({
       ...this.opts,
       orderBy: [...(this.opts.orderBy ?? []), ...entries],
@@ -170,7 +163,12 @@ class QueryBuilder<
         this.opts.orderBy &&
           this.opts.orderBy.length > 0 &&
           sql`ORDER BY ${sql.join(
-            this.opts.orderBy.map((o) => sql`${o.expr.compile()} ${sql.raw(o.dir.toUpperCase())}`),
+            this.opts.orderBy.map((entry) => {
+              if (entry instanceof Any) return entry.compile();
+              const [expr, dir] = entry;
+              if (dir === "desc") return sql`${expr.compile()} DESC`;
+              return sql`${expr.compile()} ASC`;
+            }),
           )}`,
         this.opts.limit !== undefined && sql`LIMIT ${sql.param(this.opts.limit)}`,
         this.opts.offset !== undefined && sql`OFFSET ${sql.param(this.opts.offset)}`,
