@@ -3,14 +3,34 @@ import camelcase from "camelcase";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-const GENERATED_DIR = path.resolve(import.meta.dirname, "../types/generated");
-const OVERRIDES_DIR = path.resolve(import.meta.dirname, "../types/overrides");
-const TYPES_INDEX = path.resolve(import.meta.dirname, "../types/index.ts");
+const GENERATED_DIR = path.resolve(import.meta.dirname, "generated");
+const OVERRIDES_DIR = path.resolve(import.meta.dirname, "overrides");
+const TYPES_INDEX = path.resolve(import.meta.dirname, "index.ts");
 
 // Map pg type names to TS-friendly class names
 const pgNameToClassName = (name: string): string => {
   return camelcase(name, { pascalCase: true });
 };
+
+// Map pg type names to their corresponding TS primitive type for ser/deser
+// Default is "string" — only specify non-string types here
+const TS_PRIMITIVE_MAP: Record<string, string | undefined> = {
+  // Numbers (fits in JS number: 64-bit float or less)
+  int2: "number",
+  int4: "number",
+  float4: "number",
+  float8: "number",
+  oid: "number",
+  // Bigint (> 32 bits integer)
+  int8: "bigint",
+  // Boolean
+  bool: "boolean",
+  // Binary
+  bytea: "Uint8Array",
+};
+
+const tsPrimitiveFor = (typname: string): string =>
+  TS_PRIMITIVE_MAP[typname] ?? "string";
 
 // Types that get a generic <T extends Any<number>> parameter
 const GENERIC_TYPES = new Set([
@@ -53,11 +73,14 @@ const MAYBE_NULL_OPS = new Set(["->", "->>", "#>", "#>>"]);
 
 // Inheritance hierarchy:
 // Any<N>
-//   └─ Anycompatible<N>
+//   └─ Anycompatible<T, N>
 //        └─ Anyelement<T, N>
 //             ├─ Anycompatiblenonarray<T, N>
 //             │    └─ Anynonarray<T, N>
-//             │         └─ Anyenum<T, N>
+//             │         ├─ Anyenum<T, N>
+//             │         ├─ Int4<N>  (T = Int4<N>)
+//             │         ├─ Text<N>  (T = Text<N>)
+//             │         └─ ... all concrete types
 //             ├─ Anycompatiblearray<T, N>
 //             │    └─ Anyarray<T, N>
 //             ├─ Anycompatiblerange<T, N>
@@ -264,9 +287,11 @@ const generateTypeFile = (
   for (const f of funcs) {
     const key = f.isOperator ? `['${f.name}']` : camelcase(f.name);
     if (seen.has(key)) continue;
-    // Skip operators overloaded incompatibly by subtypes — each subtype defines its own version
+    // Skip operators/functions overloaded incompatibly by subtypes — each subtype defines its own version
     if (pgType.typname === "anyelement" && f.isOperator && f.name === "<@") continue; // overloaded: array<@array, range<@range, elem<@multirange
-    if (pgType.typname === "anycompatible" && f.isOperator && f.name === "||") continue; // overloaded: text||text, array||array
+    if (pgType.typname === "anycompatible" && f.isOperator && f.name === "||") continue; // overloaded: text||text, array||array, bytea||bytea, etc.
+    if (pgType.typname === "anynonarray" && f.isOperator && f.name === "||") continue; // overloaded: text||anynonarray, but concrete types define their own ||
+    if (pgType.typname === "anycompatible" && !f.isOperator && f.name === "width_bucket") continue; // overloaded with different arities by float8, numeric
     seen.add(key);
     emitted.push(f);
   }
@@ -292,6 +317,9 @@ const generateTypeFile = (
   const valueImports = new Set<string>();
   if (extendsClass) {
     valueImports.add(extendsClass);
+  } else if (pgType.typname !== "any") {
+    // Concrete types extend Anynonarray
+    valueImports.add("Anynonarray");
   }
 
   if (needsGenericT && !referencedTypes.has("Any") && !valueImports.has("Any")) {
@@ -302,19 +330,49 @@ const generateTypeFile = (
   const needsStrictNull = emitted.some((f) => f.isStrict && f.argTypes.length > 1 && !(f.isOperator && MAYBE_NULL_OPS.has(f.name)));
   const needsMaybeNull = emitted.some((f) => f.isOperator && MAYBE_NULL_OPS.has(f.name));
 
+  // Determine which runtime type helpers and concrete type value imports we need
+  let needsPgType = false;
+  let needsPgElement = false;
+  for (const f of emitted) {
+    const retBase = resolveBaseTypeName(f.returnType, pgType, typeMap);
+    if (retBase === "T") {
+      needsPgElement = true;
+    } else if (f.returnType === f.argTypes[0] && (isGeneric || isElement)) {
+      needsPgType = true;
+    } else {
+      // Concrete class used as type arg — needs a value import
+      const retT = typeMap.get(f.returnType);
+      if (retT && retT.className !== pgType.className) {
+        valueImports.add(retT.className);
+      }
+    }
+  }
+
   const lines: string[] = [];
   lines.push("// Auto-generated — do not edit");
 
   const hasFuncs = emitted.some((f) => !f.isOperator);
   const hasOps = emitted.some((f) => f.isOperator);
+  const needsNullOf = emitted.some((f) => f.argTypes.length > 1);
+  // TsTypeOf needed when any arg references a generic any* type
+  const needsTsTypeOf = emitted.some((f) =>
+    f.argTypes.slice(1).some((oid) => {
+      const t = typeMap.get(oid);
+      return t && (GENERIC_TYPES.has(t.typname) || ELEMENT_TYPES.has(t.typname));
+    }),
+  );
   const runtimeImports = [
     ...(hasFuncs ? ["PgFunc"] : []),
     ...(hasOps ? ["PgOp"] : []),
     ...(needsStrictNull ? ["StrictNull"] : []),
     ...(needsMaybeNull ? ["MaybeNull"] : []),
+    ...(needsNullOf ? ["NullOf"] : []),
+    ...(needsTsTypeOf ? ["TsTypeOf"] : []),
+    ...(needsPgType ? ["pgType"] : []),
+    ...(needsPgElement ? ["pgElement"] : []),
   ];
   if (runtimeImports.length > 0) {
-    lines.push(`import { ${runtimeImports.join(", ")} } from "../../codegen/runtime.js";`);
+    lines.push(`import { ${runtimeImports.join(", ")} } from "../runtime.js";`);
   }
 
   // Value imports (for extends)
@@ -348,37 +406,67 @@ const generateTypeFile = (
     } else {
       classDecl += ` extends ${extendsClass}<T, N>`;
     }
+  } else if (pgType.typname !== "any") {
+    // Concrete types extend Anynonarray (scalars in the type hierarchy)
+    classDecl += ` extends Anynonarray<${pgType.className}<N>, N>`;
   }
   classDecl += " {";
   lines.push(classDecl);
+
+  // Phantom __tsType for type-level TS primitive mapping
+  // Only emit on Any (root) and concrete types. The any* hierarchy
+  // narrows __tsType through overrides (hand-written).
+  if (pgType.typname === "any") {
+    lines.push("  declare __tsType: unknown;");
+  } else if (!EXTENDS_MAP[pgType.typname]) {
+    // Concrete type — not in the any* hierarchy
+    lines.push(`  declare __tsType: ${tsPrimitiveFor(pgType.typname)};`);
+  }
 
   for (const f of emitted) {
     const restArgs = f.argTypes.slice(1);
     const isMaybeNullOp = f.isOperator && MAYBE_NULL_OPS.has(f.name);
 
-    // Build generic params for extra args: <M0 extends number, M1 extends number, ...>
-    const genericParams = restArgs.map((_, i) => `M${i} extends number`);
+    // Build generic constraint for each arg: M0 extends Int4<any> | number
+    const genericParams = restArgs.map((oid, i) => {
+      const baseName = resolveBaseTypeName(oid, pgType, typeMap);
+      const pgTypeConstraint = formatTypeWithNull(baseName, "any");
+      const t = typeMap.get(oid);
+      if (!t) return `M${i} extends ${pgTypeConstraint}`;
+      if (GENERIC_TYPES.has(t.typname) && needsGenericT) {
+        // Container types on a generic class — accept TS array of element's TS type
+        return `M${i} extends ${pgTypeConstraint} | TsTypeOf<T>[]`;
+      }
+      if (ELEMENT_TYPES.has(t.typname) && needsGenericT) {
+        // Element types on a generic class — accept the element's TS type directly
+        return `M${i} extends ${pgTypeConstraint} | TsTypeOf<T>`;
+      }
+      if (GENERIC_TYPES.has(t.typname) || ELEMENT_TYPES.has(t.typname)) {
+        // any* type referenced from a concrete class — accept unknown
+        return `M${i} extends ${pgTypeConstraint} | unknown`;
+      }
+      // Concrete types — accept the TS primitive
+      return `M${i} extends ${pgTypeConstraint} | ${tsPrimitiveFor(t.typname)}`;
+    });
     const genericDecl = genericParams.length > 0 ? `<${genericParams.join(", ")}>` : "";
 
-    // Build parameter list with nullability
+    // Build parameter list — arg type is just M0 (the generic captures both pg type and primitive)
     const params = restArgs
-      .map((oid, i) => {
-        const baseName = resolveBaseTypeName(oid, pgType, typeMap);
-        const typed = formatTypeWithNull(baseName, `M${i}`);
-        return `arg${i}: ${typed}`;
-      })
+      .map((_, i) => `arg${i}: M${i}`)
       .join(", ");
 
     // Build return type with null propagation
+    // NullOf<M> extracts N from pg types, defaults to 1 for primitives
     // Three modes:
-    //   1. Strict (proisstrict=true): null in → null out, StrictNull<N | M...>
+    //   1. Strict (proisstrict=true): null in → null out, StrictNull<N | NullOf<M>...>
     //   2. Non-strict (proisstrict=false): handles nulls explicitly, always returns non-null (1)
-    //   3. Maybe-null operators (-> ->> #> #>>): can introduce nulls, MaybeNull<N | M...>
+    //   3. Maybe-null operators (-> ->> #> #>>): can introduce nulls, MaybeNull<N | NullOf<M>...>
     const retBase = resolveBaseTypeName(f.returnType, pgType, typeMap);
     let retType: string;
+    const nullParts = ["N", ...restArgs.map((_, i) => `NullOf<M${i}>`)];
+    const nullUnion = nullParts.join(" | ");
     if (isMaybeNullOp) {
       // JSON access etc. — can return null even from non-null inputs
-      const nullUnion = ["N", ...restArgs.map((_, i) => `M${i}`)].join(" | ");
       retType = formatTypeWithNull(retBase, `MaybeNull<${nullUnion}>`);
     } else if (!f.isStrict) {
       // Non-strict functions handle nulls explicitly — always return non-null
@@ -388,20 +476,33 @@ const generateTypeFile = (
       retType = formatTypeWithNull(retBase, "N");
     } else {
       // Strict, multiple args — union all nullability params
-      const nullUnion = ["N", ...restArgs.map((_, i) => `M${i}`)].join(" | ");
       retType = formatTypeWithNull(retBase, `StrictNull<${nullUnion}>`);
     }
 
     const argsExpr = restArgs.map((_, i) => `arg${i}`).join(", ");
     const allArgs = argsExpr ? `this, ${argsExpr}` : "this";
 
+    // Determine runtime type arg:
+    //   - Return is T (element of container) → pgElement(this)
+    //   - Return is same type as self and class is generic → pgType(this)
+    //   - Otherwise → concrete class reference
+    let typeArg: string;
+    if (retBase === "T") {
+      typeArg = "pgElement(this)";
+    } else if (f.returnType === f.argTypes[0] && (isGeneric || isElement)) {
+      typeArg = "pgType(this)";
+    } else {
+      const retT = typeMap.get(f.returnType);
+      typeArg = retT?.className ?? "undefined";
+    }
+
     if (f.isOperator) {
       lines.push(
-        `  ['${f.name}']${genericDecl}(${params}): ${retType} { return PgOp("${f.name}", [${allArgs}]) as any; }`,
+        `  ['${f.name}']${genericDecl}(${params}): ${retType} { return PgOp("${f.name}", [${allArgs}], ${typeArg}) as any; }`,
       );
     } else {
       lines.push(
-        `  ${camelcase(f.name)}${genericDecl}(${params}): ${retType} { return PgFunc("${f.name}", [${allArgs}]) as any; }`,
+        `  ${camelcase(f.name)}${genericDecl}(${params}): ${retType} { return PgFunc("${f.name}", [${allArgs}], ${typeArg}) as any; }`,
       );
     }
   }

@@ -2,17 +2,17 @@
 // [generated-start]
 export { Aclitem } from "./generated/aclitem.js";
 export { Any } from "./generated/any.js";
-export { Anyarray } from "./generated/anyarray.js";
+export { Anyarray } from "./overrides/anyarray.js";
 export { Anycompatible } from "./generated/anycompatible.js";
-export { Anycompatiblearray } from "./generated/anycompatiblearray.js";
-export { Anycompatiblemultirange } from "./generated/anycompatiblemultirange.js";
+export { Anycompatiblearray } from "./overrides/anycompatiblearray.js";
+export { Anycompatiblemultirange } from "./overrides/anycompatiblemultirange.js";
 export { Anycompatiblenonarray } from "./generated/anycompatiblenonarray.js";
-export { Anycompatiblerange } from "./generated/anycompatiblerange.js";
+export { Anycompatiblerange } from "./overrides/anycompatiblerange.js";
 export { Anyelement } from "./generated/anyelement.js";
 export { Anyenum } from "./generated/anyenum.js";
-export { Anymultirange } from "./generated/anymultirange.js";
+export { Anymultirange } from "./overrides/anymultirange.js";
 export { Anynonarray } from "./generated/anynonarray.js";
-export { Anyrange } from "./generated/anyrange.js";
+export { Anyrange } from "./overrides/anyrange.js";
 export { Bit } from "./generated/bit.js";
 export { Bool } from "./generated/bool.js";
 export { Bpchar } from "./generated/bpchar.js";
