@@ -12,7 +12,7 @@ const pgNameToClassName = (name: string): string => {
   return camelcase(name, { pascalCase: true });
 };
 
-// Types that get a generic <T extends Any> parameter
+// Types that get a generic <T extends Any<number>> parameter
 const GENERIC_TYPES = new Set([
   "anyarray",
   "anycompatiblearray",
@@ -48,19 +48,22 @@ const ELEMENT_TYPES = new Set([
   "anyenum",
 ]);
 
+// Operators that can return null from non-null inputs (e.g. JSON key not found)
+const MAYBE_NULL_OPS = new Set(["->", "->>", "#>", "#>>"]);
+
 // Inheritance hierarchy:
-// Any
-//   └─ Anycompatible
-//        └─ Anyelement
-//             ├─ Anycompatiblenonarray
-//             │    └─ Anynonarray
-//             │         └─ Anyenum
-//             ├─ Anycompatiblearray<T>
-//             │    └─ Anyarray<T>
-//             ├─ Anycompatiblerange<T>
-//             │    └─ Anyrange<T>
-//             └─ Anycompatiblemultirange<T>
-//                  └─ Anymultirange<T>
+// Any<N>
+//   └─ Anycompatible<N>
+//        └─ Anyelement<T, N>
+//             ├─ Anycompatiblenonarray<T, N>
+//             │    └─ Anynonarray<T, N>
+//             │         └─ Anyenum<T, N>
+//             ├─ Anycompatiblearray<T, N>
+//             │    └─ Anyarray<T, N>
+//             ├─ Anycompatiblerange<T, N>
+//             │    └─ Anyrange<T, N>
+//             └─ Anycompatiblemultirange<T, N>
+//                  └─ Anymultirange<T, N>
 const EXTENDS_MAP: Record<string, string> = {
   anycompatible: "Any",
   anyelement: "Anycompatible",
@@ -86,6 +89,7 @@ interface PgFunc {
   argTypes: number[];
   returnType: number;
   isOperator: boolean;
+  isStrict: boolean;
 }
 
 const introspect = async (db: PGlite) => {
@@ -111,13 +115,14 @@ const introspect = async (db: PGlite) => {
     });
   }
 
-  // Get functions: name, arg types, return type
+  // Get functions: name, arg types, return type, strictness
   const { rows: funcs } = await db.query<{
     proname: string;
     proargtypes: string;
     prorettype: number;
+    proisstrict: boolean;
   }>(`
-    SELECT p.proname, p.proargtypes::text, p.prorettype
+    SELECT p.proname, p.proargtypes::text, p.prorettype, p.proisstrict
     FROM pg_proc p
     JOIN pg_namespace n ON p.pronamespace = n.oid
     WHERE n.nspname = 'pg_catalog'
@@ -131,7 +136,7 @@ const introspect = async (db: PGlite) => {
     ORDER BY p.proname
   `);
 
-  // Get operators
+  // Get operators (operators are always strict in terms of null propagation)
   const { rows: operators } = await db.query<{
     oprname: string;
     oprleft: number;
@@ -161,6 +166,7 @@ const introspect = async (db: PGlite) => {
         argTypes: argOids,
         returnType: f.prorettype,
         isOperator: false,
+        isStrict: f.proisstrict,
       });
     }
   }
@@ -176,6 +182,7 @@ const introspect = async (db: PGlite) => {
         argTypes: [o.oprleft, o.oprright],
         returnType: o.oprresult,
         isOperator: true,
+        isStrict: true, // operators always propagate nulls
       });
     }
   }
@@ -199,9 +206,9 @@ const groupByFirstArg = (pgFuncs: PgFunc[]) => {
   return grouped;
 };
 
-// Resolve a type OID to its TS name, applying generic substitutions
+// Resolve a type OID to its base TS name (without nullability param)
 // Only apply T substitution when the owning class is itself generic (an any* type)
-const resolveTypeName = (
+const resolveBaseTypeName = (
   oid: number,
   ownerType: PgType,
   typeMap: Map<number, PgType>,
@@ -218,16 +225,26 @@ const resolveTypeName = (
     }
     // Self-references and container references get <T>
     if (GENERIC_TYPES.has(t.typname) || ELEMENT_TYPES.has(t.typname)) {
-      return `${t.className}<T>`;
+      return `${t.className}<T, `;
     }
   } else {
-    // Non-generic class referencing a generic any* type: use <Any>
+    // Non-generic class referencing a generic any* type: use <Any<number>>
     if (GENERIC_TYPES.has(t.typname) || ELEMENT_TYPES.has(t.typname)) {
-      return `${t.className}<Any>`;
+      return `${t.className}<Any<number>, `;
     }
   }
 
   return t.className;
+};
+
+// Format a type reference with nullability param
+const formatTypeWithNull = (baseName: string, nullParam: string): string => {
+  // "T" is a raw generic — no nullability param on it
+  if (baseName === "T") return "T";
+  // Types that already opened a generic (end with ", ") just need the null param + close
+  if (baseName.endsWith(", ")) return `${baseName}${nullParam}>`;
+  // Regular types get <nullParam>
+  return `${baseName}<${nullParam}>`;
 };
 
 const generateTypeFile = (
@@ -238,6 +255,7 @@ const generateTypeFile = (
   const isGeneric = GENERIC_TYPES.has(pgType.typname);
   const isElement = ELEMENT_TYPES.has(pgType.typname);
   const extendsClass = EXTENDS_MAP[pgType.typname];
+  const needsGenericT = isGeneric || isElement;
 
   // First pass: deduplicate and collect only emitted functions
   const seen = new Set<string>();
@@ -257,16 +275,14 @@ const generateTypeFile = (
   const referencedTypes = new Set<string>();
   for (const f of emitted) {
     for (const argOid of f.argTypes.slice(1)) {
-      const resolved = resolveTypeName(argOid, pgType, typeMap);
+      const resolved = resolveBaseTypeName(argOid, pgType, typeMap);
       const t = typeMap.get(argOid);
-      // Only import if it's a concrete class name (not T)
       if (t && resolved !== "T" && t.className !== pgType.className) {
-        // Strip generic param for import
         referencedTypes.add(t.className);
       }
     }
     const ret = typeMap.get(f.returnType);
-    const resolvedRet = resolveTypeName(f.returnType, pgType, typeMap);
+    const resolvedRet = resolveBaseTypeName(f.returnType, pgType, typeMap);
     if (ret && resolvedRet !== "T" && ret.className !== pgType.className) {
       referencedTypes.add(ret.className);
     }
@@ -278,12 +294,13 @@ const generateTypeFile = (
     valueImports.add(extendsClass);
   }
 
-  // Only any* types are generic — concrete types are not
-  const needsGenericT = isGeneric || isElement;
-
   if (needsGenericT && !referencedTypes.has("Any") && !valueImports.has("Any")) {
     referencedTypes.add("Any");
   }
+
+  // Determine which null helpers we need
+  const needsStrictNull = emitted.some((f) => f.isStrict && f.argTypes.length > 1 && !(f.isOperator && MAYBE_NULL_OPS.has(f.name)));
+  const needsMaybeNull = emitted.some((f) => f.isOperator && MAYBE_NULL_OPS.has(f.name));
 
   const lines: string[] = [];
   lines.push("// Auto-generated — do not edit");
@@ -293,6 +310,8 @@ const generateTypeFile = (
   const runtimeImports = [
     ...(hasFuncs ? ["PgFunc"] : []),
     ...(hasOps ? ["PgOp"] : []),
+    ...(needsStrictNull ? ["StrictNull"] : []),
+    ...(needsMaybeNull ? ["MaybeNull"] : []),
   ];
   if (runtimeImports.length > 0) {
     lines.push(`import { ${runtimeImports.join(", ")} } from "../../codegen/runtime.js";`);
@@ -316,17 +335,18 @@ const generateTypeFile = (
 
   lines.push("");
 
-  // Build class declaration
+  // Build class declaration — every class gets N extends number for nullability
   let classDecl = `export class ${pgType.className}`;
-  if (isGeneric || isElement || needsGenericT) {
-    classDecl += `<T extends Any>`;
+  if (needsGenericT) {
+    classDecl += `<T extends Any<number>, N extends number>`;
+  } else {
+    classDecl += `<N extends number>`;
   }
   if (extendsClass) {
-    // If parent is Any, no generic param. Otherwise pass T through.
     if (extendsClass === "Any") {
-      classDecl += ` extends ${extendsClass}`;
+      classDecl += ` extends ${extendsClass}<N>`;
     } else {
-      classDecl += ` extends ${extendsClass}<T>`;
+      classDecl += ` extends ${extendsClass}<T, N>`;
     }
   }
   classDecl += " {";
@@ -334,24 +354,54 @@ const generateTypeFile = (
 
   for (const f of emitted) {
     const restArgs = f.argTypes.slice(1);
+    const isMaybeNullOp = f.isOperator && MAYBE_NULL_OPS.has(f.name);
+
+    // Build generic params for extra args: <M0 extends number, M1 extends number, ...>
+    const genericParams = restArgs.map((_, i) => `M${i} extends number`);
+    const genericDecl = genericParams.length > 0 ? `<${genericParams.join(", ")}>` : "";
+
+    // Build parameter list with nullability
     const params = restArgs
       .map((oid, i) => {
-        const typeName = resolveTypeName(oid, pgType, typeMap);
-        return `arg${i}: ${typeName}`;
+        const baseName = resolveBaseTypeName(oid, pgType, typeMap);
+        const typed = formatTypeWithNull(baseName, `M${i}`);
+        return `arg${i}: ${typed}`;
       })
       .join(", ");
 
-    const retName = resolveTypeName(f.returnType, pgType, typeMap);
+    // Build return type with null propagation
+    // Three modes:
+    //   1. Strict (proisstrict=true): null in → null out, StrictNull<N | M...>
+    //   2. Non-strict (proisstrict=false): handles nulls explicitly, always returns non-null (1)
+    //   3. Maybe-null operators (-> ->> #> #>>): can introduce nulls, MaybeNull<N | M...>
+    const retBase = resolveBaseTypeName(f.returnType, pgType, typeMap);
+    let retType: string;
+    if (isMaybeNullOp) {
+      // JSON access etc. — can return null even from non-null inputs
+      const nullUnion = ["N", ...restArgs.map((_, i) => `M${i}`)].join(" | ");
+      retType = formatTypeWithNull(retBase, `MaybeNull<${nullUnion}>`);
+    } else if (!f.isStrict) {
+      // Non-strict functions handle nulls explicitly — always return non-null
+      retType = formatTypeWithNull(retBase, "1");
+    } else if (restArgs.length === 0) {
+      // Strict, no extra args — nullability passes through from this
+      retType = formatTypeWithNull(retBase, "N");
+    } else {
+      // Strict, multiple args — union all nullability params
+      const nullUnion = ["N", ...restArgs.map((_, i) => `M${i}`)].join(" | ");
+      retType = formatTypeWithNull(retBase, `StrictNull<${nullUnion}>`);
+    }
+
     const argsExpr = restArgs.map((_, i) => `arg${i}`).join(", ");
     const allArgs = argsExpr ? `this, ${argsExpr}` : "this";
 
     if (f.isOperator) {
       lines.push(
-        `  ['${f.name}'](${params}): ${retName} { return PgOp("${f.name}", [${allArgs}]) as any; }`,
+        `  ['${f.name}']${genericDecl}(${params}): ${retType} { return PgOp("${f.name}", [${allArgs}]) as any; }`,
       );
     } else {
       lines.push(
-        `  ${camelcase(f.name)}(${params}): ${retName} { return PgFunc("${f.name}", [${allArgs}]) as any; }`,
+        `  ${camelcase(f.name)}${genericDecl}(${params}): ${retType} { return PgFunc("${f.name}", [${allArgs}]) as any; }`,
       );
     }
   }
