@@ -102,7 +102,7 @@ class QueryBuilder<
         ...mergedGroupBy,
       },
       groupBy: mergedGroupBy,
-    });
+    } as any);
   }
 
   compile(isSubquery = false) {
@@ -192,16 +192,16 @@ export class Database {
 
   public values<R extends RowType>(
     vals0: R,
-    ...valsRest: (R | RowTypeToTsType<R>)[]
-  ): QueryBuilder<{ values: R }, R> {
+    ...valsRest: (NoInfer<R> | RowTypeToTsType<NoInfer<R>>)[]
+  ): QueryBuilder<{ values: R }, R, []> {
     const vals = new Values(vals0, ...valsRest);
-    const aliased = aliasRowType(vals0, "values");
-    return new QueryBuilder({
-      namespace: { values: aliased },
+    const aliased = aliasRowType(vals0, "values") as R;
+    return new QueryBuilder<{ values: R }, R, []>({
+      namespace: { values: aliased } as { values: R },
       output: aliased,
       from: vals,
       executor: this.executor,
       alias: "q",
-    }) as any;
+    });
   }
 }

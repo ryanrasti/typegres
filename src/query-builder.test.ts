@@ -1,4 +1,4 @@
-import { test, expect, beforeAll, afterAll } from "vitest";
+import { test, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
 import { pgliteExecutor } from "./executor";
 import type { Executor } from "./executor";
 import { Database } from "./query-builder";
@@ -62,6 +62,7 @@ test("e2e: values single row", async () => {
   const result = await db
     .values({ a: new Int4(1), b: new Text("hello") })
     .execute();
+  expectTypeOf(result).toEqualTypeOf<{ a: number; b: string }[]>();
   expect(result).toEqual([{ a: 1, b: "hello" }]);
 });
 
@@ -72,6 +73,7 @@ test("e2e: values multiple rows", async () => {
       { x: 2, y: "b" },
     )
     .execute();
+  expectTypeOf(result).toEqualTypeOf<{ x: number; y: string }[]>();
   expect(result).toEqual([
     { x: 1, y: "a" },
     { x: 2, y: "b" },
@@ -85,6 +87,7 @@ test("e2e: values with select expression", async () => {
       sum: n.values.a["+"](n.values.b),
     }))
     .execute();
+  expectTypeOf(result).toEqualTypeOf<{ sum: number }[]>();
   expect(result).toEqual([{ sum: 30 }]);
 });
 
@@ -95,6 +98,7 @@ test("e2e: values with string upper", async () => {
       upper: n.values.name.upper(),
     }))
     .execute();
+  expectTypeOf(result).toEqualTypeOf<{ upper: string }[]>();
   expect(result).toEqual([{ upper: "HELLO" }]);
 });
 
@@ -102,6 +106,7 @@ test("e2e: values with mixed types", async () => {
   const result = await db
     .values({ num: new Int4(42), str: new Text("test"), flag: new Bool(true) })
     .execute();
+  expectTypeOf(result).toEqualTypeOf<{ num: number; str: string; flag: boolean }[]>();
   expect(result).toEqual([{ num: 42, str: "test", flag: true }]);
 });
 
@@ -113,6 +118,7 @@ test("e2e: values with primitive second row", async () => {
       { a: 3 },
     )
     .execute();
+  expectTypeOf(result).toEqualTypeOf<{ a: number }[]>();
   expect(result).toEqual([{ a: 1 }, { a: 2 }, { a: 3 }]);
 });
 
@@ -127,6 +133,7 @@ test("e2e: where filters rows", async () => {
     )
     .where((n) => n.values.a[">"](2))
     .execute();
+  expectTypeOf(result).toEqualTypeOf<{ a: number; b: string }[]>();
   expect(result).toEqual([{ a: 3, b: "yes" }]);
 });
 
@@ -139,6 +146,7 @@ test("e2e: where with equality", async () => {
     )
     .where((n) => n.values.x["="](10))
     .execute();
+  expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
   expect(result).toEqual([{ x: 10 }, { x: 10 }]);
 });
 
@@ -176,6 +184,7 @@ test("e2e: groupBy with select", async () => {
       category: n.values.category,
     }))
     .execute();
+  expectTypeOf(result).toEqualTypeOf<{ category: string }[]>();
   expect(result.sort((a, b) => a.category.localeCompare(b.category))).toEqual([
     { category: "a" },
     { category: "b" },
