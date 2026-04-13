@@ -40,15 +40,15 @@ const aliasRowType = <R extends RowType>(row: R, tableAlias: string): R => {
 type OrderDirection = "asc" | "desc";
 type OrderByEntry = Any<any> | [Any<any>, OrderDirection];
 
-type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<0 | 1>[]> = {
+type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<any>[]> = {
   namespace: N;
   output: O;
   executor: Executor;
   alias: string;
   from?: Fromable;
-  where?: Bool<0 | 1>;
+  where?: Bool<any>;
   groupBy?: GB;
-  having?: Bool<0 | 1>;
+  having?: Bool<any>;
   orderBy?: OrderByEntry[];
   limit?: number;
   offset?: number;
@@ -57,7 +57,7 @@ type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<
 class QueryBuilder<
   N extends Namespace,
   O extends RowType,
-  GB extends Any<0 | 1>[],
+  GB extends Any<any>[],
 > implements Fromable {
   private opts: QueryBuilderOptions<N, O, GB>;
   get alias(): string {
@@ -78,7 +78,7 @@ class QueryBuilder<
     });
   }
 
-  where(whereFn: (n: N) => Bool<0 | 1>): QueryBuilder<N, O, GB> {
+  where(whereFn: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
     return new QueryBuilder({
       ...this.opts,
       where: whereFn(this.opts.namespace),
@@ -87,7 +87,7 @@ class QueryBuilder<
 
   // TODO: after groupBy, namespace values should be transformed to aggregate types
   // so that select can only reference group-by columns or aggregate functions
-  groupBy<G extends Any<0 | 1>[]>(
+  groupBy<G extends Any<any>[]>(
     groupByFn: (n: N) => [...G],
   ): QueryBuilder<N & G, O, [...GB, ...G]> {
     let rawGroupBy = groupByFn(this.opts.namespace);
@@ -115,7 +115,7 @@ class QueryBuilder<
     } as any);
   }
 
-  having(havingFn: (n: N) => Bool<0 | 1>): QueryBuilder<N, O, GB> {
+  having(havingFn: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
     return new QueryBuilder({
       ...this.opts,
       having: havingFn(this.opts.namespace),

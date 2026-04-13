@@ -486,7 +486,9 @@ const generateTypeFile = (
     // Determine runtime type arg
     // pgType/pgElement return the right class at runtime but TS can't verify generics — needs `as any`
     let typeArg: string;
-    let needsCast = false;
+    // Always cast: PgFunc/PgOp construct instances with N=number but the method
+    // signature specifies the precise N. Cast is safe — signature is source of truth.
+    let needsCast = true;
     if (retBase === "T") {
       typeArg = "pgElement(this)";
       needsCast = true; // TS can't know element type at compile time
