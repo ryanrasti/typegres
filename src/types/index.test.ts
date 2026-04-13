@@ -213,6 +213,12 @@ test("column() returns typed descriptor", () => {
   assert<Equals<typeof id, Int4<1>>>();
   assert<Equals<typeof name, Text<0 | 1>>>();
 
+  // Verify tsafe Equals is precise — these must fail at compile time
+  // @ts-expect-error Text<0> is not Text<0|1>
+  assert<Equals<typeof name, Text<0>>>();
+  // @ts-expect-error Text<1> is not Text<0|1>
+  assert<Equals<Text<1>, Text<0 | 1>>>();
+
   // Runtime: column descriptor has metadata
   expect((id as any).__column).toBe(true);
   expect((id as any).__class).toBe(Int4);
