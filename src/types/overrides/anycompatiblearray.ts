@@ -2,7 +2,7 @@ import type { TsTypeOf } from "../runtime";
 import { Anycompatiblearray as Generated } from "../generated/anycompatiblearray";
 import type { Any } from "../index";
 
-export class Anycompatiblearray<T extends Any<number>, N extends number> extends Generated<T, N> {
+export class Anycompatiblearray<T extends Any<any>, N extends number> extends Generated<T, N> {
   static __element: unknown;
 
   deserialize(raw: string): TsTypeOf<T>[] {

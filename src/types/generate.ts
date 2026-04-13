@@ -17,7 +17,7 @@ import { getTypeDef } from "./deserialize.ts";
 const tsPrimitiveFor = (typname: string): string =>
   getTypeDef(typname).tsType;
 
-// Types that get a generic <T extends Any<number>> parameter
+// Types that get a generic <T extends Any<any>> parameter
 const GENERIC_TYPES = new Set([
   "anyarray",
   "anycompatiblearray",
@@ -236,9 +236,9 @@ const resolveBaseTypeName = (
       return `types.${t.className}<T, `;
     }
   } else {
-    // Non-generic class referencing a generic any* type: use <types.Any<number>>
+    // Non-generic class referencing a generic any* type: use <types.Any<any>>
     if (GENERIC_TYPES.has(t.typname) || ELEMENT_TYPES.has(t.typname)) {
-      return `types.${t.className}<types.Any<number>, `;
+      return `types.${t.className}<types.Any<any>, `;
     }
   }
 
@@ -397,7 +397,7 @@ const generateTypeFile = (
   // Build class declaration — every class gets N extends number for nullability
   let classDecl = `export class ${pgType.className}`;
   if (needsGenericT) {
-    classDecl += `<T extends types.Any<number>, N extends number>`;
+    classDecl += `<T extends types.Any<any>, N extends number>`;
   } else {
     classDecl += `<N extends number>`;
   }

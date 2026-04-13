@@ -2,7 +2,7 @@ import type { TsTypeOf } from "../runtime";
 import { Anycompatiblerange as Generated } from "../generated/anycompatiblerange";
 import type { Any } from "../index";
 
-export class Anycompatiblerange<T extends Any<number>, N extends number> extends Generated<T, N> {
+export class Anycompatiblerange<T extends Any<any>, N extends number> extends Generated<T, N> {
   static __element: unknown;
 
   deserialize(raw: string): [TsTypeOf<T>, TsTypeOf<T>] {
