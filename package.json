@@ -17,16 +17,18 @@
   "scripts": {
     "build": "tsdown",
     "lint": "eslint src",
+    "typecheck": "tsgo --noEmit",
     "format": "prettier --write src",
-    "test": "vitest"
+    "test": "vitest run",
+    "check": "npm run lint && npm run typecheck && npm run test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260413.1",
     "eslint": "^10.2.0",
     "prettier": "^3.8.2",
     "tsdown": "^0.21.8",
     "typescript": "^6.0.2",
-    "typescript-eslint": "^8.58.1",
     "vitest": "^4.1.4"
   }
 }

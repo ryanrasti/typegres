@@ -13,7 +13,6 @@
     "noPropertyAccessFromIndexSignature": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInImports": true,
     "isolatedModules": true
   },
   "include": ["src"]
