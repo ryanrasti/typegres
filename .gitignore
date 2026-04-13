@@ -1,0 +1,4 @@
+.exobox
+node_modules/
+dist/
+.direnv/
