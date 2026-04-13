@@ -29,7 +29,7 @@ export class Any<N extends number> extends Generated<N> {
 
   // Column descriptor for Table definitions
   // `this` in static context is the constructor — so Int4.column() returns Int4<N>
-  static column<T extends typeof Any>(
+  static column<T extends typeof Any<any>>(
     this: T,
     opts?: { nonNull?: boolean; default?: Sql },
   ): InstanceType<T> {

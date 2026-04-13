@@ -1,8 +1,7 @@
-import { test, expect, beforeAll, afterAll } from "vitest";
+import { test, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
 import type { StrictNull, MaybeNull, NullOf, TsTypeOf } from "./runtime";
 import type { Any, Float8, Anyarray, Anyrange, Anymultirange } from "./index";
 import { Int4, Text, Bool, Int8 } from "./index";
-import { assert, Equals } from "tsafe";
 import { sql } from "../sql-builder";
 import { pgliteExecutor } from "../executor";
 import type { Executor } from "../executor";
@@ -32,8 +31,8 @@ test("MaybeNull always adds 0", () => {
 });
 
 test("NullOf extracts nullability from pg types, defaults to 1 for primitives", () => {
-  expectTypeOf<NullOf<Int4T<0 | 1>>>().toEqualTypeOf<0 | 1>();
-  expectTypeOf<NullOf<Int4T<1>>>().toEqualTypeOf<1>();
+  expectTypeOf<NullOf<Int4<0 | 1>>>().toEqualTypeOf<0 | 1>();
+  expectTypeOf<NullOf<Int4<1>>>().toEqualTypeOf<1>();
   expectTypeOf<NullOf<number>>().toEqualTypeOf<1>();
   expectTypeOf<NullOf<string>>().toEqualTypeOf<1>();
 });
@@ -41,11 +40,11 @@ test("NullOf extracts nullability from pg types, defaults to 1 for primitives", 
 // --- TsTypeOf ---
 
 test("TsTypeOf extracts TS primitive from pg types", () => {
-  expectTypeOf<TsTypeOf<Int4T<1>>>().toEqualTypeOf<number>();
-  expectTypeOf<TsTypeOf<TextT<1>>>().toEqualTypeOf<string>();
-  expectTypeOf<TsTypeOf<BoolT<1>>>().toEqualTypeOf<boolean>();
+  expectTypeOf<TsTypeOf<Int4<1>>>().toEqualTypeOf<number>();
+  expectTypeOf<TsTypeOf<Text<1>>>().toEqualTypeOf<string>();
+  expectTypeOf<TsTypeOf<Bool<1>>>().toEqualTypeOf<boolean>();
   expectTypeOf<TsTypeOf<Float8<1>>>().toEqualTypeOf<number>();
-  expectTypeOf<TsTypeOf<Int8T<1>>>().toEqualTypeOf<bigint>();
+  expectTypeOf<TsTypeOf<Int8<1>>>().toEqualTypeOf<bigint>();
 });
 
 test("TsTypeOf on container types", () => {
@@ -92,7 +91,7 @@ test("operator overloads: Int4 + number resolves to Int4", () => {
 });
 
 test("operator overloads: Int4 = accepts number but not string", () => {
-  type EqFn = Int4T<1>["="];
+  type EqFn = Int4<1>["="];
   expectTypeOf<EqFn>().not.toBeAny();
 });
 
@@ -208,9 +207,8 @@ test("column() returns typed descriptor", () => {
   const id = (Int4<1>).column({ nonNull: true });
   const name = (Text<0 | 1>).column();
 
-  // Exact type checks via tsafe
-  assert<Equals<typeof id, Int4<1>>>();
-  assert<Equals<typeof name, Text<0 | 1>>>();
+  expectTypeOf(id).toEqualTypeOf<Int4<1>>();
+  expectTypeOf(name).toEqualTypeOf<Text<1>>();
 
   // Runtime: column descriptor has metadata
   expect((id as any).__column).toBe(true);
