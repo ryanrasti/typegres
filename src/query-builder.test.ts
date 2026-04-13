@@ -26,10 +26,7 @@ test("values with single typed row", async () => {
 });
 
 test("values with multiple rows, second row uses primitives", async () => {
-  const q = db.values(
-    { x: new Int4(1), y: new Text("a") },
-    { x: 2, y: "b" },
-  );
+  const q = db.values({ x: new Int4(1), y: new Text("a") }, { x: 2, y: "b" });
   const compiled = q.compile().compile("pg");
   expect(compiled.text).toContain("VALUES");
 });
@@ -37,20 +34,16 @@ test("values with multiple rows, second row uses primitives", async () => {
 // --- values().select() ---
 
 test("values with select identity", async () => {
-  const q = db
-    .values({ num: new Int4(42), name: new Text("test") })
-    .select((n) => n.values);
+  const q = db.values({ num: new Int4(42), name: new Text("test") }).select((n) => n.values);
   const compiled = q.compile().compile("pg");
   expect(compiled.text).toContain("SELECT");
   expect(compiled.text).toContain("VALUES");
 });
 
 test("values with select computed column", async () => {
-  const q = db
-    .values({ a: new Int4(5), b: new Int4(3) })
-    .select((n) => ({
-      sum: n.values.a["+"](n.values.b),
-    }));
+  const q = db.values({ a: new Int4(5), b: new Int4(3) }).select((n) => ({
+    sum: n.values.a["+"](n.values.b),
+  }));
   const compiled = q.compile().compile("pg");
   expect(compiled.text).toContain("SELECT");
   expect(compiled.text).toContain("+");
@@ -59,20 +52,13 @@ test("values with select computed column", async () => {
 // --- e2e ---
 
 test("e2e: values single row", async () => {
-  const result = await db
-    .values({ a: new Int4(1), b: new Text("hello") })
-    .execute();
+  const result = await db.values({ a: new Int4(1), b: new Text("hello") }).execute();
   expectTypeOf(result).toEqualTypeOf<{ a: number; b: string }[]>();
   expect(result).toEqual([{ a: 1, b: "hello" }]);
 });
 
 test("e2e: values multiple rows", async () => {
-  const result = await db
-    .values(
-      { x: new Int4(1), y: new Text("a") },
-      { x: 2, y: "b" },
-    )
-    .execute();
+  const result = await db.values({ x: new Int4(1), y: new Text("a") }, { x: 2, y: "b" }).execute();
   expectTypeOf(result).toEqualTypeOf<{ x: number; y: string }[]>();
   expect(result).toEqual([
     { x: 1, y: "a" },
@@ -111,13 +97,7 @@ test("e2e: values with mixed types", async () => {
 });
 
 test("e2e: values with primitive second row", async () => {
-  const result = await db
-    .values(
-      { a: new Int4(1) },
-      { a: 2 },
-      { a: 3 },
-    )
-    .execute();
+  const result = await db.values({ a: new Int4(1) }, { a: 2 }, { a: 3 }).execute();
   expectTypeOf(result).toEqualTypeOf<{ a: number }[]>();
   expect(result).toEqual([{ a: 1 }, { a: 2 }, { a: 3 }]);
 });
@@ -126,11 +106,7 @@ test("e2e: values with primitive second row", async () => {
 
 test("e2e: where filters rows", async () => {
   const result = await db
-    .values(
-      { a: new Int4(1), b: new Text("yes") },
-      { a: 2, b: "no" },
-      { a: 3, b: "yes" },
-    )
+    .values({ a: new Int4(1), b: new Text("yes") }, { a: 2, b: "no" }, { a: 3, b: "yes" })
     .where((n) => n.values.a[">"](2))
     .execute();
   expectTypeOf(result).toEqualTypeOf<{ a: number; b: string }[]>();
@@ -139,11 +115,7 @@ test("e2e: where filters rows", async () => {
 
 test("e2e: where with equality", async () => {
   const result = await db
-    .values(
-      { x: new Int4(10) },
-      { x: 20 },
-      { x: 10 },
-    )
+    .values({ x: new Int4(10) }, { x: 20 }, { x: 10 })
     .where((n) => n.values.x["="](10))
     .execute();
   expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
@@ -151,9 +123,7 @@ test("e2e: where with equality", async () => {
 });
 
 test("where compiles to SQL", () => {
-  const q = db
-    .values({ a: new Int4(1) })
-    .where((n) => n.values.a[">"](5));
+  const q = db.values({ a: new Int4(1) }).where((n) => n.values.a[">"](5));
   const compiled = q.compile().compile("pg");
   expect(compiled.text).toContain("WHERE");
 });
@@ -172,7 +142,7 @@ test("groupBy compiles to SQL", () => {
   expect(compiled.text).toContain("GROUP BY");
 });
 
-test("e2e: groupBy select using original column ref", async () => {
+test("e2e: groupBy select using numeric index", async () => {
   // n.values.category is the same expression used in groupBy — should work directly
   const result = await db
     .values(
@@ -181,15 +151,12 @@ test("e2e: groupBy select using original column ref", async () => {
       { category: "y", val: 3 },
     )
     .groupBy((n) => [n.values.category])
-    .select((n) => ({
-      cat: n.values.category,
+    .select(({ 0: cat }) => ({
+      cat: cat,
     }))
     .execute();
   expectTypeOf(result).toEqualTypeOf<{ cat: string }[]>();
-  expect(result.sort((a, b) => a.cat.localeCompare(b.cat))).toEqual([
-    { cat: "x" },
-    { cat: "y" },
-  ]);
+  expect(result.sort((a, b) => a.cat.localeCompare(b.cat))).toEqual([{ cat: "x" }, { cat: "y" }]);
 });
 
 test("e2e: groupBy with select", async () => {

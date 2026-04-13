@@ -16,6 +16,8 @@ type RowTypeToTsType<R extends RowType> = {
 
 type KeepIndices<T extends unknown[]> = {
   [K in keyof T & number]: T[K];
+} & {
+  [Symbol.iterator]: () => Iterator<T[number]>;
 };
 
 const sortRowColumns = <R extends RowType>(row: R): R => {
@@ -78,9 +80,7 @@ class QueryBuilder<
 
   // TODO: after groupBy, namespace values should be transformed to aggregate types
   // so that select can only reference group-by columns or aggregate functions
-  groupBy<G extends Any<0 | 1>[]>(
-    groupByFn: (n: N) => G,
-  ): QueryBuilder<N & KeepIndices<G>, O, [...GB, ...G]> {
+  groupBy<G extends Any<0 | 1>[]>(groupByFn: (n: N) => [...G]): QueryBuilder<N & G, O, [...GB, ...G]> {
     let rawGroupBy = groupByFn(this.opts.namespace);
     const mergedGroupBy = [...(this.opts.groupBy ?? []), ...rawGroupBy];
 
@@ -100,6 +100,7 @@ class QueryBuilder<
         // We add the group by columns to the namespace -- they are accessible by index
         //  e.g., .select({ 0: g0 }) => select(n => ({ ret: g0 }))
         ...mergedGroupBy,
+        [Symbol.iterator]: () => mergedGroupBy[Symbol.iterator](),
       },
       groupBy: mergedGroupBy,
     } as any);
@@ -117,7 +118,8 @@ class QueryBuilder<
         )}`,
         this.opts.from && sql`FROM ${this.opts.from.compile(true)}`,
         this.opts.where && sql`WHERE ${this.opts.where.compile()}`,
-        this.opts.groupBy && this.opts.groupBy.length > 0 &&
+        this.opts.groupBy &&
+          this.opts.groupBy.length > 0 &&
           sql`GROUP BY ${sql.join(this.opts.groupBy.map((g) => g.compile()))}`,
         isSubquery && sql`) AS ${sql.ident(this.alias)}`,
       ],
