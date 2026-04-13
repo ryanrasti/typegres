@@ -45,6 +45,7 @@ type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<
   from?: Fromable;
   where?: Bool<0 | 1>;
   groupBy?: GB;
+  having?: Bool<0 | 1>;
 };
 
 class QueryBuilder<
@@ -80,7 +81,9 @@ class QueryBuilder<
 
   // TODO: after groupBy, namespace values should be transformed to aggregate types
   // so that select can only reference group-by columns or aggregate functions
-  groupBy<G extends Any<0 | 1>[]>(groupByFn: (n: N) => [...G]): QueryBuilder<N & G, O, [...GB, ...G]> {
+  groupBy<G extends Any<0 | 1>[]>(
+    groupByFn: (n: N) => [...G],
+  ): QueryBuilder<N & G, O, [...GB, ...G]> {
     let rawGroupBy = groupByFn(this.opts.namespace);
     const mergedGroupBy = [...(this.opts.groupBy ?? []), ...rawGroupBy];
 
@@ -106,6 +109,13 @@ class QueryBuilder<
     } as any);
   }
 
+  having(havingFn: (n: N) => Bool<0 | 1>): QueryBuilder<N, O, GB> {
+    return new QueryBuilder({
+      ...this.opts,
+      having: havingFn(this.opts.namespace),
+    });
+  }
+
   compile(isSubquery = false) {
     return sql.join(
       [
@@ -121,6 +131,7 @@ class QueryBuilder<
         this.opts.groupBy &&
           this.opts.groupBy.length > 0 &&
           sql`GROUP BY ${sql.join(this.opts.groupBy.map((g) => g.compile()))}`,
+        this.opts.having && sql`HAVING ${this.opts.having.compile()}`,
         isSubquery && sql`) AS ${sql.ident(this.alias)}`,
       ],
       sql`\n`,

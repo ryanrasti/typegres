@@ -177,3 +177,63 @@ test("e2e: groupBy with select", async () => {
     { category: "b" },
   ]);
 });
+
+// --- having ---
+
+test("having compiles to SQL", () => {
+  const q = db
+    .values(
+      { category: new Text("a"), amount: new Int4(10) },
+      { category: "a", amount: 20 },
+      { category: "b", amount: 5 },
+    )
+    .groupBy((n) => [n.values.category])
+    .having((n) => n.values.category[">"](new Text("a")));
+  const compiled = q.compile().compile("pg");
+  expect(compiled.text).toContain("HAVING");
+  expect(compiled.text).toContain("GROUP BY");
+});
+
+test("e2e: having filters groups", async () => {
+  // Group by category, only keep groups where category > 'a'
+  const result = await db
+    .values(
+      { category: new Text("a"), val: new Int4(1) },
+      { category: "b", val: 2 },
+      { category: "c", val: 3 },
+    )
+    .groupBy((n) => [n.values.category])
+    .having((n) => n.values.category[">"](new Text("a")))
+    .select(({ 0: cat }) => ({
+      cat,
+    }))
+    .execute();
+  expectTypeOf(result).toEqualTypeOf<{ cat: string }[]>();
+  expect(result.sort((a, b) => a.cat.localeCompare(b.cat))).toEqual([
+    { cat: "b" },
+    { cat: "c" },
+  ]);
+});
+
+test("e2e: where + groupBy + having", async () => {
+  const result = await db
+    .values(
+      { category: new Text("a"), amount: new Int4(10) },
+      { category: "a", amount: 20 },
+      { category: "b", amount: 5 },
+      { category: "b", amount: 100 },
+      { category: "c", amount: 1 },
+    )
+    .where((n) => n.values.amount[">"](3))
+    .groupBy((n) => [n.values.category])
+    .having((n) => n.values.category["<>"](new Text("c")))
+    .select(({ 0: cat }) => ({
+      cat,
+    }))
+    .execute();
+  expectTypeOf(result).toEqualTypeOf<{ cat: string }[]>();
+  expect(result.sort((a, b) => a.cat.localeCompare(b.cat))).toEqual([
+    { cat: "a" },
+    { cat: "b" },
+  ]);
+});
