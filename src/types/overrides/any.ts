@@ -25,4 +25,15 @@ export class Any<N extends number> extends Generated<N> {
   compile(): Sql {
     return this.__raw;
   }
+
+  // Column descriptor for Table definitions
+  // `this` in static context is the constructor — so Int4.column() returns Int4<N>
+  static column<T extends typeof Any>(
+    this: T,
+    opts?: { nonNull?: boolean; default?: Sql },
+  ): InstanceType<T> {
+    // At runtime, column() returns a descriptor object — not a real expression
+    // The type system tracks nullability via the generic
+    return { __column: true, __class: this, ...opts } as any;
+  }
 }
