@@ -25,15 +25,16 @@ class QueryBuilder<N extends Namespace, O extends RowType> implements Fromable {
   private executor: Executor;
   public readonly alias: string;
 
-  constructor(namespace: N, outputType: O, executor: Executor, alias: string) {
+  constructor(namespace: N, outputType: O, executor: Executor, alias: string, from?: Fromable) {
     this.namespace = namespace;
     this.output = outputType;
     this.executor = executor;
     this.alias = alias;
+    this.from = from;
   }
 
   select<O2 extends RowType>(selectFn: (n: N) => O2): QueryBuilder<N, O2> {
-    return new QueryBuilder(this.namespace, selectFn(this.namespace), this.executor, this.alias);
+    return new QueryBuilder(this.namespace, selectFn(this.namespace), this.executor, this.alias, this.from);
   }
 
   compile(isSubquery = false) {
@@ -51,19 +52,19 @@ class QueryBuilder<N extends Namespace, O extends RowType> implements Fromable {
     );
   }
 
-  execute(): RowTypeToTsType<O> {
-    const rows = this.executor.execute(this.compile());
-    return rows.map((row) =>
+  async execute(): Promise<RowTypeToTsType<O>[]> {
+    const rows = await this.executor.execute(this.compile());
+    return rows.map((row: Record<string, string>) =>
       Object.fromEntries(
         Object.entries(row).map(([k, v]) => {
           const type = this.output[k as keyof O];
           if (!(type instanceof Any)) {
             throw new Error(`Expected ${k} to be an Any type, got ${typeof v}`);
           }
-          return [k, type.deserialize(v)];
+          return [k, type.deserialize(String(v))];
         }),
       ),
-    );
+    ) as RowTypeToTsType<O>[];
   }
 }
 
@@ -83,35 +84,37 @@ class Values<R extends RowType> implements Fromable {
   }
 
   compile(isSubquery?: boolean) {
-    if (isSubquery) {
-      throw new Error("Values cannot be a subquery");
-    }
+    // Stable column order from the first (typed) row
+    const columnNames = Object.keys(sortRowColumns(this.vals0));
 
-    const mappedVals = [this.vals0, ...this.valsRest].map((v) => {
-      const sorted = sortRowColumns(
-        Object.entries(v).map(([k, v]) => {
-          if (!(v instanceof Any)) {
-            const type = this.vals0[k as keyof R];
-            if (!type) {
-              throw new Error(`Unknown column ${k}`);
-            }
-            if (!(type instanceof Any)) {
-              throw new Error(`Expected ${k} to be an Any type, got ${typeof v}`);
-            }
-            v = new type.__class(v);
+    // Compile each row into a VALUES tuple
+    const rowSqls = [this.vals0, ...this.valsRest].map((row) => {
+      const vals = columnNames.map((k) => {
+        let v = (row as Record<string, unknown>)[k];
+        if (!(v instanceof Any)) {
+          // Primitive — wrap using the type from the first row
+          const type = this.vals0[k as keyof R];
+          if (!(type instanceof Any)) {
+            throw new Error(`Expected ${k} to be an Any type`);
           }
-          return [k, v.compile()];
-        }),
-      );
-      return Object.fromEntries(sorted).map(([k, v]) => sql`${sql.ident(k)}`);
+          v = new (type.__class as any)(v);
+        }
+        return (v as Any<any>).compile();
+      });
+      return sql`(${sql.join(vals)})`;
     });
-    const columns = Object.keys(this.vals0).map((k) => sql.ident(k));
 
-    return sql`(VALUES (${sql.join(mappedVals)})) AS ${sql.ident(this.alias)}(${sql.join(columns)})`;
+    const columns = columnNames.map((k) => sql.ident(k));
+    const valuesSql = sql`(VALUES ${sql.join(rowSqls)}) AS ${sql.ident(this.alias)}(${sql.join(columns)})`;
+
+    if (isSubquery) {
+      return valuesSql;
+    }
+    return valuesSql;
   }
 }
 
-class Database {
+export class Database {
   constructor(private executor: Executor) {}
 
   public values<R extends RowType>(
@@ -119,6 +122,6 @@ class Database {
     ...valsRest: (R | RowTypeToTsType<R>)[]
   ): QueryBuilder<{ values: R }, R> {
     const vals = new Values(vals0, ...valsRest);
-    return new QueryBuilder({ values: vals0 }, vals, this.executor, "values");
+    return new QueryBuilder({ values: vals0 }, vals0, this.executor, "q", vals) as any;
   }
 }

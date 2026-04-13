@@ -1,55 +1,117 @@
 import { test, expect, beforeAll, afterAll } from "vitest";
 import { pgliteExecutor } from "./executor";
 import type { Executor } from "./executor";
+import { Database } from "./query-builder";
 import { Int4, Text, Bool } from "./types";
-import { sql } from "./sql-builder";
 
 let exec: Executor;
+let db: Database;
 
 beforeAll(async () => {
   exec = await pgliteExecutor();
+  db = new Database(exec);
 });
 
 afterAll(async () => {
   await exec.close();
 });
 
-// --- values() e2e tests ---
+// --- values() ---
 
-test("e2e: values with single row", async () => {
-  const rows = await exec.execute(
-    sql`SELECT * FROM (VALUES (${new Int4(1).compile()}, ${new Text("hello").compile()})) AS t(${sql.ident("a")}, ${sql.ident("b")})`,
-  );
-  expect(rows).toEqual([{ a: 1, b: "hello" }]);
+test("values with single typed row", async () => {
+  const q = db.values({ a: new Int4(1), b: new Text("hello") });
+  const compiled = q.compile().compile("pg");
+  expect(compiled.text).toContain("VALUES");
+  expect(compiled.text).toContain("CAST");
 });
 
-test("e2e: values with multiple rows", async () => {
-  const rows = await exec.execute(
-    sql`SELECT * FROM (VALUES (${new Int4(1).compile()}, ${new Text("a").compile()}), (${new Int4(2).compile()}, ${new Text("b").compile()})) AS t(${sql.ident("x")}, ${sql.ident("y")})`,
+test("values with multiple rows, second row uses primitives", async () => {
+  const q = db.values(
+    { x: new Int4(1), y: new Text("a") },
+    { x: 2, y: "b" },
   );
-  expect(rows).toEqual([
+  const compiled = q.compile().compile("pg");
+  expect(compiled.text).toContain("VALUES");
+});
+
+// --- values().select() ---
+
+test("values with select identity", async () => {
+  const q = db
+    .values({ num: new Int4(42), name: new Text("test") })
+    .select((n) => n.values);
+  const compiled = q.compile().compile("pg");
+  expect(compiled.text).toContain("SELECT");
+  expect(compiled.text).toContain("VALUES");
+});
+
+test("values with select computed column", async () => {
+  const q = db
+    .values({ a: new Int4(5), b: new Int4(3) })
+    .select((n) => ({
+      sum: n.values.a["+"](n.values.b),
+    }));
+  const compiled = q.compile().compile("pg");
+  expect(compiled.text).toContain("SELECT");
+  expect(compiled.text).toContain("+");
+});
+
+// --- e2e ---
+
+test("e2e: values single row", async () => {
+  const result = await db
+    .values({ a: new Int4(1), b: new Text("hello") })
+    .execute();
+  expect(result).toEqual([{ a: 1, b: "hello" }]);
+});
+
+test("e2e: values multiple rows", async () => {
+  const result = await db
+    .values(
+      { x: new Int4(1), y: new Text("a") },
+      { x: 2, y: "b" },
+    )
+    .execute();
+  expect(result).toEqual([
     { x: 1, y: "a" },
     { x: 2, y: "b" },
   ]);
 });
 
 test("e2e: values with select expression", async () => {
-  const rows = await exec.execute(
-    sql`SELECT ${sql.ident("a")} + ${sql.ident("b")} as ${sql.ident("sum")} FROM (VALUES (${new Int4(10).compile()}, ${new Int4(20).compile()})) AS t(${sql.ident("a")}, ${sql.ident("b")})`,
-  );
-  expect(rows).toEqual([{ sum: 30 }]);
+  const result = await db
+    .values({ a: new Int4(10), b: new Int4(20) })
+    .select((n) => ({
+      sum: n.values.a["+"](n.values.b),
+    }))
+    .execute();
+  expect(result).toEqual([{ sum: 30 }]);
 });
 
-test("e2e: values with string functions", async () => {
-  const rows = await exec.execute(
-    sql`SELECT "upper"(${sql.ident("name")}) as ${sql.ident("result")} FROM (VALUES (${new Text("hello").compile()})) AS t(${sql.ident("name")})`,
-  );
-  expect(rows).toEqual([{ result: "HELLO" }]);
+test("e2e: values with string upper", async () => {
+  const result = await db
+    .values({ name: new Text("hello") })
+    .select((n) => ({
+      upper: n.values.name.upper(),
+    }))
+    .execute();
+  expect(result).toEqual([{ upper: "HELLO" }]);
 });
 
 test("e2e: values with mixed types", async () => {
-  const rows = await exec.execute(
-    sql`SELECT * FROM (VALUES (${new Int4(42).compile()}, ${new Text("test").compile()}, ${new Bool(true).compile()})) AS t(${sql.ident("num")}, ${sql.ident("str")}, ${sql.ident("flag")})`,
-  );
-  expect(rows).toEqual([{ num: 42, str: "test", flag: true }]);
+  const result = await db
+    .values({ num: new Int4(42), str: new Text("test"), flag: new Bool(true) })
+    .execute();
+  expect(result).toEqual([{ num: 42, str: "test", flag: true }]);
+});
+
+test("e2e: values with primitive second row", async () => {
+  const result = await db
+    .values(
+      { a: new Int4(1) },
+      { a: 2 },
+      { a: 3 },
+    )
+    .execute();
+  expect(result).toEqual([{ a: 1 }, { a: 2 }, { a: 3 }]);
 });
