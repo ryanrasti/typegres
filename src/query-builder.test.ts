@@ -1,7 +1,7 @@
 import { test, expect, beforeAll, afterAll } from "vitest";
 import { pgliteExecutor } from "./executor";
 import type { Executor } from "./executor";
-import { val } from "./val";
+import { Int4, Text, Bool } from "./types";
 import { sql } from "./sql-builder";
 
 let exec: Executor;
@@ -14,94 +14,42 @@ afterAll(async () => {
   await exec.close();
 });
 
-// --- SQL compilation ---
+// --- values() e2e tests ---
 
-test("val(number) compiles with cast", () => {
-  const compiled = val(5).compile().compile("pg");
-  expect(compiled.text).toBe("CAST($1 AS int4)");
-  expect(compiled.values).toEqual([5]);
+test("e2e: values with single row", async () => {
+  const rows = await exec.execute(
+    sql`SELECT * FROM (VALUES (${new Int4(1).compile()}, ${new Text("hello").compile()})) AS t(${sql.ident("a")}, ${sql.ident("b")})`,
+  );
+  expect(rows).toEqual([{ a: 1, b: "hello" }]);
 });
 
-test("val(string) compiles with cast", () => {
-  const compiled = val("hello").compile().compile("pg");
-  expect(compiled.text).toBe("CAST($1 AS text)");
-  expect(compiled.values).toEqual(["hello"]);
+test("e2e: values with multiple rows", async () => {
+  const rows = await exec.execute(
+    sql`SELECT * FROM (VALUES (${new Int4(1).compile()}, ${new Text("a").compile()}), (${new Int4(2).compile()}, ${new Text("b").compile()})) AS t(${sql.ident("x")}, ${sql.ident("y")})`,
+  );
+  expect(rows).toEqual([
+    { x: 1, y: "a" },
+    { x: 2, y: "b" },
+  ]);
 });
 
-test("val(boolean) compiles with cast", () => {
-  const compiled = val(true).compile().compile("pg");
-  expect(compiled.text).toBe("CAST($1 AS bool)");
-  expect(compiled.values).toEqual([true]);
+test("e2e: values with select expression", async () => {
+  const rows = await exec.execute(
+    sql`SELECT ${sql.ident("a")} + ${sql.ident("b")} as ${sql.ident("sum")} FROM (VALUES (${new Int4(10).compile()}, ${new Int4(20).compile()})) AS t(${sql.ident("a")}, ${sql.ident("b")})`,
+  );
+  expect(rows).toEqual([{ sum: 30 }]);
 });
 
-test("val(bigint) compiles with cast", () => {
-  const compiled = val(9007199254740993n).compile().compile("pg");
-  expect(compiled.text).toBe("CAST($1 AS int8)");
-  expect(compiled.values).toEqual([9007199254740993n]);
+test("e2e: values with string functions", async () => {
+  const rows = await exec.execute(
+    sql`SELECT "upper"(${sql.ident("name")}) as ${sql.ident("result")} FROM (VALUES (${new Text("hello").compile()})) AS t(${sql.ident("name")})`,
+  );
+  expect(rows).toEqual([{ result: "HELLO" }]);
 });
 
-test("val(5) + val(3) compiles with casts", () => {
-  const expr = val(5)["+"](val(3));
-  const compiled = expr.compile().compile("pg");
-  expect(compiled.text).toBe("(CAST($1 AS int4) + CAST($2 AS int4))");
-  expect(compiled.values).toEqual([5, 3]);
-});
-
-test("val(5) + 3 compiles with casts (primitive arg)", () => {
-  const expr = val(5)["+"](3);
-  const compiled = expr.compile().compile("pg");
-  expect(compiled.text).toBe("(CAST($1 AS int4) + CAST($2 AS int4))");
-  expect(compiled.values).toEqual([5, 3]);
-});
-
-test("val('hello').upper() compiles with cast", () => {
-  const expr = val("hello").upper();
-  const compiled = expr.compile().compile("pg");
-  expect(compiled.text).toBe('"upper"(CAST($1 AS text))');
-  expect(compiled.values).toEqual(["hello"]);
-});
-
-test("chained operations preserve casts", () => {
-  const expr = val(1)["+"](val(2))["*"](val(3));
-  const compiled = expr.compile().compile("pg");
-  expect(compiled.text).toBe("((CAST($1 AS int4) + CAST($2 AS int4)) * CAST($3 AS int4))");
-  expect(compiled.values).toEqual([1, 2, 3]);
-});
-
-// --- E2E with pglite ---
-
-test("e2e: integer addition", async () => {
-  const expr = val(1)["+"](val(2));
-  const rows = await exec.execute(sql`SELECT ${expr.compile()} as "result"`);
-  expect(rows[0]?.["result"]).toBe(3);
-});
-
-test("e2e: string upper", async () => {
-  const expr = val("hello").upper();
-  const rows = await exec.execute(sql`SELECT ${expr.compile()} as "result"`);
-  expect(rows[0]?.["result"]).toBe("HELLO");
-});
-
-test("e2e: boolean equality", async () => {
-  const expr = val(true)["="](val(true));
-  const rows = await exec.execute(sql`SELECT ${expr.compile()} as "result"`);
-  expect(rows[0]?.["result"]).toBe(true);
-});
-
-test("e2e: integer comparison", async () => {
-  const expr = val(5)[">"](val(3));
-  const rows = await exec.execute(sql`SELECT ${expr.compile()} as "result"`);
-  expect(rows[0]?.["result"]).toBe(true);
-});
-
-test("e2e: string concatenation", async () => {
-  const expr = val("hello")["||"](val(" world"));
-  const rows = await exec.execute(sql`SELECT ${expr.compile()} as "result"`);
-  expect(rows[0]?.["result"]).toBe("hello world");
-});
-
-test("e2e: primitive arg (number + number)", async () => {
-  const expr = val(10)["+"](5);
-  const rows = await exec.execute(sql`SELECT ${expr.compile()} as "result"`);
-  expect(rows[0]?.["result"]).toBe(15);
+test("e2e: values with mixed types", async () => {
+  const rows = await exec.execute(
+    sql`SELECT * FROM (VALUES (${new Int4(42).compile()}, ${new Text("test").compile()}, ${new Bool(true).compile()})) AS t(${sql.ident("num")}, ${sql.ident("str")}, ${sql.ident("flag")})`,
+  );
+  expect(rows).toEqual([{ num: 42, str: "test", flag: true }]);
 });

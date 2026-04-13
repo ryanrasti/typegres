@@ -1,7 +1,21 @@
-import { test } from "vitest";
+import { test, expect, beforeAll, afterAll } from "vitest";
 import { expectTypeOf } from "vitest";
 import type { StrictNull, MaybeNull, NullOf, TsTypeOf } from "./runtime";
-import type { Any, Int4, Text, Bool, Float8, Int8, Anyarray, Anyrange, Anymultirange } from "./index";
+import type { Any, Int4 as Int4T, Text as TextT, Bool as BoolT, Float8, Int8 as Int8T, Anyarray, Anyrange, Anymultirange } from "./index";
+import { Int4, Text, Bool, Int8 } from "./index";
+import { sql } from "../sql-builder";
+import { pgliteExecutor } from "../executor";
+import type { Executor } from "../executor";
+
+let exec: Executor;
+
+beforeAll(async () => {
+  exec = await pgliteExecutor();
+});
+
+afterAll(async () => {
+  await exec.close();
+});
 
 // --- Nullability helpers ---
 
@@ -18,8 +32,8 @@ test("MaybeNull always adds 0", () => {
 });
 
 test("NullOf extracts nullability from pg types, defaults to 1 for primitives", () => {
-  expectTypeOf<NullOf<Int4<0 | 1>>>().toEqualTypeOf<0 | 1>();
-  expectTypeOf<NullOf<Int4<1>>>().toEqualTypeOf<1>();
+  expectTypeOf<NullOf<Int4T<0 | 1>>>().toEqualTypeOf<0 | 1>();
+  expectTypeOf<NullOf<Int4T<1>>>().toEqualTypeOf<1>();
   expectTypeOf<NullOf<number>>().toEqualTypeOf<1>();
   expectTypeOf<NullOf<string>>().toEqualTypeOf<1>();
 });
@@ -27,11 +41,11 @@ test("NullOf extracts nullability from pg types, defaults to 1 for primitives", 
 // --- TsTypeOf ---
 
 test("TsTypeOf extracts TS primitive from pg types", () => {
-  expectTypeOf<TsTypeOf<Int4<1>>>().toEqualTypeOf<number>();
-  expectTypeOf<TsTypeOf<Text<1>>>().toEqualTypeOf<string>();
-  expectTypeOf<TsTypeOf<Bool<1>>>().toEqualTypeOf<boolean>();
+  expectTypeOf<TsTypeOf<Int4T<1>>>().toEqualTypeOf<number>();
+  expectTypeOf<TsTypeOf<TextT<1>>>().toEqualTypeOf<string>();
+  expectTypeOf<TsTypeOf<BoolT<1>>>().toEqualTypeOf<boolean>();
   expectTypeOf<TsTypeOf<Float8<1>>>().toEqualTypeOf<number>();
-  expectTypeOf<TsTypeOf<Int8<1>>>().toEqualTypeOf<bigint>();
+  expectTypeOf<TsTypeOf<Int8T<1>>>().toEqualTypeOf<bigint>();
 });
 
 test("TsTypeOf on container types", () => {
@@ -78,7 +92,112 @@ test("operator overloads: Int4 + number resolves to Int4", () => {
 });
 
 test("operator overloads: Int4 = accepts number but not string", () => {
-  // '=' on Int4 should accept number (matches int4/int2 overloads)
-  type EqFn = Int4<1>["="];
+  type EqFn = Int4T<1>["="];
   expectTypeOf<EqFn>().not.toBeAny();
+});
+
+// --- Constructor: new Type(primitive) ---
+
+test("new Int4(number) compiles with cast", () => {
+  const expr = new Int4(5);
+  const compiled = expr.compile().compile("pg");
+  expect(compiled.text).toBe("CAST($1 AS int4)");
+  expect(compiled.values).toEqual([5]);
+});
+
+test("new Text(string) compiles with cast", () => {
+  const expr = new Text("hello");
+  const compiled = expr.compile().compile("pg");
+  expect(compiled.text).toBe("CAST($1 AS text)");
+  expect(compiled.values).toEqual(["hello"]);
+});
+
+test("new Bool(boolean) compiles with cast", () => {
+  const expr = new Bool(true);
+  const compiled = expr.compile().compile("pg");
+  expect(compiled.text).toBe("CAST($1 AS bool)");
+  expect(compiled.values).toEqual([true]);
+});
+
+test("new Int8(bigint) compiles with cast", () => {
+  const expr = new Int8(9007199254740993n);
+  const compiled = expr.compile().compile("pg");
+  expect(compiled.text).toBe("CAST($1 AS int8)");
+  expect(compiled.values).toEqual([9007199254740993n]);
+});
+
+// --- Expression compilation ---
+
+test("Int4 + Int4 compiles with casts", () => {
+  const expr = new Int4(5)["+"](new Int4(3));
+  const compiled = expr.compile().compile("pg");
+  expect(compiled.text).toBe("(CAST($1 AS int4) + CAST($2 AS int4))");
+  expect(compiled.values).toEqual([5, 3]);
+});
+
+test("Int4 + primitive compiles with casts", () => {
+  const expr = new Int4(5)["+"](3);
+  const compiled = expr.compile().compile("pg");
+  expect(compiled.text).toBe("(CAST($1 AS int4) + CAST($2 AS int4))");
+  expect(compiled.values).toEqual([5, 3]);
+});
+
+test("Text.upper() compiles with cast", () => {
+  const expr = new Text("hello").upper();
+  const compiled = expr.compile().compile("pg");
+  expect(compiled.text).toBe('"upper"(CAST($1 AS text))');
+  expect(compiled.values).toEqual(["hello"]);
+});
+
+test("chained operations", () => {
+  const expr = new Int4(1)["+"](new Int4(2))["*"](new Int4(3));
+  const compiled = expr.compile().compile("pg");
+  expect(compiled.text).toBe("((CAST($1 AS int4) + CAST($2 AS int4)) * CAST($3 AS int4))");
+  expect(compiled.values).toEqual([1, 2, 3]);
+});
+
+// --- E2E ---
+
+test("e2e: integer addition", async () => {
+  const expr = new Int4(1)["+"](new Int4(2));
+  const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
+  expect(rows[0]?.["result"]).toBe(3);
+});
+
+test("e2e: string upper", async () => {
+  const expr = new Text("hello").upper();
+  const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
+  expect(rows[0]?.["result"]).toBe("HELLO");
+});
+
+test("e2e: boolean equality", async () => {
+  const expr = new Bool(true)["="](new Bool(true));
+  const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
+  expect(rows[0]?.["result"]).toBe(true);
+});
+
+test("e2e: integer comparison", async () => {
+  const expr = new Int4(5)[">"](new Int4(3));
+  const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
+  expect(rows[0]?.["result"]).toBe(true);
+});
+
+test("e2e: string concatenation", async () => {
+  const expr = new Text("hello")["||"](new Text(" world"));
+  const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
+  expect(rows[0]?.["result"]).toBe("hello world");
+});
+
+test("e2e: primitive arg", async () => {
+  const expr = new Int4(10)["+"](5);
+  const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
+  expect(rows[0]?.["result"]).toBe(15);
+});
+
+test("e2e: nested expressions", async () => {
+  const left = new Int4(1)["+"](new Int4(2));
+  const right = new Int4(3)["+"](new Int4(4));
+  const result = left["*"](right);
+  const rows = await exec.execute(sql`SELECT ${result.compile()} as ${sql.ident("result")}`);
+  expect(rows[0]?.["result"]).toBe(21);
 });
