@@ -482,3 +482,137 @@ test("join with where on joined table", async () => {
     ]);
   });
 });
+
+// --- scalar / cardinality ---
+
+test("scalar with cardinality 'one'", async () => {
+  await withinTransaction(async () => {
+    await exec.execute(sql`CREATE TABLE authors (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL
+    )`);
+    await exec.execute(sql`CREATE TABLE books (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      title text NOT NULL,
+      author_id int8 NOT NULL REFERENCES authors(id)
+    )`);
+    await exec.execute(sql`INSERT INTO authors (name) VALUES ('Alice')`);
+    await exec.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1), ('Book B', 1)`);
+
+    class Authors extends db.Table("authors") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+      name = (Text<1>).column({ nonNull: true });
+    }
+    class Books extends db.Table("books") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+      title = (Text<1>).column({ nonNull: true });
+      author_id = (Int8<1>).column({ nonNull: true });
+    }
+
+    // Scalar subquery: get author for a book (cardinality 'one')
+    const rows = await Books.from()
+      .select(({ books }) => ({
+        title: books.title,
+        author: Authors.from()
+          .where(({ authors }) => authors.id["="](books.author_id))
+          .select(({ authors }) => ({ name: authors.name }))
+          .cardinality("one")
+          .scalar(),
+      }))
+      .execute();
+
+    // TODO: TsTypeOf doesn't recursively unwrap Record<O> — nested type is O not TsTypeOf<O>
+    expectTypeOf(rows[0]!.title).toEqualTypeOf<string>();
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toEqual({ title: "Book A", author: { name: "Alice" } });
+    expect(rows[1]).toEqual({ title: "Book B", author: { name: "Alice" } });
+  });
+});
+
+test("scalar with cardinality 'maybe' — null when no match", async () => {
+  await withinTransaction(async () => {
+    await exec.execute(sql`CREATE TABLE people (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL
+    )`);
+    await exec.execute(sql`CREATE TABLE profiles (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      person_id int8 UNIQUE NOT NULL REFERENCES people(id),
+      bio text NOT NULL
+    )`);
+    await exec.execute(sql`INSERT INTO people (name) VALUES ('Alice'), ('Bob')`);
+    await exec.execute(sql`INSERT INTO profiles (person_id, bio) VALUES (1, 'Hello')`);
+
+    class People extends db.Table("people") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+      name = (Text<1>).column({ nonNull: true });
+    }
+    class Profiles extends db.Table("profiles") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+      person_id = (Int8<1>).column({ nonNull: true });
+      bio = (Text<1>).column({ nonNull: true });
+    }
+
+    const rows = await People.from()
+      .select(({ people }) => ({
+        name: people.name,
+        profile: Profiles.from()
+          .where(({ profiles }) => profiles.person_id["="](people.id))
+          .select(({ profiles }) => ({ bio: profiles.bio }))
+          .cardinality("maybe")
+          .scalar(),
+      }))
+      .orderBy(({ people }) => people.name)
+      .execute();
+
+    expectTypeOf(rows[0]!.name).toEqualTypeOf<string>();
+    expect(rows).toEqual([
+      { name: "Alice", profile: { bio: "Hello" } },
+      { name: "Bob", profile: null },
+    ]);
+  });
+});
+
+test("scalar with cardinality 'many' — array result", async () => {
+  await withinTransaction(async () => {
+    await exec.execute(sql`CREATE TABLE parents (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL
+    )`);
+    await exec.execute(sql`CREATE TABLE children (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL,
+      parent_id int8 NOT NULL REFERENCES parents(id)
+    )`);
+    await exec.execute(sql`INSERT INTO parents (name) VALUES ('Alice'), ('Bob')`);
+    await exec.execute(sql`INSERT INTO children (name, parent_id) VALUES ('Charlie', 1), ('Diana', 1)`);
+
+    class Parents extends db.Table("parents") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+      name = (Text<1>).column({ nonNull: true });
+    }
+    class Children extends db.Table("children") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+      name = (Text<1>).column({ nonNull: true });
+      parent_id = (Int8<1>).column({ nonNull: true });
+    }
+
+    const rows = await Parents.from()
+      .select(({ parents }) => ({
+        name: parents.name,
+        kids: Children.from()
+          .where(({ children }) => children.parent_id["="](parents.id))
+          .select(({ children }) => ({ name: children.name }))
+          .cardinality("many")
+          .scalar(),
+      }))
+      .orderBy(({ parents }) => parents.name)
+      .execute();
+
+    expectTypeOf(rows[0]!.name).toEqualTypeOf<string>();
+    expect(rows).toEqual([
+      { name: "Alice", kids: [{ name: "Charlie" }, { name: "Diana" }] },
+      { name: "Bob", kids: [] },
+    ]);
+  });
+});

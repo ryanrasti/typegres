@@ -273,15 +273,17 @@ export class QueryBuilder<
   scalar(): any {
     const columns = selectList(this.opts.output as { [key: string]: unknown });
     const RecordClass = Record.of(columns);
-    // Compile as a scalar subquery: (SELECT ROW(...) FROM ...)
-    const rowExpr = sql`ROW(${compileSelectList(this.opts.output as { [key: string]: unknown })})`;
-    const subquery = this.select(() => ({ __row: new RecordClass(rowExpr) })).compile({ isSubquery: true });
+    // ROW() takes raw expressions without aliases
+    const rowExprs = columns.map(([, type]) => type.compile());
+    const rowSql = sql`ROW(${sql.join(rowExprs)})`;
+    // Wrap as a subquery: (SELECT ROW(...) FROM ... WHERE ...)
+    const subquery = this.select(() => ({ __row: new RecordClass(rowSql) })).compile({ isSubquery: true });
     if (this.card === "many") {
       return new (Anyarray.of(RecordClass) as any)(
-        sql`COALESCE((SELECT array_agg(__row) FROM ${subquery}), '{}')`,
+        sql`COALESCE((SELECT array_agg("__row") FROM ${subquery}), '{}')`,
       );
     }
-    return new RecordClass(sql`(SELECT __row FROM ${subquery})`);
+    return new RecordClass(sql`(SELECT "__row" FROM ${subquery})`);
   }
 
   compile({ isSubquery } = { isSubquery: false }): Sql {
