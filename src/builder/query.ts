@@ -1,7 +1,8 @@
 import { Executor } from "../executor";
 import { Sql, sql } from "./sql";
-import { Any, Bool } from "../types";
+import { Any, Anyarray, Bool, Record } from "../types";
 import { TsTypeOf, Nullable, meta } from "../types/runtime";
+import { TableBase } from "../table";
 
 // Compile a row type into a SQL select list: col AS "name", ...
 export const compileSelectList = (output: Record<string, unknown>): Sql => {
@@ -73,19 +74,29 @@ export type Fromable = {
   compile: (isSubquery?: boolean) => Sql;
 } & ({ rowType: RowType } | { new (): object });
 
-type RowTypeOfFromable<F extends Fromable> = 
-  F extends { rowType: infer R } ? R : 
-  F extends new () => infer R ? R : never;
+type RowTypeOfFromable<F extends Fromable> = F extends { rowType: infer R }
+  ? R
+  : F extends new () => infer R
+    ? R
+    : never;
 
 const getRowType = (from: Fromable): RowType => {
-  if ("rowType" in from) { return from.rowType; }
+  if ("rowType" in from) {
+    return from.rowType;
+  }
   return new (from as new () => object)();
 };
 
 type OrderDirection = "asc" | "desc";
 type OrderByEntry = Any<any> | [Any<any>, OrderDirection];
+type Cardinality = "one" | "maybe" | "many";
 
-type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<any>[]> = {
+type QueryBuilderOptions<
+  N extends Namespace,
+  O extends RowType,
+  GB extends Any<any>[],
+  Card extends Cardinality = "many",
+> = {
   namespace: N;
   output: O;
   executor: Executor;
@@ -102,6 +113,7 @@ type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<
   }[];
   limit?: number;
   offset?: number;
+  cardinality?: Card;
 };
 
 // TODO: make sure all methods have sane & documented behavior if called more than once
@@ -109,8 +121,9 @@ export class QueryBuilder<
   N extends Namespace,
   O extends RowType,
   GB extends Any<any>[],
+  Card extends Cardinality = "many",
 > {
-  private opts: QueryBuilderOptions<N, O, GB>;
+  private opts: QueryBuilderOptions<N, O, GB, Card>;
   get alias(): string {
     return this.opts.alias;
   }
@@ -118,7 +131,7 @@ export class QueryBuilder<
     return this.opts.output;
   }
 
-  constructor(opts: QueryBuilderOptions<N, O, GB>) {
+  constructor(opts: QueryBuilderOptions<N, O, GB, Card>) {
     this.opts = opts;
   }
 
@@ -155,7 +168,7 @@ export class QueryBuilder<
         {
           from,
           on: onFn(namespace),
-        }
+        },
       ],
     });
   }
@@ -177,7 +190,7 @@ export class QueryBuilder<
           from,
           on: onFn(namespace),
           type: "left",
-        }
+        },
       ],
     });
   }
@@ -219,14 +232,14 @@ export class QueryBuilder<
     });
   }
 
-  orderBy(
-    orderByFn: (n: N) => OrderByEntry | OrderByEntry[],
-  ): QueryBuilder<N, O, GB> {
+  orderBy(orderByFn: (n: N) => OrderByEntry | OrderByEntry[]): QueryBuilder<N, O, GB> {
     const result = orderByFn(this.opts.namespace);
     // Normalize: single entry → array
-    const entries: OrderByEntry[] = result instanceof Any || (Array.isArray(result) && result[0] instanceof Any && typeof result[1] === "string")
-      ? [result as OrderByEntry]
-      : result as OrderByEntry[];
+    const entries: OrderByEntry[] =
+      result instanceof Any ||
+      (Array.isArray(result) && result[0] instanceof Any && typeof result[1] === "string")
+        ? [result as OrderByEntry]
+        : (result as OrderByEntry[]);
     return new QueryBuilder({
       ...this.opts,
       orderBy: [...(this.opts.orderBy ?? []), ...entries],
@@ -241,7 +254,23 @@ export class QueryBuilder<
     return new QueryBuilder({ ...this.opts, offset: n });
   }
 
-  compile(isSubquery = false) {
+  scalar(this: QueryBuilder<N, O, GB, "one">): Record<O, 1>;
+  scalar(this: QueryBuilder<N, O, GB, "maybe">): Record<O, 0 | 1>;
+  scalar(this: QueryBuilder<N, O, GB, "many">): Anyarray<Record<O, 1>>;
+  scalar(): any {
+    const RecordClass = Record.of(this.opts.output);
+    const asRow = new RecordClass(this.opts.output);
+    const queryBase = this.select(() => asRow);
+    if (this.opts.cardinality === "many") {
+      if (this.opts.groupBy) {
+        throw new Error("TODO: need to take a subquery before a group by query can be scalar");
+      }
+      return new (Anyarray.of(RecordClass))(queryBase.compile());
+    }
+    return new RecordClass(queryBase.compile());
+  }
+
+  compile({ isSubquery } = { isSubquery: false }): Sql {
     return sql.join(
       [
         isSubquery && sql`(`,
@@ -250,7 +279,7 @@ export class QueryBuilder<
         ...(this.opts.joins ?? []).map((j) =>
           j.type === "left"
             ? sql`LEFT JOIN ${j.from.compile(true)} ON ${j.on.compile()}`
-            : sql`JOIN ${j.from.compile(true)} ON ${j.on.compile()}`
+            : sql`JOIN ${j.from.compile(true)} ON ${j.on.compile()}`,
         ),
         this.opts.where && sql`WHERE ${this.opts.where.compile()}`,
         this.opts.groupBy &&
@@ -261,9 +290,13 @@ export class QueryBuilder<
           this.opts.orderBy.length > 0 &&
           sql`ORDER BY ${sql.join(
             this.opts.orderBy.map((entry) => {
-              if (entry instanceof Any) { return entry.compile(); }
+              if (entry instanceof Any) {
+                return entry.compile();
+              }
               const [expr, dir] = entry;
-              if (dir === "desc") { return sql`${expr.compile()} DESC`; }
+              if (dir === "desc") {
+                return sql`${expr.compile()} DESC`;
+              }
               return sql`${expr.compile()} ASC`;
             }),
           )}`,
@@ -273,6 +306,13 @@ export class QueryBuilder<
       ],
       sql`\n`,
     );
+  }
+
+  cardinality<C extends Cardinality>(card: C): QueryBuilder<N, O, GB, C> {
+    return new QueryBuilder({
+      ...this.opts,
+      cardinality: card,
+    });
   }
 
   debug(): this {
@@ -286,4 +326,3 @@ export class QueryBuilder<
     return deserializeRows<RowTypeToTsType<O>>(rows, this.opts.output as Record<string, unknown>);
   }
 }
-
