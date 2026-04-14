@@ -1,5 +1,6 @@
-import { Executor } from "./executor";
-import { aliasRowType, QueryBuilder, RowType, RowTypeToTsType } from "./builder/query";
+import type { Executor } from "./executor";
+import type { RowType, RowTypeToTsType } from "./builder/query";
+import { aliasRowType, QueryBuilder } from "./builder/query";
 import { sql } from "./builder/sql";
 import { TableBase } from "./table";
 import { Values } from "./builder/values";

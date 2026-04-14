@@ -1,7 +1,8 @@
-import { Executor } from "../executor";
+import type { Executor } from "../executor";
 import { sql } from "./sql";
 import { Bool } from "../types";
-import { compileSelectList, deserializeRows, RowType, RowTypeToTsType } from "./query";
+import type { RowType, RowTypeToTsType } from "./query";
+import { compileSelectList, deserializeRows } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
@@ -13,7 +14,7 @@ type DeleteOpts<Name extends string, T, R extends RowType> = {
   returning?: R;
 };
 
-export class DeleteBuilder<Name extends string, T extends Record<string, any>, R extends RowType = {}> {
+export class DeleteBuilder<Name extends string, T extends { [key: string]: any }, R extends RowType = {}> {
   #opts: DeleteOpts<Name, T, R>;
 
   constructor(opts: DeleteOpts<Name, T, R>) {
@@ -41,7 +42,7 @@ export class DeleteBuilder<Name extends string, T extends Record<string, any>, R
     return sql.join([
       sql`DELETE FROM ${sql.ident(this.#opts.tableName)}`,
       sql`WHERE ${this.#opts.where.compile()}`,
-      this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`,
+      this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as { [key: string]: unknown })}`,
     ], sql` `);
   }
 
@@ -54,7 +55,7 @@ export class DeleteBuilder<Name extends string, T extends Record<string, any>, R
   async execute(): Promise<RowTypeToTsType<R>[]> {
     const result = await this.#opts.executor.execute(this.compile());
     if (this.#opts.returning) {
-      return deserializeRows(result, this.#opts.returning as Record<string, unknown>) as any;
+      return deserializeRows(result, this.#opts.returning as { [key: string]: unknown }) as any;
     }
     return [] as any;
   }

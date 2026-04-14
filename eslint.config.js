@@ -1,4 +1,5 @@
 import eslint from "@eslint/js";
+import tseslint from "@typescript-eslint/eslint-plugin";
 import tsparser from "@typescript-eslint/parser";
 
 export default [
@@ -8,14 +9,29 @@ export default [
     languageOptions: {
       parser: tsparser,
     },
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
     rules: {
       "func-style": ["error", "expression"],
       "prefer-const": "error",
       "no-var": "error",
       eqeqeq: "error",
       curly: ["error", "all"],
-      "no-undef": "off",
-      "no-unused-vars": "off", // tsgo handles this; base rule doesn't understand TS type params
+      "no-undef": "off", // tsgo handles this
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": ["error", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+      }],
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/no-restricted-types": ["error", {
+        types: {
+          "Record": {
+            message: "Use { [key: string]: T } instead. 'Record' conflicts with the pg Record type.",
+          },
+        },
+      }],
     },
   },
   {

@@ -1,4 +1,5 @@
-import { sql, Sql } from "../builder/sql";
+import type { Sql } from "../builder/sql";
+import { sql } from "../builder/sql";
 import type { Any } from "./index";
 
 // Global metadata symbol — hides internals from autocomplete.
@@ -63,7 +64,7 @@ export const pgType = (expr: Any<any>): typeof Any => expr[meta].__class as type
 export const pgElement = (expr: Any<any>): typeof Any => (expr[meta].__class as any).__element;
 
 // Map JS typeof to pg type name for casting primitives
-const JS_TO_PG: Record<string, string> = {
+const JS_TO_PG: { [key: string]: string } = {
   number: "int4",
   string: "text",
   boolean: "bool",

@@ -48,7 +48,7 @@ export { PgNdistinct } from "./generated/pg_ndistinct";
 export { PgNodeTree } from "./generated/pg_node_tree";
 export { PgSnapshot } from "./generated/pg_snapshot";
 export { Polygon } from "./generated/polygon";
-export { Record } from "./generated/record";
+export { Record } from "./overrides/record";
 export { Refcursor } from "./generated/refcursor";
 export { Regclass } from "./generated/regclass";
 export { Regcollation } from "./generated/regcollation";

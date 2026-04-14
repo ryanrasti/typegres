@@ -1,11 +1,20 @@
-import { Executor } from "../executor";
-import { Sql, sql } from "./sql";
-import { Any, Anyarray, Bool, Record } from "../types";
-import { TsTypeOf, Nullable, meta } from "../types/runtime";
-import { TableBase } from "../table";
+import type { Executor } from "../executor";
+import type { Sql} from "./sql";
+import { sql } from "./sql";
+import type { Bool} from "../types";
+import { Any, Anyarray, Record } from "../types";
+import type { TsTypeOf, Nullable} from "../types/runtime";
+import { meta } from "../types/runtime";
+
+// Extract [name, type] pairs from a row type — only includes Any<> instances
+export const selectList = (output: { [key: string]: unknown }): [string, Any<any>][] => {
+  return Object.entries(output).filter(
+    (entry): entry is [string, Any<any>] => entry[1] instanceof Any,
+  );
+};
 
 // Compile a row type into a SQL select list: col AS "name", ...
-export const compileSelectList = (output: Record<string, unknown>): Sql => {
+export const compileSelectList = (output: { [key: string]: unknown }): Sql => {
   return sql.join(
     Object.entries(output).flatMap(([k, v]) =>
       v instanceof Any ? [sql`${v.compile()} as ${sql.ident(k)}`] : [],
@@ -15,8 +24,8 @@ export const compileSelectList = (output: Record<string, unknown>): Sql => {
 
 // Deserialize raw string rows using typed output descriptors
 export const deserializeRows = <R>(
-  rows: Record<string, string>[],
-  output: Record<string, unknown>,
+  rows: { [key: string]: string }[],
+  output: { [key: string]: unknown },
 ): R[] => {
   return rows.map((row) =>
     Object.fromEntries(
@@ -254,11 +263,15 @@ export class QueryBuilder<
     return new QueryBuilder({ ...this.opts, offset: n });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scalar(this: QueryBuilder<N, O, GB, "one">): Record<O, 1>;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scalar(this: QueryBuilder<N, O, GB, "maybe">): Record<O, 0 | 1>;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scalar(this: QueryBuilder<N, O, GB, "many">): Anyarray<Record<O, 1>>;
   scalar(): any {
-    const RecordClass = Record.of(this.opts.output);
+    const columns = selectList(this.opts.output as { [key: string]: unknown });
+    const RecordClass = Record.of(columns);
     const asRow = new RecordClass(this.opts.output);
     const queryBase = this.select(() => asRow);
     if (this.opts.cardinality === "many") {
@@ -274,7 +287,7 @@ export class QueryBuilder<
     return sql.join(
       [
         isSubquery && sql`(`,
-        sql`SELECT ${compileSelectList(this.opts.output as Record<string, unknown>)}`,
+        sql`SELECT ${compileSelectList(this.opts.output as { [key: string]: unknown })}`,
         this.opts.from && sql`FROM ${this.opts.from.compile(true)}`,
         ...(this.opts.joins ?? []).map((j) =>
           j.type === "left"
@@ -323,6 +336,6 @@ export class QueryBuilder<
 
   async execute(): Promise<RowTypeToTsType<O>[]> {
     const rows = await this.opts.executor.execute(this.compile());
-    return deserializeRows<RowTypeToTsType<O>>(rows, this.opts.output as Record<string, unknown>);
+    return deserializeRows<RowTypeToTsType<O>>(rows, this.opts.output as { [key: string]: unknown });
   }
 }

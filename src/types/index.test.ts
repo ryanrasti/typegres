@@ -1,5 +1,5 @@
 import { test, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
-import { meta } from "./runtime";
+import type { meta } from "./runtime";
 import type { StrictNull, MaybeNull, NullOf, TsTypeOf } from "./runtime";
 import type { Any, Float8, Anyarray, Anyrange, Anymultirange } from "./index";
 import { Int4, Text, Bool, Int8 } from "./index";

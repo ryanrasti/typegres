@@ -1,10 +1,11 @@
-import { Executor } from "./executor";
-import { aliasRowType, Fromable, QueryBuilder } from "./builder/query";
+import type { Executor } from "./executor";
+import type { Fromable} from "./builder/query";
+import { aliasRowType, QueryBuilder } from "./builder/query";
 import { DeleteBuilder } from "./builder/delete";
 import { UpdateBuilder } from "./builder/update";
 import { InsertBuilder } from "./builder/insert";
 import { sql } from "./builder/sql";
-import { InsertRow } from "./types/runtime";
+import type { InsertRow } from "./types/runtime";
 
 export class TableBase {
   static tableName: string;
@@ -31,7 +32,7 @@ export class TableBase {
     const aliased = aliasRowType(instance, this.tableName) as InstanceType<T>;
     const ns = { [this.tableName]: aliased } as { [K in T["tableName"]]: InstanceType<T> };
     const columnNames = Object.keys(instance).filter((k) => instance[k]?.__column);
-    return new InsertBuilder({ tableName: this.tableName, executor: this.executor, instance, namespace: ns, columnNames, rows: rows as Record<string, unknown>[] });
+    return new InsertBuilder({ tableName: this.tableName, executor: this.executor, instance, namespace: ns, columnNames, rows: rows as { [key: string]: unknown }[] });
   }
 
   static update<T extends typeof TableBase & (new () => any)>(this: T): UpdateBuilder<T["tableName"], InstanceType<T>> {

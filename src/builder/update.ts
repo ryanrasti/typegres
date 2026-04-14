@@ -1,8 +1,9 @@
-import { Executor } from "../executor";
+import type { Executor } from "../executor";
 import { sql } from "./sql";
-import { Any, Bool } from "../types";
-import { SetRow } from "../types/runtime";
-import { compileSelectList, deserializeRows, RowType, RowTypeToTsType } from "./query";
+import { Bool } from "../types";
+import type { SetRow } from "../types/runtime";
+import type { RowType, RowTypeToTsType } from "./query";
+import { compileSelectList, deserializeRows } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
@@ -12,11 +13,11 @@ type UpdateOpts<Name extends string, T, R extends RowType> = {
   instance: T;
   namespace: Namespace<Name, T>;
   where?: Bool<any>;
-  set?: Record<string, unknown>;
+  set?: { [key: string]: unknown };
   returning?: R;
 };
 
-export class UpdateBuilder<Name extends string, T extends Record<string, any>, R extends RowType = {}> {
+export class UpdateBuilder<Name extends string, T extends { [key: string]: any }, R extends RowType = {}> {
   #opts: UpdateOpts<Name, T, R>;
 
   constructor(opts: UpdateOpts<Name, T, R>) {
@@ -33,7 +34,7 @@ export class UpdateBuilder<Name extends string, T extends Record<string, any>, R
   set(fn: (ns: Namespace<Name, T>) => SetRow<T>): UpdateBuilder<Name, T, R> {
     return new UpdateBuilder({
       ...this.#opts,
-      set: fn(this.#opts.namespace) as Record<string, unknown>,
+      set: fn(this.#opts.namespace) as { [key: string]: unknown },
     });
   }
 
@@ -61,7 +62,7 @@ export class UpdateBuilder<Name extends string, T extends Record<string, any>, R
     return sql.join([
       sql`UPDATE ${sql.ident(this.#opts.tableName)} SET ${sql.join(setClauses)}`,
       sql`WHERE ${this.#opts.where.compile()}`,
-      this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`,
+      this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as { [key: string]: unknown })}`,
     ], sql` `);
   }
 
@@ -74,7 +75,7 @@ export class UpdateBuilder<Name extends string, T extends Record<string, any>, R
   async execute(): Promise<RowTypeToTsType<R>[]> {
     const result = await this.#opts.executor.execute(this.compile());
     if (this.#opts.returning) {
-      return deserializeRows(result, this.#opts.returning as Record<string, unknown>) as any;
+      return deserializeRows(result, this.#opts.returning as { [key: string]: unknown }) as any;
     }
     return [] as any;
   }

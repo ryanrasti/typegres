@@ -28,7 +28,7 @@ const parseBytea = (raw: string): Uint8Array => {
 };
 
 // Non-string types — everything else defaults to string/identity
-export const typeRegistry: Record<string, TypeDef> = {
+export const typeRegistry: { [key: string]: TypeDef } = {
   bool: { tsType: "boolean", deserialize: parseBoolean },
   int2: { tsType: "number", deserialize: parseInt32 },
   int4: { tsType: "number", deserialize: parseInt32 },

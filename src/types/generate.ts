@@ -72,7 +72,7 @@ const MAYBE_NULL_OPS = new Set(["->", "->>", "#>", "#>>"]);
 //             │    └─ Anyrange<T, N>
 //             └─ Anycompatiblemultirange<T, N>
 //                  └─ Anymultirange<T, N>
-const EXTENDS_MAP: Record<string, string> = {
+const EXTENDS_MAP: { [key: string]: string } = {
   anycompatible: "Any",
   anyelement: "Anycompatible",
   anycompatiblenonarray: "Anyelement",

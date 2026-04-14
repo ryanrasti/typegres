@@ -21,7 +21,7 @@ export class Values<R extends RowType> {
     // Compile each row into a VALUES tuple
     const rowSqls = [this.vals0, ...this.valsRest].map((row) => {
       const vals = columnNames.map((k) => {
-        let v = (row as Record<string, unknown>)[k];
+        let v = (row as { [key: string]: unknown })[k];
         if (!(v instanceof Any)) {
           // Primitive — wrap using the type from the first row
           const type = this.vals0[k as keyof R];

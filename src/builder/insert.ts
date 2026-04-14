@@ -1,6 +1,7 @@
-import { Executor } from "../executor";
+import type { Executor } from "../executor";
 import { sql } from "./sql";
-import { compileSelectList, deserializeRows, RowType, RowTypeToTsType } from "./query";
+import type { RowType, RowTypeToTsType } from "./query";
+import { compileSelectList, deserializeRows } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
@@ -10,11 +11,11 @@ type InsertOpts<Name extends string, T, R extends RowType> = {
   instance: T;
   namespace: Namespace<Name, T>;
   columnNames: string[];
-  rows: Record<string, unknown>[];
+  rows: { [key: string]: unknown }[];
   returning?: R;
 };
 
-export class InsertBuilder<Name extends string, T extends Record<string, any>, R extends RowType = {}> {
+export class InsertBuilder<Name extends string, T extends { [key: string]: any }, R extends RowType = {}> {
   #opts: InsertOpts<Name, T, R>;
 
   constructor(opts: InsertOpts<Name, T, R>) {
@@ -47,7 +48,7 @@ export class InsertBuilder<Name extends string, T extends Record<string, any>, R
 
     return sql.join([
       sql`INSERT INTO ${sql.ident(this.#opts.tableName)} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`,
-      this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`,
+      this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as { [key: string]: unknown })}`,
     ], sql` `);
   }
 
@@ -60,7 +61,7 @@ export class InsertBuilder<Name extends string, T extends Record<string, any>, R
   async execute(): Promise<RowTypeToTsType<R>[]> {
     const result = await this.#opts.executor.execute(this.compile());
     if (this.#opts.returning) {
-      return deserializeRows(result, this.#opts.returning as Record<string, unknown>) as any;
+      return deserializeRows(result, this.#opts.returning as { [key: string]: unknown }) as any;
     }
     return [] as any;
   }

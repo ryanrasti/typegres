@@ -1,7 +1,7 @@
 import type { Sql } from "./builder/sql";
 
 export interface Executor {
-  execute(query: Sql): Promise<Record<string, string>[]>;
+  execute(query: Sql): Promise<{ [key: string]: string }[]>;
   close(): Promise<void>;
 }
 
@@ -14,18 +14,18 @@ export const pgliteExecutor = async (): Promise<Executor> => {
   const { rows: types } = await db.query<{ oid: number }>(
     "SELECT oid FROM pg_type",
   );
-  const rawParsers: Record<number, (v: string) => string> = {};
+  const rawParsers: { [key: number]: (v: string) => string } = {};
   for (const t of types) {
     rawParsers[t.oid] = (v: string) => v;
   }
 
   return {
-    async execute(query: Sql): Promise<Record<string, string>[]> {
+    async execute(query: Sql): Promise<{ [key: string]: string }[]> {
       const compiled = query.compile("pg");
       const { rows } = await db.query(compiled.text, compiled.values, {
         parsers: rawParsers,
       });
-      return rows as Record<string, string>[];
+      return rows as { [key: string]: string }[];
     },
     async close() {
       await db.close();
