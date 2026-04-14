@@ -140,10 +140,10 @@ test("update with where", async () => {
       active = (Text<1>).column({ nonNull: true, default: sql`'yes'` });
     }
 
-    await Users.update(
-      () => ({ active: "no" }),
-      (t) => t.name["="]("Bob"),
-    );
+    await Users.update()
+      .where((t) => t.name["="]("Bob"))
+      .set(() => ({ active: "no" }))
+      .execute();
 
     const rows = await Users.from()
       .select(({ users }) => ({ name: users.name, active: users.active }))
@@ -154,6 +154,43 @@ test("update with where", async () => {
       { name: "Alice", active: "yes" },
       { name: "Bob", active: "no" },
     ]);
+  });
+});
+
+test("update all with where(true)", async () => {
+  await withinTransaction(async () => {
+    await exec.execute(sql`CREATE TABLE flags (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      active text NOT NULL DEFAULT 'yes'
+    )`);
+    await exec.execute(sql`INSERT INTO flags (active) VALUES ('yes'), ('yes')`);
+
+    class Flags extends db.Table("flags") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+      active = (Text<1>).column({ nonNull: true, default: sql`'yes'` });
+    }
+
+    await Flags.update().where(true).set(() => ({ active: "no" })).execute();
+
+    const rows = await Flags.from()
+      .select(({ flags }) => ({ active: flags.active }))
+      .execute();
+
+    expect(rows).toEqual([{ active: "no" }, { active: "no" }]);
+  });
+});
+
+test("update without where throws", async () => {
+  await withinTransaction(async () => {
+    await exec.execute(sql`CREATE TABLE noop (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)`);
+
+    class Noop extends db.Table("noop") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+    }
+
+    await expect(
+      Noop.update().set(() => ({})).execute()
+    ).rejects.toThrow("requires .where()");
   });
 });
 
@@ -170,12 +207,26 @@ test("delete with where", async () => {
       msg = (Text<1>).column({ nonNull: true });
     }
 
-    await Logs.delete((t) => t.msg["="]("remove"));
+    await Logs.delete().where((t) => t.msg["="]("remove")).execute();
 
     const rows = await Logs.from()
       .select(({ logs }) => ({ msg: logs.msg }))
       .execute();
 
     expect(rows).toEqual([{ msg: "keep" }, { msg: "keep2" }]);
+  });
+});
+
+test("delete without where throws", async () => {
+  await withinTransaction(async () => {
+    await exec.execute(sql`CREATE TABLE noop2 (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)`);
+
+    class Noop2 extends db.Table("noop2") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+    }
+
+    await expect(
+      Noop2.delete().execute()
+    ).rejects.toThrow("requires .where()");
   });
 });

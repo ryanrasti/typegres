@@ -4,6 +4,93 @@ import { Sql, sql } from "./sql-builder";
 import { Any } from "./types";
 import { InsertRow, meta, TsTypeOf } from "./types/runtime";
 
+// --- Mutation builders ---
+
+export class DeleteBuilder<T extends Record<string, any>> {
+  #tableName: string;
+  #executor: Executor;
+  #aliased: T;
+  #whereCond?: Sql;
+
+  constructor(tableName: string, executor: Executor, aliased: T) {
+    this.#tableName = tableName;
+    this.#executor = executor;
+    this.#aliased = aliased;
+  }
+
+  where(fn: ((t: T) => Any<any>) | true): DeleteBuilder<T> {
+    if (fn === true) {
+      this.#whereCond = sql`TRUE`;
+    } else {
+      this.#whereCond = fn(this.#aliased).compile();
+    }
+    return this;
+  }
+
+  async execute(): Promise<void> {
+    if (!this.#whereCond) {
+      throw new Error("delete() requires .where() — use .where(true) to delete all rows");
+    }
+    const query = sql.join([
+      sql`DELETE FROM ${sql.ident(this.#tableName)}`,
+      sql`WHERE ${this.#whereCond}`,
+    ], sql` `);
+    await this.#executor.execute(query);
+  }
+}
+
+export class UpdateBuilder<T extends Record<string, any>> {
+  #tableName: string;
+  #executor: Executor;
+  #instance: T;
+  #aliased: T;
+  #whereCond?: Sql;
+  #setClauses?: Sql;
+
+  constructor(tableName: string, executor: Executor, instance: T, aliased: T) {
+    this.#tableName = tableName;
+    this.#executor = executor;
+    this.#instance = instance;
+    this.#aliased = aliased;
+  }
+
+  where(fn: ((t: T) => Any<any>) | true): UpdateBuilder<T> {
+    if (fn === true) {
+      this.#whereCond = sql`TRUE`;
+    } else {
+      this.#whereCond = fn(this.#aliased).compile();
+    }
+    return this;
+  }
+
+  set(fn: (t: T) => Partial<{ [K in keyof T]: TsTypeOf<T[K]> }>): UpdateBuilder<T> {
+    const setCols = fn(this.#aliased);
+    const clauses = Object.entries(setCols).map(([k, v]) => {
+      const col = this.#instance[k];
+      if (!col?.__column) { throw new Error(`Unknown column: ${k}`); }
+      return sql`${sql.ident(k)} = ${new (col.__class as any)(v).compile()}`;
+    });
+    this.#setClauses = sql.join(clauses);
+    return this;
+  }
+
+  async execute(): Promise<void> {
+    if (!this.#whereCond) {
+      throw new Error("update() requires .where() — use .where(true) to update all rows");
+    }
+    if (!this.#setClauses) {
+      throw new Error("update() requires .set()");
+    }
+    const query = sql.join([
+      sql`UPDATE ${sql.ident(this.#tableName)} SET ${this.#setClauses}`,
+      sql`WHERE ${this.#whereCond}`,
+    ], sql` `);
+    await this.#executor.execute(query);
+  }
+}
+
+// --- Table base ---
+
 export class TableBase {
   static tableName: string;
   static alias: string;
@@ -94,42 +181,16 @@ export class TableBase {
     ) as RowTypeToTsType<R>[];
   }
 
-  static async update<T extends typeof TableBase & (new () => any)>(
-    this: T,
-    setFn: (t: InstanceType<T>) => Partial<{ [K in keyof InstanceType<T>]: TsTypeOf<InstanceType<T>[K]> }>,
-    whereFn?: (t: InstanceType<T>) => Any<any>,
-  ): Promise<void> {
+  static update<T extends typeof TableBase & (new () => any)>(this: T): UpdateBuilder<InstanceType<T>> {
     const instance = new this();
-    const aliased = aliasRowType(instance, this.tableName);
-    const setCols = setFn(aliased as InstanceType<T>);
-    const setClauses = Object.entries(setCols).map(([k, v]) => {
-      const col = (aliased as Record<string, Any<any>>)[k];
-      if (!col) { throw new Error(`Unknown column: ${k}`); }
-      return sql`${sql.ident(k)} = ${new ((instance[k] as any).__class as any)(v).compile()}`;
-    });
-
-    const parts = [
-      sql`UPDATE ${sql.ident(this.tableName)} SET ${sql.join(setClauses)}`,
-    ];
-    if (whereFn) {
-      const cond = whereFn(aliased as InstanceType<T>);
-      parts.push(sql`WHERE ${cond.compile()}`);
-    }
-    await this.executor.execute(sql.join(parts, sql` `));
+    const aliased = aliasRowType(instance, this.tableName) as InstanceType<T>;
+    return new UpdateBuilder(this.tableName, this.executor, instance, aliased);
   }
 
-  static async delete<T extends typeof TableBase & (new () => any)>(
-    this: T,
-    whereFn?: (t: InstanceType<T>) => Any<any>,
-  ): Promise<void> {
+  static delete<T extends typeof TableBase & (new () => any)>(this: T): DeleteBuilder<InstanceType<T>> {
     const instance = new this();
-    const aliased = aliasRowType(instance, this.tableName);
-    const parts = [sql`DELETE FROM ${sql.ident(this.tableName)}`];
-    if (whereFn) {
-      const cond = whereFn(aliased as InstanceType<T>);
-      parts.push(sql`WHERE ${cond.compile()}`);
-    }
-    await this.executor.execute(sql.join(parts, sql` `));
+    const aliased = aliasRowType(instance, this.tableName) as InstanceType<T>;
+    return new DeleteBuilder(this.tableName, this.executor, aliased);
   }
 
   static compile(isSubquery?: boolean) {
