@@ -38,19 +38,20 @@ const parseComposite = (raw: string): string[] => {
 
 export type ColumnEntry = [string, Any<any>];
 
-export class Record<N extends number> extends Generated<N> {
+export class Record<T = unknown, N extends number = number> extends Generated<N> {
   static __columns: ColumnEntry[] = [];
 
-  // Override deserialize to parse composite format and delegate to column types
-  declare deserialize: (raw: string) => { [key: string]: unknown };
+  // Widens return type from string → T (composite row)
+  // @ts-expect-error — intentional: override narrows to generic T
+  declare deserialize: (raw: string) => T;
 
   static of(columns: ColumnEntry[]) {
-    const cls = class extends (this as unknown as typeof Record) {
+    const cls = class extends (this as any) {
       static __columns = columns;
       static __typname = "record";
     };
-    // Set up prototype deserialize using the column definitions
-    cls.prototype.deserialize = (raw: string) => {
+    // Set deserialize on prototype — parses pg composite format using column types
+    cls.prototype["deserialize"] = (raw: string) => {
       const fields = parseComposite(raw);
       const result: { [key: string]: unknown } = {};
       for (let i = 0; i < columns.length; i++) {
@@ -64,6 +65,6 @@ export class Record<N extends number> extends Generated<N> {
       }
       return result;
     };
-    return cls;
+    return cls as unknown as typeof Record;
   }
 }

@@ -104,7 +104,6 @@ type QueryBuilderOptions<
   N extends Namespace,
   O extends RowType,
   GB extends Any<any>[],
-  Card extends Cardinality = "many",
 > = {
   namespace: N;
   output: O;
@@ -122,7 +121,6 @@ type QueryBuilderOptions<
   }[];
   limit?: number;
   offset?: number;
-  cardinality?: Card;
 };
 
 // TODO: make sure all methods have sane & documented behavior if called more than once
@@ -132,7 +130,8 @@ export class QueryBuilder<
   GB extends Any<any>[],
   Card extends Cardinality = "many",
 > {
-  private opts: QueryBuilderOptions<N, O, GB, Card>;
+  private opts: QueryBuilderOptions<N, O, GB>;
+  private card: Card;
   get alias(): string {
     return this.opts.alias;
   }
@@ -140,8 +139,9 @@ export class QueryBuilder<
     return this.opts.output;
   }
 
-  constructor(opts: QueryBuilderOptions<N, O, GB, Card>) {
+  constructor(opts: QueryBuilderOptions<N, O, GB>, card?: Card) {
     this.opts = opts;
+    this.card = (card ?? "many") as Card;
   }
 
   // Must come after any 'groupBy' or 'having' calls (because they modify the output type).
@@ -268,19 +268,20 @@ export class QueryBuilder<
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scalar(this: QueryBuilder<N, O, GB, "maybe">): Record<O, 0 | 1>;
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
-  scalar(this: QueryBuilder<N, O, GB, "many">): Anyarray<Record<O, 1>>;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
+  scalar(this: QueryBuilder<N, O, GB, "many">): Anyarray<Record<O, 1>, 1>;
   scalar(): any {
     const columns = selectList(this.opts.output as { [key: string]: unknown });
     const RecordClass = Record.of(columns);
-    const asRow = new RecordClass(this.opts.output);
-    const queryBase = this.select(() => asRow);
-    if (this.opts.cardinality === "many") {
-      if (this.opts.groupBy) {
-        throw new Error("TODO: need to take a subquery before a group by query can be scalar");
-      }
-      return new (Anyarray.of(RecordClass))(queryBase.compile());
+    // Compile as a scalar subquery: (SELECT ROW(...) FROM ...)
+    const rowExpr = sql`ROW(${compileSelectList(this.opts.output as { [key: string]: unknown })})`;
+    const subquery = this.select(() => ({ __row: new RecordClass(rowExpr) })).compile({ isSubquery: true });
+    if (this.card === "many") {
+      return new (Anyarray.of(RecordClass) as any)(
+        sql`COALESCE((SELECT array_agg(__row) FROM ${subquery}), '{}')`,
+      );
     }
-    return new RecordClass(queryBase.compile());
+    return new RecordClass(sql`(SELECT __row FROM ${subquery})`);
   }
 
   compile({ isSubquery } = { isSubquery: false }): Sql {
@@ -322,10 +323,7 @@ export class QueryBuilder<
   }
 
   cardinality<C extends Cardinality>(card: C): QueryBuilder<N, O, GB, C> {
-    return new QueryBuilder({
-      ...this.opts,
-      cardinality: card,
-    });
+    return new QueryBuilder(this.opts, card);
   }
 
   debug(): this {
