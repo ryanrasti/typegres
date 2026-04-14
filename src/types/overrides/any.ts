@@ -1,7 +1,7 @@
 import { Any as Generated } from "../generated/any";
 import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
-import { sql, Sql } from "../../sql-builder";
+import { sql, Sql } from "../../builder/sql";
 
 type ColumnOpts = { nonNull?: boolean; default?: Sql; generated?: boolean };
 

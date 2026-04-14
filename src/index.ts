@@ -1,5 +1,5 @@
 export { Database } from "./database";
-export { sql, Sql } from "./sql-builder";
+export { sql, Sql } from "./builder/sql";
 export { pgliteExecutor } from "./executor";
 export type { Config } from "./config";
 export type { Executor } from "./executor";

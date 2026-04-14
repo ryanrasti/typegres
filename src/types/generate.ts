@@ -376,7 +376,7 @@ const generateTypeFile = (
   }
   // Concrete types need Sql for their constructor (accepts Sql | primitive)
   if (!EXTENDS_MAP[pgType.typname] && pgType.typname !== "any") {
-    lines.push('import { Sql } from "../../sql-builder";');
+    lines.push('import { Sql } from "../../builder/sql";');
   }
   // Extends: import parent class directly from its source file.
   // This avoids circular deps at class definition time — the parent must be

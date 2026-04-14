@@ -3,7 +3,7 @@ import { pgliteExecutor } from "./executor";
 import type { Executor } from "./executor";
 import { Database } from "./database";
 import { Int4, Int8, Text, Bool } from "./types";
-import { sql } from "./sql-builder";
+import { sql } from "./builder/sql";
 
 let exec: Executor;
 let db: Database;

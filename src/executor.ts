@@ -1,4 +1,4 @@
-import type { Sql } from "./sql-builder";
+import type { Sql } from "./builder/sql";
 
 export interface Executor {
   execute(query: Sql): Promise<Record<string, string>[]>;

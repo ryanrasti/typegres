@@ -16,8 +16,8 @@
       "types": "./dist/types/index.d.mts"
     },
     "./sql-builder": {
-      "import": "./dist/sql-builder.mjs",
-      "types": "./dist/sql-builder.d.mts"
+      "import": "./dist/builder/sql.mjs",
+      "types": "./dist/builder/sql.d.mts"
     }
   },
   "bin": {

@@ -3,7 +3,7 @@ import { meta } from "./runtime";
 import type { StrictNull, MaybeNull, NullOf, TsTypeOf } from "./runtime";
 import type { Any, Float8, Anyarray, Anyrange, Anymultirange } from "./index";
 import { Int4, Text, Bool, Int8 } from "./index";
-import { sql } from "../sql-builder";
+import { sql } from "../builder/sql";
 import { pgliteExecutor } from "../executor";
 import type { Executor } from "../executor";
 

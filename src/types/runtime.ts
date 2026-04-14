@@ -1,4 +1,4 @@
-import { sql, Sql } from "../sql-builder";
+import { sql, Sql } from "../builder/sql";
 import type { Any } from "./index";
 
 // Global metadata symbol — hides internals from autocomplete.

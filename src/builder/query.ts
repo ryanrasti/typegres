@@ -1,7 +1,7 @@
-import { Executor } from "./executor";
-import { Sql, sql } from "./sql-builder";
-import { Any, Bool } from "./types";
-import { TsTypeOf, Nullable, meta } from "./types/runtime";
+import { Executor } from "../executor";
+import { Sql, sql } from "./sql";
+import { Any, Bool } from "../types";
+import { TsTypeOf, Nullable, meta } from "../types/runtime";
 
 // Mapping of row name to type (class instance)
 export type RowType = object;

@@ -3,7 +3,7 @@ import { pgliteExecutor } from "./executor";
 import type { Executor } from "./executor";
 import { Database } from "./database";
 import { Int8, Text } from "./types";
-import { sql } from "./sql-builder";
+import { sql } from "./builder/sql";
 
 let exec: Executor;
 let db: Database;
@@ -87,7 +87,7 @@ test("insert", async () => {
       color = (Text<0 | 1>).column();
     }
 
-    await Cats.insert({ name: "Whiskers" }, { name: "Tom", color: "orange" });
+    await Cats.insert({ name: "Whiskers" }, { name: "Tom", color: "orange" }).execute();
 
     const rows = await Cats.from()
       .select(({ cats }) => ({ name: cats.name, color: cats.color }))
@@ -112,10 +112,9 @@ test("insert returning", async () => {
       label = (Text<1>).column({ nonNull: true });
     }
 
-    const rows = await Items.insertReturning(
-      [{ label: "A" }, { label: "B" }],
-      (t) => ({ id: t.id, label: t.label }),
-    );
+    const rows = await Items.insert({ label: "A" }, { label: "B" })
+      .returning((t) => ({ id: t.id, label: t.label }))
+      .execute();
 
     expectTypeOf(rows).toEqualTypeOf<{ id: bigint; label: string }[]>();
     expect(rows).toEqual([
