@@ -6,11 +6,11 @@ import { Any, Anyarray, Record } from "../types";
 import type { TsTypeOf, Nullable} from "../types/runtime";
 import { meta } from "../types/runtime";
 
-// Extract [name, type] pairs from a row type — only includes Any<> instances
-export const selectList = (output: { [key: string]: unknown }): [string, Any<any>][] => {
-  return Object.entries(output).filter(
-    (entry): entry is [string, Any<any>] => entry[1] instanceof Any,
-  );
+// Extract only Any<> instances from a row type
+export const selectList = <T extends RowType>(output: T): T => {
+  return Object.fromEntries(
+    Object.entries(output).filter(([, v]) => v instanceof Any),
+  ) as T;
 };
 
 // Compile a row type into a SQL select list: col AS "name", ...
@@ -263,18 +263,18 @@ export class QueryBuilder<
     return new QueryBuilder({ ...this.opts, offset: n });
   }
 
+  // TODO: ROW(), array_agg(), COALESCE should be regular typed ops once we support them
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scalar(this: QueryBuilder<N, O, GB, "one">): Record<O, 1>;
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scalar(this: QueryBuilder<N, O, GB, "maybe">): Record<O, 0 | 1>;
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
-  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scalar(this: QueryBuilder<N, O, GB, "many">): Anyarray<Record<O, 1>, 1>;
   scalar(): any {
-    const columns = selectList(this.opts.output as { [key: string]: unknown });
-    const RecordClass = Record.of(columns);
+    const cols = selectList(this.opts.output);
+    const RecordClass = Record.of(cols as any);
     // ROW() takes raw expressions without aliases
-    const rowExprs = columns.map(([, type]) => type.compile());
+    const rowExprs = Object.values(cols).map((type: any) => type.compile());
     const rowSql = sql`ROW(${sql.join(rowExprs)})`;
     // Wrap as a subquery: (SELECT ROW(...) FROM ... WHERE ...)
     const subquery = this.select(() => ({ __row: new RecordClass(rowSql) })).compile({ isSubquery: true });

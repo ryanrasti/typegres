@@ -565,7 +565,10 @@ test("scalar with cardinality 'maybe' — null when no match", async () => {
       .orderBy(({ people }) => people.name)
       .execute();
 
-    expectTypeOf(rows[0]!.name).toEqualTypeOf<string>();
+    expectTypeOf(rows).toEqualTypeOf<{
+      name: string;
+      profile: { bio: string } | null
+    }>();
     expect(rows).toEqual([
       { name: "Alice", profile: { bio: "Hello" } },
       { name: "Bob", profile: null },
@@ -609,7 +612,10 @@ test("scalar with cardinality 'many' — array result", async () => {
       .orderBy(({ parents }) => parents.name)
       .execute();
 
-    expectTypeOf(rows[0]!.name).toEqualTypeOf<string>();
+    expectTypeOf(rows).toEqualTypeOf<{
+      name: string;
+      kids: { name: string }[];
+    }[]>();
     expect(rows).toEqual([
       { name: "Alice", kids: [{ name: "Charlie" }, { name: "Diana" }] },
       { name: "Bob", kids: [] },

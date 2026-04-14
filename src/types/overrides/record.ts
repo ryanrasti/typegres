@@ -1,5 +1,6 @@
 import { Record as Generated } from "../generated/record";
 import type { Any } from "../index";
+import type { RowTypeToTsType } from "../../builder/query";
 
 // Pg composite format parser: (val1,val2,...) → string[]
 // Handles quoted values and nested composites
@@ -36,26 +37,24 @@ const parseComposite = (raw: string): string[] => {
   return fields;
 };
 
-export type ColumnEntry = [string, Any<any>];
-
 export class Record<T = unknown, N extends number = number> extends Generated<N> {
-  static __columns: ColumnEntry[] = [];
+  static __columns: { [key: string]: Any<any> } = {};
 
-  // Widens return type from string → T (composite row)
-  // @ts-expect-error — intentional: override narrows to generic T
-  declare deserialize: (raw: string) => T;
+  // @ts-expect-error — intentional: widen return type from string → RowTypeToTsType<T>
+  declare deserialize: (raw: string) => RowTypeToTsType<T>;
 
-  static of(columns: ColumnEntry[]) {
+  static of<T extends { [key: string]: Any<any> }>(columns: T) {
+    const entries = Object.entries(columns);
     const cls = class extends (this as any) {
       static __columns = columns;
       static __typname = "record";
     };
-    // Set deserialize on prototype — parses pg composite format using column types
+    // Closure over entries — works even when called without `this` (e.g., from Anyarray)
     cls.prototype["deserialize"] = (raw: string) => {
       const fields = parseComposite(raw);
       const result: { [key: string]: unknown } = {};
-      for (let i = 0; i < columns.length; i++) {
-        const [name, type] = columns[i]!;
+      for (let i = 0; i < entries.length; i++) {
+        const [name, type] = entries[i]!;
         const val = fields[i];
         if (val === undefined || val === "") {
           result[name] = null;
@@ -65,6 +64,6 @@ export class Record<T = unknown, N extends number = number> extends Generated<N>
       }
       return result;
     };
-    return cls as unknown as typeof Record;
+    return cls as unknown as typeof Record<T, number>;
   }
 }
