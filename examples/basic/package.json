@@ -6,13 +6,15 @@
   "scripts": {
     "migrate": "node --experimental-strip-types migrate.ts",
     "generate": "tg generate",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "typegres": "file:../..",
-    "pg": "^8.16.0"
+    "pg": "^8.16.0",
+    "typegres": "file:../.."
   },
   "devDependencies": {
-    "@types/pg": "^8.15.4"
+    "@types/pg": "^8.15.4",
+    "vitest": "^4.1.4"
   }
 }

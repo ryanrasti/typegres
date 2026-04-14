@@ -1,4 +1,5 @@
-import { Database } from "typegres";
+import { Database, pgliteExecutor } from "typegres";
 
-// TODO: replace with real executor
-export const db = new Database(null as any);
+const executor = await pgliteExecutor();
+export const db = new Database(executor);
+export { executor };
