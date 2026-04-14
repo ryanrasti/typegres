@@ -176,6 +176,12 @@ export class QueryBuilder<
     );
   }
 
+  debug(): this {
+    const compiled = this.compile().compile("pg");
+    console.log(compiled.text, compiled.values, this.opts);
+    return this;
+  }
+
   async execute(): Promise<RowTypeToTsType<O>[]> {
     const rows = await this.opts.executor.execute(this.compile());
     return rows.map((row: Record<string, string>) =>

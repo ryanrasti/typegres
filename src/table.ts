@@ -7,16 +7,7 @@ export class TableBase {
   static alias: string;
   static executor: Executor;
 
-  static as<T extends typeof TableBase>(
-    this: T,
-    alias: string,
-  ): Omit<T, "alias"> & { alias: string } {
-    return class extends this {
-      static alias = alias;
-    } as any;
-  }
-
-  static from<T extends typeof TableBase>(this: T) {
+  static from<T extends {new (): any; alias: string}>(this: T) {
     const row = new this() as InstanceType<T>;
     const aliased = aliasRowType(row, this.alias);
     return new QueryBuilder<{ [K in T["alias"]]: InstanceType<T> }, InstanceType<T>, []>({

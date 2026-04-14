@@ -41,9 +41,8 @@ test("Table.from().select() with real table", async () => {
       name = (Text<1>).column({ nonNull: true });
       breed = (Text<0 | 1>).column();
     }
-
     const rows = await Dogs.from()
-      .select(({ dogs }) => ({
+      .select(({ dogs  }) => ({
         id: dogs.id,
         name: dogs.name,
         breed: dogs.breed,
@@ -52,6 +51,20 @@ test("Table.from().select() with real table", async () => {
 
     expectTypeOf(rows).toEqualTypeOf<{ id: bigint; name: string; breed: string }[]>();
     expect(rows).toEqual([
+      { id: 1n, name: "Rex", breed: "Labrador" },
+      { id: 2n, name: "Fido", breed: null },
+    ]);
+
+    const rows2 = await Dogs.as("d").from()
+      .select(({ d }) => ({
+        id: d.id,
+        name: d.name,
+        breed: d.breed,
+      }))
+      .execute();
+
+    expectTypeOf(rows2).toEqualTypeOf<{ id: bigint; name: string; breed: string }[]>();
+    expect(rows2).toEqual([
       { id: 1n, name: "Rex", breed: "Labrador" },
       { id: 2n, name: "Fido", breed: null },
     ]);

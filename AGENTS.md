@@ -69,6 +69,10 @@ All Postgres types represented as TS classes. Functions are represented as metho
 - [ ] `select` with subselect/correlated subqueries — needs subquery as Fromable
 - [x] `where`
 - [ ] `join` (inner, left, right, full, cross) — next up
+      * Note, we only support inner/left join
+      * right join doesn't play well with ocap (can use it to read rows otherwise
+         wouldn't have access to)
+      * cross join seems like a DoS nightmare
 - [x] `groupBy` (with tuple inference, numeric index access)
 - [x] `having`
 - [x] `orderBy` (single, tuple, array forms; stacking)

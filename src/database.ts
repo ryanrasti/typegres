@@ -21,15 +21,25 @@ export class Database {
     });
   }
 
-  public Table = <Name extends string>(name: Name): typeof TableBase => {
+  public Table = <Name extends string>(name: Name) => {
     const executor = this.executor;
     const obj = {
       [name]: class extends TableBase {
         static tableName = name;
-        static alias = name;
+        static alias: Name = name;
         static executor = executor;
+
+        static as<T extends typeof TableBase, A extends string>(
+          this: T,
+          alias: A,
+        ) {
+          return class extends (this as NonNullable<Obj>[Name]) {
+            static alias: A = alias;
+          } as Omit<T, 'alias'> & { alias: A, new(): InstanceType<T> };
+        }
       },
     };
-    return obj[name];
+    type Obj = typeof obj;
+    return obj[name] as NonNullable<Obj[Name]>;
   };
 }
