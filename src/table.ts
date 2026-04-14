@@ -25,26 +25,26 @@ export class TableBase {
 
   static insert<T extends typeof TableBase & (new () => any)>(
     this: T,
-    ...rows: InsertRow<InstanceType<T>>[]
-  ): InsertBuilder<InstanceType<T>> {
-    const instance = new this();
-    const builder = new InsertBuilder<InstanceType<T>>(this.tableName, this.executor, instance);
-    if (rows.length > 0) {
-      builder.values(...rows as Record<string, unknown>[]);
-    }
-    return builder;
-  }
-
-  static update<T extends typeof TableBase & (new () => any)>(this: T): UpdateBuilder<InstanceType<T>> {
+    ...rows: [InsertRow<InstanceType<T>>, ...InsertRow<InstanceType<T>>[]]
+  ): InsertBuilder<T["tableName"], InstanceType<T>> {
     const instance = new this();
     const aliased = aliasRowType(instance, this.tableName) as InstanceType<T>;
-    return new UpdateBuilder(this.tableName, this.executor, instance, aliased);
+    const ns = { [this.tableName]: aliased } as { [K in T["tableName"]]: InstanceType<T> };
+    return new InsertBuilder(this.tableName, this.executor, instance, ns, rows as Record<string, unknown>[]);
   }
 
-  static delete<T extends typeof TableBase & (new () => any)>(this: T): DeleteBuilder<InstanceType<T>> {
+  static update<T extends typeof TableBase & (new () => any)>(this: T): UpdateBuilder<T["tableName"], InstanceType<T>> {
     const instance = new this();
     const aliased = aliasRowType(instance, this.tableName) as InstanceType<T>;
-    return new DeleteBuilder(this.tableName, this.executor, aliased);
+    const ns = { [this.tableName]: aliased } as { [K in T["tableName"]]: InstanceType<T> };
+    return new UpdateBuilder(this.tableName, this.executor, instance, ns);
+  }
+
+  static delete<T extends typeof TableBase & (new () => any)>(this: T): DeleteBuilder<T["tableName"], InstanceType<T>> {
+    const instance = new this();
+    const aliased = aliasRowType(instance, this.tableName) as InstanceType<T>;
+    const ns = { [this.tableName]: aliased } as { [K in T["tableName"]]: InstanceType<T> };
+    return new DeleteBuilder(this.tableName, this.executor, ns);
   }
 
   static compile(isSubquery?: boolean) {

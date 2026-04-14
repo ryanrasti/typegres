@@ -3,6 +3,36 @@ import { Sql, sql } from "./sql";
 import { Any, Bool } from "../types";
 import { TsTypeOf, Nullable, meta } from "../types/runtime";
 
+// Compile a row type into a SQL select list: col AS "name", ...
+export const compileSelectList = (output: Record<string, unknown>): Sql => {
+  return sql.join(
+    Object.entries(output).flatMap(([k, v]) =>
+      v instanceof Any ? [sql`${v.compile()} as ${sql.ident(k)}`] : [],
+    ),
+  );
+};
+
+// Deserialize raw string rows using typed output descriptors
+export const deserializeRows = <R>(
+  rows: Record<string, string>[],
+  output: Record<string, unknown>,
+): R[] => {
+  return rows.map((row) =>
+    Object.fromEntries(
+      Object.entries(row).map(([k, v]) => {
+        const type = output[k];
+        if (!(type instanceof Any)) {
+          throw new Error(`Expected ${k} to be an Any type, got ${typeof v}`);
+        }
+        if (v === null || v === undefined) {
+          return [k, null];
+        }
+        return [k, type.deserialize(String(v))];
+      }),
+    ),
+  ) as R[];
+};
+
 // Mapping of row name to type (class instance)
 export type RowType = object;
 // All of the row types in the current namespace
@@ -74,6 +104,7 @@ type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<
   offset?: number;
 };
 
+// TODO: make sure all methods have sane & documented behavior if called more than once
 export class QueryBuilder<
   N extends Namespace,
   O extends RowType,
@@ -214,12 +245,7 @@ export class QueryBuilder<
     return sql.join(
       [
         isSubquery && sql`(`,
-        // TODO: we should only select the `exposed` fields.
-        sql`SELECT ${sql.join(
-          Object.entries(this.opts.output).flatMap(([k, v]) =>
-            v instanceof Any ? [sql`${v.compile()} as ${sql.ident(k)}`] : [],
-          ),
-        )}`,
+        sql`SELECT ${compileSelectList(this.opts.output as Record<string, unknown>)}`,
         this.opts.from && sql`FROM ${this.opts.from.compile(true)}`,
         ...(this.opts.joins ?? []).map((j) =>
           j.type === "left"
@@ -257,20 +283,7 @@ export class QueryBuilder<
 
   async execute(): Promise<RowTypeToTsType<O>[]> {
     const rows = await this.opts.executor.execute(this.compile());
-    return rows.map((row: Record<string, string>) =>
-      Object.fromEntries(
-        Object.entries(row).map(([k, v]) => {
-          const type = this.opts.output[k as keyof O];
-          if (!(type instanceof Any)) {
-            throw new Error(`Expected ${k} to be an Any type, got ${typeof v}`);
-          }
-          if (v === null || v === undefined) {
-            return [k, null];
-          }
-          return [k, type.deserialize(String(v))];
-        }),
-      ),
-    ) as RowTypeToTsType<O>[];
+    return deserializeRows<RowTypeToTsType<O>>(rows, this.opts.output as Record<string, unknown>);
   }
 }
 
