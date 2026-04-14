@@ -8,7 +8,7 @@ const OVERRIDES_DIR = path.resolve(import.meta.dirname, "overrides");
 const TYPES_INDEX = path.resolve(import.meta.dirname, "index.ts");
 
 // Map pg type names to TS-friendly class names
-const pgNameToClassName = (name: string): string => {
+export const pgNameToClassName = (name: string): string => {
   return camelcase(name, { pascalCase: true });
 };
 
@@ -627,8 +627,11 @@ export const generate = async () => {
   }
 };
 
-// CLI entry point
-generate().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Run only when executed directly, not when imported
+const isMain = process.argv[1] && import.meta.filename?.endsWith(process.argv[1].replace(/.*\//, ""));
+if (isMain) {
+  generate().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

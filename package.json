@@ -4,12 +4,28 @@
   "type": "module",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    },
+    "./config": {
+      "import": "./dist/config.mjs",
+      "types": "./dist/config.d.mts"
+    },
+    "./types": {
+      "import": "./dist/types/index.mjs",
+      "types": "./dist/types/index.d.mts"
+    },
+    "./sql-builder": {
+      "import": "./dist/sql-builder.mjs",
+      "types": "./dist/sql-builder.d.mts"
     }
   },
+  "bin": {
+    "tg": "./src/cli.ts"
+  },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "engines": {
     "node": ">=22"
@@ -26,6 +42,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.6.0",
+    "@types/pg": "^8.20.0",
     "@typescript-eslint/parser": "^8.58.1",
     "@typescript/native-preview": "^7.0.0-dev.20260413.1",
     "eslint": "^10.2.0",
@@ -37,6 +54,7 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.4.4",
-    "camelcase": "^9.0.0"
+    "camelcase": "^9.0.0",
+    "pg": "^8.20.0"
   }
 }
