@@ -15,6 +15,7 @@ export default [
       eqeqeq: "error",
       curly: ["error", "all"],
       "no-undef": "off",
+      "no-unused-vars": "off", // tsgo handles this; base rule doesn't understand TS type params
     },
   },
   {

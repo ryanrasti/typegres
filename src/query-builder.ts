@@ -156,7 +156,7 @@ export class QueryBuilder<
   groupBy<G extends Any<any>[]>(
     groupByFn: (n: N) => [...G],
   ): QueryBuilder<N & G, O, [...GB, ...G]> {
-    let rawGroupBy = groupByFn(this.opts.namespace);
+    const rawGroupBy = groupByFn(this.opts.namespace);
     const mergedGroupBy = [...(this.opts.groupBy ?? []), ...rawGroupBy];
 
     const indices = Object.keys(mergedGroupBy);

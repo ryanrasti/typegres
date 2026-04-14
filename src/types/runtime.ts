@@ -20,7 +20,6 @@ export type NullOf<T> = T extends Any<infer N extends number> ? N : 1;
 // Extract the TS type that a pg type deserializes to.
 // Uses the return type of deserialize(). For primitives passed directly, it's the type itself.
 // Nullability: N=0 → null, N=0|1 → U|null, N=1 → U, N=number → U (aggregate/unknown, not null)
-// eslint-disable-next-line no-unused-vars
 export type TsTypeOf<T> =
   T extends Any<infer N>
     ? (T extends { deserialize: (_: any) => infer U }

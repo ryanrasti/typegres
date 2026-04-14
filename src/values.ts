@@ -1,7 +1,7 @@
 import { sql } from "./sql-builder";
 import { Any } from "./types";
 import { meta } from "./types/runtime";
-import { sortRowColumns, type Fromable, type RowType, type RowTypeToTsType } from "./query-builder";
+import { sortRowColumns, type RowType, type RowTypeToTsType } from "./query-builder";
 
 
 export class Values<R extends RowType> {

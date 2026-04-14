@@ -4,7 +4,6 @@
 
 export interface TypeDef {
   tsType: string;
-  // eslint-disable-next-line no-unused-vars
   deserialize: (raw: string) => unknown;
 }
 
