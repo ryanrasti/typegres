@@ -5,7 +5,8 @@
 Core tenets:
 
 1. Database as single source of truth.
-2. API exposed directly as an abstract data type on top of database.
+2. API exposed directly as an *abstract data type* on top of database.
+  * The API is decoupled from the schema
 3. Clients query the data type directly, through composing methods.
 
 Example:
@@ -20,13 +21,25 @@ class User {
     @expose
     id = column(pg.BigInt, { generated: true })
 
+    // v1
     @expose
     todos() {
         return Todo.where((t) => t.user_id.eq(this.id))
     }
 
+    // v2 (denormalized)
     @expose
-    name() {
+    todos() {
+        return this.todos.unnest()
+    }
+
+    // v1
+    @expose
+    name = column(pg.Text)
+
+    // v2
+    @expose
+    get name() {
         return this.first_name.concat(' ', this.last_name)
     }
 }
@@ -39,7 +52,7 @@ class Todo {
 }
 ```
 
-Fields map 1:1 with Postgres types. All safe Postgres functions are exposed as methods on the type.
+Field can expose any Postgres types, with null typing including. All safe Postgres functions are exposed as methods on the type.
 
 A capability-based RPC endpoint essentially exposes a subset of JS with `User` rooted
 as a top-level object. All `@expose` methods are chainable/discoverable by clients.
@@ -68,8 +81,7 @@ All Postgres types represented as TS classes. Functions are represented as metho
 - [x] `select` (computed columns, identity passthrough)
 - [ ] `select` with subselect/correlated subqueries — needs subquery as Fromable
 - [x] `where`
-- [ ] `join` (inner, left, right, full, cross) — next up
-      * Note, we only support inner/left join
+- [x] `join` (inner, left)
       * right join doesn't play well with ocap (can use it to read rows otherwise
          wouldn't have access to)
       * cross join seems like a DoS nightmare
@@ -89,14 +101,17 @@ All Postgres types represented as TS classes. Functions are represented as metho
 - [x] Generates typed classes with methods, operator overloads, nullability, TsTypeOf
 - [x] Override system: overrides/ extend generated/ classes
 - [x] Barrel (index.ts) auto-generated with override detection
-- [ ] Table codegen: run migration in pglite, find `extend Table(<name>)`, generate inline definitions
+- [x] Table codegen CLI (`tg generate`): introspects pg, generates typed table files with @generated markers
+- [x] `typegres.config.ts` with Config type for db url, tables dir, db import path
 
-### 4. Mutations — next up after joins
+### 4. Mutations — ✅ DONE
 
-- [ ] `insert`
-- [ ] `update` (with join support)
-- [ ] `delete`
-- [ ] transactions
+- [x] `insert` (with returning, InsertRow required field typing via [meta].__required)
+- [x] `update` (UpdateBuilder: .where().set().returning().execute())
+- [x] `delete` (DeleteBuilder: .where().returning().execute())
+- [x] transactions (`db.transaction(async (tx) => { ... })` — auto commit/rollback)
+- [x] All mutation builders: immutable opts, compile(), debug(), execute()
+- [x] Runtime safety: update/delete require .where() — use .where(true) for full-table ops
 
 ### 5. Raw SQL Fallback — ✅ DONE
 
@@ -108,7 +123,7 @@ All Postgres types represented as TS classes. Functions are represented as metho
 
 ### 6. RPC & DoS protection
 
-We will use `exoeval`, a JS subset, as the mechanism to send capability-based RPCs to the BE. Wire format is JavaScript itself, allowing for easy debugging.
+We will use `exoeval` (a minimal JS subset built for executing untrusted code against capabilities), as the mechanism to send capability-based RPCs to the BE. Wire format is JavaScript itself, allowing for easy debugging.
 
 For DoS protection there are two layers:
 
@@ -116,7 +131,10 @@ For DoS protection there are two layers:
 2. Postgres -- ideas:
 
 - Query timeout (crude)
-- Internal analysis (e.g., max N joins, joins must have indexed predicate)
+- Internal analysis on the query ast before we send it
+  - e.g., joins must have index condition
+  - e.g., non unique key join 5x's the query cost (perhaps we can sync prod stats db here)
+  - e.g., limit/offset required
 - Send `analyze` before sending query
   - Perhaps can do this standalone with a histogram snapshot instead of doing it against live DB.
 
@@ -141,6 +159,12 @@ Implementation:
    c. passing a uuid in the response to long-poll the `live` result
 
 Notes: Requires WAL access -- and old tuple access (replica identity full/default) or storing the old tuples rows (just the conditions) ourselves
+
+Scaling: 
+1. we store tables (in mem or pg) of predicates on tables matching current live queries. Each WAL
+entry is matched against that to determine which queries need to update. Gas per client includes the extra
+compute needed here.
+2. if need more scaling, will probably need a dedicated runtime to satisfy `.live()`, but that depends on what we see practice.
 
 ## Target users
 
