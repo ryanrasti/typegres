@@ -1,9 +1,9 @@
 import { test, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
-import { pgliteExecutor } from "./executor";
-import type { Executor } from "./executor";
-import { Database } from "./database";
-import { Int4, Int8, Text, Bool } from "./types";
-import { sql } from "./builder/sql";
+import { pgliteExecutor } from "../executor";
+import type { Executor } from "../executor";
+import { Database } from "../database";
+import { Int4, Int8, Text, Bool } from "../types";
+import { sql } from "./sql";
 
 let exec: Executor;
 let db: Database;
