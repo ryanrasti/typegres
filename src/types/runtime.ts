@@ -30,6 +30,24 @@ export type TsTypeOf<T> =
 // Extract the nullable variant of a pg type via the [meta] bag
 export type Nullable<T> = T extends { [meta]: { __nullable: infer U } } ? U : T;
 
+// Column requirement: check if [meta] has __required: true
+export type IsRequired<T> = T extends { [meta]: { __required: true } } ? true : false;
+
+// Extract required keys from a row type (for insert)
+export type RequiredKeys<R> = {
+  [K in keyof R]: IsRequired<R[K]> extends true ? K : never;
+}[keyof R];
+
+// Extract optional keys from a row type (for insert)
+export type OptionalKeys<R> = {
+  [K in keyof R]: IsRequired<R[K]> extends true ? never : K;
+}[keyof R];
+
+// Insert row: required fields + optional fields (as TsTypeOf)
+export type InsertRow<R> =
+  { [K in RequiredKeys<R>]: TsTypeOf<R[K]> } &
+  { [K in OptionalKeys<R>]?: TsTypeOf<R[K]> };
+
 // Runtime type resolution
 // pgType(expr) — returns the constructor via [meta].__class (set once in Any, narrowed by subclasses)
 export const pgType = (expr: Any<any>): typeof Any => expr[meta].__class as typeof Any;

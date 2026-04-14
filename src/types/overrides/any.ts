@@ -3,6 +3,8 @@ import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
 import { sql, Sql } from "../../sql-builder";
 
+type ColumnOpts = { nonNull?: boolean; default?: Sql; generated?: boolean };
+
 export class Any<N extends number> extends Generated<N> {
   declare [meta]: {
     __class: typeof Any;
@@ -36,10 +38,20 @@ export class Any<N extends number> extends Generated<N> {
   }
 
   // Column descriptor for Table definitions
-  static column<T extends typeof Any<any>>(
+  // __required is computed at the type level: nonNull && no default && not generated
+  static column<
+    T extends typeof Any<any>,
+    Opts extends ColumnOpts = {},
+  >(
     this: T,
-    opts?: { nonNull?: boolean; default?: Sql; generated?: boolean },
-  ): InstanceType<T> {
+    opts?: Opts,
+  ): InstanceType<T> & {
+    [meta]: {
+      __required: Opts extends { nonNull: true }
+        ? Opts extends { default: any } | { generated: true } ? false : true
+        : false;
+    };
+  } {
     return { __column: true, __class: this, ...opts } as any;
   }
 }
