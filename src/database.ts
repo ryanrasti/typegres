@@ -1,7 +1,7 @@
 import { Executor } from "./executor";
 import { aliasRowType, QueryBuilder, RowType, RowTypeToTsType } from "./builder/query";
 import { TableBase } from "./table";
-import { Values } from "./values";
+import { Values } from "./builder/values";
 
 export class Database {
   constructor(private executor: Executor) {}
