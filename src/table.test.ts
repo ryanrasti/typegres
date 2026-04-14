@@ -116,7 +116,7 @@ test("insert returning", async () => {
       .returning(({ items }) => ({ id: items.id, label: items.label }))
       .execute();
 
-    // TODO: returning() type narrowing — execute() return type doesn't flow through intersection yet
+    expectTypeOf(rows).toEqualTypeOf<{ id: bigint; label: string }[]>();
     expect(rows).toEqual([
       { id: 1n, label: "A" },
       { id: 2n, label: "B" },

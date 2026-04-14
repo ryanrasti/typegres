@@ -1,52 +1,54 @@
 import { Executor } from "../executor";
-import { Sql, sql } from "./sql";
+import { sql } from "./sql";
 import { Any } from "../types";
 import { compileSelectList, deserializeRows, RowType, RowTypeToTsType } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
-export class DeleteBuilder<Name extends string, T extends Record<string, any>> {
-  #tableName: Name;
-  #executor: Executor;
-  #namespace: Namespace<Name, T>;
-  #whereCond?: Sql;
-  #returning?: { output: Record<string, unknown>; sql: Sql };
+type DeleteOpts<Name extends string, T, R extends RowType> = {
+  tableName: Name;
+  executor: Executor;
+  namespace: Namespace<Name, T>;
+  where?: () => Any<any>;
+  returning?: R;
+};
 
-  constructor(tableName: Name, executor: Executor, namespace: Namespace<Name, T>) {
-    this.#tableName = tableName;
-    this.#executor = executor;
-    this.#namespace = namespace;
+export class DeleteBuilder<Name extends string, T extends Record<string, any>, R extends RowType = never> {
+  #opts: DeleteOpts<Name, T, R>;
+
+  constructor(opts: DeleteOpts<Name, T, R>) {
+    this.#opts = opts;
   }
 
-  where(fn: ((ns: Namespace<Name, T>) => Any<any>) | true): DeleteBuilder<Name, T> {
-    if (fn === true) {
-      this.#whereCond = sql`TRUE`;
-    } else {
-      this.#whereCond = fn(this.#namespace).compile();
-    }
-    return this;
+  where(fn: ((ns: Namespace<Name, T>) => Any<any>) | true): DeleteBuilder<Name, T, R> {
+    return new DeleteBuilder({
+      ...this.#opts,
+      where: fn === true ? () => new Any(sql`TRUE`) : () => fn(this.#opts.namespace),
+    });
   }
 
-  returning<R extends RowType>(fn: (ns: Namespace<Name, T>) => R): DeleteBuilder<Name, T> & { execute(): Promise<RowTypeToTsType<R>[]> } {
-    const output = fn(this.#namespace);
-    this.#returning = { output: output as Record<string, unknown>, sql: compileSelectList(output as Record<string, unknown>) };
-    return this as any;
+  returning<R2 extends RowType>(fn: (ns: Namespace<Name, T>) => R2): DeleteBuilder<Name, T, R2> {
+    return new DeleteBuilder({
+      ...this.#opts,
+      returning: fn(this.#opts.namespace),
+    });
   }
 
-  async execute(): Promise<void> {
-    if (!this.#whereCond) {
+  async execute(): Promise<[R] extends [never] ? void : RowTypeToTsType<R>[]> {
+    if (!this.#opts.where) {
       throw new Error("delete() requires .where() — use .where(true) to delete all rows");
     }
     const parts = [
-      sql`DELETE FROM ${sql.ident(this.#tableName)}`,
-      sql`WHERE ${this.#whereCond}`,
+      sql`DELETE FROM ${sql.ident(this.#opts.tableName)}`,
+      sql`WHERE ${this.#opts.where().compile()}`,
     ];
-    if (this.#returning) {
-      parts.push(sql`RETURNING ${this.#returning.sql}`);
+    if (this.#opts.returning) {
+      parts.push(sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`);
     }
-    const result = await this.#executor.execute(sql.join(parts, sql` `));
-    if (this.#returning) {
-      return deserializeRows(result, this.#returning.output) as any;
+    const result = await this.#opts.executor.execute(sql.join(parts, sql` `));
+    if (this.#opts.returning) {
+      return deserializeRows(result, this.#opts.returning as Record<string, unknown>) as any;
     }
+    return undefined as any;
   }
 }

@@ -2,7 +2,7 @@ import { Executor } from "./executor";
 import { aliasRowType, Fromable, QueryBuilder } from "./builder/query";
 import { DeleteBuilder } from "./builder/delete";
 import { UpdateBuilder } from "./builder/update";
-import { InsertBuilder } from "./builder/insert";
+import { InsertBuilder, buildRowSqls } from "./builder/insert";
 import { sql } from "./builder/sql";
 import { InsertRow } from "./types/runtime";
 
@@ -30,21 +30,23 @@ export class TableBase {
     const instance = new this();
     const aliased = aliasRowType(instance, this.tableName) as InstanceType<T>;
     const ns = { [this.tableName]: aliased } as { [K in T["tableName"]]: InstanceType<T> };
-    return new InsertBuilder(this.tableName, this.executor, instance, ns, rows as Record<string, unknown>[]);
+    const columnNames = Object.keys(instance).filter((k) => instance[k]?.__column);
+    const rowSqls = buildRowSqls(rows as Record<string, unknown>[], columnNames, instance);
+    return new InsertBuilder({ tableName: this.tableName, executor: this.executor, namespace: ns, columnNames, rowSqls });
   }
 
   static update<T extends typeof TableBase & (new () => any)>(this: T): UpdateBuilder<T["tableName"], InstanceType<T>> {
     const instance = new this();
     const aliased = aliasRowType(instance, this.tableName) as InstanceType<T>;
     const ns = { [this.tableName]: aliased } as { [K in T["tableName"]]: InstanceType<T> };
-    return new UpdateBuilder(this.tableName, this.executor, instance, ns);
+    return new UpdateBuilder({ tableName: this.tableName, executor: this.executor, instance, namespace: ns });
   }
 
   static delete<T extends typeof TableBase & (new () => any)>(this: T): DeleteBuilder<T["tableName"], InstanceType<T>> {
     const instance = new this();
     const aliased = aliasRowType(instance, this.tableName) as InstanceType<T>;
     const ns = { [this.tableName]: aliased } as { [K in T["tableName"]]: InstanceType<T> };
-    return new DeleteBuilder(this.tableName, this.executor, ns);
+    return new DeleteBuilder({ tableName: this.tableName, executor: this.executor, namespace: ns });
   }
 
   static compile(isSubquery?: boolean) {
