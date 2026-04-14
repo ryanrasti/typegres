@@ -1,6 +1,6 @@
 import { Executor } from "../executor";
-import { Sql, sql } from "./sql";
-import { Bool } from "../types";
+import { sql } from "./sql";
+import { Any, Bool } from "../types";
 import { SetRow } from "../types/runtime";
 import { compileSelectList, deserializeRows, RowType, RowTypeToTsType } from "./query";
 
@@ -12,7 +12,7 @@ type UpdateOpts<Name extends string, T, R extends RowType> = {
   instance: T;
   namespace: Namespace<Name, T>;
   where?: Bool<any>;
-  set?: Sql;
+  set?: Record<string, unknown>;
   returning?: R;
 };
 
@@ -31,15 +31,9 @@ export class UpdateBuilder<Name extends string, T extends Record<string, any>, R
   }
 
   set(fn: (ns: Namespace<Name, T>) => SetRow<T>): UpdateBuilder<Name, T, R> {
-    const setCols = fn(this.#opts.namespace);
-    const clauses = Object.entries(setCols).map(([k, v]) => {
-      const col = this.#opts.instance[k];
-      if (!col?.__column) { throw new Error(`Unknown column: ${k}`); }
-      return sql`${sql.ident(k)} = ${new (col.__class as any)(v).compile()}`;
-    });
     return new UpdateBuilder({
       ...this.#opts,
-      set: sql.join(clauses),
+      set: fn(this.#opts.namespace) as Record<string, unknown>,
     });
   }
 
@@ -50,15 +44,22 @@ export class UpdateBuilder<Name extends string, T extends Record<string, any>, R
     });
   }
 
-  compile(): Sql {
+  compile() {
     if (!this.#opts.where) {
       throw new Error("update() requires .where() — use .where(true) to update all rows");
     }
     if (!this.#opts.set) {
       throw new Error("update() requires .set()");
     }
+
+    const setClauses = Object.entries(this.#opts.set).map(([k, v]) => {
+      const col = this.#opts.instance[k];
+      if (!col?.__column) { throw new Error(`Unknown column: ${k}`); }
+      return sql`${sql.ident(k)} = ${new (col.__class as any)(v).compile()}`;
+    });
+
     return sql.join([
-      sql`UPDATE ${sql.ident(this.#opts.tableName)} SET ${this.#opts.set}`,
+      sql`UPDATE ${sql.ident(this.#opts.tableName)} SET ${sql.join(setClauses)}`,
       sql`WHERE ${this.#opts.where.compile()}`,
       this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`,
     ], sql` `);

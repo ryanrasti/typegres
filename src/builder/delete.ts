@@ -1,5 +1,5 @@
 import { Executor } from "../executor";
-import { Sql, sql } from "./sql";
+import { sql } from "./sql";
 import { Bool } from "../types";
 import { compileSelectList, deserializeRows, RowType, RowTypeToTsType } from "./query";
 
@@ -34,7 +34,7 @@ export class DeleteBuilder<Name extends string, T extends Record<string, any>, R
     });
   }
 
-  compile(): Sql {
+  compile() {
     if (!this.#opts.where) {
       throw new Error("delete() requires .where() — use .where(true) to delete all rows");
     }

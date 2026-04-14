@@ -1,5 +1,5 @@
 import { Executor } from "../executor";
-import { Sql, sql } from "./sql";
+import { sql } from "./sql";
 import { compileSelectList, deserializeRows, RowType, RowTypeToTsType } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
@@ -7,9 +7,10 @@ type Namespace<Name extends string, T> = { [K in Name]: T };
 type InsertOpts<Name extends string, T, R extends RowType> = {
   tableName: Name;
   executor: Executor;
+  instance: T;
   namespace: Namespace<Name, T>;
   columnNames: string[];
-  rowSqls: Sql[];
+  rows: Record<string, unknown>[];
   returning?: R;
 };
 
@@ -27,13 +28,25 @@ export class InsertBuilder<Name extends string, T extends Record<string, any>, R
     });
   }
 
-  compile(): Sql {
-    if (this.#opts.rowSqls.length === 0) {
+  compile() {
+    if (this.#opts.rows.length === 0) {
       throw new Error("insert() requires at least one row");
     }
     const columns = this.#opts.columnNames.map((k) => sql.ident(k));
+    const rowSqls = this.#opts.rows.map((row) => {
+      const vals = this.#opts.columnNames.map((k) => {
+        const v = row[k];
+        if (v === undefined) {
+          return sql`DEFAULT`;
+        }
+        const col = this.#opts.instance[k];
+        return new (col.__class as any)(v).compile();
+      });
+      return sql`(${sql.join(vals)})`;
+    });
+
     return sql.join([
-      sql`INSERT INTO ${sql.ident(this.#opts.tableName)} (${sql.join(columns)}) VALUES ${sql.join(this.#opts.rowSqls)}`,
+      sql`INSERT INTO ${sql.ident(this.#opts.tableName)} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`,
       this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`,
     ], sql` `);
   }
@@ -52,18 +65,3 @@ export class InsertBuilder<Name extends string, T extends Record<string, any>, R
     return undefined as any;
   }
 }
-
-// Build row SQL tuples from raw insert data and column descriptors
-export const buildRowSqls = (rows: Record<string, unknown>[], columnNames: string[], instance: Record<string, any>): Sql[] => {
-  return rows.map((row) => {
-    const vals = columnNames.map((k) => {
-      const v = row[k];
-      if (v === undefined) {
-        return sql`DEFAULT`;
-      }
-      const col = instance[k];
-      return new (col.__class as any)(v).compile() as Sql;
-    });
-    return sql`(${sql.join(vals)})`;
-  });
-};
