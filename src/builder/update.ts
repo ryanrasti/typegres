@@ -1,7 +1,7 @@
 import { Executor } from "../executor";
 import { Sql, sql } from "./sql";
-import { Any } from "../types";
-import { TsTypeOf } from "../types/runtime";
+import { Any, Bool } from "../types";
+import { SetRow } from "../types/runtime";
 import { compileSelectList, deserializeRows, RowType, RowTypeToTsType } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
@@ -11,7 +11,7 @@ type UpdateOpts<Name extends string, T, R extends RowType> = {
   executor: Executor;
   instance: T;
   namespace: Namespace<Name, T>;
-  where?: () => Any<any>;
+  where?: Bool<any>;
   set?: Sql;
   returning?: R;
 };
@@ -23,14 +23,14 @@ export class UpdateBuilder<Name extends string, T extends Record<string, any>, R
     this.#opts = opts;
   }
 
-  where(fn: ((ns: Namespace<Name, T>) => Any<any>) | true): UpdateBuilder<Name, T, R> {
+  where(fn: ((ns: Namespace<Name, T>) => Bool<any>) | true): UpdateBuilder<Name, T, R> {
     return new UpdateBuilder({
       ...this.#opts,
-      where: fn === true ? () => new Any(sql`TRUE`) : () => fn(this.#opts.namespace),
+      where: fn === true ? new Bool(sql`TRUE`) : fn(this.#opts.namespace),
     });
   }
 
-  set(fn: (ns: Namespace<Name, T>) => Partial<{ [K in keyof T]: TsTypeOf<T[K]> }>): UpdateBuilder<Name, T, R> {
+  set(fn: (ns: Namespace<Name, T>) => SetRow<T>): UpdateBuilder<Name, T, R> {
     const setCols = fn(this.#opts.namespace);
     const clauses = Object.entries(setCols).map(([k, v]) => {
       const col = this.#opts.instance[k];
@@ -59,7 +59,7 @@ export class UpdateBuilder<Name extends string, T extends Record<string, any>, R
     }
     const parts = [
       sql`UPDATE ${sql.ident(this.#opts.tableName)} SET ${this.#opts.set}`,
-      sql`WHERE ${this.#opts.where().compile()}`,
+      sql`WHERE ${this.#opts.where.compile()}`,
     ];
     if (this.#opts.returning) {
       parts.push(sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`);

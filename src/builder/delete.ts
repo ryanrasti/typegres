@@ -1,6 +1,6 @@
 import { Executor } from "../executor";
 import { sql } from "./sql";
-import { Any } from "../types";
+import { Any, Bool } from "../types";
 import { compileSelectList, deserializeRows, RowType, RowTypeToTsType } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
@@ -9,7 +9,7 @@ type DeleteOpts<Name extends string, T, R extends RowType> = {
   tableName: Name;
   executor: Executor;
   namespace: Namespace<Name, T>;
-  where?: () => Any<any>;
+  where?: Bool<any>;
   returning?: R;
 };
 
@@ -20,10 +20,10 @@ export class DeleteBuilder<Name extends string, T extends Record<string, any>, R
     this.#opts = opts;
   }
 
-  where(fn: ((ns: Namespace<Name, T>) => Any<any>) | true): DeleteBuilder<Name, T, R> {
+  where(fn: ((ns: Namespace<Name, T>) => Bool<any>) | true): DeleteBuilder<Name, T, R> {
     return new DeleteBuilder({
       ...this.#opts,
-      where: fn === true ? () => new Any(sql`TRUE`) : () => fn(this.#opts.namespace),
+      where: fn === true ? new Bool(sql`TRUE`) : fn(this.#opts.namespace),
     });
   }
 
@@ -40,7 +40,7 @@ export class DeleteBuilder<Name extends string, T extends Record<string, any>, R
     }
     const parts = [
       sql`DELETE FROM ${sql.ident(this.#opts.tableName)}`,
-      sql`WHERE ${this.#opts.where().compile()}`,
+      sql`WHERE ${this.#opts.where.compile()}`,
     ];
     if (this.#opts.returning) {
       parts.push(sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`);

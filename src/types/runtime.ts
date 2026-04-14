@@ -30,23 +30,31 @@ export type TsTypeOf<T> =
 // Extract the nullable variant of a pg type via the [meta] bag
 export type Nullable<T> = T extends { [meta]: { __nullable: infer U } } ? U : T;
 
+// Keys of R that are column descriptors (have the __required brand from column())
+export type ColumnKeys<R> = {
+  [K in keyof R]: R[K] extends { [meta]: { __required: boolean } } ? K : never;
+}[keyof R];
+
 // Column requirement: check if [meta] has __required: true
 export type IsRequired<T> = T extends { [meta]: { __required: true } } ? true : false;
 
-// Extract required keys from a row type (for insert)
+// Extract required column keys from a row type (for insert)
 export type RequiredKeys<R> = {
-  [K in keyof R]: IsRequired<R[K]> extends true ? K : never;
-}[keyof R];
+  [K in ColumnKeys<R>]: IsRequired<R[K]> extends true ? K : never;
+}[ColumnKeys<R>];
 
-// Extract optional keys from a row type (for insert)
+// Extract optional column keys from a row type (for insert)
 export type OptionalKeys<R> = {
-  [K in keyof R]: IsRequired<R[K]> extends true ? never : K;
-}[keyof R];
+  [K in ColumnKeys<R>]: IsRequired<R[K]> extends true ? never : K;
+}[ColumnKeys<R>];
 
-// Insert row: required fields + optional fields (as TsTypeOf)
+// Insert row: required columns + optional columns (as TsTypeOf)
 export type InsertRow<R> =
   { [K in RequiredKeys<R>]: TsTypeOf<R[K]> } &
   { [K in OptionalKeys<R>]?: TsTypeOf<R[K]> };
+
+// Update set row: partial of all columns (as TsTypeOf)
+export type SetRow<R> = Partial<{ [K in ColumnKeys<R>]: TsTypeOf<R[K]> }>;
 
 // Runtime type resolution
 // pgType(expr) — returns the constructor via [meta].__class (set once in Any, narrowed by subclasses)
