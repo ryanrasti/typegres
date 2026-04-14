@@ -94,7 +94,7 @@ All Postgres types represented as TS classes. Functions are represented as metho
 - [ ] aggregates (`count`, `sum`, `avg` — need prokind='a' in codegen) — next up
 - [ ] TODO: after groupBy, namespace should transform to aggregate types
 
-### 3. Codegen
+### 3. Codegen — ✅ DONE
 
 - [x] Introspects pg_type, pg_proc, pg_operator via pglite
 - [x] Excludes: volatile fns, operator implementations, index support fns, internal types
