@@ -1,6 +1,6 @@
 import { Executor } from "../executor";
-import { sql } from "./sql";
-import { Any, Bool } from "../types";
+import { Sql, sql } from "./sql";
+import { Bool } from "../types";
 import { compileSelectList, deserializeRows, RowType, RowTypeToTsType } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
@@ -34,18 +34,25 @@ export class DeleteBuilder<Name extends string, T extends Record<string, any>, R
     });
   }
 
-  async execute(): Promise<[R] extends [never] ? void : RowTypeToTsType<R>[]> {
+  compile(): Sql {
     if (!this.#opts.where) {
       throw new Error("delete() requires .where() — use .where(true) to delete all rows");
     }
-    const parts = [
+    return sql.join([
       sql`DELETE FROM ${sql.ident(this.#opts.tableName)}`,
       sql`WHERE ${this.#opts.where.compile()}`,
-    ];
-    if (this.#opts.returning) {
-      parts.push(sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`);
-    }
-    const result = await this.#opts.executor.execute(sql.join(parts, sql` `));
+      this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`,
+    ], sql` `);
+  }
+
+  debug(): this {
+    const compiled = this.compile().compile("pg");
+    console.log(compiled.text, compiled.values, this.#opts);
+    return this;
+  }
+
+  async execute(): Promise<[R] extends [never] ? void : RowTypeToTsType<R>[]> {
+    const result = await this.#opts.executor.execute(this.compile());
     if (this.#opts.returning) {
       return deserializeRows(result, this.#opts.returning as Record<string, unknown>) as any;
     }

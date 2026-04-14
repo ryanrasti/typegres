@@ -1,6 +1,6 @@
 import { Executor } from "../executor";
 import { Sql, sql } from "./sql";
-import { Any, Bool } from "../types";
+import { Bool } from "../types";
 import { SetRow } from "../types/runtime";
 import { compileSelectList, deserializeRows, RowType, RowTypeToTsType } from "./query";
 
@@ -50,21 +50,28 @@ export class UpdateBuilder<Name extends string, T extends Record<string, any>, R
     });
   }
 
-  async execute(): Promise<[R] extends [never] ? void : RowTypeToTsType<R>[]> {
+  compile(): Sql {
     if (!this.#opts.where) {
       throw new Error("update() requires .where() — use .where(true) to update all rows");
     }
     if (!this.#opts.set) {
       throw new Error("update() requires .set()");
     }
-    const parts = [
+    return sql.join([
       sql`UPDATE ${sql.ident(this.#opts.tableName)} SET ${this.#opts.set}`,
       sql`WHERE ${this.#opts.where.compile()}`,
-    ];
-    if (this.#opts.returning) {
-      parts.push(sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`);
-    }
-    const result = await this.#opts.executor.execute(sql.join(parts, sql` `));
+      this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`,
+    ], sql` `);
+  }
+
+  debug(): this {
+    const compiled = this.compile().compile("pg");
+    console.log(compiled.text, compiled.values, this.#opts);
+    return this;
+  }
+
+  async execute(): Promise<[R] extends [never] ? void : RowTypeToTsType<R>[]> {
+    const result = await this.#opts.executor.execute(this.compile());
     if (this.#opts.returning) {
       return deserializeRows(result, this.#opts.returning as Record<string, unknown>) as any;
     }

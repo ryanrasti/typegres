@@ -27,18 +27,25 @@ export class InsertBuilder<Name extends string, T extends Record<string, any>, R
     });
   }
 
-  async execute(): Promise<[R] extends [never] ? void : RowTypeToTsType<R>[]> {
+  compile(): Sql {
     if (this.#opts.rowSqls.length === 0) {
       throw new Error("insert() requires at least one row");
     }
     const columns = this.#opts.columnNames.map((k) => sql.ident(k));
-    const parts = [
+    return sql.join([
       sql`INSERT INTO ${sql.ident(this.#opts.tableName)} (${sql.join(columns)}) VALUES ${sql.join(this.#opts.rowSqls)}`,
-    ];
-    if (this.#opts.returning) {
-      parts.push(sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`);
-    }
-    const result = await this.#opts.executor.execute(sql.join(parts, sql` `));
+      this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as Record<string, unknown>)}`,
+    ], sql` `);
+  }
+
+  debug(): this {
+    const compiled = this.compile().compile("pg");
+    console.log(compiled.text, compiled.values, this.#opts);
+    return this;
+  }
+
+  async execute(): Promise<[R] extends [never] ? void : RowTypeToTsType<R>[]> {
+    const result = await this.#opts.executor.execute(this.compile());
     if (this.#opts.returning) {
       return deserializeRows(result, this.#opts.returning as Record<string, unknown>) as any;
     }
