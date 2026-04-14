@@ -166,6 +166,47 @@ entry is matched against that to determine which queries need to update. Gas per
 compute needed here.
 2. if need more scaling, will probably need a dedicated runtime to satisfy `.live()`, but that depends on what we see practice.
 
+## Known Issues & TODOs
+
+### Architecture
+
+- **Alias collision in correlated subqueries**: When a relation references the same table (e.g., self-referential FK), the inner subquery uses the same alias as the outer query. Pg silently resolves to the innermost scope, producing wrong results. Need either:
+  - Expressions carry their source alias (`__scope` on Any<N>), validated at query build time
+  - Or auto-dedup aliases in `scalar()` / relation codegen (e.g., `Dogs.as("rival_dogs").from()`)
+  - Immediate workaround: codegen should emit distinct aliases for self-referential relations
+
+- **Sql has no scope tracking**: `Sql` is just fragments (params, raw, idents). It doesn't know which table aliases it references. This makes it impossible to detect alias collisions at build time. Long-term: Sql or expressions should carry namespace metadata.
+
+### Query Builder
+
+- **Method idempotency**: No documented behavior for calling methods more than once (e.g., `.where()` twice, `.select()` twice). Need to define: does it replace, AND, or error? Currently: last call wins for most, `orderBy` stacks.
+
+- **groupBy namespace transform**: After `groupBy`, the namespace should restrict `select` to only group-by columns or aggregate functions. Currently no enforcement — user can select non-aggregated columns, producing invalid SQL at runtime.
+
+- **ROW/array_agg/COALESCE are raw SQL**: `scalar()` emits these as raw SQL strings. Should be regular typed operations once aggregate support is built.
+
+### Types
+
+- **TsTypeOf doesn't recursively unwrap Record**: `TsTypeOf<Record<{name: Text<1>}, 1>>` returns `{name: Text<1>}` not `{name: string}`. The nested row type isn't mapped through TsTypeOf. Runtime deserialization is correct, only the type is wrong.
+
+- **column() returns a descriptor, not a real instance**: `Any.column()` returns a plain object `{ __column, __class, ...opts }` cast as `InstanceType<T>`. Should return a real instance with a reference to the table's column metadata.
+
+### Codegen
+
+- **Relation naming**: Inbound relations use the source table name (e.g., `collars`, `microchips`). No singularization for `'one'`/`'maybe'` cardinality. Self-referential FKs can produce duplicate property names (disambiguated with suffix, but naming is awkward).
+
+- **Relation alias collision**: Self-referential relations (e.g., `dogs.rival_id → dogs.id`) generate code that uses the same table alias for inner and outer query. Needs distinct alias.
+
+### Remaining Features
+
+- [ ] Aggregates (count, sum, avg — prokind='a' in codegen)
+- [ ] CTE (`with`)
+- [ ] Correlated subqueries (beyond scalar — as Fromable)
+- [ ] `OR`/`AND` combinators for where clauses
+- [ ] `DISTINCT` / `DISTINCT ON`
+- [ ] `ON CONFLICT` (upsert)
+- [ ] Real postgres executor (pg adapter, not just pglite)
+
 ## Target users
 
 1. Traditional app builders: single source of BE truth, full PG power, no boilerplate. FE has all the tools to compose queries
