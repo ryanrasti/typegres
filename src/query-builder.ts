@@ -4,33 +4,31 @@ import { Any, Bool } from "./types";
 import { TsTypeOf } from "./types/runtime";
 
 // Mapping of row name to type (class instance)
-type RowType = object;
+export type RowType = object;
 // All of the row types in the current namespace
 type Namespace = {
   [k: string]: RowType;
 };
 
-type RowTypeToTsType<R extends RowType> = {
+export type RowTypeToTsType<R extends RowType> = {
   [k in keyof R]: TsTypeOf<R[k]>;
 };
 
-type KeepIndices<T extends unknown[]> = {
-  [K in keyof T & number]: T[K];
-} & {
-  [Symbol.iterator]: () => Iterator<T[number]>;
-};
 
-const sortRowColumns = <R extends RowType>(row: R): R => {
+export const sortRowColumns = <R extends RowType>(row: R): R => {
   return Object.fromEntries(Object.entries(row).sort(([a], [b]) => a.localeCompare(b))) as R;
 };
 
-const aliasRowType = <R extends RowType>(row: R, tableAlias: string): R => {
+export const aliasRowType = <R extends RowType>(row: R, tableAlias: string): R => {
   return Object.fromEntries(
     Object.entries(row).map(([k, v]) => {
-      // Create a column reference expression with the same type as the original
-      // e.g., Int4 instance with __raw = "values"."col"
+      const col = sql`${sql.ident(tableAlias)}.${sql.ident(k)}`;
       if (v instanceof Any) {
-        return [k, new (v.__class as any)(sql`${sql.ident(tableAlias)}.${sql.ident(k)}`)];
+        return [k, new (v.__class as any)(col)];
+      }
+      // Column descriptor from Table definitions
+      if (v && v.__column && v.__class) {
+        return [k, new v.__class(col)];
       }
       return [k, v];
     }),
@@ -54,7 +52,7 @@ type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<
   offset?: number;
 };
 
-class QueryBuilder<
+export class QueryBuilder<
   N extends Namespace,
   O extends RowType,
   GB extends Any<any>[],
@@ -187,6 +185,9 @@ class QueryBuilder<
           if (!(type instanceof Any)) {
             throw new Error(`Expected ${k} to be an Any type, got ${typeof v}`);
           }
+          if (v === null || v === undefined) {
+            return [k, null];
+          }
           return [k, type.deserialize(String(v))];
         }),
       ),
@@ -194,67 +195,8 @@ class QueryBuilder<
   }
 }
 
-type Fromable = {
+export type Fromable = {
   alias: string;
   compile: (isSubquery?: boolean) => Sql;
 };
 
-class Values<R extends RowType> implements Fromable {
-  public alias: string = "values";
-  private vals0: R;
-  private valsRest: (R | RowTypeToTsType<R>)[];
-
-  constructor(vals0: R, ...valsRest: (R | RowTypeToTsType<R>)[]) {
-    this.vals0 = vals0;
-    this.valsRest = valsRest;
-  }
-
-  compile(isSubquery?: boolean) {
-    // Stable column order from the first (typed) row
-    const columnNames = Object.keys(sortRowColumns(this.vals0));
-
-    // Compile each row into a VALUES tuple
-    const rowSqls = [this.vals0, ...this.valsRest].map((row) => {
-      const vals = columnNames.map((k) => {
-        let v = (row as Record<string, unknown>)[k];
-        if (!(v instanceof Any)) {
-          // Primitive — wrap using the type from the first row
-          const type = this.vals0[k as keyof R];
-          if (!(type instanceof Any)) {
-            throw new Error(`Expected ${k} to be an Any type`);
-          }
-          v = new (type.__class as any)(v);
-        }
-        return (v as Any<any>).compile();
-      });
-      return sql`(${sql.join(vals)})`;
-    });
-
-    const columns = columnNames.map((k) => sql.ident(k));
-    const valuesSql = sql`(VALUES ${sql.join(rowSqls)}) AS ${sql.ident(this.alias)}(${sql.join(columns)})`;
-
-    if (isSubquery) {
-      return valuesSql;
-    }
-    return valuesSql;
-  }
-}
-
-export class Database {
-  constructor(private executor: Executor) {}
-
-  public values<R extends RowType>(
-    vals0: R,
-    ...valsRest: (NoInfer<R> | RowTypeToTsType<NoInfer<R>>)[]
-  ): QueryBuilder<{ values: R }, R, []> {
-    const vals = new Values(vals0, ...valsRest);
-    const aliased = aliasRowType(vals0, "values") as R;
-    return new QueryBuilder<{ values: R }, R, []>({
-      namespace: { values: aliased } as { values: R },
-      output: aliased,
-      from: vals,
-      executor: this.executor,
-      alias: "q",
-    });
-  }
-}
