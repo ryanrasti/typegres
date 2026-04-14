@@ -1,5 +1,6 @@
 import { test, expect, expectTypeOf } from "vitest";
 import { Int8, Text } from "../types";
+import type { InsertRow } from "../types/runtime";
 import { sql } from "./sql";
 import { exec, db, withinTransaction } from "./test-helper";
 
@@ -16,6 +17,10 @@ test("insert", async () => {
       name = (Text<1>).column({ nonNull: true });
       color = (Text<0 | 1>).column();
     }
+
+    // name is required, id and color are optional
+    // @ts-expect-error — missing required field 'name'
+    const _bad: InsertRow<InstanceType<typeof Cats>> = { color: "black" };
 
     await Cats.insert({ name: "Whiskers" }, { name: "Tom", color: "orange" }).execute();
 
