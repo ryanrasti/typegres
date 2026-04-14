@@ -13,7 +13,7 @@ type DeleteOpts<Name extends string, T, R extends RowType> = {
   returning?: R;
 };
 
-export class DeleteBuilder<Name extends string, T extends Record<string, any>, R extends RowType = never> {
+export class DeleteBuilder<Name extends string, T extends Record<string, any>, R extends RowType = {}> {
   #opts: DeleteOpts<Name, T, R>;
 
   constructor(opts: DeleteOpts<Name, T, R>) {
@@ -51,11 +51,11 @@ export class DeleteBuilder<Name extends string, T extends Record<string, any>, R
     return this;
   }
 
-  async execute(): Promise<[R] extends [never] ? void : RowTypeToTsType<R>[]> {
+  async execute(): Promise<RowTypeToTsType<R>[]> {
     const result = await this.#opts.executor.execute(this.compile());
     if (this.#opts.returning) {
       return deserializeRows(result, this.#opts.returning as Record<string, unknown>) as any;
     }
-    return undefined as any;
+    return [] as any;
   }
 }
