@@ -568,7 +568,7 @@ test("scalar with cardinality 'maybe' — null when no match", async () => {
     expectTypeOf(rows).toEqualTypeOf<{
       name: string;
       profile: { bio: string } | null
-    }>();
+    }[]>();
     expect(rows).toEqual([
       { name: "Alice", profile: { bio: "Hello" } },
       { name: "Bob", profile: null },
