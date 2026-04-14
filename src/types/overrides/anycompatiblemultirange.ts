@@ -1,4 +1,4 @@
-import type { TsTypeOf } from "../runtime";
+import { meta, type TsTypeOf } from "../runtime";
 import { Anycompatiblemultirange as Generated } from "../generated/anycompatiblemultirange";
 import type { Any } from "../index";
 
@@ -12,7 +12,7 @@ export class Anycompatiblemultirange<T extends Any<any>, N extends number> exten
     if (inner === "") { return []; }
     // split on ],[  or ),( boundaries between ranges
     const ranges: [TsTypeOf<T>, TsTypeOf<T>][] = [];
-    const elDeser = (this.__class as any).__element.prototype.deserialize;
+    const elDeser = (this[meta].__class as any).__element.prototype.deserialize;
     // each range is [lower,upper) or similar
     const rangePattern = /[[(][^[\]()]*,\s*[^[\]()]*[\])]/g;
     let match;

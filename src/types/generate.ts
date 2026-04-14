@@ -358,7 +358,10 @@ const generateTypeFile = (
       return t && (GENERIC_TYPES.has(t.typname) || ELEMENT_TYPES.has(t.typname));
     }),
   );
+  // Concrete types need meta for the [meta] declaration
+  const needsMeta = !EXTENDS_MAP[pgType.typname] && pgType.typname !== "any";
   const runtimeImports = [
+    ...(needsMeta ? ["meta"] : []),
     ...(hasFuncs ? ["PgFunc"] : []),
     ...(hasOps ? ["PgOp"] : []),
     ...(needsStrictNull ? ["StrictNull"] : []),
@@ -414,21 +417,25 @@ const generateTypeFile = (
   classDecl += " {";
   lines.push(classDecl);
 
-  // __class: typed constructor reference. Set once in Any override, narrowed by subclasses.
-  // __typname: pg type name for registry lookup. Set on Any override and concrete types.
+  // [meta]: typed metadata bag hidden behind a symbol for clean autocomplete.
+  // Contains __class, __nullable, __nonNullable for type-level utilities.
   // deserialize(): defined on Any override via registry, concrete types narrow the return type.
   if (pgType.typname === "any") {
     // Handled by override — no-op here
   } else if (!EXTENDS_MAP[pgType.typname]) {
-    // Concrete type — narrow __class and deserialize return type
+    // Concrete type — narrow [meta] and deserialize return type
     const tsType = tsPrimitiveFor(pgType.typname);
-    lines.push(`  declare __class: typeof ${pgType.className};`);
+    const cls = pgType.className;
+    lines.push(`  declare [meta]: {`);
+    lines.push(`    __class: typeof ${cls};`);
+    lines.push(`    __nullable: ${cls}<0 | 1>;`);
+    lines.push(`    __nonNullable: ${cls}<1>;`);
+    lines.push(`  };`);
     lines.push(`  static __typname = "${pgType.typname}";`);
     lines.push(`  constructor(raw: Sql | ${tsType}) { super(raw); }`);
     lines.push(`  declare deserialize: (raw: string) => ${tsType};`);
   } else {
-    // any* hierarchy type — inherits __class from parent, no re-declaration needed
-    // (re-declaring causes structural mismatch due to __nullability phantom field)
+    // any* hierarchy type — inherits [meta] from parent, no re-declaration needed
   }
 
   // Owner's TS primitive — used to decide if an operator overload arg gets a TS primitive union

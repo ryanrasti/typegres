@@ -2,7 +2,8 @@ import { test, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
 import { pgliteExecutor } from "./executor";
 import type { Executor } from "./executor";
 import { Database } from "./database";
-import { Int4, Text, Bool } from "./types";
+import { Int4, Int8, Text, Bool } from "./types";
+import { sql } from "./sql-builder";
 
 let exec: Executor;
 let db: Database;
@@ -347,4 +348,137 @@ test("e2e: where + orderBy + limit", async () => {
     .execute();
   expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
   expect(result).toEqual([{ x: 10 }, { x: 15 }]);
+});
+
+// --- joins ---
+
+const withinTransaction = async (fn: () => Promise<void>) => {
+  await exec.execute(sql`BEGIN`);
+  try {
+    await fn();
+  } finally {
+    await exec.execute(sql`ROLLBACK`);
+  }
+};
+
+test("inner join", async () => {
+  await withinTransaction(async () => {
+    await exec.execute(sql`CREATE TABLE owners (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL
+    )`);
+    await exec.execute(sql`CREATE TABLE pets (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL,
+      owner_id int8 NOT NULL REFERENCES owners(id)
+    )`);
+    await exec.execute(sql`INSERT INTO owners (name) VALUES ('Alice'), ('Bob')`);
+    await exec.execute(sql`INSERT INTO pets (name, owner_id) VALUES ('Rex', 1), ('Fido', 2), ('Buddy', 1)`);
+
+    class Owners extends db.Table("owners") {
+      id = (Int8<1>).column({ nonNull: true });
+      name = (Text<1>).column({ nonNull: true });
+    }
+    class Pets extends db.Table("pets") {
+      id = (Int8<1>).column({ nonNull: true });
+      name = (Text<1>).column({ nonNull: true });
+      owner_id = (Int8<1>).column({ nonNull: true });
+    }
+
+    const rows = await Pets.from()
+      .join(Owners, ({ pets, owners }) => pets.owner_id["="](owners.id))
+      .select(({ pets, owners }) => ({
+        pet: pets.name,
+        owner: owners.name,
+      }))
+      .execute();
+
+    expectTypeOf(rows).toEqualTypeOf<{ pet: string; owner: string }[]>();
+    expect(rows).toEqual([
+      { pet: "Rex", owner: "Alice" },
+      { pet: "Fido", owner: "Bob" },
+      { pet: "Buddy", owner: "Alice" },
+    ]);
+  });
+});
+
+test("left join — unmatched rows return null", async () => {
+  await withinTransaction(async () => {
+    await exec.execute(sql`CREATE TABLE authors (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL
+    )`);
+    await exec.execute(sql`CREATE TABLE books (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      title text NOT NULL,
+      author_id int8 NOT NULL REFERENCES authors(id)
+    )`);
+    await exec.execute(sql`INSERT INTO authors (name) VALUES ('Alice'), ('Bob')`);
+    await exec.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1)`);
+
+    class Authors extends db.Table("authors") {
+      id = (Int8<1>).column({ nonNull: true });
+      name = (Text<1>).column({ nonNull: true });
+    }
+    class Books extends db.Table("books") {
+      id = (Int8<1>).column({ nonNull: true });
+      title = (Text<1>).column({ nonNull: true });
+      author_id = (Int8<1>).column({ nonNull: true });
+    }
+
+    const rows = await Authors.from()
+      .leftJoin(Books, ({ authors, books }) => authors.id["="](books.author_id))
+      .select(({ authors, books }) => ({
+        author: authors.name,
+        title: books.title,
+      }))
+      .execute();
+
+    expectTypeOf(rows).toEqualTypeOf<{ author: string; title: string | null }[]>();
+    expect(rows).toEqual([
+      { author: "Alice", title: "Book A" },
+      { author: "Bob", title: null },
+    ]);
+  });
+});
+
+test("join with where on joined table", async () => {
+  await withinTransaction(async () => {
+    await exec.execute(sql`CREATE TABLE departments (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL
+    )`);
+    await exec.execute(sql`CREATE TABLE employees (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL,
+      dept_id int8 REFERENCES departments(id)
+    )`);
+    await exec.execute(sql`INSERT INTO departments (name) VALUES ('Engineering'), ('Sales')`);
+    await exec.execute(sql`INSERT INTO employees (name, dept_id) VALUES ('Alice', 1), ('Bob', 1), ('Carol', 2)`);
+
+    class Departments extends db.Table("departments") {
+      id = (Int8<1>).column({ nonNull: true });
+      name = (Text<1>).column({ nonNull: true });
+    }
+    class Employees extends db.Table("employees") {
+      id = (Int8<1>).column({ nonNull: true });
+      name = (Text<1>).column({ nonNull: true });
+      dept_id = (Int8<0 | 1>).column();
+    }
+
+    const rows = await Departments.from()
+      .join(Employees, ({ departments, employees }) => departments.id["="](employees.dept_id))
+      .select(({ departments, employees }) => ({
+        dept: departments.name,
+        emp: employees.name,
+      }))
+      .where(({ departments }) => departments.name["="]("Engineering"))
+      .execute();
+
+    expectTypeOf(rows).toEqualTypeOf<{ dept: string; emp: string }[]>();
+    expect(rows).toEqual([
+      { dept: "Engineering", emp: "Alice" },
+      { dept: "Engineering", emp: "Bob" },
+    ]);
+  });
 });

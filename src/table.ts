@@ -7,11 +7,11 @@ export class TableBase {
   static alias: string;
   static executor: Executor;
 
-  static from<T extends {new (): any; alias: string}>(this: T) {
+  static from<T extends {new (): any; alias: string; executor: Executor}>(this: T) {
     const row = new this() as InstanceType<T>;
     const aliased = aliasRowType(row, this.alias);
     return new QueryBuilder<{ [K in T["alias"]]: InstanceType<T> }, InstanceType<T>, []>({
-      namespace: { [this.alias]: aliased },
+      namespace: { [this.alias]: aliased } as any,
       output: aliased,
       executor: this.executor,
       from: this as any,

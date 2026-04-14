@@ -1,7 +1,7 @@
 import { Executor } from "./executor";
 import { Sql, sql } from "./sql-builder";
 import { Any, Bool } from "./types";
-import { TsTypeOf } from "./types/runtime";
+import { TsTypeOf, Nullable, meta } from "./types/runtime";
 
 // Mapping of row name to type (class instance)
 export type RowType = object;
@@ -14,6 +14,9 @@ export type RowTypeToTsType<R extends RowType> = {
   [k in keyof R]: TsTypeOf<R[k]>;
 };
 
+type RowTypeToNullable<R extends RowType> = {
+  [k in keyof R]: Nullable<R[k]>;
+};
 
 export const sortRowColumns = <R extends RowType>(row: R): R => {
   return Object.fromEntries(Object.entries(row).sort(([a], [b]) => a.localeCompare(b))) as R;
@@ -24,7 +27,7 @@ export const aliasRowType = <R extends RowType>(row: R, tableAlias: string): R =
     Object.entries(row).map(([k, v]) => {
       const col = sql`${sql.ident(tableAlias)}.${sql.ident(k)}`;
       if (v instanceof Any) {
-        return [k, new (v.__class as any)(col)];
+        return [k, new (v[meta].__class as any)(col)];
       }
       // Column descriptor from Table definitions
       if (v && v.__column && v.__class) {
@@ -33,6 +36,20 @@ export const aliasRowType = <R extends RowType>(row: R, tableAlias: string): R =
       return [k, v];
     }),
   ) as R;
+};
+
+export type Fromable = {
+  alias: string;
+  compile: (isSubquery?: boolean) => Sql;
+} & ({ rowType: RowType } | { new (): object });
+
+type RowTypeOfFromable<F extends Fromable> = 
+  F extends { rowType: infer R } ? R : 
+  F extends new () => infer R ? R : never;
+
+const getRowType = (from: Fromable): RowType => {
+  if ("rowType" in from) { return from.rowType; }
+  return new (from as new () => object)();
 };
 
 type OrderDirection = "asc" | "desc";
@@ -48,6 +65,11 @@ type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<
   groupBy?: GB;
   having?: Bool<any>;
   orderBy?: OrderByEntry[];
+  joins?: {
+    from: Fromable;
+    on: Bool<any>;
+    type?: "left"; // we only support (inner) join and left join
+  }[];
   limit?: number;
   offset?: number;
 };
@@ -56,10 +78,13 @@ export class QueryBuilder<
   N extends Namespace,
   O extends RowType,
   GB extends Any<any>[],
-> implements Fromable {
+> {
   private opts: QueryBuilderOptions<N, O, GB>;
   get alias(): string {
     return this.opts.alias;
+  }
+  get rowType(): RowType {
+    return this.opts.output;
   }
 
   constructor(opts: QueryBuilderOptions<N, O, GB>) {
@@ -80,6 +105,49 @@ export class QueryBuilder<
     return new QueryBuilder({
       ...this.opts,
       where: whereFn(this.opts.namespace),
+    });
+  }
+
+  join<F extends Fromable>(
+    from: F,
+    onFn: (ns: N & { [k in F["alias"]]: RowTypeOfFromable<F> }) => Bool<any>,
+  ): QueryBuilder<N & { [k in F["alias"]]: RowTypeOfFromable<F> }, O, GB> {
+    const namespace = {
+      ...this.opts.namespace,
+      [from.alias]: aliasRowType(getRowType(from), from.alias),
+    } as any;
+    return new QueryBuilder({
+      ...this.opts,
+      namespace,
+      joins: [
+        ...(this.opts.joins ?? []),
+        {
+          from,
+          on: onFn(namespace),
+        }
+      ],
+    });
+  }
+
+  leftJoin<F extends Fromable>(
+    from: F,
+    onFn: (ns: N & { [k in F["alias"]]: RowTypeToNullable<RowTypeOfFromable<F>> }) => Bool<any>,
+  ): QueryBuilder<N & { [k in F["alias"]]: RowTypeToNullable<RowTypeOfFromable<F>> }, O, GB> {
+    const namespace = {
+      ...this.opts.namespace,
+      [from.alias]: aliasRowType(getRowType(from), from.alias),
+    } as any;
+    return new QueryBuilder({
+      ...this.opts,
+      namespace,
+      joins: [
+        ...(this.opts.joins ?? []),
+        {
+          from,
+          on: onFn(namespace),
+          type: "left",
+        }
+      ],
     });
   }
 
@@ -153,6 +221,11 @@ export class QueryBuilder<
           ),
         )}`,
         this.opts.from && sql`FROM ${this.opts.from.compile(true)}`,
+        ...(this.opts.joins ?? []).map((j) =>
+          j.type === "left"
+            ? sql`LEFT JOIN ${j.from.compile(true)} ON ${j.on.compile()}`
+            : sql`JOIN ${j.from.compile(true)} ON ${j.on.compile()}`
+        ),
         this.opts.where && sql`WHERE ${this.opts.where.compile()}`,
         this.opts.groupBy &&
           this.opts.groupBy.length > 0 &&
@@ -200,9 +273,4 @@ export class QueryBuilder<
     ) as RowTypeToTsType<O>[];
   }
 }
-
-export type Fromable = {
-  alias: string;
-  compile: (isSubquery?: boolean) => Sql;
-};
 

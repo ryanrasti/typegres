@@ -1,4 +1,4 @@
-import type { TsTypeOf } from "../runtime";
+import { meta, type TsTypeOf } from "../runtime";
 import { Anycompatiblearray as Generated } from "../generated/anycompatiblearray";
 import type { Any } from "../index";
 
@@ -30,7 +30,7 @@ export class Anycompatiblearray<T extends Any<any>, N extends number> extends Ge
       }
     }
     elements.push(current);
-    const elDeser = (this.__class as any).__element.prototype.deserialize;
+    const elDeser = (this[meta].__class as any).__element.prototype.deserialize;
     return elements.map((el) => elDeser(el)) as TsTypeOf<T>[];
   }
 

@@ -15,7 +15,7 @@ export class Database {
     return new QueryBuilder<{ values: R }, R, []>({
       namespace: { values: aliased } as { values: R },
       output: aliased,
-      from: vals,
+      from: vals as any,
       executor: this.executor,
       alias: "q",
     });
@@ -33,10 +33,11 @@ export class Database {
           this: T,
           alias: A,
         ) {
-          return class extends (this as NonNullable<Obj>[Name]) {
+          return class extends (this as any) {
             static alias: A = alias;
-          } as Omit<T, 'alias'> & { alias: A, new(): InstanceType<T> };
+          } as unknown as Omit<T, 'alias'> & { new (): InstanceType<T>; alias: A };
         }
+
       },
     };
     type Obj = typeof obj;

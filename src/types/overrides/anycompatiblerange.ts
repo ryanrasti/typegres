@@ -1,4 +1,4 @@
-import type { TsTypeOf } from "../runtime";
+import { meta, type TsTypeOf } from "../runtime";
 import { Anycompatiblerange as Generated } from "../generated/anycompatiblerange";
 import type { Any } from "../index";
 
@@ -12,7 +12,7 @@ export class Anycompatiblerange<T extends Any<any>, N extends number> extends Ge
     const commaIdx = inner.indexOf(",");
     const lower = inner.slice(0, commaIdx);
     const upper = inner.slice(commaIdx + 1);
-    const elDeser = (this.__class as any).__element.prototype.deserialize;
+    const elDeser = (this[meta].__class as any).__element.prototype.deserialize;
     return [elDeser(lower), elDeser(upper)] as [TsTypeOf<T>, TsTypeOf<T>];
   }
 

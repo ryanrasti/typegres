@@ -49,7 +49,7 @@ test("Table.from().select() with real table", async () => {
       }))
       .execute();
 
-    expectTypeOf(rows).toEqualTypeOf<{ id: bigint; name: string; breed: string }[]>();
+    expectTypeOf(rows).toEqualTypeOf<{ id: bigint; name: string; breed: string | null }[]>();
     expect(rows).toEqual([
       { id: 1n, name: "Rex", breed: "Labrador" },
       { id: 2n, name: "Fido", breed: null },
@@ -63,7 +63,7 @@ test("Table.from().select() with real table", async () => {
       }))
       .execute();
 
-    expectTypeOf(rows2).toEqualTypeOf<{ id: bigint; name: string; breed: string }[]>();
+    expectTypeOf(rows2).toEqualTypeOf<{ id: bigint; name: string; breed: string | null }[]>();
     expect(rows2).toEqual([
       { id: 1n, name: "Rex", breed: "Labrador" },
       { id: 2n, name: "Fido", breed: null },

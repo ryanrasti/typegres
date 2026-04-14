@@ -1,9 +1,10 @@
 import { sql } from "./sql-builder";
 import { Any } from "./types";
+import { meta } from "./types/runtime";
 import { sortRowColumns, type Fromable, type RowType, type RowTypeToTsType } from "./query-builder";
 
 
-export class Values<R extends RowType> implements Fromable {
+export class Values<R extends RowType> {
   public alias: string = "values";
   private vals0: R;
   private valsRest: (R | RowTypeToTsType<R>)[];
@@ -27,7 +28,7 @@ export class Values<R extends RowType> implements Fromable {
           if (!(type instanceof Any)) {
             throw new Error(`Expected ${k} to be an Any type`);
           }
-          v = new (type.__class as any)(v);
+          v = new (type[meta].__class as any)(v);
         }
         return (v as Any<any>).compile();
       });
