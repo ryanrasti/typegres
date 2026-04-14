@@ -52,17 +52,12 @@ export class Record<T = unknown, N extends number = number> extends Generated<N>
     // Closure over entries — works even when called without `this` (e.g., from Anyarray)
     cls.prototype["deserialize"] = (raw: string) => {
       const fields = parseComposite(raw);
-      const result: { [key: string]: unknown } = {};
-      for (let i = 0; i < entries.length; i++) {
-        const [name, type] = entries[i]!;
-        const val = fields[i];
-        if (val === undefined || val === "") {
-          result[name] = null;
-        } else {
-          result[name] = type.deserialize(val);
-        }
-      }
-      return result;
+      return Object.fromEntries(
+        entries.map(([name, type], i) => {
+          const val = fields[i];
+          return [name, val === undefined || val === "" ? null : type.deserialize(val)];
+        }),
+      );
     };
     return cls as unknown as typeof Record<T, number>;
   }

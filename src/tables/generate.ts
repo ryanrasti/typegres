@@ -173,7 +173,7 @@ const generateColumnLine = (col: ColumnInfo): string => {
 
 const generateRelationLine = (rel: Relation): string => {
   const targetClass = pgNameToClassName(rel.targetTable);
-  return `  ${rel.name} = () => ${targetClass}.from().where(({ ${rel.targetTable} }) => ${rel.targetTable}.${rel.toColumn}["="](this.${rel.fromColumn})).cardinality("${rel.cardinality}");`;
+  return `  ${rel.name}() { return ${targetClass}.from().where(({ ${rel.targetTable} }) => ${rel.targetTable}.${rel.toColumn}["="](this.${rel.fromColumn})).cardinality("${rel.cardinality}"); }`;
 };
 
 const generateTableFile = (tableName: string, columns: ColumnInfo[], relations: Relation[], config: Config): string => {

@@ -63,19 +63,21 @@ export const sortRowColumns = <R extends RowType>(row: R): R => {
 };
 
 export const aliasRowType = <R extends RowType>(row: R, tableAlias: string): R => {
-  return Object.fromEntries(
+  // Clone: preserve prototype (methods, relations), replace column values with aliased SQL
+  const aliased = Object.fromEntries(
     Object.entries(row).map(([k, v]) => {
       const col = sql`${sql.ident(tableAlias)}.${sql.ident(k)}`;
       if (v instanceof Any) {
         return [k, new (v[meta].__class as any)(col)];
       }
-      // Column descriptor from Table definitions
       if (v && v.__column && v.__class) {
         return [k, new v.__class(col)];
       }
       return [k, v];
     }),
-  ) as R;
+  );
+  Object.setPrototypeOf(aliased, Object.getPrototypeOf(row));
+  return aliased as R;
 };
 
 export type Fromable = {
@@ -147,11 +149,11 @@ export class QueryBuilder<
   // Must come after any 'groupBy' or 'having' calls (because they modify the output type).
   select<O2 extends RowType>(
     selectFn: (n: N) => O2,
-  ): Omit<QueryBuilder<N, O2, GB>, "groupBy" | "having"> {
+  ): Omit<QueryBuilder<N, O2, GB, Card>, "groupBy" | "having"> {
     return new QueryBuilder({
       ...this.opts,
       output: selectFn(this.opts.namespace),
-    });
+    }, this.card);
   }
 
   where(whereFn: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
@@ -208,7 +210,7 @@ export class QueryBuilder<
   // so that select can only reference group-by columns or aggregate functions
   groupBy<G extends Any<any>[]>(
     groupByFn: (n: N) => [...G],
-  ): QueryBuilder<N & G, O, [...GB, ...G]> {
+  ): QueryBuilder<N & G, O, [...GB, ...G], Card> {
     const rawGroupBy = groupByFn(this.opts.namespace);
     const mergedGroupBy = [...(this.opts.groupBy ?? []), ...rawGroupBy];
 
@@ -231,7 +233,7 @@ export class QueryBuilder<
         [Symbol.iterator]: () => mergedGroupBy[Symbol.iterator](),
       },
       groupBy: mergedGroupBy,
-    } as any);
+    } as any, this.card);
   }
 
   having(havingFn: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
@@ -241,7 +243,7 @@ export class QueryBuilder<
     });
   }
 
-  orderBy(orderByFn: (n: N) => OrderByEntry | OrderByEntry[]): QueryBuilder<N, O, GB> {
+  orderBy(orderByFn: (n: N) => OrderByEntry | OrderByEntry[]): QueryBuilder<N, O, GB, Card> {
     const result = orderByFn(this.opts.namespace);
     // Normalize: single entry → array
     const entries: OrderByEntry[] =
@@ -252,7 +254,7 @@ export class QueryBuilder<
     return new QueryBuilder({
       ...this.opts,
       orderBy: [...(this.opts.orderBy ?? []), ...entries],
-    });
+    }, this.card);
   }
 
   limit(n: number): QueryBuilder<N, O, GB> {

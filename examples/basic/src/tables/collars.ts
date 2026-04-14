@@ -8,6 +8,6 @@ export class Collars extends db.Table("collars") {
   color = (Text<1>).column({ nonNull: true });
   dog_id = (Int8<1>).column({ nonNull: true });
   // relations
-  dog = () => Dogs.from().where(({ dogs }) => dogs.id["="](this.dog_id)).cardinality("one");
+  dog() { return Dogs.from().where(({ dogs }) => dogs.id["="](this.dog_id)).cardinality("one"); }
   // @generated-end
 }

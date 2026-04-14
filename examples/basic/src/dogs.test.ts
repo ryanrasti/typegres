@@ -54,7 +54,7 @@ test("select dogs", async () => {
 
   expectTypeOf(rows).toEqualTypeOf<{ id: bigint; name: string; breed: string | null }[]>();
   expect(rows).toHaveLength(3);
-  expect(rows[0]).toEqual({ id: 1n, name: "Rex", breed: "Labrador" });
+  expect(rows.find((r) => r.name === "Rex")).toEqual({ id: 1n, name: "Rex", breed: "Labrador" });
 });
 
 // --- Relation cardinality tests ---

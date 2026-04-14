@@ -7,6 +7,6 @@ export class Teams extends db.Table("teams") {
   id = (Int8<1>).column({ nonNull: true, generated: true });
   name = (Text<1>).column({ nonNull: true });
   // relations
-  dogs = () => Dogs.from().where(({ dogs }) => dogs.team_id["="](this.id)).cardinality("many");
+  dogs() { return Dogs.from().where(({ dogs }) => dogs.team_id["="](this.id)).cardinality("many"); }
   // @generated-end
 }

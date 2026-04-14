@@ -8,6 +8,6 @@ export class Microchips extends db.Table("microchips") {
   serial = (Text<1>).column({ nonNull: true });
   dog_id = (Int8<0 | 1>).column();
   // relations
-  dog = () => Dogs.from().where(({ dogs }) => dogs.id["="](this.dog_id)).cardinality("maybe");
+  dog() { return Dogs.from().where(({ dogs }) => dogs.id["="](this.dog_id)).cardinality("maybe"); }
   // @generated-end
 }
