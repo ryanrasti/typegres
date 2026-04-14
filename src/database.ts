@@ -1,10 +1,23 @@
 import { Executor } from "./executor";
 import { aliasRowType, QueryBuilder, RowType, RowTypeToTsType } from "./builder/query";
+import { sql } from "./builder/sql";
 import { TableBase } from "./table";
 import { Values } from "./builder/values";
 
 export class Database {
   constructor(private executor: Executor) {}
+
+  async transaction<T>(fn: (tx: Database) => Promise<T>): Promise<T> {
+    await this.executor.execute(sql`BEGIN`);
+    try {
+      const result = await fn(this);
+      await this.executor.execute(sql`COMMIT`);
+      return result;
+    } catch (e) {
+      await this.executor.execute(sql`ROLLBACK`);
+      throw e;
+    }
+  }
 
   public values<R extends RowType>(
     vals0: R,

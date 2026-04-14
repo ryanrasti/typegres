@@ -52,6 +52,9 @@ export class Any<N extends number> extends Generated<N> {
         : false;
     };
   } {
+    // TODO: this should return a real instance -- and then we have special code that
+    //         injects the instance with a reference to the table's column.
+    //         Look for references to `__class` in the builders -- they shouldn't exist.
     return { __column: true, __class: this, ...opts } as any;
   }
 }
