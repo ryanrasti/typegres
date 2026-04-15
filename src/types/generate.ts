@@ -526,14 +526,16 @@ const generateTypeFile = (
     // Handled by override — no-op here
   } else if (!EXTENDS_MAP[pgType.typname]) {
     // Concrete type — narrow [meta] and deserialize return type
+    // If override exists, reference via types.Cls (barrel namespace) so [meta] points to the override
     const tsType = tsPrimitiveFor(pgType.typname);
     const cls = pgType.className;
+    const ref = overrideNames.has(pgType.typname) ? `types.${cls}` : cls;
     lines.push(`  declare [meta]: {`);
-    lines.push(`    __class: typeof ${cls};`);
-    lines.push(`    __nullable: ${cls}<0 | 1>;`);
-    lines.push(`    __nonNullable: ${cls}<1>;`);
-    lines.push(`    __aggregate: ${cls}<number>;`);
-    lines.push(`    __any: ${cls}<any>;`);
+    lines.push(`    __class: typeof ${ref};`);
+    lines.push(`    __nullable: ${ref}<0 | 1>;`);
+    lines.push(`    __nonNullable: ${ref}<1>;`);
+    lines.push(`    __aggregate: ${ref}<number>;`);
+    lines.push(`    __any: ${ref}<any>;`);
     lines.push(`  };`);
     lines.push(`  static __typname = "${pgType.typname}";`);
     lines.push(`  constructor(raw: Sql | ${tsType}) { super(raw); }`);

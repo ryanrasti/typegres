@@ -289,3 +289,17 @@ test("coalesce nullability", async () => {
   // @ts-expect-error — Int4 is not assignable to Text
   nonNull.coalesce(new Int4(1) as Int4<1>);
 });
+
+// --- Type.from() ---
+
+test("Type.from() precise nullability", () => {
+  // Primitive → non-null (1)
+  expectTypeOf(Int4.from(5)).toEqualTypeOf<Int4<1>>();
+  expectTypeOf(Text.from("hello")).toEqualTypeOf<Text<1>>();
+  expectTypeOf(Bool.from(true)).toEqualTypeOf<Bool<1>>();
+  expectTypeOf(Int8.from(42n)).toEqualTypeOf<Int8<1>>();
+
+  // Sql → nullable (0|1)
+  expectTypeOf(Int4.from(sql`1`)).toEqualTypeOf<Int4<0 | 1>>();
+  expectTypeOf(Text.from(sql`'hello'`)).toEqualTypeOf<Text<0 | 1>>();
+});

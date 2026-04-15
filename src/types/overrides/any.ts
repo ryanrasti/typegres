@@ -49,8 +49,16 @@ export class Any<N extends number> extends Generated<N> {
     return new ((this as any)[meta].__class as any)(sql`COALESCE(${this.compile()}, ${rhs.compile()})`) as any;
   }
 
-  // Validate and wrap a TS value into a typed instance.
-  // Pass-through if already an instance, otherwise check typeof and wrap.
+  // Public constructor alternative with precise nullability.
+  // Sql → nullable (0|1), primitive → non-null (1).
+  static from<T extends typeof Any>(this: T, v: Sql): InstanceType<T> extends { [meta]: { __nullable: infer U } } ? U : InstanceType<T>;
+  static from<T extends typeof Any>(this: T, v: unknown): InstanceType<T> extends { [meta]: { __nonNullable: infer U } } ? U : InstanceType<T>;
+  static from(v: Sql | unknown): any {
+    return new (this as any)(v);
+  }
+
+  // Internal: validate and wrap a TS value into a typed instance.
+  // Used by match() for runtime overload dispatch.
   static serialize(v: unknown): Any<any> {
     if (v instanceof this) { return v; }
     const expected = getTypeDef(this.__typname).tsType;
