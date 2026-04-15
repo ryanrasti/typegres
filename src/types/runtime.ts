@@ -1,5 +1,5 @@
-import type { Sql, CompileContext } from "../builder/sql";
-import { sql, TableAlias } from "../builder/sql";
+import type { Sql, CompileContext , TableAlias } from "../builder/sql";
+import { sql } from "../builder/sql";
 import * as types from "./index";
 import type { Any } from "./index";
 import { getTypeDef } from "./deserialize";

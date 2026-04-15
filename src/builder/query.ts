@@ -1,6 +1,6 @@
 import type { Executor } from "../executor";
-import { sql, Sql, TableAlias } from "./sql";
-import type { CompileContext } from "./sql";
+import { sql, Sql } from "./sql";
+import type { CompileContext , TableAlias } from "./sql";
 import type { Bool} from "../types";
 import { Any, Anyarray, Record } from "../types";
 import type { TsTypeOf, Nullable, AggregateRow} from "../types/runtime";
@@ -291,14 +291,14 @@ export class QueryBuilder<
     const rowExprs = Object.values(cols).map((type: any) => type.toSql());
     const rowSql = sql`ROW(${sql.join(rowExprs)})`;
     // Wrap as a subquery: (SELECT ROW(...) FROM ... WHERE ...)
+    // inner QB — when embedded in sql``, its emit() wraps as subquery with AS
     const inner = this.select(() => ({ __row: RecordClass.from(rowSql) }));
-    const subquery = sql`(${inner}) AS ${sql.ident(this.tsAlias)}`;
     if (this.card === "many") {
       return Anyarray.of(RecordClass.from(sql``)).from(
-        sql`COALESCE((SELECT array_agg("__row") FROM ${subquery}), '{}')`,
+        sql`COALESCE((SELECT array_agg("__row") FROM ${inner}), '{}')`,
       );
     }
-    return RecordClass.from(sql`(SELECT "__row" FROM ${subquery})`);
+    return RecordClass.from(sql`(SELECT "__row" FROM ${inner})`);
   }
 
   emit(ctx: CompileContext): string {

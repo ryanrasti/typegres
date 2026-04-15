@@ -1,6 +1,5 @@
 import type { Executor } from "./executor";
 import type { CompileContext, TableAlias } from "./builder/sql";
-import { sql } from "./builder/sql";
 import type { Fromable } from "./builder/query";
 import { aliasRowType, QueryBuilder } from "./builder/query";
 import { DeleteBuilder } from "./builder/delete";
