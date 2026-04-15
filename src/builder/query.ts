@@ -98,6 +98,12 @@ export const getRowType = (from: Fromable): RowType => {
   return new (from as new () => object)();
 };
 
+const combinePredicates = (left: Bool<any> | undefined, right: Bool<any>) => {
+  if (!left) { return right; }
+  return left.and(right);
+};
+
+
 type OrderDirection = "asc" | "desc";
 type OrderByEntry = Any<any> | [Any<any>, OrderDirection];
 type Cardinality = "one" | "maybe" | "many";
@@ -125,7 +131,6 @@ type QueryBuilderOptions<
   offset?: number;
 };
 
-// TODO: make sure all methods have sane & documented behavior if called more than once
 export class QueryBuilder<
   N extends Namespace,
   O extends RowType,
@@ -146,6 +151,7 @@ export class QueryBuilder<
     this.card = (card ?? "many") as Card;
   }
 
+  // Subsequent `select` calls replace the output type (columns must be redefined)
   select<O2 extends RowType>(
     selectFn: (n: N) => O2,
   ): QueryBuilder<N, O2, GB, Card> {
@@ -155,10 +161,11 @@ export class QueryBuilder<
     }, this.card);
   }
 
+  // Multiple `where` calls are combined with AND
   where(whereFn: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
     return new QueryBuilder({
       ...this.opts,
-      where: whereFn(this.opts.namespace),
+      where: combinePredicates(this.opts.where, whereFn(this.opts.namespace)),
     });
   }
 
@@ -208,8 +215,8 @@ export class QueryBuilder<
   // After groupBy, table columns in the namespace become aggregate types (N=number).
   // Grouped columns are accessible by index with their original types.
   // Output is reset to {} — must call select() after groupBy to define output columns.
-  // No args = whole-table aggregate (no GROUP BY emitted).
   // No args = whole-table aggregate (no GROUP BY clause emitted).
+  // Multiple groupBy calls are concatenated (GROUP BY a, b, c).
   groupBy(): QueryBuilder<{ [K in keyof N]: AggregateRow<N[K]> }, {}, GB, Card>;
   groupBy<G extends Any<any>[]>(
     groupByFn: (n: N) => [...G],
@@ -244,13 +251,15 @@ export class QueryBuilder<
     } as any, this.card);
   }
 
+  // Multiple `having` calls are combined with AND
   having(havingFn: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
     return new QueryBuilder({
       ...this.opts,
-      having: havingFn(this.opts.namespace),
+      having: combinePredicates(this.opts.having, havingFn(this.opts.namespace)),
     });
   }
 
+  // Multiple `orderBy` calls are concatenated (ORDER BY a, b, c).
   orderBy(orderByFn: (n: N) => OrderByEntry | OrderByEntry[]): QueryBuilder<N, O, GB, Card> {
     const result = orderByFn(this.opts.namespace);
     // Normalize: single entry → array
@@ -265,12 +274,14 @@ export class QueryBuilder<
     }, this.card);
   }
 
+  // Multiple `limit` calls are combined with `MIN` (safest option)
   limit(n: number): QueryBuilder<N, O, GB> {
-    return new QueryBuilder({ ...this.opts, limit: n });
+    return new QueryBuilder({ ...this.opts, limit: Math.min(this.opts.limit ?? Infinity, n) });
   }
 
+  // Multiple `offset` calls are combined by summing offsets (safest option)
   offset(n: number): QueryBuilder<N, O, GB> {
-    return new QueryBuilder({ ...this.opts, offset: n });
+    return new QueryBuilder({ ...this.opts, offset: (this.opts.offset ?? 0) + n });
   }
 
   // TODO: ROW(), array_agg(), COALESCE should be regular typed ops once we support them

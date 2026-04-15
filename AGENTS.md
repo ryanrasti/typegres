@@ -179,7 +179,7 @@ compute needed here.
 
 ### Query Builder
 
-- **Method idempotency**: No documented behavior for calling methods more than once (e.g., `.where()` twice, `.select()` twice). Need to define: does it replace, AND, or error? Currently: last call wins for most, `orderBy` stacks.
+- **Method idempotency** — ✅ RESOLVED: select replaces, where/having AND-combine, join/groupBy/orderBy stack, limit takes MIN, offset sums, cardinality replaces.
 
 - **groupBy namespace transform**: After `groupBy`, the namespace should restrict `select` to only group-by columns or aggregate functions. Currently no enforcement — user can select non-aggregated columns, producing invalid SQL at runtime.
 
