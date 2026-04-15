@@ -168,57 +168,21 @@ compute needed here.
 
 ## Known Issues & TODOs
 
-### Architecture
+### Critical (blocks real usage)
 
-- **Alias collision in correlated subqueries**: When a relation references the same table (e.g., self-referential FK), the inner subquery uses the same alias as the outer query. Pg silently resolves to the innermost scope, producing wrong results. Need either:
-  - Expressions carry their source alias (`__scope` on Any<N>), validated at query build time
-  - Or auto-dedup aliases in `scalar()` / relation codegen (e.g., `Dogs.as("rival_dogs").from()`)
-  - Immediate workaround: codegen should emit distinct aliases for self-referential relations
+1. **IS NULL / IS NOT NULL operators** — Can't check for nulls. Basic operation needed day one.
+2. **Real postgres executor** — pglite is for codegen/tests. Need a `pg` adapter for production.
+3. **Alias collision in correlated subqueries** — Self-referential relations silently produce wrong results. Inner subquery uses same alias as outer. Codegen should emit distinct aliases.
+4. **TsTypeOf doesn't recursively unwrap Record** — Nested relations via `scalar()` return `{name: Text<1>}` instead of `{name: string}` in TS. Runtime is correct.
+5. **column() returns a descriptor, not a real instance** — Plain object `{ __column, __class, ...opts }` leaks through builders. Should be a real instance, simplifying aliasRowType and builder code.
 
-- **Sql has no scope tracking**: `Sql` is just fragments (params, raw, idents). It doesn't know which table aliases it references. This makes it impossible to detect alias collisions at build time. Long-term: Sql or expressions should carry namespace metadata.
+### Non-critical (correct but improvable)
 
-### Query Builder
-
-- **Method idempotency** — ✅ RESOLVED: select replaces, where/having AND-combine, join/groupBy/orderBy stack, limit takes MIN, offset sums, cardinality replaces. Delete/update where also AND-combines.
-
-- **groupBy namespace transform** — ✅ PARTIAL: groupBy transforms namespace via AggregateRow (columns → Type<number>). Resets output to {} forcing select(). No type-level enforcement that non-grouped columns must be aggregated — pg catches at runtime.
-
-- **ROW/array_agg/COALESCE are raw SQL**: `scalar()` emits these as raw SQL strings. Should be regular typed operations.
-
-### Types
-
-- **TsTypeOf doesn't recursively unwrap Record**: `TsTypeOf<Record<{name: Text<1>}, 1>>` returns `{name: Text<1>}` not `{name: string}`. Runtime deserialization is correct, only the type is wrong.
-
-- **column() returns a descriptor, not a real instance**: `Any.column()` returns a plain object `{ __column, __class, ...opts }` cast as `InstanceType<T>`. Should return a real instance with a reference to the table's column metadata.
-
-- **Constructors return `Type<number>`** — ✅ RESOLVED: `Type.from()` replaces constructors. `from(primitive)` → `Type<1>`, `from(sql)` → `Type<0|1>`. Constructor is internal only.
-
-- **Operators always wrap in parentheses**: `a.and(b).or(c)` emits `((... AND ...) OR ...)`. Correct but verbose. A precedence system could omit redundant parens by tracking operator precedence on `Sql` fragments.
-
-- **coalesce same-class constraint**: Uses `[meta].__any` (Type<any>) to constrain rhs to same concrete type. Works for all types.
-
-### Codegen
-
-- **Relation naming**: Inbound relations use the source table name (e.g., `collars`, `microchips`). No singularization for `'one'`/`'maybe'` cardinality. Self-referential FKs can produce duplicate property names (disambiguated with suffix, but naming is awkward).
-
-- **Relation alias collision**: Self-referential relations (e.g., `dogs.rival_id → dogs.id`) generate code that uses the same table alias for inner and outer query. Needs distinct alias.
-
-- **Override [meta] references** — ✅ RESOLVED: codegen uses `types.Cls` in [meta] for types with overrides, so __nonNullable etc. point to the override class.
-
-### Remaining Features
-
-- [x] Aggregates (count, sum, avg, max, min, stddev — prokind='a' in codegen)
-- [x] Set-returning functions (unnest, generate_series, json_each — single + multi-column)
-- [x] Bool and/or/not logic operators
-- [x] coalesce() with precise nullability
-- [x] Type.from() with Sql→nullable, primitive→non-null
-- [x] match() runtime overload dispatch + serialize() arg validation
-- [ ] CTE (`with`)
-- [ ] Correlated subqueries (beyond scalar — as Fromable)
-- [ ] `DISTINCT` / `DISTINCT ON`
-- [ ] `ON CONFLICT` (upsert)
-- [ ] Real postgres executor (pg adapter, not just pglite)
-- [ ] `IS NULL` / `IS NOT NULL` operators
+6. **Operators always parenthesize** — `a.and(b).or(c)` → `((... AND ...) OR ...)`. Correct but verbose. Could use operator precedence to omit redundant parens.
+7. **ROW/array_agg/COALESCE are raw SQL** — `scalar()` emits these as SQL strings. Should be regular typed operations.
+8. **Relation naming** — Inbound relations use source table name. No singularization. Self-referential FKs get awkward disambiguated names.
+9. **Sql has no scope tracking** — Can't detect alias collisions at build time. Long-term: expressions should carry namespace metadata.
+10. **groupBy non-aggregated column enforcement** — pg catches at runtime, no type-level enforcement.
 
 ## Target users
 
