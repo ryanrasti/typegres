@@ -172,22 +172,19 @@ compute needed here.
 
 ## Known Issues & TODOs
 
-### Critical (blocks real usage)
+### Critical
 
-1. ~~**IS NULL / IS NOT NULL operators**~~ — ✅ Done. `isNull()` / `isNotNull()` on Any.
-2. ~~**Real postgres executor**~~ — ✅ Done. `pgExecutor(connectionString)` with raw type parsers.
-3. ~~**Alias collision in correlated subqueries**~~ — ✅ Done. Sql AST with Scope-based alias resolution. Auto-rename on collision.
-4. **TsTypeOf doesn't recursively unwrap Record** — Nested relations via `scalar()` return `{name: Text<1>}` instead of `{name: string}` in TS. Runtime is correct.
-5. **column() returns a descriptor, not a real instance** — Plain object `{ __column, __class, ...opts }` leaks through builders. Should be a real instance, simplifying aliasRowType and builder code.
-6. **Record override DTS mismatch** — `@ts-expect-error` in source gets stripped by DTS generation. Emitted `.d.ts` has `deserialize` return type conflict (`RowTypeToTsType<T>` vs `string`). Affects consumers using dist types.
-7. **Stock TypeScript stack overflow** — The recursive type hierarchy causes stock `tsc` to stack overflow. Only `tsgo` works for type checking and DTS generation. Consumers must use `tsgo` or `bundler` moduleResolution that avoids deep type resolution.
+1. **TsTypeOf doesn't recursively unwrap Record** — Nested relations via `scalar()` return `{name: Text<1>}` instead of `{name: string}` in TS. Runtime is correct.
+2. **Record override DTS mismatch** — `@ts-expect-error` stripped by DTS generation. Emitted `.d.ts` has `deserialize` return type conflict.
+3. **Stock TypeScript stack overflow** — Recursive type hierarchy causes stock `tsc` to stack overflow. Requires `tsgo`.
+4. **column() returns a descriptor, not a real instance** — Plain object `{ __column, __class, ...opts }` leaks through builders.
 
-### Non-critical (correct but improvable)
+### Non-critical
 
-8. **Operators always parenthesize** — `a.and(b).or(c)` → `((... AND ...) OR ...)`. Correct but verbose. Could use operator precedence via `Op` node.
-9. **ROW/array_agg/COALESCE are raw SQL** — `scalar()` emits these as SQL strings. Should use `Func`/`Op` nodes.
-10. **Relation naming** — Inbound relations use source table name. No singularization. Self-referential FKs get awkward disambiguated names.
-11. **groupBy non-aggregated column enforcement** — pg catches at runtime, no type-level enforcement.
+5. **Operators always parenthesize** — Could use operator precedence via `Op` node.
+6. **ROW/array_agg/COALESCE are raw SQL** — `scalar()` should use `Func`/`Op` nodes.
+7. **Relation naming** — No singularization. Self-referential FKs get awkward names.
+8. **groupBy non-aggregated column enforcement** — pg catches at runtime, no type-level enforcement.
 
 ## Target users
 
