@@ -25,6 +25,13 @@ export default [
         varsIgnorePattern: "^_",
       }],
       "@typescript-eslint/consistent-type-imports": "error",
+      "no-restricted-syntax": ["error", {
+        selector: "ImportExpression",
+        message: "Use top-level imports. Dynamic import() is not allowed unless there is a real performance or correctness reason.",
+      }, {
+        selector: "CallExpression[callee.name='require']",
+        message: "Use top-level imports. require() is not allowed.",
+      }],
       "@typescript-eslint/no-restricted-types": ["error", {
         types: {
           "Record": {

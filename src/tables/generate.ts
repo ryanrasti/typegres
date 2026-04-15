@@ -12,6 +12,7 @@ const findConfig = async (): Promise<Config> => {
   while (true) {
     const configPath = path.join(dir, "typegres.config.ts");
     if (fs.existsSync(configPath)) {
+      // eslint-disable-next-line no-restricted-syntax -- runtime config loaded from user's project
       const config = await import(configPath);
       return { db: config.default.db, tables: path.resolve(dir, config.default.tables), dbImport: config.default.dbImport };
     }

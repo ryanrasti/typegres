@@ -3,6 +3,7 @@ import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
 import type { NullOf } from "../runtime";
 import { sql, Sql } from "../../builder/sql";
+import * as types from "../index";
 
 type ColumnOpts = { nonNull?: boolean; default?: Sql; generated?: boolean };
 
@@ -21,6 +22,14 @@ export class Any<N extends number> extends Generated<N> {
 
   compile(): Sql {
     return this.__raw;
+  }
+
+  isNull(): types.Bool<1> {
+    return types.Bool.from(sql`(${this.compile()} IS NULL)`) as types.Bool<1>;
+  }
+
+  isNotNull(): types.Bool<1> {
+    return types.Bool.from(sql`(${this.compile()} IS NOT NULL)`) as types.Bool<1>;
   }
 
   // COALESCE(this, rhs) — returns first non-null. Chainable.

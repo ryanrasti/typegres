@@ -290,6 +290,28 @@ test("coalesce nullability", async () => {
   nonNull.coalesce(Int4.from(1) as Int4<1>);
 });
 
+// --- IS NULL / IS NOT NULL ---
+
+test("isNull / isNotNull", async () => {
+  const val = Int4.from(5);
+  const nullable = Text.from(sql`NULL::text`);
+
+  // type: always returns Bool<1> (the check itself is never null)
+  expectTypeOf(val.isNull()).toEqualTypeOf<Bool<1>>();
+  expectTypeOf(val.isNotNull()).toEqualTypeOf<Bool<1>>();
+  expectTypeOf(nullable.isNull()).toEqualTypeOf<Bool<1>>();
+
+  // runtime
+  const r1 = await exec.execute(sql`SELECT ${val.isNull().compile()} as result`);
+  expect(r1[0]!["result"]).toBe("f");
+
+  const r2 = await exec.execute(sql`SELECT ${val.isNotNull().compile()} as result`);
+  expect(r2[0]!["result"]).toBe("t");
+
+  const r3 = await exec.execute(sql`SELECT ${nullable.isNull().compile()} as result`);
+  expect(r3[0]!["result"]).toBe("t");
+});
+
 // --- Type.from() ---
 
 test("Type.from() precise nullability", () => {

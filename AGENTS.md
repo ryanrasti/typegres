@@ -1,5 +1,9 @@
 # Typegres
 
+## Conventions
+
+- Always do top-level imports (unless there is a real performance or correctness reason)
+
 ## Vision
 
 Core tenets:

@@ -7,6 +7,7 @@ export interface Executor {
 
 // pglite adapter — returns raw text strings (no driver-side deserialization)
 export const pgliteExecutor = async (): Promise<Executor> => {
+  // eslint-disable-next-line no-restricted-syntax -- optional dep, lazy loaded
   const { PGlite } = await import("@electric-sql/pglite");
   const db = new PGlite();
 
