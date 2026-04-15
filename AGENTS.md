@@ -179,21 +179,23 @@ compute needed here.
 
 ### Query Builder
 
-- **Method idempotency** — ✅ RESOLVED: select replaces, where/having AND-combine, join/groupBy/orderBy stack, limit takes MIN, offset sums, cardinality replaces.
+- **Method idempotency** — ✅ RESOLVED: select replaces, where/having AND-combine, join/groupBy/orderBy stack, limit takes MIN, offset sums, cardinality replaces. Delete/update where also AND-combines.
 
-- **groupBy namespace transform**: After `groupBy`, the namespace should restrict `select` to only group-by columns or aggregate functions. Currently no enforcement — user can select non-aggregated columns, producing invalid SQL at runtime.
+- **groupBy namespace transform** — ✅ PARTIAL: groupBy transforms namespace via AggregateRow (columns → Type<number>). Resets output to {} forcing select(). No type-level enforcement that non-grouped columns must be aggregated — pg catches at runtime.
 
-- **ROW/array_agg/COALESCE are raw SQL**: `scalar()` emits these as raw SQL strings. Should be regular typed operations once aggregate support is built.
+- **ROW/array_agg/COALESCE are raw SQL**: `scalar()` emits these as raw SQL strings. Should be regular typed operations.
 
 ### Types
 
-- **TsTypeOf doesn't recursively unwrap Record**: `TsTypeOf<Record<{name: Text<1>}, 1>>` returns `{name: Text<1>}` not `{name: string}`. The nested row type isn't mapped through TsTypeOf. Runtime deserialization is correct, only the type is wrong.
+- **TsTypeOf doesn't recursively unwrap Record**: `TsTypeOf<Record<{name: Text<1>}, 1>>` returns `{name: Text<1>}` not `{name: string}`. Runtime deserialization is correct, only the type is wrong.
 
 - **column() returns a descriptor, not a real instance**: `Any.column()` returns a plain object `{ __column, __class, ...opts }` cast as `InstanceType<T>`. Should return a real instance with a reference to the table's column metadata.
 
-- **Constructors always return `Type<number>`**: `new Bool(true)` returns `Bool<number>` — the constructor can't infer nullability from a TS literal. Need static factory methods (e.g., `Bool.from(true): Bool<1>`) with overloads that narrow based on input type.
+- **Constructors return `Type<number>`** — ✅ RESOLVED: `Type.from()` replaces constructors. `from(primitive)` → `Type<1>`, `from(sql)` → `Type<0|1>`. Constructor is internal only.
 
 - **Operators always wrap in parentheses**: `a.and(b).or(c)` emits `((... AND ...) OR ...)`. Correct but verbose. A precedence system could omit redundant parens by tracking operator precedence on `Sql` fragments.
+
+- **coalesce same-class constraint**: Uses `[meta].__any` (Type<any>) to constrain rhs to same concrete type. Works for all types.
 
 ### Codegen
 
@@ -201,15 +203,22 @@ compute needed here.
 
 - **Relation alias collision**: Self-referential relations (e.g., `dogs.rival_id → dogs.id`) generate code that uses the same table alias for inner and outer query. Needs distinct alias.
 
+- **Override [meta] references** — ✅ RESOLVED: codegen uses `types.Cls` in [meta] for types with overrides, so __nonNullable etc. point to the override class.
+
 ### Remaining Features
 
-- [ ] Aggregates (count, sum, avg — prokind='a' in codegen)
+- [x] Aggregates (count, sum, avg, max, min, stddev — prokind='a' in codegen)
+- [x] Set-returning functions (unnest, generate_series, json_each — single + multi-column)
+- [x] Bool and/or/not logic operators
+- [x] coalesce() with precise nullability
+- [x] Type.from() with Sql→nullable, primitive→non-null
+- [x] match() runtime overload dispatch + serialize() arg validation
 - [ ] CTE (`with`)
 - [ ] Correlated subqueries (beyond scalar — as Fromable)
-- [ ] `OR`/`AND` combinators for where clauses
 - [ ] `DISTINCT` / `DISTINCT ON`
 - [ ] `ON CONFLICT` (upsert)
 - [ ] Real postgres executor (pg adapter, not just pglite)
+- [ ] `IS NULL` / `IS NOT NULL` operators
 
 ## Target users
 
