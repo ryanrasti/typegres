@@ -31,6 +31,14 @@ export type TsTypeOf<T> =
 // Extract the nullable variant of a pg type via the [meta] bag
 export type Nullable<T> = T extends { [meta]: { __nullable: infer U } } ? U : T;
 
+// Extract the aggregate variant (N=number) of a pg type via the [meta] bag
+export type Aggregate<T> = T extends { [meta]: { __aggregate: infer U } } ? U : T;
+
+// Transform a row type to aggregate context — all columns become N=number
+export type AggregateRow<R> = {
+  [K in keyof R]: Aggregate<R[K]>;
+};
+
 // Keys of R that are column descriptors (have the __required brand from column())
 export type ColumnKeys<R> = {
   [K in keyof R]: R[K] extends { [meta]: { __required: boolean } } ? K : never;

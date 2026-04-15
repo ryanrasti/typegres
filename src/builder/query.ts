@@ -3,7 +3,7 @@ import type { Sql} from "./sql";
 import { sql } from "./sql";
 import type { Bool} from "../types";
 import { Any, Anyarray, Record } from "../types";
-import type { TsTypeOf, Nullable} from "../types/runtime";
+import type { TsTypeOf, Nullable, AggregateRow} from "../types/runtime";
 import { meta } from "../types/runtime";
 
 // Extract only Any<> instances from a row type
@@ -146,10 +146,9 @@ export class QueryBuilder<
     this.card = (card ?? "many") as Card;
   }
 
-  // Must come after any 'groupBy' or 'having' calls (because they modify the output type).
   select<O2 extends RowType>(
     selectFn: (n: N) => O2,
-  ): Omit<QueryBuilder<N, O2, GB, Card>, "groupBy" | "having"> {
+  ): QueryBuilder<N, O2, GB, Card> {
     return new QueryBuilder({
       ...this.opts,
       output: selectFn(this.opts.namespace),
@@ -206,11 +205,12 @@ export class QueryBuilder<
     });
   }
 
-  // TODO: after groupBy, namespace values should be transformed to aggregate types
-  // so that select can only reference group-by columns or aggregate functions
+  // After groupBy, table columns in the namespace become aggregate types (N=number).
+  // Grouped columns are accessible by index with their original types.
+  // Output is reset to {} — must call select() after groupBy to define output columns.
   groupBy<G extends Any<any>[]>(
     groupByFn: (n: N) => [...G],
-  ): QueryBuilder<N & G, O, [...GB, ...G], Card> {
+  ): QueryBuilder<{ [K in keyof N]: AggregateRow<N[K]> } & G, {}, [...GB, ...G], Card> {
     const rawGroupBy = groupByFn(this.opts.namespace);
     const mergedGroupBy = [...(this.opts.groupBy ?? []), ...rawGroupBy];
 
@@ -225,10 +225,9 @@ export class QueryBuilder<
 
     return new QueryBuilder({
       ...this.opts,
+      output: {},
       namespace: {
         ...this.opts.namespace,
-        // We add the group by columns to the namespace -- they are accessible by index
-        //  e.g., .select({ 0: g0 }) => select(n => ({ ret: g0 }))
         ...mergedGroupBy,
         [Symbol.iterator]: () => mergedGroupBy[Symbol.iterator](),
       },

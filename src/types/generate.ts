@@ -98,6 +98,7 @@ interface PgFunc {
   returnType: number;
   isOperator: boolean;
   isStrict: boolean;
+  isAggregate: boolean;
 }
 
 const introspect = async (db: PGlite) => {
@@ -175,6 +176,7 @@ const introspect = async (db: PGlite) => {
         returnType: f.prorettype,
         isOperator: false,
         isStrict: f.proisstrict,
+        isAggregate: false,
       });
     }
   }
@@ -191,6 +193,41 @@ const introspect = async (db: PGlite) => {
         returnType: o.oprresult,
         isOperator: true,
         isStrict: true, // operators always propagate nulls
+        isAggregate: false,
+      });
+    }
+  }
+
+  // Get aggregate functions
+  const { rows: aggFuncs } = await db.query<{
+    proname: string;
+    proargtypes: string;
+    prorettype: number;
+  }>(`
+    SELECT p.proname, p.proargtypes::text, p.prorettype
+    FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = 'pg_catalog'
+      AND p.prokind = 'a'
+      AND p.proretset = false
+      AND array_length(string_to_array(trim(p.proargtypes::text), ' '), 1) > 0
+      AND p.proargtypes::text != ''
+    ORDER BY p.proname
+  `);
+
+  for (const f of aggFuncs) {
+    const argOids = f.proargtypes
+      .trim()
+      .split(/\s+/)
+      .map(Number);
+    if (argOids.every((oid) => typeMap.has(oid)) && typeMap.has(f.prorettype)) {
+      pgFuncs.push({
+        name: f.proname,
+        argTypes: argOids,
+        returnType: f.prorettype,
+        isOperator: false,
+        isStrict: false, // aggregates handle nulls themselves
+        isAggregate: true,
       });
     }
   }
@@ -430,6 +467,7 @@ const generateTypeFile = (
     lines.push(`    __class: typeof ${cls};`);
     lines.push(`    __nullable: ${cls}<0 | 1>;`);
     lines.push(`    __nonNullable: ${cls}<1>;`);
+    lines.push(`    __aggregate: ${cls}<number>;`);
     lines.push(`  };`);
     lines.push(`  static __typname = "${pgType.typname}";`);
     lines.push(`  constructor(raw: Sql | ${tsType}) { super(raw); }`);
@@ -478,16 +516,22 @@ const generateTypeFile = (
     // Build return type with null propagation
     const retBase = resolveBaseTypeName(f.returnType, pgType, typeMap);
     let retType: string;
-    const nullParts = ["N", ...restArgs.map((_, i) => `NullOf<M${i}>`)];
-    const nullUnion = nullParts.join(" | ");
-    if (isMaybeNullOp) {
-      retType = formatTypeWithNull(retBase, `MaybeNull<${nullUnion}>`);
-    } else if (!f.isStrict) {
-      retType = formatTypeWithNull(retBase, "1");
-    } else if (restArgs.length === 0) {
-      retType = formatTypeWithNull(retBase, "N");
+    if (f.isAggregate) {
+      // Aggregates return N=number (aggregate context) — except count which is always non-null
+      const aggNull = f.name === "count" ? "1" : "number";
+      retType = formatTypeWithNull(retBase, aggNull);
     } else {
-      retType = formatTypeWithNull(retBase, `StrictNull<${nullUnion}>`);
+      const nullParts = ["N", ...restArgs.map((_, i) => `NullOf<M${i}>`)];
+      const nullUnion = nullParts.join(" | ");
+      if (isMaybeNullOp) {
+        retType = formatTypeWithNull(retBase, `MaybeNull<${nullUnion}>`);
+      } else if (!f.isStrict) {
+        retType = formatTypeWithNull(retBase, "1");
+      } else if (restArgs.length === 0) {
+        retType = formatTypeWithNull(retBase, "N");
+      } else {
+        retType = formatTypeWithNull(retBase, `StrictNull<${nullUnion}>`);
+      }
     }
 
     // Determine runtime type arg
