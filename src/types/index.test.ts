@@ -259,3 +259,30 @@ test("Bool.and / or / not", async () => {
   expectTypeOf(nullable.and(a)).toEqualTypeOf<Bool<0 | 1>>();
   expectTypeOf(a.not()).toEqualTypeOf<Bool<1>>();
 });
+
+// --- coalesce ---
+
+test("coalesce nullability", async () => {
+  const nonNull = new Text("hello") as Text<1>;
+  const nullable = new Text(sql`NULL::text`) as Text<0 | 1>;
+
+  // non-null coalesce anything → non-null
+  expectTypeOf(nonNull.coalesce(nullable)).toEqualTypeOf<Text<1>>();
+
+  // nullable coalesce non-null → non-null
+  expectTypeOf(nullable.coalesce(nonNull)).toEqualTypeOf<Text<1>>();
+
+  // nullable coalesce nullable → nullable
+  expectTypeOf(nullable.coalesce(nullable)).toEqualTypeOf<Text<0 | 1>>();
+
+  // runtime: coalesce picks first non-null
+  const result = await exec.execute(sql`SELECT ${nullable.coalesce(nonNull).compile()} as val`);
+  expect(result[0]!["val"]).toBe("hello");
+
+  // chaining
+  const fallback = new Text("default") as Text<1>;
+  const chained = nullable.coalesce(nullable).coalesce(fallback);
+  expectTypeOf(chained).toEqualTypeOf<Text<1>>();
+  const chainResult = await exec.execute(sql`SELECT ${chained.compile()} as val`);
+  expect(chainResult[0]!["val"]).toBe("default");
+});

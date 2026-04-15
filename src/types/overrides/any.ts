@@ -1,6 +1,7 @@
 import { Any as Generated } from "../generated/any";
 import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
+import type { NullOf } from "../runtime";
 import { sql, Sql } from "../../builder/sql";
 
 type ColumnOpts = { nonNull?: boolean; default?: Sql; generated?: boolean };
@@ -35,6 +36,19 @@ export class Any<N extends number> extends Generated<N> {
 
   compile(): Sql {
     return this.__raw;
+  }
+
+  // COALESCE(this, rhs) — returns first non-null. Chainable.
+  // Null only if both sides can be null.
+  coalesce<T extends Any<any>, M extends number>(
+    this: T,
+    rhs: Any<M>,
+  ): 0 extends NullOf<T>
+    ? (0 extends M
+      ? T  // both nullable → stay nullable
+      : (T extends { [meta]: { __nonNullable: infer U } } ? U : T))  // rhs non-null → non-null
+    : T {  // this non-null → stays non-null
+    return new ((this as any)[meta].__class as any)(sql`COALESCE(${this.compile()}, ${rhs.compile()})`) as any;
   }
 
   // Validate and wrap a TS value into a typed instance.
