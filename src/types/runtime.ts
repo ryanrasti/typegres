@@ -112,14 +112,14 @@ const compileArg = (arg: unknown): Sql => {
 };
 
 // Expression node builders — construct real typed instances via constructor(Sql)
-export const PgFunc = <T>(name: string, args: unknown[], type: new (raw: Sql) => T): T => {
+export const PgFunc = (name: string, args: unknown[], type: typeof Any) => {
   const rawSql = sql`${sql.ident(name)}(${sql.join(args.map(compileArg))})`;
-  return new type(rawSql);
+  return type.from(rawSql);
 };
 
-export const PgOp = <T>(op: string, args: [unknown, unknown], type: new (raw: Sql) => T): T => {
+export const PgOp = (op: string, args: [unknown, unknown], type: typeof Any) => {
   const rawSql = sql`(${compileArg(args[0])} ${sql.raw(op)} ${compileArg(args[1])})`;
-  return new type(rawSql);
+  return type.from(rawSql);
 };
 
 // Set-returning function result — implements Fromable for use in FROM/JOIN
@@ -128,10 +128,10 @@ export class PgSrf<R extends { [key: string]: Any<any> }, A extends string> {
   rowType: R;
   #sql: Sql;
 
-  constructor(name: A, args: unknown[], columnName: string, type: new (raw: Sql) => Any<any>) {
+  constructor(name: A, args: unknown[], columnName: string, type: typeof Any) {
     this.alias = name;
     const colRef = sql`${sql.ident(name)}.${sql.ident(columnName)}`;
-    this.rowType = { [columnName]: new type(colRef) } as R;
+    this.rowType = { [columnName]: type.from(colRef) } as R;
     this.#sql = sql`${sql.ident(name)}(${sql.join(args.map(compileArg))})`;
   }
 
@@ -147,7 +147,7 @@ export const PgSrfFunc = <R extends { [key: string]: Any<any> }, A extends strin
   name: A,
   args: unknown[],
   columnName: string,
-  type: new (raw: Sql) => Any<any>,
+  type: typeof Any,
 ): PgSrf<R, A> => {
   return new PgSrf(name, args, columnName, type);
 };
@@ -156,14 +156,14 @@ export const PgSrfFunc = <R extends { [key: string]: Any<any> }, A extends strin
 export const PgSrfMulti = <A extends string>(
   name: A,
   args: unknown[],
-  columns: [string, new (raw: Sql) => Any<any>][],
+  columns: [string, typeof Any][],
 ): PgSrf<any, A> => {
   const srf = new PgSrf(name, args, columns[0]![0], columns[0]![1]);
   // Override rowType with all columns
   const rowType: { [key: string]: Any<any> } = {};
   for (const [colName, type] of columns) {
     const colRef = sql`${sql.ident(name)}.${sql.ident(colName)}`;
-    rowType[colName] = new type(colRef);
+    rowType[colName] = type.from(colRef);
   }
   srf.rowType = rowType;
   return srf;

@@ -68,10 +68,10 @@ export const aliasRowType = <R extends RowType>(row: R, tableAlias: string): R =
     Object.entries(row).map(([k, v]) => {
       const col = sql`${sql.ident(tableAlias)}.${sql.ident(k)}`;
       if (v instanceof Any) {
-        return [k, new (v[meta].__class as any)(col)];
+        return [k, (v[meta].__class as typeof Any).from(col)];
       }
       if (v && v.__column && v.__class) {
-        return [k, new v.__class(col)];
+        return [k, v.__class.from(col)];
       }
       return [k, v];
     }),
@@ -300,13 +300,13 @@ export class QueryBuilder<
     const rowExprs = Object.values(cols).map((type: any) => type.compile());
     const rowSql = sql`ROW(${sql.join(rowExprs)})`;
     // Wrap as a subquery: (SELECT ROW(...) FROM ... WHERE ...)
-    const subquery = this.select(() => ({ __row: new RecordClass(rowSql) })).compile({ isSubquery: true });
+    const subquery = this.select(() => ({ __row: RecordClass.from(rowSql) })).compile({ isSubquery: true });
     if (this.card === "many") {
-      return new (Anyarray.of(RecordClass) as any)(
+      return Anyarray.of(RecordClass.from(sql``)).from(
         sql`COALESCE((SELECT array_agg("__row") FROM ${subquery}), '{}')`,
       );
     }
-    return new RecordClass(sql`(SELECT "__row" FROM ${subquery})`);
+    return RecordClass.from(sql`(SELECT "__row" FROM ${subquery})`);
   }
 
   compile({ isSubquery } = { isSubquery: false }): Sql {

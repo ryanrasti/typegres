@@ -3,7 +3,7 @@ import { Anycompatiblearray as Generated } from "../generated/anycompatiblearray
 import type { Any } from "../index";
 
 export class Anycompatiblearray<T extends Any<any>, N extends number> extends Generated<T, N> {
-  static __element: unknown;
+  static __element: Any<any>;
 
   deserialize(raw: string): TsTypeOf<T>[] {
     // Delegates to Anyarray's parsing — same pg array format
@@ -30,14 +30,14 @@ export class Anycompatiblearray<T extends Any<any>, N extends number> extends Ge
       }
     }
     elements.push(current);
-    const elDeser = (this[meta].__class as any).__element.prototype.deserialize;
+    const elDeser = (this[meta].__class as any).__element.deserialize;
     return elements.map((el) => elDeser(el)) as TsTypeOf<T>[];
   }
 
-  static of<T extends { __typname: string }>(element: T) {
+  static of<T extends Any<any>>(element: T) {
     return class extends (this as any) {
       static __element = element;
-      static __typname = `${element.__typname}[]`;
-    };
+      static __typname = `${element[meta].__class.__typname}[]`;
+    } as unknown as typeof Anycompatiblearray<T, any>;
   }
 }

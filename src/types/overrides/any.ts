@@ -46,7 +46,7 @@ export class Any<N extends number> extends Generated<N> {
   ): 0 extends NullOf<R>
     ? T  // rhs can be null → preserve T (still nullable)
     : (T extends { [meta]: { __nonNullable: infer U } } ? U : T) {  // rhs is non-null → __nonNullable
-    return new ((this as any)[meta].__class as any)(sql`COALESCE(${this.compile()}, ${rhs.compile()})`) as any;
+    return ((this as any)[meta].__class as typeof Any).from(sql`COALESCE(${this.compile()}, ${rhs.compile()})`) as any;
   }
 
   // Public constructor alternative with precise nullability.
@@ -62,7 +62,7 @@ export class Any<N extends number> extends Generated<N> {
   static serialize(v: unknown): Any<any> {
     if (v instanceof this) { return v; }
     const expected = getTypeDef(this.__typname).tsType;
-    if (typeof v === expected) { return new (this as any)(v); }
+    if (typeof v === expected) { return this.from(v); }
     throw new Error(`Expected ${this.__typname} (${expected}), got ${typeof v}`);
   }
 

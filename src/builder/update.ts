@@ -58,7 +58,7 @@ export class UpdateBuilder<Name extends string, T extends { [key: string]: any }
     const setClauses = Object.entries(this.#opts.set).map(([k, v]) => {
       const col = this.#opts.instance[k];
       if (!col?.__column) { throw new Error(`Unknown column: ${k}`); }
-      return sql`${sql.ident(k)} = ${new (col.__class as any)(v).compile()}`;
+      return sql`${sql.ident(k)} = ${col.__class.from(v).compile()}`;
     });
 
     return sql.join([

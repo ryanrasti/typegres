@@ -59,6 +59,6 @@ export class Record<T = unknown, N extends number = number> extends Generated<N>
         }),
       );
     };
-    return cls as unknown as typeof Record<T, number>;
+    return cls as unknown as typeof Record<T, any>;
   }
 }

@@ -28,7 +28,7 @@ export class Values<R extends RowType> {
           if (!(type instanceof Any)) {
             throw new Error(`Expected ${k} to be an Any type`);
           }
-          v = new (type[meta].__class as any)(v);
+          v = (type[meta].__class as typeof Any).from(v);
         }
         return (v as Any<any>).compile();
       });
