@@ -2,7 +2,7 @@ import type { Executor } from "../executor";
 import { sql } from "./sql";
 import { Bool } from "../types";
 import type { RowType, RowTypeToTsType } from "./query";
-import { compileSelectList, deserializeRows } from "./query";
+import { combinePredicates, compileSelectList, deserializeRows } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
@@ -21,10 +21,12 @@ export class DeleteBuilder<Name extends string, T extends { [key: string]: any }
     this.#opts = opts;
   }
 
+  // Multiple where() calls are combined with AND
   where(fn: ((ns: Namespace<Name, T>) => Bool<any>) | true): DeleteBuilder<Name, T, R> {
+    const cond = fn === true ? new Bool(sql`TRUE`) : fn(this.#opts.namespace);
     return new DeleteBuilder({
       ...this.#opts,
-      where: fn === true ? new Bool(sql`TRUE`) : fn(this.#opts.namespace),
+      where: combinePredicates(this.#opts.where, cond),
     });
   }
 

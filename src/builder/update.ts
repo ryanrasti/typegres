@@ -3,7 +3,7 @@ import { sql } from "./sql";
 import { Bool } from "../types";
 import type { SetRow } from "../types/runtime";
 import type { RowType, RowTypeToTsType } from "./query";
-import { compileSelectList, deserializeRows } from "./query";
+import { combinePredicates, compileSelectList, deserializeRows } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
@@ -24,10 +24,12 @@ export class UpdateBuilder<Name extends string, T extends { [key: string]: any }
     this.#opts = opts;
   }
 
+  // Multiple where() calls are combined with AND
   where(fn: ((ns: Namespace<Name, T>) => Bool<any>) | true): UpdateBuilder<Name, T, R> {
+    const cond = fn === true ? new Bool(sql`TRUE`) : fn(this.#opts.namespace);
     return new UpdateBuilder({
       ...this.#opts,
-      where: fn === true ? new Bool(sql`TRUE`) : fn(this.#opts.namespace),
+      where: combinePredicates(this.#opts.where, cond),
     });
   }
 

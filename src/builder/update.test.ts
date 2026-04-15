@@ -84,6 +84,42 @@ test("update returning", async () => {
   });
 });
 
+test("update: multiple where calls AND-combine", async () => {
+  await withinTransaction(async () => {
+    await exec.execute(sql`CREATE TABLE products (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL,
+      price int8 NOT NULL DEFAULT 0,
+      active text NOT NULL DEFAULT 'yes'
+    )`);
+    await exec.execute(sql`INSERT INTO products (name, price) VALUES ('a', 10), ('b', 10), ('c', 20)`);
+
+    class Products extends db.Table("products") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+      name = (Text<1>).column({ nonNull: true });
+      price = (Int8<1>).column({ nonNull: true, default: sql`0` });
+      active = (Text<1>).column({ nonNull: true, default: sql`'yes'` });
+    }
+
+    await Products.update()
+      .where(({ products }) => products.price["="](10n))
+      .where(({ products }) => products.name["="]("a"))
+      .set(() => ({ active: "no" }))
+      .execute();
+
+    const rows = await Products.from()
+      .select(({ products }) => ({ name: products.name, active: products.active }))
+      .orderBy(({ products }) => products.name)
+      .execute();
+
+    expect(rows).toEqual([
+      { name: "a", active: "no" },
+      { name: "b", active: "yes" },
+      { name: "c", active: "yes" },
+    ]);
+  });
+});
+
 test("update without where throws", async () => {
   await withinTransaction(async () => {
     await exec.execute(sql`CREATE TABLE noop (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)`);

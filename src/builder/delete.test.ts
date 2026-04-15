@@ -49,6 +49,35 @@ test("delete returning", async () => {
   });
 });
 
+test("delete: multiple where calls AND-combine", async () => {
+  await withinTransaction(async () => {
+    await exec.execute(sql`CREATE TABLE items (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL,
+      score int8 NOT NULL DEFAULT 0
+    )`);
+    await exec.execute(sql`INSERT INTO items (name, score) VALUES ('a', 10), ('b', 20), ('c', 10), ('d', 30)`);
+
+    class Items extends db.Table("items") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+      name = (Text<1>).column({ nonNull: true });
+      score = (Int8<1>).column({ nonNull: true, default: sql`0` });
+    }
+
+    await Items.delete()
+      .where(({ items }) => items.score["="](10n))
+      .where(({ items }) => items.name["="]("a"))
+      .execute();
+
+    const rows = await Items.from()
+      .select(({ items }) => ({ name: items.name }))
+      .orderBy(({ items }) => items.name)
+      .execute();
+
+    expect(rows).toEqual([{ name: "b" }, { name: "c" }, { name: "d" }]);
+  });
+});
+
 test("delete without where throws", async () => {
   await withinTransaction(async () => {
     await exec.execute(sql`CREATE TABLE noop2 (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)`);

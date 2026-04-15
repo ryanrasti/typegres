@@ -98,7 +98,7 @@ export const getRowType = (from: Fromable): RowType => {
   return new (from as new () => object)();
 };
 
-const combinePredicates = (left: Bool<any> | undefined, right: Bool<any>) => {
+export const combinePredicates = (left: Bool<any> | undefined, right: Bool<any>) => {
   if (!left) { return right; }
   return left.and(right);
 };
