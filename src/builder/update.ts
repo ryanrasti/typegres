@@ -26,7 +26,7 @@ export class UpdateBuilder<Name extends string, T extends { [key: string]: any }
 
   // Multiple where() calls are combined with AND
   where(fn: ((ns: Namespace<Name, T>) => Bool<any>) | true): UpdateBuilder<Name, T, R> {
-    const cond = fn === true ? new Bool(sql`TRUE`) : fn(this.#opts.namespace);
+    const cond = fn === true ? Bool.from(sql`TRUE`) : fn(this.#opts.namespace);
     return new UpdateBuilder({
       ...this.#opts,
       where: combinePredicates(this.#opts.where, cond),

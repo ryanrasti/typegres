@@ -12,23 +12,8 @@ export class Any<N extends number> extends Generated<N> {
   };
   // Phantom field — makes N structurally visible so TS distinguishes e.g. Text<0> from Text<0|1>.
   declare __nullability: N;
-  __raw: Sql;
+  __raw!: Sql;
   static __typname = "any";
-
-  constructor(raw: Sql | unknown) {
-    super();
-    // Set [meta] at runtime — subclasses' `declare [meta]` narrows the type only
-    Object.defineProperty(this, meta, {
-      value: { __class: this.constructor as typeof Any },
-      enumerable: false,
-    });
-    if (raw instanceof Sql) {
-      this.__raw = raw;
-    } else {
-      const typname = (this.constructor as typeof Any).__typname;
-      this.__raw = sql`CAST(${sql.param(raw)} AS ${sql.raw(typname)})`;
-    }
-  }
 
   deserialize(raw: string): unknown {
     return getTypeDef((this.constructor as typeof Any).__typname).deserialize(raw);
@@ -54,7 +39,18 @@ export class Any<N extends number> extends Generated<N> {
   static from<T extends typeof Any>(this: T, v: Sql): InstanceType<T> extends { [meta]: { __nullable: infer U } } ? U : InstanceType<T>;
   static from<T extends typeof Any>(this: T, v: unknown): InstanceType<T> extends { [meta]: { __nonNullable: infer U } } ? U : InstanceType<T>;
   static from(v: Sql | unknown): any {
-    return new (this as any)(v);
+    const instance = new this();
+    // Set [meta] at runtime — subclasses' `declare [meta]` narrows the type only
+    Object.defineProperty(instance, meta, {
+      value: { __class: this },
+      enumerable: false,
+    });
+    if (v instanceof Sql) {
+      instance.__raw = v;
+    } else {
+      instance.__raw = sql`CAST(${sql.param(v)} AS ${sql.raw(this.__typname)})`;
+    }
+    return instance;
   }
 
   // Internal: validate and wrap a TS value into a typed instance.

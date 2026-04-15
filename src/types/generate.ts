@@ -476,10 +476,7 @@ const generateTypeFile = (
   if (runtimeImports.length > 0) {
     lines.push(`import { ${runtimeImports.join(", ")} } from "../runtime";`);
   }
-  // Concrete types need Sql for their constructor (accepts Sql | primitive)
-  if (!EXTENDS_MAP[pgType.typname] && pgType.typname !== "any") {
-    lines.push('import { Sql } from "../../builder/sql";');
-  }
+  // Concrete types no longer need Sql import (constructor removed, from() is on Any)
   // Extends: import parent class directly from its source file.
   // This avoids circular deps at class definition time — the parent must be
   // fully loaded before the child class evaluates `extends`.
@@ -538,7 +535,6 @@ const generateTypeFile = (
     lines.push(`    __any: ${ref}<any>;`);
     lines.push(`  };`);
     lines.push(`  static __typname = "${pgType.typname}";`);
-    lines.push(`  constructor(raw: Sql | ${tsType}) { super(raw); }`);
     lines.push(`  declare deserialize: (raw: string) => ${tsType};`);
   } else {
     // any* hierarchy type — inherits [meta] from parent, no re-declaration needed

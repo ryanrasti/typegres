@@ -23,7 +23,7 @@ export class DeleteBuilder<Name extends string, T extends { [key: string]: any }
 
   // Multiple where() calls are combined with AND
   where(fn: ((ns: Namespace<Name, T>) => Bool<any>) | true): DeleteBuilder<Name, T, R> {
-    const cond = fn === true ? new Bool(sql`TRUE`) : fn(this.#opts.namespace);
+    const cond = fn === true ? Bool.from(sql`TRUE`) : fn(this.#opts.namespace);
     return new DeleteBuilder({
       ...this.#opts,
       where: combinePredicates(this.#opts.where, cond),
