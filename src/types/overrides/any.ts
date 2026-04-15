@@ -37,6 +37,15 @@ export class Any<N extends number> extends Generated<N> {
     return this.__raw;
   }
 
+  // Validate and wrap a TS value into a typed instance.
+  // Pass-through if already an instance, otherwise check typeof and wrap.
+  static serialize(v: unknown): Any<any> {
+    if (v instanceof this) { return v; }
+    const expected = getTypeDef(this.__typname).tsType;
+    if (typeof v === expected) { return new (this as any)(v); }
+    throw new Error(`Expected ${this.__typname} (${expected}), got ${typeof v}`);
+  }
+
   // Column descriptor for Table definitions
   // __required is computed at the type level: nonNull && no default && not generated
   static column<

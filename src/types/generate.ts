@@ -471,6 +471,7 @@ const generateTypeFile = (
     ...(emitted.some((f) => f.isSrf && !f.outColumns) ? ["PgSrfFunc"] : []),
     ...(emitted.some((f) => f.isSrf && f.outColumns) ? ["PgSrfMulti"] : []),
     ...(emitted.some((f) => f.isSrf) ? ["PgSrf"] : []),
+    ...(emitted.length > 0 ? ["match"] : []),
   ];
   if (runtimeImports.length > 0) {
     lines.push(`import { ${runtimeImports.join(", ")} } from "../runtime";`);
@@ -601,23 +602,13 @@ const generateTypeFile = (
     // Determine runtime type arg
     // pgType/pgElement return the right class at runtime but TS can't verify generics — needs `as any`
     let typeArg: string;
-    // Always cast: PgFunc/PgOp construct instances with N=number but the method
-    // signature specifies the precise N. Cast is safe — signature is source of truth.
-    let needsCast = true;
     if (retBase === "T") {
       typeArg = "pgElement(this)";
-      needsCast = true; // TS can't know element type at compile time
     } else if (f.returnType === f.argTypes[0] && (isGeneric || isElement)) {
       typeArg = "pgType(this)";
-      needsCast = true; // TS can't know self type for generics at compile time
     } else {
       const retT = typeMap.get(f.returnType);
-      // Use types.ClassName namespace for lazy resolution (avoids circular deps at load time)
       typeArg = retT ? `types.${retT.className}` : "undefined";
-      // If return type is a generic any* type, TS can't verify T flows through the constructor
-      if (retT && (GENERIC_TYPES.has(retT.typname) || ELEMENT_TYPES.has(retT.typname))) {
-        needsCast = true;
-      }
     }
 
     const argsExpr = restArgs.map((_, i) => `arg${i}`).join(", ");
@@ -652,12 +643,40 @@ const generateTypeFile = (
       return `  ${camelcase(f.name)}${genericDecl}(${params}): ${srfRetType} { return PgSrfFunc("${f.name}", [${allArgs}], "${colName}", ${typeArg}) as any; }`;
     }
 
-    // Implementation — has body. Cast needed when pgType/pgElement can't be verified by TS.
-    const cast = needsCast ? " as any" : "";
+    // Build the match call and function body for one or more overloads
+    // For multi-overload ops, only allow primitive when arg type matches owner's primitive
+    // (to disambiguate). For single functions/ops, always allow primitive.
+    const buildBody = (funcs: PgFunc[], isOp: boolean, restrictPrimitive: boolean): string => {
+      const argNames = funcs[0]!.argTypes.slice(1).map((_, i) => `arg${i}`);
+      const fnName = isOp ? `PgOp("${funcs[0]!.name}"` : `PgFunc("${funcs[0]!.name}"`;
+
+      if (argNames.length === 0) {
+        return `return ${fnName}, [this], ${typeArg}) as any;`;
+      }
+
+      const cases = funcs.map((fn) => {
+        const matchers = fn.argTypes.slice(1).map((oid) => {
+          const t = typeMap.get(oid);
+          if (!t) { return `{ type: types.Any }`; }
+          const ap = restrictPrimitive
+            ? tsPrimitiveFor(t.typname) === ownerTsPrimitive
+            : true; // single function — always allow primitive
+          return ap ? `{ type: types.${t.className}, allowPrimitive: true }` : `{ type: types.${t.className} }`;
+        });
+        const retT = typeMap.get(fn.returnType);
+        const ret = retT ? `types.${retT.className}` : `types.${pgType.className}`;
+        return `[[${matchers.join(", ")}], ${ret}]`;
+      });
+
+      const matchCall = `match([${argNames.join(", ")}], [${cases.join(", ")}])`;
+      return `const [__rt, ${argNames.map((n) => `__${n}`).join(", ")}] = ${matchCall}; return ${fnName}, [this, ${argNames.map((n) => `__${n}`).join(", ")}], __rt) as any;`;
+    };
+
+    // Implementation — has body
     if (f.isOperator) {
-      return `  ['${f.name}']${genericDecl}(${params}): ${retType} { return PgOp("${f.name}", [${allArgs}], ${typeArg})${cast}; }`;
+      return `  ['${f.name}']${genericDecl}(${params}): ${retType} { ${buildBody([f], true, false)} }`;
     }
-    return `  ${camelcase(f.name)}${genericDecl}(${params}): ${retType} { return PgFunc("${f.name}", [${allArgs}], ${typeArg})${cast}; }`;
+    return `  ${camelcase(f.name)}${genericDecl}(${params}): ${retType} { ${buildBody([f], false, false)} }`;
   };
 
   // Emit functions — single signature with TS primitive allowed
@@ -682,8 +701,22 @@ const generateTypeFile = (
         });
         lines.push(buildMethodSig(overload, argAllowPrimitive, true));
       }
-      // Implementation signature — accepts unknown, dispatches at runtime
-      lines.push(`  ['${opName}'](${overloads[0]!.argTypes.slice(1).map((_, i) => `arg${i}: unknown`).join(", ")}): any { return PgOp("${opName}", [this, ${overloads[0]!.argTypes.slice(1).map((_, i) => `arg${i}`).join(", ")}], types.${pgType.className}); }`);
+      // Implementation: match args against all overloads
+      const argNames = overloads[0]!.argTypes.slice(1).map((_, i) => `arg${i}`);
+      const cases = overloads.map((fn) => {
+        const matchers = fn.argTypes.slice(1).map((oid) => {
+          const t = typeMap.get(oid);
+          if (!t) { return `{ type: types.Any }`; }
+          const ap = tsPrimitiveFor(t.typname) === ownerTsPrimitive;
+          return ap ? `{ type: types.${t.className}, allowPrimitive: true }` : `{ type: types.${t.className} }`;
+        });
+        const retT = typeMap.get(fn.returnType);
+        const ret = retT ? `types.${retT.className}` : `types.${pgType.className}`;
+        return `[[${matchers.join(", ")}], ${ret}]`;
+      });
+      const matchCall = `match([${argNames.join(", ")}], [${cases.join(", ")}])`;
+      const body = `const [__rt, ${argNames.map((n) => `__${n}`).join(", ")}] = ${matchCall}; return PgOp("${opName}", [this, ${argNames.map((n) => `__${n}`).join(", ")}], __rt) as any;`;
+      lines.push(`  ['${opName}'](${argNames.map((n) => `${n}: unknown`).join(", ")}): any { ${body} }`);
     }
   }
 

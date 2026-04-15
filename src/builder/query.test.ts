@@ -708,3 +708,104 @@ test("jsonb_each_text as multi-column SRF", async () => {
     { key: "b", value: "2" },
   ]);
 });
+
+// --- method idempotency ---
+
+test("select: last call wins", async () => {
+  const result = await db
+    .values({ a: new Int4(1), b: new Text("x") })
+    .select((n) => ({ first: n.values.a }))
+    .select((n) => ({ second: n.values.b }))
+    .execute();
+
+  expectTypeOf(result).toEqualTypeOf<{ second: string }[]>();
+  expect(result).toEqual([{ second: "x" }]);
+});
+
+test("where: multiple calls AND-combine", async () => {
+  const result = await db
+    .values({ x: new Int4(1) }, { x: 2 }, { x: 3 }, { x: 4 })
+    .where((n) => n.values.x[">"](1))
+    .where((n) => n.values.x["<"](4))
+    .execute();
+
+  expect(result).toEqual([{ x: 2 }, { x: 3 }]);
+});
+
+test("orderBy: multiple calls stack", async () => {
+  const result = await db
+    .values(
+      { a: new Text("b"), b: new Int4(2) },
+      { a: "a", b: 1 },
+      { a: "b", b: 1 },
+      { a: "a", b: 2 },
+    )
+    .orderBy((n) => [n.values.a, "asc"])
+    .orderBy((n) => [n.values.b, "asc"])
+    .execute();
+
+  expect(result).toEqual([
+    { a: "a", b: 1 },
+    { a: "a", b: 2 },
+    { a: "b", b: 1 },
+    { a: "b", b: 2 },
+  ]);
+});
+
+test("limit: multiple calls take MIN", async () => {
+  const result = await db
+    .values({ x: new Int4(1) }, { x: 2 }, { x: 3 }, { x: 4 }, { x: 5 })
+    .orderBy((n) => n.values.x)
+    .limit(3)
+    .limit(2)
+    .execute();
+
+  expect(result).toEqual([{ x: 1 }, { x: 2 }]);
+});
+
+test("offset: multiple calls sum", async () => {
+  const result = await db
+    .values({ x: new Int4(1) }, { x: 2 }, { x: 3 }, { x: 4 }, { x: 5 })
+    .orderBy((n) => n.values.x)
+    .offset(1)
+    .offset(2)
+    .execute();
+
+  expect(result).toEqual([{ x: 4 }, { x: 5 }]);
+});
+
+test("groupBy: multiple calls stack", async () => {
+  const result = await db
+    .values(
+      { a: new Text("x"), b: new Text("1"), c: new Int4(10) },
+      { a: "x", b: "1", c: 20 },
+      { a: "x", b: "2", c: 30 },
+    )
+    .groupBy((n) => [n.values.a])
+    .groupBy((n) => [n.values.b])
+    .select(({ 0: a, 1: b, values }) => ({ a, b, total: values.c.sum() }))
+    .orderBy((n) => [n[0] as any, "asc"])
+    .execute();
+
+  expect(result).toEqual([
+    { a: "x", b: "1", total: 30n },
+    { a: "x", b: "2", total: 30n },
+  ]);
+});
+
+test("having: multiple calls AND-combine", async () => {
+  const result = await db
+    .values(
+      { cat: new Text("a"), val: new Int4(1) },
+      { cat: "a", val: 2 },
+      { cat: "b", val: 100 },
+      { cat: "c", val: 1 },
+    )
+    .groupBy((n) => [n.values.cat])
+    .having((n) => n.values.val.count()[">"](new Int8(1n)))
+    .having((n) => n.values.val.sum()["<"](new Int8(50n)))
+    .select(({ 0: cat, values }) => ({ cat, total: values.val.sum() }))
+    .execute();
+
+  expect(result).toEqual([{ cat: "a", total: 3n }]);
+});

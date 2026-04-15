@@ -1,6 +1,7 @@
 import type { Sql } from "../builder/sql";
 import { sql } from "../builder/sql";
 import type { Any } from "./index";
+import { getTypeDef } from "./deserialize";
 
 // Global metadata symbol — hides internals from autocomplete.
 // All type metadata (__class, __nullable, __nonNullable, etc.) lives under this key.
@@ -71,22 +72,41 @@ export const pgType = (expr: Any<any>): typeof Any => expr[meta].__class as type
 // pgElement(expr) — returns the element type constructor from a container's __element
 export const pgElement = (expr: Any<any>): typeof Any => (expr[meta].__class as any).__element;
 
-// Map JS typeof to pg type name for casting primitives
-const JS_TO_PG: { [key: string]: string } = {
-  number: "int4",
-  string: "text",
-  boolean: "bool",
-  bigint: "int8",
+// Overload matching: validate args and resolve return type constructor.
+// Each case: [argMatchers (one per arg), returnType constructor].
+// allowPrimitive: true if the corresponding TS primitive is accepted for this arg.
+type ArgMatcher = { type: typeof Any; allowPrimitive?: boolean };
+type MatchCase = [args: ArgMatcher[], retType: typeof Any];
+
+// Validates args, serializes primitives, and returns [retType, ...serializedArgs].
+// The caller destructures: const [retType, ...args] = match(...)
+export const match = (args: unknown[], cases: MatchCase[]): [typeof Any, ...unknown[]] => {
+  for (const [matchers, retType] of cases) {
+    const matched = matchers.every((m, i) => {
+      const arg = args[i];
+      if (arg instanceof m.type) { return true; }
+      if (m.allowPrimitive) {
+        const expected = getTypeDef(m.type.__typname).tsType;
+        if (typeof arg === expected) { return true; }
+      }
+      return false;
+    });
+    if (matched) {
+      const serialized = matchers.map((m, i) => {
+        if (args[i] instanceof m.type) { return args[i]; }
+        return m.type.serialize(args[i]);
+      });
+      return [retType, ...serialized];
+    }
+  }
+  throw new Error(`No matching overload for args: [${args.map((a) => typeof a).join(", ")}]`);
 };
 
-// Compile an arg — either a pg expression (has __raw) or a TS primitive (becomes a CAST'd param)
+// Compile an arg to SQL. After match(), args are Any instances.
+// Falls back to sql.param for edge cases (e.g., args passed directly to PgFunc without match).
 const compileArg = (arg: unknown): Sql => {
   if (arg !== null && typeof arg === "object" && "__raw" in arg) {
     return (arg as { __raw: Sql }).__raw;
-  }
-  const pgType = JS_TO_PG[typeof arg];
-  if (pgType) {
-    return sql`CAST(${sql.param(arg)} AS ${sql.raw(pgType)})`;
   }
   return sql.param(arg);
 };

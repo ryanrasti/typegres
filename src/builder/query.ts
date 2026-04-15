@@ -230,11 +230,13 @@ export class QueryBuilder<
     const rawGroupBy = groupByFn(this.opts.namespace);
     const mergedGroupBy = [...(this.opts.groupBy ?? []), ...rawGroupBy];
 
+    // Check that numeric indices don't collide with string keys in namespace
+    // (previous groupBy indices are fine — they're numeric)
     const indices = Object.keys(mergedGroupBy);
     for (const i of indices) {
-      if (i in this.opts.namespace) {
+      if (i in this.opts.namespace && isNaN(Number(i))) {
         throw new Error(
-          `Group by column index ${i} present in namespace. Namespace should only contain string keys by default.`,
+          `Group by column index ${i} collides with namespace key.`,
         );
       }
     }
