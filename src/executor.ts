@@ -1,9 +1,30 @@
+import pg from "pg";
 import type { Sql } from "./builder/sql";
 
 export interface Executor {
   execute(query: Sql): Promise<{ [key: string]: string }[]>;
   close(): Promise<void>;
 }
+
+// pg adapter — returns raw text strings (no driver-side deserialization)
+export const pgExecutor = (connectionString: string): Executor => {
+  // Override all type parsers to return raw strings
+  const rawTypes = {
+    getTypeParser: () => (v: string) => v,
+  };
+  const pool = new pg.Pool({ connectionString, types: rawTypes as any });
+
+  return {
+    async execute(query: Sql): Promise<{ [key: string]: string }[]> {
+      const compiled = query.compile("pg");
+      const { rows } = await pool.query(compiled.text, compiled.values);
+      return rows as { [key: string]: string }[];
+    },
+    async close() {
+      await pool.end();
+    },
+  };
+};
 
 // pglite adapter — returns raw text strings (no driver-side deserialization)
 export const pgliteExecutor = async (): Promise<Executor> => {
