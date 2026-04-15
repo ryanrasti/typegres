@@ -1,6 +1,8 @@
 // --- Table alias & scope ---
 
-export class TableAlias {}
+export class TableAlias {
+  constructor(readonly name: string) {}
+}
 
 export class Scope {
   parent: Scope | undefined;
@@ -166,7 +168,7 @@ _sql.raw = (s: string): Sql => new Raw(s);
 _sql.ident = (name: string): Sql => new Ident(name);
 _sql.column = (table: TableAlias, name: string): Sql => new Column(table, name);
 _sql.tableRef = (table: TableAlias): Sql => new TableRef(table);
-_sql.tableAlias = (): TableAlias => new TableAlias();
+_sql.tableAlias = (name: string): TableAlias => new TableAlias(name);
 
 _sql.join = (builders: (Sql | null | undefined | false)[], separator = sql`, `): Sql => {
   const children: Sql[] = [];

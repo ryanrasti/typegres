@@ -24,11 +24,11 @@ export class Database {
     fromable: F,
   ): QueryBuilder<{ [K in F["alias"]]: RowTypeOfFromable<F> }, RowTypeOfFromable<F>, []> {
     const rowType = getRowType(fromable) as RowTypeOfFromable<F>;
-    const aliased = aliasRowType(rowType, fromable.alias) as RowTypeOfFromable<F>;
+    const [aliased, tableAlias] = aliasRowType(rowType, fromable.alias) as [RowTypeOfFromable<F>, any];
     return new QueryBuilder({
       namespace: { [fromable.alias]: aliased } as any,
       output: aliased,
-      from: fromable as any,
+      from: { source: fromable as any, tableAlias },
       executor: this.executor,
       alias: fromable.alias,
     });
@@ -39,11 +39,11 @@ export class Database {
     ...valsRest: (NoInfer<R> | RowTypeToTsType<NoInfer<R>>)[]
   ): QueryBuilder<{ values: R }, R, []> {
     const vals = new Values(vals0, ...valsRest);
-    const aliased = aliasRowType(vals0, "values") as R;
+    const [aliased, tableAlias] = aliasRowType(vals0, "values") as [R, any];
     return new QueryBuilder<{ values: R }, R, []>({
       namespace: { values: aliased } as { values: R },
       output: aliased,
-      from: vals as any,
+      from: { source: vals as any, tableAlias },
       executor: this.executor,
       alias: "q",
     });
