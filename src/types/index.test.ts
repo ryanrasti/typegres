@@ -234,8 +234,8 @@ test("column() returns typed descriptor", () => {
 // --- Bool logic ---
 
 test("Bool.and / or / not", async () => {
-  const a = new Bool(true);
-  const b = new Bool(false);
+  const a = new Bool(true) as Bool<1>;
+  const b = new Bool(false) as Bool<1>;
 
   // and
   const andResult = await exec.execute(sql`SELECT ${a.and(b).compile()} as result`);
@@ -254,8 +254,8 @@ test("Bool.and / or / not", async () => {
   expect(chainResult[0]!["result"]).toBe("t");
 
   // type: and/or propagate nullability
-  expectTypeOf(a.and(b)).toMatchTypeOf<Bool<any>>();
+  expectTypeOf(a.and(b)).toEqualTypeOf<Bool<1>>();
   const nullable = new Bool(sql`NULL::bool`) as Bool<0 | 1>;
-  expectTypeOf(nullable.and(a)).toMatchTypeOf<Bool<any>>();
-  expectTypeOf(a.not()).toMatchTypeOf<Bool<any>>();
+  expectTypeOf(nullable.and(a)).toEqualTypeOf<Bool<0 | 1>>();
+  expectTypeOf(a.not()).toEqualTypeOf<Bool<1>>();
 });
