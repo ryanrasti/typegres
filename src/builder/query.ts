@@ -208,9 +208,18 @@ export class QueryBuilder<
   // After groupBy, table columns in the namespace become aggregate types (N=number).
   // Grouped columns are accessible by index with their original types.
   // Output is reset to {} — must call select() after groupBy to define output columns.
+  // No args = whole-table aggregate (no GROUP BY emitted).
+  // No args = whole-table aggregate (no GROUP BY clause emitted).
+  groupBy(): QueryBuilder<{ [K in keyof N]: AggregateRow<N[K]> }, {}, GB, Card>;
   groupBy<G extends Any<any>[]>(
     groupByFn: (n: N) => [...G],
-  ): QueryBuilder<{ [K in keyof N]: AggregateRow<N[K]> } & G, {}, [...GB, ...G], Card> {
+  ): QueryBuilder<{ [K in keyof N]: AggregateRow<N[K]> } & G, {}, [...GB, ...G], Card>;
+  groupBy(groupByFn?: (n: N) => Any<any>[]): any {
+    if (!groupByFn) {
+      // Whole-table aggregate: clear output, don't modify groupBy
+      return new QueryBuilder({ ...this.opts, output: {} }, this.card);
+    }
+
     const rawGroupBy = groupByFn(this.opts.namespace);
     const mergedGroupBy = [...(this.opts.groupBy ?? []), ...rawGroupBy];
 

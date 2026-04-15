@@ -628,7 +628,7 @@ test("scalar with cardinality 'many' — array result", async () => {
 test("count on values", async () => {
   const result = await db
     .values({ x: new Int4(1) }, { x: 2 }, { x: 3 })
-    .groupBy(() => [])
+    .groupBy()
     .select((n) => ({ total: n.values.x.count() }))
     .execute();
 
@@ -639,7 +639,7 @@ test("count on values", async () => {
 test("sum and avg", async () => {
   const result = await db
     .values({ x: new Int4(10) }, { x: 20 }, { x: 30 })
-    .groupBy(() => [])
+    .groupBy()
     .select((n) => ({ total: n.values.x.sum(), average: n.values.x.avg() }))
     .execute();
 
@@ -673,7 +673,7 @@ test("groupBy with count", async () => {
 test("max and min", async () => {
   const result = await db
     .values({ x: new Int4(5) }, { x: 1 }, { x: 9 })
-    .groupBy(() => [])
+    .groupBy()
     .select((n) => ({ hi: n.values.x.max(), lo: n.values.x.min() }))
     .execute();
 
