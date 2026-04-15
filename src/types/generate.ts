@@ -517,8 +517,8 @@ const generateTypeFile = (
     const retBase = resolveBaseTypeName(f.returnType, pgType, typeMap);
     let retType: string;
     if (f.isAggregate) {
-      // Aggregates return N=number (aggregate context) — except count which is always non-null
-      const aggNull = f.name === "count" ? "1" : "number";
+      // Aggregates collapse rows to a scalar: count → 1 (never null), others → 0 | 1 (null on empty group)
+      const aggNull = f.name === "count" ? "1" : "0 | 1";
       retType = formatTypeWithNull(retBase, aggNull);
     } else {
       const nullParts = ["N", ...restArgs.map((_, i) => `NullOf<M${i}>`)];
