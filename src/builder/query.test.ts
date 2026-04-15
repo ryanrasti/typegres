@@ -2,7 +2,7 @@ import { test, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
 import { pgliteExecutor } from "../executor";
 import type { Executor } from "../executor";
 import { Database } from "../database";
-import { Int4, Int8, Text, Bool } from "../types";
+import { Int4, Int8, Text, Bool, Jsonb } from "../types";
 import { sql } from "./sql";
 
 let exec: Executor;
@@ -695,12 +695,13 @@ test("generate_series as Fromable via db.from()", async () => {
   ]);
 });
 
-test.skip("json_each as Fromable — multi-column SRF", async () => {
-  const jsonVal = new (await import("../types")).Jsonb('{"a": 1, "b": 2}');
-  const each = jsonVal.jsonbEach();
-  const result = await db.from(each).execute();
+test("jsonb_each_text as multi-column SRF", async () => {
+  const jsonVal = new Jsonb('{"a": 1, "b": 2}');
+  const each = jsonVal.jsonbEachText();
+  const result = await db.from(each)
+    .orderBy(({ jsonb_each_text }) => jsonb_each_text.key)
+    .execute();
 
-  // Expected shape: json_each returns (key text, value jsonb) — two columns
   expectTypeOf(result).toEqualTypeOf<{ key: string; value: string }[]>();
   expect(result).toEqual([
     { key: "a", value: "1" },

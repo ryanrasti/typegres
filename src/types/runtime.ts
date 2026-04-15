@@ -103,12 +103,12 @@ export const PgOp = <T>(op: string, args: [unknown, unknown], type: new (raw: Sq
 };
 
 // Set-returning function result — implements Fromable for use in FROM/JOIN
-export class PgSrf<R extends { [key: string]: Any<any> }> {
-  alias: string;
+export class PgSrf<R extends { [key: string]: Any<any> }, A extends string> {
+  alias: A;
   rowType: R;
   #sql: Sql;
 
-  constructor(name: string, args: unknown[], columnName: string, type: new (raw: Sql) => Any<any>) {
+  constructor(name: A, args: unknown[], columnName: string, type: new (raw: Sql) => Any<any>) {
     this.alias = name;
     const colRef = sql`${sql.ident(name)}.${sql.ident(columnName)}`;
     this.rowType = { [columnName]: new type(colRef) } as R;
@@ -123,11 +123,28 @@ export class PgSrf<R extends { [key: string]: Any<any> }> {
   }
 }
 
-export const PgSrfFunc = <R extends { [key: string]: Any<any> }>(
-  name: string,
+export const PgSrfFunc = <R extends { [key: string]: Any<any> }, A extends string>(
+  name: A,
   args: unknown[],
   columnName: string,
   type: new (raw: Sql) => Any<any>,
-): PgSrf<R> => {
+): PgSrf<R, A> => {
   return new PgSrf(name, args, columnName, type);
+};
+
+// Multi-column SRF: columns defined by OUT params
+export const PgSrfMulti = <A extends string>(
+  name: A,
+  args: unknown[],
+  columns: [string, new (raw: Sql) => Any<any>][],
+): PgSrf<any, A> => {
+  const srf = new PgSrf(name, args, columns[0]![0], columns[0]![1]);
+  // Override rowType with all columns
+  const rowType: { [key: string]: Any<any> } = {};
+  for (const [colName, type] of columns) {
+    const colRef = sql`${sql.ident(name)}.${sql.ident(colName)}`;
+    rowType[colName] = new type(colRef);
+  }
+  srf.rowType = rowType;
+  return srf;
 };
