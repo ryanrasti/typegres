@@ -14,7 +14,7 @@ export { Anymultirange } from "./overrides/anymultirange";
 export { Anynonarray } from "./generated/anynonarray";
 export { Anyrange } from "./overrides/anyrange";
 export { Bit } from "./generated/bit";
-export { Bool } from "./generated/bool";
+export { Bool } from "./overrides/bool";
 export { Bpchar } from "./generated/bpchar";
 export { Bytea } from "./generated/bytea";
 export { Char } from "./generated/char";
