@@ -6,7 +6,7 @@
   "scripts": {
     "migrate": "node --experimental-strip-types migrate.ts",
     "generate": "tg generate",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsgo --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
