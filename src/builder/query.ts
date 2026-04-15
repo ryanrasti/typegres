@@ -81,8 +81,8 @@ export const aliasRowType = <R extends RowType>(row: R, name: string): [R, Table
 };
 
 export type Fromable = {
-  alias: string;
-  compile: (isSubquery?: boolean) => Sql;
+  tsAlias: string;
+  registerAndCompile: (ctx: CompileContext, alias: TableAlias) => string;
 } & ({ rowType: RowType } | { new (): object });
 
 export type RowTypeOfFromable<F extends Fromable> = F extends { rowType: infer R }
@@ -116,7 +116,7 @@ type QueryBuilderOptions<
   namespace: N;
   output: O;
   executor: Executor;
-  alias: string;
+  tsAlias: string;
   from?: { source: Fromable; tableAlias: TableAlias };
   where?: Bool<any>;
   groupBy?: GB;
@@ -140,8 +140,8 @@ export class QueryBuilder<
 > extends Sql {
   private opts: QueryBuilderOptions<N, O, GB>;
   private card: Card;
-  get alias(): string {
-    return this.opts.alias;
+  get tsAlias(): string {
+    return this.opts.tsAlias;
   }
   get rowType(): RowType {
     return this.opts.output;
@@ -173,10 +173,10 @@ export class QueryBuilder<
 
   join<F extends Fromable>(
     from: F,
-    onFn: (ns: N & { [k in F["alias"]]: RowTypeOfFromable<F> }) => Bool<any>,
-  ): QueryBuilder<N & { [k in F["alias"]]: RowTypeOfFromable<F> }, O, GB> {
-    const [aliased, tableAlias] = aliasRowType(getRowType(from), from.alias);
-    const namespace = { ...this.opts.namespace, [from.alias]: aliased } as any;
+    onFn: (ns: N & { [k in F["tsAlias"]]: RowTypeOfFromable<F> }) => Bool<any>,
+  ): QueryBuilder<N & { [k in F["tsAlias"]]: RowTypeOfFromable<F> }, O, GB> {
+    const [aliased, tableAlias] = aliasRowType(getRowType(from), from.tsAlias);
+    const namespace = { ...this.opts.namespace, [from.tsAlias]: aliased } as any;
     return new QueryBuilder({
       ...this.opts,
       namespace,
@@ -189,10 +189,10 @@ export class QueryBuilder<
 
   leftJoin<F extends Fromable>(
     from: F,
-    onFn: (ns: N & { [k in F["alias"]]: RowTypeToNullable<RowTypeOfFromable<F>> }) => Bool<any>,
-  ): QueryBuilder<N & { [k in F["alias"]]: RowTypeToNullable<RowTypeOfFromable<F>> }, O, GB> {
-    const [aliased, tableAlias] = aliasRowType(getRowType(from), from.alias);
-    const namespace = { ...this.opts.namespace, [from.alias]: aliased } as any;
+    onFn: (ns: N & { [k in F["tsAlias"]]: RowTypeToNullable<RowTypeOfFromable<F>> }) => Bool<any>,
+  ): QueryBuilder<N & { [k in F["tsAlias"]]: RowTypeToNullable<RowTypeOfFromable<F>> }, O, GB> {
+    const [aliased, tableAlias] = aliasRowType(getRowType(from), from.tsAlias);
+    const namespace = { ...this.opts.namespace, [from.tsAlias]: aliased } as any;
     return new QueryBuilder({
       ...this.opts,
       namespace,
@@ -292,7 +292,7 @@ export class QueryBuilder<
     const rowSql = sql`ROW(${sql.join(rowExprs)})`;
     // Wrap as a subquery: (SELECT ROW(...) FROM ... WHERE ...)
     const inner = this.select(() => ({ __row: RecordClass.from(rowSql) }));
-    const subquery = sql`(${inner}) AS ${sql.ident(this.alias)}`;
+    const subquery = sql`(${inner}) AS ${sql.ident(this.tsAlias)}`;
     if (this.card === "many") {
       return Anyarray.of(RecordClass.from(sql``)).from(
         sql`COALESCE((SELECT array_agg("__row") FROM ${subquery}), '{}')`,
@@ -302,24 +302,24 @@ export class QueryBuilder<
   }
 
   emit(ctx: CompileContext): string {
-    // Register FROM alias in scope
-    if (this.opts.from) {
-      ctx.register(this.opts.from.tableAlias, this.opts.from.tableAlias.name);
-    }
-    // Register JOIN aliases
-    for (const j of this.opts.joins ?? []) {
-      ctx.register(j.tableAlias, j.tableAlias.name);
-    }
+    const isSubquery = !ctx.isTopLevel;
+    using _ = ctx.child();
 
-    return sql.join(
+    // FROM/JOINs register aliases first — must happen before columns try to resolve
+    const fromSql = this.opts.from
+      ? sql.raw(this.opts.from.source.registerAndCompile(ctx, this.opts.from.tableAlias))
+      : undefined;
+    const joinSqls = (this.opts.joins ?? []).map((j) => {
+      const kw = j.type === "left" ? "LEFT JOIN" : "JOIN";
+      const source = j.source.registerAndCompile(ctx, j.tableAlias);
+      return sql`${sql.raw(kw)} ${sql.raw(source)} ON ${j.on.toSql()}`;
+    });
+
+    const body = sql.join(
       [
         sql`SELECT ${compileSelectList(this.opts.output as { [key: string]: unknown })}`,
-        this.opts.from && sql`FROM ${this.opts.from.source.compile(true)} AS ${sql.tableRef(this.opts.from.tableAlias)}`,
-        ...(this.opts.joins ?? []).map((j) =>
-          j.type === "left"
-            ? sql`LEFT JOIN ${j.source.compile(true)} AS ${sql.tableRef(j.tableAlias)} ON ${j.on.toSql()}`
-            : sql`JOIN ${j.source.compile(true)} AS ${sql.tableRef(j.tableAlias)} ON ${j.on.toSql()}`,
-        ),
+        fromSql && sql`FROM ${fromSql}`,
+        ...joinSqls,
         this.opts.where && sql`WHERE ${this.opts.where.toSql()}`,
         this.opts.groupBy &&
           this.opts.groupBy.length > 0 &&
@@ -344,6 +344,8 @@ export class QueryBuilder<
       ],
       sql`\n`,
     ).emit(ctx);
+
+    return isSubquery ? `(${body}) AS ${sql.ident(this.tsAlias).emit(ctx)}` : body;
   }
 
   cardinality<C extends Cardinality>(card: C): QueryBuilder<N, O, GB, C> {

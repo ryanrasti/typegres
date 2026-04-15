@@ -1,26 +1,34 @@
 import type { Executor } from "./executor";
-import type { Fromable} from "./builder/query";
+import type { CompileContext, TableAlias } from "./builder/sql";
+import { sql } from "./builder/sql";
+import type { Fromable } from "./builder/query";
 import { aliasRowType, QueryBuilder } from "./builder/query";
 import { DeleteBuilder } from "./builder/delete";
 import { UpdateBuilder } from "./builder/update";
 import { InsertBuilder } from "./builder/insert";
-import { sql } from "./builder/sql";
 import type { InsertRow } from "./types/runtime";
 
 export class TableBase {
   static tableName: string;
-  static alias: string;
+  static tsAlias: string;
   static executor: Executor;
 
-  static from<T extends {new (): any; alias: string; executor: Executor}>(this: T) {
+  static registerAndCompile(ctx: CompileContext, alias: TableAlias): string {
+    const resolved = ctx.register(alias, alias.name);
+    return resolved === this.tableName
+      ? `"${this.tableName}"`
+      : `"${this.tableName}" AS "${resolved}"`;
+  }
+
+  static from<T extends {new (): any; tsAlias: string; executor: Executor}>(this: T) {
     const row = new this() as InstanceType<T>;
-    const [aliased, tableAlias] = aliasRowType(row, this.alias);
-    return new QueryBuilder<{ [K in T["alias"]]: InstanceType<T> }, InstanceType<T>, []>({
-      namespace: { [this.alias]: aliased } as any,
+    const [aliased, tableAlias] = aliasRowType(row, this.tsAlias);
+    return new QueryBuilder<{ [K in T["tsAlias"]]: InstanceType<T> }, InstanceType<T>, []>({
+      namespace: { [this.tsAlias]: aliased } as any,
       output: aliased,
       executor: this.executor,
       from: { source: this as any, tableAlias },
-      alias: this.alias,
+      tsAlias: this.tsAlias,
     });
   }
 
@@ -29,31 +37,24 @@ export class TableBase {
     ...rows: [InsertRow<InstanceType<T>>, ...InsertRow<InstanceType<T>>[]]
   ): InsertBuilder<T["tableName"], InstanceType<T>> {
     const instance = new this();
-    const [aliased] = aliasRowType(instance, this.tableName) as [InstanceType<T>, any];
+    const [aliased, tableAlias] = aliasRowType(instance, this.tableName) as [InstanceType<T>, any];
     const ns = { [this.tableName]: aliased } as { [K in T["tableName"]]: InstanceType<T> };
     const columnNames = Object.keys(instance).filter((k) => instance[k]?.__column);
-    return new InsertBuilder({ tableName: this.tableName, executor: this.executor, instance, namespace: ns, columnNames, rows: rows as { [key: string]: unknown }[] });
+    return new InsertBuilder({ tableName: this.tableName, executor: this.executor, instance, namespace: ns, columnNames, rows: rows as { [key: string]: unknown }[], tableAlias });
   }
 
   static update<T extends typeof TableBase & (new () => any)>(this: T): UpdateBuilder<T["tableName"], InstanceType<T>> {
     const instance = new this();
-    const [aliased] = aliasRowType(instance, this.tableName) as [InstanceType<T>, any];
+    const [aliased, tableAlias] = aliasRowType(instance, this.tableName) as [InstanceType<T>, any];
     const ns = { [this.tableName]: aliased } as { [K in T["tableName"]]: InstanceType<T> };
-    return new UpdateBuilder({ tableName: this.tableName, executor: this.executor, instance, namespace: ns });
+    return new UpdateBuilder({ tableName: this.tableName, executor: this.executor, instance, namespace: ns, tableAlias });
   }
 
   static delete<T extends typeof TableBase & (new () => any)>(this: T): DeleteBuilder<T["tableName"], InstanceType<T>> {
     const instance = new this();
-    const [aliased] = aliasRowType(instance, this.tableName) as [InstanceType<T>, any];
+    const [aliased, tableAlias] = aliasRowType(instance, this.tableName) as [InstanceType<T>, any];
     const ns = { [this.tableName]: aliased } as { [K in T["tableName"]]: InstanceType<T> };
-    return new DeleteBuilder({ tableName: this.tableName, executor: this.executor, namespace: ns });
-  }
-
-  static compile(isSubquery?: boolean) {
-    if (!isSubquery) {
-      throw new Error("Table cannot be compiled directly; it must be used in a query");
-    }
-    return sql`${sql.ident(this.tableName)}`;
+    return new DeleteBuilder({ tableName: this.tableName, executor: this.executor, namespace: ns, tableAlias });
   }
 }
 

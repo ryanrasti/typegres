@@ -1,5 +1,6 @@
 import type { Executor } from "../executor";
-import { sql } from "./sql";
+import { Sql, sql } from "./sql";
+import type { CompileContext, TableAlias } from "./sql";
 import type { RowType, RowTypeToTsType } from "./query";
 import { compileSelectList, deserializeRows } from "./query";
 
@@ -10,15 +11,17 @@ type InsertOpts<Name extends string, T, R extends RowType> = {
   executor: Executor;
   instance: T;
   namespace: Namespace<Name, T>;
+  tableAlias: TableAlias;
   columnNames: string[];
   rows: { [key: string]: unknown }[];
   returning?: R;
 };
 
-export class InsertBuilder<Name extends string, T extends { [key: string]: any }, R extends RowType = {}> {
+export class InsertBuilder<Name extends string, T extends { [key: string]: any }, R extends RowType = {}> extends Sql {
   #opts: InsertOpts<Name, T, R>;
 
   constructor(opts: InsertOpts<Name, T, R>) {
+    super();
     this.#opts = opts;
   }
 
@@ -29,10 +32,14 @@ export class InsertBuilder<Name extends string, T extends { [key: string]: any }
     });
   }
 
-  compile() {
+  emit(ctx: CompileContext): string {
     if (this.#opts.rows.length === 0) {
       throw new Error("insert() requires at least one row");
     }
+
+    using _ = ctx.child();
+    ctx.register(this.#opts.tableAlias, this.#opts.tableAlias.name);
+
     const columns = this.#opts.columnNames.map((k) => sql.ident(k));
     const rowSqls = this.#opts.rows.map((row) => {
       const vals = this.#opts.columnNames.map((k) => {
@@ -49,17 +56,17 @@ export class InsertBuilder<Name extends string, T extends { [key: string]: any }
     return sql.join([
       sql`INSERT INTO ${sql.ident(this.#opts.tableName)} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`,
       this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as { [key: string]: unknown })}`,
-    ], sql` `);
+    ], sql` `).emit(ctx);
   }
 
   debug(): this {
-    const compiled = this.compile().compile("pg");
+    const compiled = this.compile("pg");
     console.log(compiled.text, compiled.values, this.#opts);
     return this;
   }
 
   async execute(): Promise<RowTypeToTsType<R>[]> {
-    const result = await this.#opts.executor.execute(this.compile());
+    const result = await this.#opts.executor.execute(this);
     if (this.#opts.returning) {
       return deserializeRows(result, this.#opts.returning as { [key: string]: unknown }) as any;
     }

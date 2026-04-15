@@ -1,5 +1,6 @@
 import type { Executor } from "../executor";
-import { sql } from "./sql";
+import { Sql, sql } from "./sql";
+import type { CompileContext, TableAlias } from "./sql";
 import { Bool } from "../types";
 import type { SetRow } from "../types/runtime";
 import type { RowType, RowTypeToTsType } from "./query";
@@ -12,15 +13,17 @@ type UpdateOpts<Name extends string, T, R extends RowType> = {
   executor: Executor;
   instance: T;
   namespace: Namespace<Name, T>;
+  tableAlias: TableAlias;
   where?: Bool<any>;
   set?: { [key: string]: unknown };
   returning?: R;
 };
 
-export class UpdateBuilder<Name extends string, T extends { [key: string]: any }, R extends RowType = {}> {
+export class UpdateBuilder<Name extends string, T extends { [key: string]: any }, R extends RowType = {}> extends Sql {
   #opts: UpdateOpts<Name, T, R>;
 
   constructor(opts: UpdateOpts<Name, T, R>) {
+    super();
     this.#opts = opts;
   }
 
@@ -47,13 +50,16 @@ export class UpdateBuilder<Name extends string, T extends { [key: string]: any }
     });
   }
 
-  compile() {
+  emit(ctx: CompileContext): string {
     if (!this.#opts.where) {
       throw new Error("update() requires .where() — use .where(true) to update all rows");
     }
     if (!this.#opts.set) {
       throw new Error("update() requires .set()");
     }
+
+    using _ = ctx.child();
+    ctx.register(this.#opts.tableAlias, this.#opts.tableAlias.name);
 
     const setClauses = Object.entries(this.#opts.set).map(([k, v]) => {
       const col = this.#opts.instance[k];
@@ -65,17 +71,17 @@ export class UpdateBuilder<Name extends string, T extends { [key: string]: any }
       sql`UPDATE ${sql.ident(this.#opts.tableName)} SET ${sql.join(setClauses)}`,
       sql`WHERE ${this.#opts.where.toSql()}`,
       this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as { [key: string]: unknown })}`,
-    ], sql` `);
+    ], sql` `).emit(ctx);
   }
 
   debug(): this {
-    const compiled = this.compile().compile("pg");
+    const compiled = this.compile("pg");
     console.log(compiled.text, compiled.values, this.#opts);
     return this;
   }
 
   async execute(): Promise<RowTypeToTsType<R>[]> {
-    const result = await this.#opts.executor.execute(this.compile());
+    const result = await this.#opts.executor.execute(this);
     if (this.#opts.returning) {
       return deserializeRows(result, this.#opts.returning as { [key: string]: unknown }) as any;
     }

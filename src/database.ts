@@ -22,15 +22,15 @@ export class Database {
 
   public from<F extends Fromable>(
     fromable: F,
-  ): QueryBuilder<{ [K in F["alias"]]: RowTypeOfFromable<F> }, RowTypeOfFromable<F>, []> {
+  ): QueryBuilder<{ [K in F["tsAlias"]]: RowTypeOfFromable<F> }, RowTypeOfFromable<F>, []> {
     const rowType = getRowType(fromable) as RowTypeOfFromable<F>;
-    const [aliased, tableAlias] = aliasRowType(rowType, fromable.alias) as [RowTypeOfFromable<F>, any];
+    const [aliased, tableAlias] = aliasRowType(rowType, fromable.tsAlias) as [RowTypeOfFromable<F>, any];
     return new QueryBuilder({
-      namespace: { [fromable.alias]: aliased } as any,
+      namespace: { [fromable.tsAlias]: aliased } as any,
       output: aliased,
       from: { source: fromable as any, tableAlias },
       executor: this.executor,
-      alias: fromable.alias,
+      tsAlias: fromable.tsAlias,
     });
   }
 
@@ -45,7 +45,7 @@ export class Database {
       output: aliased,
       from: { source: vals as any, tableAlias },
       executor: this.executor,
-      alias: "q",
+      tsAlias: "q",
     });
   }
 
@@ -54,7 +54,7 @@ export class Database {
     const obj = {
       [name]: class extends TableBase {
         static tableName = name;
-        static alias: Name = name;
+        static tsAlias: Name = name;
         static executor = executor;
 
         static as<T extends typeof TableBase, A extends string>(
@@ -62,10 +62,9 @@ export class Database {
           alias: A,
         ) {
           return class extends (this as any) {
-            static alias: A = alias;
-          } as unknown as Omit<T, 'alias'> & { new (): InstanceType<T>; alias: A };
+            static tsAlias: A = alias;
+          } as unknown as Omit<T, 'tsAlias'> & { new (): InstanceType<T>; tsAlias: A };
         }
-
       },
     };
     type Obj = typeof obj;

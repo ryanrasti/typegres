@@ -66,12 +66,14 @@ export class CompileContext {
     return this.scope.resolve(alias);
   }
 
-  child<T>(fn: () => T): T {
+  get isTopLevel(): boolean {
+    return this.scope.parent === undefined;
+  }
+
+  child(): Disposable {
     const prev = this.scope;
     this.scope = this.scope.child();
-    const result = fn();
-    this.scope = prev;
-    return result;
+    return { [Symbol.dispose]: () => { this.scope = prev; } };
   }
 }
 

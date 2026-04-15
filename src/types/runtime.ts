@@ -1,5 +1,5 @@
-import type { Sql } from "../builder/sql";
-import { sql } from "../builder/sql";
+import type { Sql, CompileContext } from "../builder/sql";
+import { sql, TableAlias } from "../builder/sql";
 import * as types from "./index";
 import type { Any } from "./index";
 import { getTypeDef } from "./deserialize";
@@ -122,22 +122,22 @@ export const PgOp = (op: string, args: [unknown, unknown], type: typeof Any) => 
 
 // Set-returning function result — implements Fromable for use in FROM/JOIN
 export class PgSrf<R extends { [key: string]: Any<any> }, A extends string> {
-  alias: A;
+  tsAlias: A;
   rowType: R;
-  #sql: Sql;
+  #name: string;
+  #argsSql: Sql;
 
   constructor(name: A, args: unknown[], columnName: string, type: typeof Any) {
-    this.alias = name;
-    const colRef = sql`${sql.ident(name)}.${sql.ident(columnName)}`;
-    this.rowType = { [columnName]: type.from(colRef) } as R;
-    this.#sql = sql`${sql.ident(name)}(${sql.join(args.map(argToSql))})`;
+    this.tsAlias = name;
+    this.#name = name;
+    // Placeholder rowType — aliasRowType will replace column refs with proper TableAlias refs
+    this.rowType = { [columnName]: type.from(sql`"${sql.raw(name)}"."${sql.raw(columnName)}"`) } as R;
+    this.#argsSql = sql.join(args.map(argToSql));
   }
 
-  compile(isSubquery?: boolean) {
-    if (!isSubquery) {
-      throw new Error("SRF cannot be compiled directly; use in FROM or JOIN");
-    }
-    return sql`${this.#sql} AS ${sql.ident(this.alias)}`;
+  registerAndCompile(ctx: CompileContext, alias: TableAlias): string {
+    const resolved = ctx.register(alias, alias.name);
+    return `"${this.#name}"(${this.#argsSql.emit(ctx)}) AS "${resolved}"`;
   }
 }
 
@@ -157,11 +157,10 @@ export const PgSrfMulti = <A extends string>(
   columns: [string, typeof Any][],
 ): PgSrf<any, A> => {
   const srf = new PgSrf(name, args, columns[0]![0], columns[0]![1]);
-  // Override rowType with all columns
+  // Override rowType — placeholders, aliasRowType will replace with proper refs
   const rowType: { [key: string]: Any<any> } = {};
   for (const [colName, type] of columns) {
-    const colRef = sql`${sql.ident(name)}.${sql.ident(colName)}`;
-    rowType[colName] = type.from(colRef);
+    rowType[colName] = type.from(sql`"${sql.raw(name)}"."${sql.raw(colName)}"`);
   }
   srf.rowType = rowType;
   return srf;
