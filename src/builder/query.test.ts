@@ -622,3 +622,61 @@ test("scalar with cardinality 'many' — array result", async () => {
     ]);
   });
 });
+
+// --- aggregates ---
+
+test("count on values", async () => {
+  const result = await db
+    .values({ x: new Int4(1) }, { x: 2 }, { x: 3 })
+    .groupBy(() => [])
+    .select((n) => ({ total: n.values.x.count() }))
+    .execute();
+
+  expectTypeOf(result).toEqualTypeOf<{ total: bigint }[]>();
+  expect(result).toEqual([{ total: 3n }]);
+});
+
+test("sum and avg", async () => {
+  const result = await db
+    .values({ x: new Int4(10) }, { x: 20 }, { x: 30 })
+    .groupBy(() => [])
+    .select((n) => ({ total: n.values.x.sum(), average: n.values.x.avg() }))
+    .execute();
+
+  expectTypeOf(result).toEqualTypeOf<{ total: bigint | null; average: string | null }[]>();
+  expect(result).toEqual([{ total: 60n, average: "20.0000000000000000" }]);
+});
+
+test("groupBy with count", async () => {
+  const result = await db
+    .values(
+      { cat: new Text("a"), val: new Int4(1) },
+      { cat: "a", val: 2 },
+      { cat: "b", val: 3 },
+    )
+    .groupBy((n) => [n.values.cat])
+    .select(({ 0: cat, values }) => ({
+      cat,
+      count: values.val.count(),
+      total: values.val.sum(),
+    }))
+    .orderBy(({ 0: cat }) => cat)
+    .execute();
+
+  expectTypeOf(result).toEqualTypeOf<{ cat: string; count: bigint; total: bigint | null }[]>();
+  expect(result).toEqual([
+    { cat: "a", count: 2n, total: 3n },
+    { cat: "b", count: 1n, total: 3n },
+  ]);
+});
+
+test("max and min", async () => {
+  const result = await db
+    .values({ x: new Int4(5) }, { x: 1 }, { x: 9 })
+    .groupBy(() => [])
+    .select((n) => ({ hi: n.values.x.max(), lo: n.values.x.min() }))
+    .execute();
+
+  expectTypeOf(result).toEqualTypeOf<{ hi: number | null; lo: number | null }[]>();
+  expect(result).toEqual([{ hi: 9, lo: 1 }]);
+});
