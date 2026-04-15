@@ -39,15 +39,13 @@ export class Any<N extends number> extends Generated<N> {
   }
 
   // COALESCE(this, rhs) — returns first non-null. Chainable.
-  // Null only if both sides can be null.
-  coalesce<T extends Any<any>, M extends number>(
+  // rhs must be same concrete type (via [meta].__any). If rhs is non-null, returns __nonNullable.
+  coalesce<T extends Any<any>, R extends (T extends { [meta]: { __any: infer A } } ? A : Any<any>)>(
     this: T,
-    rhs: Any<M>,
-  ): 0 extends NullOf<T>
-    ? (0 extends M
-      ? T  // both nullable → stay nullable
-      : (T extends { [meta]: { __nonNullable: infer U } } ? U : T))  // rhs non-null → non-null
-    : T {  // this non-null → stays non-null
+    rhs: R,
+  ): 0 extends NullOf<R>
+    ? T  // rhs can be null → preserve T (still nullable)
+    : (T extends { [meta]: { __nonNullable: infer U } } ? U : T) {  // rhs is non-null → __nonNullable
     return new ((this as any)[meta].__class as any)(sql`COALESCE(${this.compile()}, ${rhs.compile()})`) as any;
   }
 

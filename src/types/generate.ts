@@ -533,6 +533,7 @@ const generateTypeFile = (
     lines.push(`    __nullable: ${cls}<0 | 1>;`);
     lines.push(`    __nonNullable: ${cls}<1>;`);
     lines.push(`    __aggregate: ${cls}<number>;`);
+    lines.push(`    __any: ${cls}<any>;`);
     lines.push(`  };`);
     lines.push(`  static __typname = "${pgType.typname}";`);
     lines.push(`  constructor(raw: Sql | ${tsType}) { super(raw); }`);

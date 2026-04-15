@@ -285,4 +285,7 @@ test("coalesce nullability", async () => {
   expectTypeOf(chained).toEqualTypeOf<Text<1>>();
   const chainResult = await exec.execute(sql`SELECT ${chained.compile()} as val`);
   expect(chainResult[0]!["val"]).toBe("default");
+
+  // @ts-expect-error — Int4 is not assignable to Text
+  nonNull.coalesce(new Int4(1) as Int4<1>);
 });
