@@ -687,10 +687,23 @@ test("generate_series as Fromable via db.from()", async () => {
   const series = new Int4(1).generateSeries(3, 1);
   const result = await db.from(series).execute();
 
-  expectTypeOf(result[0]!.generate_series).toEqualTypeOf<number>();
+  expectTypeOf(result).toEqualTypeOf<{ generate_series: number }[]>();
   expect(result).toEqual([
     { generate_series: 1 },
     { generate_series: 2 },
     { generate_series: 3 },
+  ]);
+});
+
+test.skip("json_each as Fromable — multi-column SRF", async () => {
+  const jsonVal = new (await import("../types")).Jsonb('{"a": 1, "b": 2}');
+  const each = jsonVal.jsonbEach();
+  const result = await db.from(each).execute();
+
+  // Expected shape: json_each returns (key text, value jsonb) — two columns
+  expectTypeOf(result).toEqualTypeOf<{ key: string; value: string }[]>();
+  expect(result).toEqual([
+    { key: "a", value: "1" },
+    { key: "b", value: "2" },
   ]);
 });
