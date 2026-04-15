@@ -101,3 +101,33 @@ export const PgOp = <T>(op: string, args: [unknown, unknown], type: new (raw: Sq
   const rawSql = sql`(${compileArg(args[0])} ${sql.raw(op)} ${compileArg(args[1])})`;
   return new type(rawSql);
 };
+
+// Set-returning function result — implements Fromable for use in FROM/JOIN
+export class PgSrf<R extends { [key: string]: Any<any> }> {
+  alias: string;
+  rowType: R;
+  #sql: Sql;
+
+  constructor(name: string, args: unknown[], columnName: string, type: new (raw: Sql) => Any<any>) {
+    this.alias = name;
+    const colRef = sql`${sql.ident(name)}.${sql.ident(columnName)}`;
+    this.rowType = { [columnName]: new type(colRef) } as R;
+    this.#sql = sql`${sql.ident(name)}(${sql.join(args.map(compileArg))})`;
+  }
+
+  compile(isSubquery?: boolean) {
+    if (!isSubquery) {
+      throw new Error("SRF cannot be compiled directly; use in FROM or JOIN");
+    }
+    return sql`${this.#sql} AS ${sql.ident(this.alias)}`;
+  }
+}
+
+export const PgSrfFunc = <R extends { [key: string]: Any<any> }>(
+  name: string,
+  args: unknown[],
+  columnName: string,
+  type: new (raw: Sql) => Any<any>,
+): PgSrf<R> => {
+  return new PgSrf(name, args, columnName, type);
+};

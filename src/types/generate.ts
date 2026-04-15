@@ -96,9 +96,10 @@ interface PgFunc {
   name: string;
   argTypes: number[];
   returnType: number;
-  isOperator: boolean;
-  isStrict: boolean;
-  isAggregate: boolean;
+  isOperator?: boolean;
+  isStrict?: boolean;
+  isAggregate?: boolean;
+  isSrf?: boolean;
 }
 
 const introspect = async (db: PGlite) => {
@@ -174,9 +175,7 @@ const introspect = async (db: PGlite) => {
         name: f.proname,
         argTypes: argOids,
         returnType: f.prorettype,
-        isOperator: false,
         isStrict: f.proisstrict,
-        isAggregate: false,
       });
     }
   }
@@ -192,8 +191,7 @@ const introspect = async (db: PGlite) => {
         argTypes: [o.oprleft, o.oprright],
         returnType: o.oprresult,
         isOperator: true,
-        isStrict: true, // operators always propagate nulls
-        isAggregate: false,
+        isStrict: true,
       });
     }
   }
@@ -225,9 +223,44 @@ const introspect = async (db: PGlite) => {
         name: f.proname,
         argTypes: argOids,
         returnType: f.prorettype,
-        isOperator: false,
-        isStrict: false, // aggregates handle nulls themselves
         isAggregate: true,
+      });
+    }
+  }
+
+  // Get set-returning functions
+  const { rows: srfFuncs } = await db.query<{
+    proname: string;
+    proargtypes: string;
+    prorettype: number;
+    proisstrict: boolean;
+  }>(`
+    SELECT p.proname, p.proargtypes::text, p.prorettype, p.proisstrict
+    FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = 'pg_catalog'
+      AND p.prokind = 'f'
+      AND p.proretset = true
+      AND p.provolatile IN ('i', 's')
+      AND array_length(string_to_array(trim(p.proargtypes::text), ' '), 1) > 0
+      AND p.proargtypes::text != ''
+      AND p.oid NOT IN (SELECT oprcode FROM pg_operator WHERE oprcode != 0)
+      AND p.oid NOT IN (SELECT amproc FROM pg_amproc)
+    ORDER BY p.proname
+  `);
+
+  for (const f of srfFuncs) {
+    const argOids = f.proargtypes
+      .trim()
+      .split(/\s+/)
+      .map(Number);
+    if (argOids.every((oid) => typeMap.has(oid)) && typeMap.has(f.prorettype)) {
+      pgFuncs.push({
+        name: f.proname,
+        argTypes: argOids,
+        returnType: f.prorettype,
+        isStrict: f.proisstrict,
+        isSrf: true,
       });
     }
   }
@@ -407,6 +440,7 @@ const generateTypeFile = (
     ...(needsTsTypeOf ? ["TsTypeOf"] : []),
     ...(needsPgType ? ["pgType"] : []),
     ...(needsPgElement ? ["pgElement"] : []),
+    ...(emitted.some((f) => f.isSrf) ? ["PgSrfFunc", "PgSrf"] : []),
   ];
   if (runtimeImports.length > 0) {
     lines.push(`import { ${runtimeImports.join(", ")} } from "../runtime";`);
@@ -565,6 +599,13 @@ const generateTypeFile = (
         return `  ['${f.name}']${genericDecl}(${params}): ${retType};`;
       }
       return `  ${camelcase(f.name)}${genericDecl}(${params}): ${retType};`;
+    }
+
+    // SRF — returns a PgSrf Fromable, not a scalar
+    if (f.isSrf) {
+      const colName = f.name; // pg uses function name as default column name
+      const srfRetType = `PgSrf<{ ${colName}: ${retType} }>`;
+      return `  ${camelcase(f.name)}${genericDecl}(${params}): ${srfRetType} { return PgSrfFunc("${f.name}", [${allArgs}], "${colName}", ${typeArg}) as any; }`;
     }
 
     // Implementation — has body. Cast needed when pgType/pgElement can't be verified by TS.

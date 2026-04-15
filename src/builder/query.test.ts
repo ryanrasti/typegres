@@ -680,3 +680,17 @@ test("max and min", async () => {
   expectTypeOf(result).toEqualTypeOf<{ hi: number | null; lo: number | null }[]>();
   expect(result).toEqual([{ hi: 9, lo: 1 }]);
 });
+
+// --- set-returning functions ---
+
+test("generate_series as Fromable via db.from()", async () => {
+  const series = new Int4(1).generateSeries(3, 1);
+  const result = await db.from(series).execute();
+
+  expectTypeOf(result[0]!.generate_series).toEqualTypeOf<number>();
+  expect(result).toEqual([
+    { generate_series: 1 },
+    { generate_series: 2 },
+    { generate_series: 3 },
+  ]);
+});

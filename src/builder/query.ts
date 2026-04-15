@@ -85,13 +85,13 @@ export type Fromable = {
   compile: (isSubquery?: boolean) => Sql;
 } & ({ rowType: RowType } | { new (): object });
 
-type RowTypeOfFromable<F extends Fromable> = F extends { rowType: infer R }
+export type RowTypeOfFromable<F extends Fromable> = F extends { rowType: infer R }
   ? R
   : F extends new () => infer R
     ? R
     : never;
 
-const getRowType = (from: Fromable): RowType => {
+export const getRowType = (from: Fromable): RowType => {
   if ("rowType" in from) {
     return from.rowType;
   }

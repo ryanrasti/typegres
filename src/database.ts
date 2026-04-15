@@ -1,6 +1,6 @@
 import type { Executor } from "./executor";
-import type { RowType, RowTypeToTsType } from "./builder/query";
-import { aliasRowType, QueryBuilder } from "./builder/query";
+import type { Fromable, RowType, RowTypeToTsType, RowTypeOfFromable } from "./builder/query";
+import { aliasRowType, QueryBuilder, getRowType } from "./builder/query";
 import { sql } from "./builder/sql";
 import { TableBase } from "./table";
 import { Values } from "./builder/values";
@@ -18,6 +18,20 @@ export class Database {
       await this.executor.execute(sql`ROLLBACK`);
       throw e;
     }
+  }
+
+  public from<F extends Fromable>(
+    fromable: F,
+  ): QueryBuilder<{ [K in F["alias"]]: RowTypeOfFromable<F> }, RowTypeOfFromable<F>, []> {
+    const rowType = getRowType(fromable) as RowTypeOfFromable<F>;
+    const aliased = aliasRowType(rowType, fromable.alias) as RowTypeOfFromable<F>;
+    return new QueryBuilder({
+      namespace: { [fromable.alias]: aliased } as any,
+      output: aliased,
+      from: fromable as any,
+      executor: this.executor,
+      alias: fromable.alias,
+    });
   }
 
   public values<R extends RowType>(
