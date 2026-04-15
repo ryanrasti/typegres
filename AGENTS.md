@@ -191,6 +191,10 @@ compute needed here.
 
 - **column() returns a descriptor, not a real instance**: `Any.column()` returns a plain object `{ __column, __class, ...opts }` cast as `InstanceType<T>`. Should return a real instance with a reference to the table's column metadata.
 
+- **Constructors always return `Type<number>`**: `new Bool(true)` returns `Bool<number>` — the constructor can't infer nullability from a TS literal. Need static factory methods (e.g., `Bool.from(true): Bool<1>`) with overloads that narrow based on input type.
+
+- **Operators always wrap in parentheses**: `a.and(b).or(c)` emits `((... AND ...) OR ...)`. Correct but verbose. A precedence system could omit redundant parens by tracking operator precedence on `Sql` fragments.
+
 ### Codegen
 
 - **Relation naming**: Inbound relations use the source table name (e.g., `collars`, `microchips`). No singularization for `'one'`/`'maybe'` cardinality. Self-referential FKs can produce duplicate property names (disambiguated with suffix, but naming is awkward).
