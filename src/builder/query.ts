@@ -1,6 +1,6 @@
 import type { Executor } from "../executor";
-import type { Sql} from "./sql";
-import { sql } from "./sql";
+import { sql, Sql, TableAlias } from "./sql";
+import type { CompileContext } from "./sql";
 import type { Bool} from "../types";
 import { Any, Anyarray, Record } from "../types";
 import type { TsTypeOf, Nullable, AggregateRow} from "../types/runtime";
@@ -17,7 +17,7 @@ export const selectList = <T extends RowType>(output: T): T => {
 export const compileSelectList = (output: { [key: string]: unknown }): Sql => {
   return sql.join(
     Object.entries(output).flatMap(([k, v]) =>
-      v instanceof Any ? [sql`${v.compile()} as ${sql.ident(k)}`] : [],
+      v instanceof Any ? [sql`${v.toSql()} as ${sql.ident(k)}`] : [],
     ),
   );
 };
@@ -62,11 +62,11 @@ export const sortRowColumns = <R extends RowType>(row: R): R => {
   return Object.fromEntries(Object.entries(row).sort(([a], [b]) => a.localeCompare(b))) as R;
 };
 
-export const aliasRowType = <R extends RowType>(row: R, tableAlias: string): R => {
+export const aliasRowType = <R extends RowType>(row: R, alias: TableAlias): R => {
   // Clone: preserve prototype (methods, relations), replace column values with aliased SQL
   const aliased = Object.fromEntries(
     Object.entries(row).map(([k, v]) => {
-      const col = sql`${sql.ident(tableAlias)}.${sql.ident(k)}`;
+      const col = sql.column(alias, k);
       if (v instanceof Any) {
         return [k, (v[meta].__class as typeof Any).from(col)];
       }
@@ -136,7 +136,7 @@ export class QueryBuilder<
   O extends RowType,
   GB extends Any<any>[],
   Card extends Cardinality = "many",
-> {
+> extends Sql {
   private opts: QueryBuilderOptions<N, O, GB>;
   private card: Card;
   get alias(): string {
@@ -147,6 +147,7 @@ export class QueryBuilder<
   }
 
   constructor(opts: QueryBuilderOptions<N, O, GB>, card?: Card) {
+    super();
     this.opts = opts;
     this.card = (card ?? "many") as Card;
   }
@@ -297,10 +298,10 @@ export class QueryBuilder<
     const cols = selectList(this.opts.output);
     const RecordClass = Record.of(cols as any);
     // ROW() takes raw expressions without aliases
-    const rowExprs = Object.values(cols).map((type: any) => type.compile());
+    const rowExprs = Object.values(cols).map((type: any) => type.toSql());
     const rowSql = sql`ROW(${sql.join(rowExprs)})`;
     // Wrap as a subquery: (SELECT ROW(...) FROM ... WHERE ...)
-    const subquery = this.select(() => ({ __row: RecordClass.from(rowSql) })).compile({ isSubquery: true });
+    const subquery = this.select(() => ({ __row: RecordClass.from(rowSql) })).toNode({ isSubquery: true });
     if (this.card === "many") {
       return Anyarray.of(RecordClass.from(sql``)).from(
         sql`COALESCE((SELECT array_agg("__row") FROM ${subquery}), '{}')`,
@@ -309,7 +310,8 @@ export class QueryBuilder<
     return RecordClass.from(sql`(SELECT "__row" FROM ${subquery})`);
   }
 
-  compile({ isSubquery } = { isSubquery: false }): Sql {
+  // Build the Sql node tree (used internally and by scalar())
+  toNode({ isSubquery } = { isSubquery: false }): Sql {
     return sql.join(
       [
         isSubquery && sql`(`,
@@ -317,26 +319,26 @@ export class QueryBuilder<
         this.opts.from && sql`FROM ${this.opts.from.compile(true)}`,
         ...(this.opts.joins ?? []).map((j) =>
           j.type === "left"
-            ? sql`LEFT JOIN ${j.from.compile(true)} ON ${j.on.compile()}`
-            : sql`JOIN ${j.from.compile(true)} ON ${j.on.compile()}`,
+            ? sql`LEFT JOIN ${j.from.compile(true)} ON ${j.on.toSql()}`
+            : sql`JOIN ${j.from.compile(true)} ON ${j.on.toSql()}`,
         ),
-        this.opts.where && sql`WHERE ${this.opts.where.compile()}`,
+        this.opts.where && sql`WHERE ${this.opts.where.toSql()}`,
         this.opts.groupBy &&
           this.opts.groupBy.length > 0 &&
-          sql`GROUP BY ${sql.join(this.opts.groupBy.map((g) => g.compile()))}`,
-        this.opts.having && sql`HAVING ${this.opts.having.compile()}`,
+          sql`GROUP BY ${sql.join(this.opts.groupBy.map((g) => g.toSql()))}`,
+        this.opts.having && sql`HAVING ${this.opts.having.toSql()}`,
         this.opts.orderBy &&
           this.opts.orderBy.length > 0 &&
           sql`ORDER BY ${sql.join(
             this.opts.orderBy.map((entry) => {
               if (entry instanceof Any) {
-                return entry.compile();
+                return entry.toSql();
               }
               const [expr, dir] = entry;
               if (dir === "desc") {
-                return sql`${expr.compile()} DESC`;
+                return sql`${expr.toSql()} DESC`;
               }
-              return sql`${expr.compile()} ASC`;
+              return sql`${expr.toSql()} ASC`;
             }),
           )}`,
         this.opts.limit !== undefined && sql`LIMIT ${sql.param(this.opts.limit)}`,
@@ -347,18 +349,23 @@ export class QueryBuilder<
     );
   }
 
+  // Sql.emit — delegates to toNode
+  emit(ctx: CompileContext): string {
+    return this.toNode().emit(ctx);
+  }
+
   cardinality<C extends Cardinality>(card: C): QueryBuilder<N, O, GB, C> {
     return new QueryBuilder(this.opts, card);
   }
 
   debug(): this {
-    const compiled = this.compile().compile("pg");
+    const compiled = this.compile("pg");
     console.log(compiled.text, compiled.values, this.opts);
     return this;
   }
 
   async execute(): Promise<RowTypeToTsType<O>[]> {
-    const rows = await this.opts.executor.execute(this.compile());
+    const rows = await this.opts.executor.execute(this);
     return deserializeRows<RowTypeToTsType<O>>(rows, this.opts.output as { [key: string]: unknown });
   }
 }

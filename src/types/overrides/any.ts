@@ -3,6 +3,7 @@ import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
 import type { NullOf } from "../runtime";
 import { sql, Sql } from "../../builder/sql";
+import type { CompileContext } from "../../builder/sql";
 import * as types from "../index";
 
 type ColumnOpts = { nonNull?: boolean; default?: Sql; generated?: boolean };
@@ -20,16 +21,22 @@ export class Any<N extends number> extends Generated<N> {
     return getTypeDef((this.constructor as typeof Any).__typname).deserialize(raw);
   }
 
-  compile(): Sql {
+  // Returns the underlying Sql node for embedding in other expressions
+  toSql(): Sql {
     return this.__raw;
   }
 
+  // Emit SQL string with context (delegates to __raw)
+  emit(ctx: CompileContext): string {
+    return this.__raw.emit(ctx);
+  }
+
   isNull(): types.Bool<1> {
-    return types.Bool.from(sql`(${this.compile()} IS NULL)`) as types.Bool<1>;
+    return types.Bool.from(sql`(${this.toSql()} IS NULL)`) as types.Bool<1>;
   }
 
   isNotNull(): types.Bool<1> {
-    return types.Bool.from(sql`(${this.compile()} IS NOT NULL)`) as types.Bool<1>;
+    return types.Bool.from(sql`(${this.toSql()} IS NOT NULL)`) as types.Bool<1>;
   }
 
   // COALESCE(this, rhs) — returns first non-null. Chainable.
@@ -40,7 +47,7 @@ export class Any<N extends number> extends Generated<N> {
   ): 0 extends NullOf<R>
     ? T  // rhs can be null → preserve T (still nullable)
     : (T extends { [meta]: { __nonNullable: infer U } } ? U : T) {  // rhs is non-null → __nonNullable
-    return ((this as any)[meta].__class as typeof Any).from(sql`COALESCE(${this.compile()}, ${rhs.compile()})`) as any;
+    return ((this as any)[meta].__class as typeof Any).from(sql`COALESCE(${this.toSql()}, ${rhs.toSql()})`) as any;
   }
 
   // Public constructor alternative with precise nullability.

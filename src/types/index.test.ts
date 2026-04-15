@@ -100,28 +100,28 @@ test("operator overloads: Int4 = accepts number but not string", () => {
 
 test("Int4.from(number) compiles with cast", () => {
   const expr = Int4.from(5);
-  const compiled = expr.compile().compile("pg");
+  const compiled = expr.toSql().compile("pg");
   expect(compiled.text).toBe("CAST($1 AS int4)");
   expect(compiled.values).toEqual([5]);
 });
 
 test("Text.from(string) compiles with cast", () => {
   const expr = Text.from("hello");
-  const compiled = expr.compile().compile("pg");
+  const compiled = expr.toSql().compile("pg");
   expect(compiled.text).toBe("CAST($1 AS text)");
   expect(compiled.values).toEqual(["hello"]);
 });
 
 test("Bool.from(boolean) compiles with cast", () => {
   const expr = Bool.from(true);
-  const compiled = expr.compile().compile("pg");
+  const compiled = expr.toSql().compile("pg");
   expect(compiled.text).toBe("CAST($1 AS bool)");
   expect(compiled.values).toEqual([true]);
 });
 
 test("Int8.from(bigint) compiles with cast", () => {
   const expr = Int8.from(9007199254740993n);
-  const compiled = expr.compile().compile("pg");
+  const compiled = expr.toSql().compile("pg");
   expect(compiled.text).toBe("CAST($1 AS int8)");
   expect(compiled.values).toEqual([9007199254740993n]);
 });
@@ -130,28 +130,28 @@ test("Int8.from(bigint) compiles with cast", () => {
 
 test("Int4 + Int4 compiles with casts", () => {
   const expr = Int4.from(5)["+"](Int4.from(3));
-  const compiled = expr.compile().compile("pg");
+  const compiled = expr.toSql().compile("pg");
   expect(compiled.text).toBe("(CAST($1 AS int4) + CAST($2 AS int4))");
   expect(compiled.values).toEqual([5, 3]);
 });
 
 test("Int4 + primitive compiles with casts", () => {
   const expr = Int4.from(5)["+"](3);
-  const compiled = expr.compile().compile("pg");
+  const compiled = expr.toSql().compile("pg");
   expect(compiled.text).toBe("(CAST($1 AS int4) + CAST($2 AS int4))");
   expect(compiled.values).toEqual([5, 3]);
 });
 
 test("Text.upper() compiles with cast", () => {
   const expr = Text.from("hello").upper();
-  const compiled = expr.compile().compile("pg");
+  const compiled = expr.toSql().compile("pg");
   expect(compiled.text).toBe('"upper"(CAST($1 AS text))');
   expect(compiled.values).toEqual(["hello"]);
 });
 
 test("chained operations", () => {
   const expr = Int4.from(1)["+"](Int4.from(2))["*"](Int4.from(3));
-  const compiled = expr.compile().compile("pg");
+  const compiled = expr.toSql().compile("pg");
   expect(compiled.text).toBe("((CAST($1 AS int4) + CAST($2 AS int4)) * CAST($3 AS int4))");
   expect(compiled.values).toEqual([1, 2, 3]);
 });
@@ -160,37 +160,37 @@ test("chained operations", () => {
 
 test("e2e: integer addition (raw strings)", async () => {
   const expr = Int4.from(1)["+"](Int4.from(2));
-  const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
+  const rows = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
   expect(rows[0]?.["result"]).toBe("3");
 });
 
 test("e2e: string upper (raw strings)", async () => {
   const expr = Text.from("hello").upper();
-  const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
+  const rows = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
   expect(rows[0]?.["result"]).toBe("HELLO");
 });
 
 test("e2e: boolean equality (raw strings)", async () => {
   const expr = Bool.from(true)["="](Bool.from(true));
-  const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
+  const rows = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
   expect(rows[0]?.["result"]).toBe("t");
 });
 
 test("e2e: integer comparison (raw strings)", async () => {
   const expr = Int4.from(5)[">"](Int4.from(3));
-  const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
+  const rows = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
   expect(rows[0]?.["result"]).toBe("t");
 });
 
 test("e2e: string concatenation (raw strings)", async () => {
   const expr = Text.from("hello")["||"](Text.from(" world"));
-  const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
+  const rows = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
   expect(rows[0]?.["result"]).toBe("hello world");
 });
 
 test("e2e: primitive arg (raw strings)", async () => {
   const expr = Int4.from(10)["+"](5);
-  const rows = await exec.execute(sql`SELECT ${expr.compile()} as ${sql.ident("result")}`);
+  const rows = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
   expect(rows[0]?.["result"]).toBe("15");
 });
 
@@ -198,7 +198,7 @@ test("e2e: nested expressions", async () => {
   const left = Int4.from(1)["+"](Int4.from(2));
   const right = Int4.from(3)["+"](Int4.from(4));
   const result = left["*"](right);
-  const rows = await exec.execute(sql`SELECT ${result.compile()} as ${sql.ident("result")}`);
+  const rows = await exec.execute(sql`SELECT ${result.toSql()} as ${sql.ident("result")}`);
   expect(rows[0]?.["result"]).toBe("21");
 });
 
@@ -238,19 +238,19 @@ test("Bool.and / or / not", async () => {
   const b = Bool.from(false) as Bool<1>;
 
   // and
-  const andResult = await exec.execute(sql`SELECT ${a.and(b).compile()} as result`);
+  const andResult = await exec.execute(sql`SELECT ${a.and(b).toSql()} as result`);
   expect(andResult[0]!["result"]).toBe("f");
 
   // or
-  const orResult = await exec.execute(sql`SELECT ${a.or(b).compile()} as result`);
+  const orResult = await exec.execute(sql`SELECT ${a.or(b).toSql()} as result`);
   expect(orResult[0]!["result"]).toBe("t");
 
   // not
-  const notResult = await exec.execute(sql`SELECT ${a.not().compile()} as result`);
+  const notResult = await exec.execute(sql`SELECT ${a.not().toSql()} as result`);
   expect(notResult[0]!["result"]).toBe("f");
 
   // chaining: (true AND false) OR true → true
-  const chainResult = await exec.execute(sql`SELECT ${a.and(b).or(a).compile()} as result`);
+  const chainResult = await exec.execute(sql`SELECT ${a.and(b).or(a).toSql()} as result`);
   expect(chainResult[0]!["result"]).toBe("t");
 
   // type: and/or propagate nullability
@@ -276,14 +276,14 @@ test("coalesce nullability", async () => {
   expectTypeOf(nullable.coalesce(nullable)).toEqualTypeOf<Text<0 | 1>>();
 
   // runtime: coalesce picks first non-null
-  const result = await exec.execute(sql`SELECT ${nullable.coalesce(nonNull).compile()} as val`);
+  const result = await exec.execute(sql`SELECT ${nullable.coalesce(nonNull).toSql()} as val`);
   expect(result[0]!["val"]).toBe("hello");
 
   // chaining
   const fallback = Text.from("default") as Text<1>;
   const chained = nullable.coalesce(nullable).coalesce(fallback);
   expectTypeOf(chained).toEqualTypeOf<Text<1>>();
-  const chainResult = await exec.execute(sql`SELECT ${chained.compile()} as val`);
+  const chainResult = await exec.execute(sql`SELECT ${chained.toSql()} as val`);
   expect(chainResult[0]!["val"]).toBe("default");
 
   // @ts-expect-error — Int4 is not assignable to Text
@@ -302,13 +302,13 @@ test("isNull / isNotNull", async () => {
   expectTypeOf(nullable.isNull()).toEqualTypeOf<Bool<1>>();
 
   // runtime
-  const r1 = await exec.execute(sql`SELECT ${val.isNull().compile()} as result`);
+  const r1 = await exec.execute(sql`SELECT ${val.isNull().toSql()} as result`);
   expect(r1[0]!["result"]).toBe("f");
 
-  const r2 = await exec.execute(sql`SELECT ${val.isNotNull().compile()} as result`);
+  const r2 = await exec.execute(sql`SELECT ${val.isNotNull().toSql()} as result`);
   expect(r2[0]!["result"]).toBe("t");
 
-  const r3 = await exec.execute(sql`SELECT ${nullable.isNull().compile()} as result`);
+  const r3 = await exec.execute(sql`SELECT ${nullable.isNull().toSql()} as result`);
   expect(r3[0]!["result"]).toBe("t");
 });
 

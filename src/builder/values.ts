@@ -30,7 +30,7 @@ export class Values<R extends RowType> {
           }
           v = (type[meta].__class as typeof Any).from(v);
         }
-        return (v as Any<any>).compile();
+        return (v as Any<any>).toSql();
       });
       return sql`(${sql.join(vals)})`;
     });

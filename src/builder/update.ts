@@ -58,12 +58,12 @@ export class UpdateBuilder<Name extends string, T extends { [key: string]: any }
     const setClauses = Object.entries(this.#opts.set).map(([k, v]) => {
       const col = this.#opts.instance[k];
       if (!col?.__column) { throw new Error(`Unknown column: ${k}`); }
-      return sql`${sql.ident(k)} = ${col.__class.from(v).compile()}`;
+      return sql`${sql.ident(k)} = ${col.__class.from(v).toSql()}`;
     });
 
     return sql.join([
       sql`UPDATE ${sql.ident(this.#opts.tableName)} SET ${sql.join(setClauses)}`,
-      sql`WHERE ${this.#opts.where.compile()}`,
+      sql`WHERE ${this.#opts.where.toSql()}`,
       this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as { [key: string]: unknown })}`,
     ], sql` `);
   }

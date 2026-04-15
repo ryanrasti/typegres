@@ -21,14 +21,14 @@ afterAll(async () => {
 
 test("values with single typed row", async () => {
   const q = db.values({ a: Int4.from(1), b: Text.from("hello") });
-  const compiled = q.compile().compile("pg");
+  const compiled = q.compile("pg");
   expect(compiled.text).toContain("VALUES");
   expect(compiled.text).toContain("CAST");
 });
 
 test("values with multiple rows, second row uses primitives", async () => {
   const q = db.values({ x: Int4.from(1), y: Text.from("a") }, { x: 2, y: "b" });
-  const compiled = q.compile().compile("pg");
+  const compiled = q.compile("pg");
   expect(compiled.text).toContain("VALUES");
 });
 
@@ -36,7 +36,7 @@ test("values with multiple rows, second row uses primitives", async () => {
 
 test("values with select identity", async () => {
   const q = db.values({ num: Int4.from(42), name: Text.from("test") }).select((n) => n.values);
-  const compiled = q.compile().compile("pg");
+  const compiled = q.compile("pg");
   expect(compiled.text).toContain("SELECT");
   expect(compiled.text).toContain("VALUES");
 });
@@ -45,7 +45,7 @@ test("values with select computed column", async () => {
   const q = db.values({ a: Int4.from(5), b: Int4.from(3) }).select((n) => ({
     sum: n.values.a["+"](n.values.b),
   }));
-  const compiled = q.compile().compile("pg");
+  const compiled = q.compile("pg");
   expect(compiled.text).toContain("SELECT");
   expect(compiled.text).toContain("+");
 });
@@ -125,7 +125,7 @@ test("e2e: where with equality", async () => {
 
 test("where compiles to SQL", () => {
   const q = db.values({ a: Int4.from(1) }).where((n) => n.values.a[">"](5));
-  const compiled = q.compile().compile("pg");
+  const compiled = q.compile("pg");
   expect(compiled.text).toContain("WHERE");
 });
 
@@ -139,7 +139,7 @@ test("groupBy compiles to SQL", () => {
       { category: "b", amount: 30 },
     )
     .groupBy((n) => [n.values.category]);
-  const compiled = q.compile().compile("pg");
+  const compiled = q.compile("pg");
   expect(compiled.text).toContain("GROUP BY");
 });
 
@@ -190,7 +190,7 @@ test("having compiles to SQL", () => {
     )
     .groupBy((n) => [n.values.category])
     .having((n) => n.values.category[">"](Text.from("a")));
-  const compiled = q.compile().compile("pg");
+  const compiled = q.compile("pg");
   expect(compiled.text).toContain("HAVING");
   expect(compiled.text).toContain("GROUP BY");
 });
@@ -245,7 +245,7 @@ test("orderBy compiles to SQL", () => {
   const q = db
     .values({ a: Int4.from(1) })
     .orderBy((n) => [n.values.a, "desc"]);
-  const compiled = q.compile().compile("pg");
+  const compiled = q.compile("pg");
   expect(compiled.text).toContain("ORDER BY");
   expect(compiled.text).toContain("DESC");
 });

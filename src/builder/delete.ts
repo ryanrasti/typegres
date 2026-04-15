@@ -43,7 +43,7 @@ export class DeleteBuilder<Name extends string, T extends { [key: string]: any }
     }
     return sql.join([
       sql`DELETE FROM ${sql.ident(this.#opts.tableName)}`,
-      sql`WHERE ${this.#opts.where.compile()}`,
+      sql`WHERE ${this.#opts.where.toSql()}`,
       this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as { [key: string]: unknown })}`,
     ], sql` `);
   }

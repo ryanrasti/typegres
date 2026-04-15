@@ -1,5 +1,6 @@
 import type { Sql } from "../builder/sql";
 import { sql } from "../builder/sql";
+import * as types from "./index";
 import type { Any } from "./index";
 import { getTypeDef } from "./deserialize";
 
@@ -102,23 +103,20 @@ export const match = (args: unknown[], cases: MatchCase[]): [typeof Any, ...unkn
   throw new Error(`No matching overload for args: [${args.map((a) => typeof a).join(", ")}]`);
 };
 
-// Compile an arg to SQL. After match(), args are Any instances.
-// Falls back to sql.param for edge cases (e.g., args passed directly to PgFunc without match).
-const compileArg = (arg: unknown): Sql => {
-  if (arg !== null && typeof arg === "object" && "__raw" in arg) {
-    return (arg as { __raw: Sql }).__raw;
-  }
+// Extract the Sql node from an arg. After match(), args are Any instances.
+const argToSql = (arg: unknown): Sql => {
+  if (arg instanceof types.Any) { return arg.toSql(); }
   return sql.param(arg);
 };
 
 // Expression node builders — construct real typed instances via constructor(Sql)
 export const PgFunc = (name: string, args: unknown[], type: typeof Any) => {
-  const rawSql = sql`${sql.ident(name)}(${sql.join(args.map(compileArg))})`;
+  const rawSql = sql`${sql.ident(name)}(${sql.join(args.map(argToSql))})`;
   return type.from(rawSql);
 };
 
 export const PgOp = (op: string, args: [unknown, unknown], type: typeof Any) => {
-  const rawSql = sql`(${compileArg(args[0])} ${sql.raw(op)} ${compileArg(args[1])})`;
+  const rawSql = sql`(${argToSql(args[0])} ${sql.raw(op)} ${argToSql(args[1])})`;
   return type.from(rawSql);
 };
 
@@ -132,7 +130,7 @@ export class PgSrf<R extends { [key: string]: Any<any> }, A extends string> {
     this.alias = name;
     const colRef = sql`${sql.ident(name)}.${sql.ident(columnName)}`;
     this.rowType = { [columnName]: type.from(colRef) } as R;
-    this.#sql = sql`${sql.ident(name)}(${sql.join(args.map(compileArg))})`;
+    this.#sql = sql`${sql.ident(name)}(${sql.join(args.map(argToSql))})`;
   }
 
   compile(isSubquery?: boolean) {

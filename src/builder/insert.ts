@@ -41,7 +41,7 @@ export class InsertBuilder<Name extends string, T extends { [key: string]: any }
           return sql`DEFAULT`;
         }
         const col = this.#opts.instance[k];
-        return col.__class.from(v).compile();
+        return col.__class.from(v).toSql();
       });
       return sql`(${sql.join(vals)})`;
     });
