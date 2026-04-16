@@ -5,12 +5,12 @@ import { exec, db, withinTransaction } from "./test-helper";
 
 test("update with where", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE users (
+    await db.execute(sql`CREATE TABLE users (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       active text NOT NULL DEFAULT 'yes'
     )`);
-    await exec.execute(sql`INSERT INTO users (name) VALUES ('Alice'), ('Bob')`);
+    await db.execute(sql`INSERT INTO users (name) VALUES ('Alice'), ('Bob')`);
 
     class Users extends db.Table("users") {
       id = (Int8<1>).column({ nonNull: true, generated: true });
@@ -39,11 +39,11 @@ test("update with where", async () => {
 
 test("update all with where(true)", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE flags (
+    await db.execute(sql`CREATE TABLE flags (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       active text NOT NULL DEFAULT 'yes'
     )`);
-    await exec.execute(sql`INSERT INTO flags (active) VALUES ('yes'), ('yes')`);
+    await db.execute(sql`INSERT INTO flags (active) VALUES ('yes'), ('yes')`);
 
     class Flags extends db.Table("flags") {
       id = (Int8<1>).column({ nonNull: true, generated: true });
@@ -62,12 +62,12 @@ test("update all with where(true)", async () => {
 
 test("update returning", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE scores (
+    await db.execute(sql`CREATE TABLE scores (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       score text NOT NULL DEFAULT '0'
     )`);
-    await exec.execute(sql`INSERT INTO scores (name) VALUES ('Alice'), ('Bob')`);
+    await db.execute(sql`INSERT INTO scores (name) VALUES ('Alice'), ('Bob')`);
 
     class Scores extends db.Table("scores") {
       id = (Int8<1>).column({ nonNull: true, generated: true });
@@ -89,13 +89,13 @@ test("update returning", async () => {
 
 test("update: multiple where calls AND-combine", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE products (
+    await db.execute(sql`CREATE TABLE products (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       price int8 NOT NULL DEFAULT 0,
       active text NOT NULL DEFAULT 'yes'
     )`);
-    await exec.execute(sql`INSERT INTO products (name, price) VALUES ('a', 10), ('b', 10), ('c', 20)`);
+    await db.execute(sql`INSERT INTO products (name, price) VALUES ('a', 10), ('b', 10), ('c', 20)`);
 
     class Products extends db.Table("products") {
       id = (Int8<1>).column({ nonNull: true, generated: true });
@@ -127,7 +127,7 @@ test("update: multiple where calls AND-combine", async () => {
 
 test("update without where throws", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE noop (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)`);
+    await db.execute(sql`CREATE TABLE noop (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)`);
 
     class Noop extends db.Table("noop") {
       id = (Int8<1>).column({ nonNull: true, generated: true });

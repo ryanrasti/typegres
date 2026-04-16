@@ -6,7 +6,7 @@ import { exec, db, withinTransaction } from "./test-helper";
 
 test("insert", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE cats (
+    await db.execute(sql`CREATE TABLE cats (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       color text
@@ -37,7 +37,7 @@ test("insert", async () => {
 
 test("insert returning", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE items (
+    await db.execute(sql`CREATE TABLE items (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       label text NOT NULL
     )`);

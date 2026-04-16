@@ -5,11 +5,11 @@ import { exec, db, withinTransaction } from "./test-helper";
 
 test("delete with where", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE logs (
+    await db.execute(sql`CREATE TABLE logs (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       msg text NOT NULL
     )`);
-    await exec.execute(sql`INSERT INTO logs (msg) VALUES ('keep'), ('remove'), ('keep2')`);
+    await db.execute(sql`INSERT INTO logs (msg) VALUES ('keep'), ('remove'), ('keep2')`);
 
     class Logs extends db.Table("logs") {
       id = (Int8<1>).column({ nonNull: true, generated: true });
@@ -28,11 +28,11 @@ test("delete with where", async () => {
 
 test("delete returning", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE tags (
+    await db.execute(sql`CREATE TABLE tags (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL
     )`);
-    await exec.execute(sql`INSERT INTO tags (name) VALUES ('a'), ('b'), ('c')`);
+    await db.execute(sql`INSERT INTO tags (name) VALUES ('a'), ('b'), ('c')`);
 
     class Tags extends db.Table("tags") {
       id = (Int8<1>).column({ nonNull: true, generated: true });
@@ -52,12 +52,12 @@ test("delete returning", async () => {
 
 test("delete: multiple where calls AND-combine", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE items (
+    await db.execute(sql`CREATE TABLE items (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       score int8 NOT NULL DEFAULT 0
     )`);
-    await exec.execute(sql`INSERT INTO items (name, score) VALUES ('a', 10), ('b', 20), ('c', 10), ('d', 30)`);
+    await db.execute(sql`INSERT INTO items (name, score) VALUES ('a', 10), ('b', 20), ('c', 10), ('d', 30)`);
 
     class Items extends db.Table("items") {
       id = (Int8<1>).column({ nonNull: true, generated: true });
@@ -83,7 +83,7 @@ test("delete: multiple where calls AND-combine", async () => {
 
 test("delete without where throws", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE noop2 (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)`);
+    await db.execute(sql`CREATE TABLE noop2 (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)`);
 
     class Noop2 extends db.Table("noop2") {
       id = (Int8<1>).column({ nonNull: true, generated: true });

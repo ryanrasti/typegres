@@ -1,4 +1,5 @@
-import type { Executor, IsolationLevel } from "./executor";
+import { AsyncLocalStorage } from "node:async_hooks";
+import type { ExecuteFn, Executor, QueryResult } from "./executor";
 import type { Fromable, RowType, RowTypeToTsType, RowTypeOfFromable } from "./builder/query";
 import { aliasRowType, QueryBuilder, getRowType, deserializeRows } from "./builder/query";
 import { sql, Sql } from "./builder/sql";
@@ -9,9 +10,11 @@ import { UpdateBuilder } from "./builder/update";
 import { DeleteBuilder } from "./builder/delete";
 
 export class Database {
+  #context = new AsyncLocalStorage<{ execute: ExecuteFn; inTransaction: boolean }>();
+
   constructor(private executor: Executor) {}
 
-  async execute(query: Sql): Promise<{ [key: string]: string }[]>;
+  async execute(query: Sql): Promise<QueryResult>;
   async execute<O extends RowType, GB extends any[], Card extends "one" | "maybe" | "many">(
     query: QueryBuilder<any, O, GB, Card>,
   ): Promise<RowTypeToTsType<O>[]>;
@@ -25,46 +28,40 @@ export class Database {
     query: DeleteBuilder<Name, T, R>,
   ): Promise<RowTypeToTsType<R>[]>;
   async execute(query: Sql): Promise<any> {
-    const rows = await this.executor.execute(query);
+    const result = await (this.#context.getStore()?.execute ?? this.executor.execute.bind(this.executor))(query);
     if (query instanceof QueryBuilder) {
-      return deserializeRows(rows, query.rowType as { [key: string]: unknown });
+      return deserializeRows(result.rows as { [key: string]: string }[], query.rowType as { [key: string]: unknown });
     }
     if (query instanceof InsertBuilder || query instanceof UpdateBuilder || query instanceof DeleteBuilder) {
       const returning = query.returningRowType;
       if (!returning) {
         return [];
       }
-      return deserializeRows(rows, returning as { [key: string]: unknown });
+      return deserializeRows(result.rows as { [key: string]: string }[], returning as { [key: string]: unknown });
     }
-    return rows;
+    return result;
   }
 
-  async transaction<T>(fn: (tx: Database) => Promise<T>): Promise<T>;
-  async transaction<T>(isolation: IsolationLevel, fn: (tx: Database) => Promise<T>): Promise<T>;
-  async transaction<T>(
-    isolationOrFn: IsolationLevel | ((tx: Database) => Promise<T>),
-    maybeFn?: (tx: Database) => Promise<T>,
-  ): Promise<T> {
-    const isolation = typeof isolationOrFn === "function" ? "repeatable read" : isolationOrFn;
-    const fn = typeof isolationOrFn === "function" ? isolationOrFn : maybeFn;
-    if (!fn) {
-      throw new Error("transaction() requires a callback");
+  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+    const current = this.#context.getStore();
+    if (current?.inTransaction) {
+      return fn();
     }
 
-    if (this.executor.transaction) {
-      return this.executor.transaction(isolation, async () => fn(this));
-    }
-
-    await this.executor.execute(sql`BEGIN`);
-    await this.executor.execute(sql.raw(`SET TRANSACTION ISOLATION LEVEL ${isolation.toUpperCase()}`));
-    try {
-      const result = await fn(this);
-      await this.executor.execute(sql`COMMIT`);
-      return result;
-    } catch (e) {
-      await this.executor.execute(sql`ROLLBACK`);
-      throw e;
-    }
+    return this.executor.runInSingleConnection(async (execute: ExecuteFn) => {
+      return this.#context.run({ execute, inTransaction: true }, async () => {
+        await execute(sql`BEGIN`);
+        await execute(sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`);
+        try {
+          const result = await fn();
+          await execute(sql`COMMIT`);
+          return result;
+        } catch (e) {
+          await execute(sql`ROLLBACK`);
+          throw e;
+        }
+      });
+    });
   }
 
   public from<F extends Fromable>(

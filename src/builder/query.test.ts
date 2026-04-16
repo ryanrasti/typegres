@@ -353,27 +353,29 @@ test("e2e: where + orderBy + limit", async () => {
 // --- joins ---
 
 const withinTransaction = async (fn: () => Promise<void>) => {
-  await exec.execute(sql`BEGIN`);
-  try {
+  await db.transaction(async () => {
     await fn();
-  } finally {
-    await exec.execute(sql`ROLLBACK`);
-  }
+    throw new Error("__test_rollback__");
+  }).catch((e) => {
+    if ((e as Error).message !== "__test_rollback__") {
+      throw e;
+    }
+  });
 };
 
 test("inner join", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE owners (
+    await db.execute(sql`CREATE TABLE owners (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL
     )`);
-    await exec.execute(sql`CREATE TABLE pets (
+    await db.execute(sql`CREATE TABLE pets (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       owner_id int8 NOT NULL REFERENCES owners(id)
     )`);
-    await exec.execute(sql`INSERT INTO owners (name) VALUES ('Alice'), ('Bob')`);
-    await exec.execute(sql`INSERT INTO pets (name, owner_id) VALUES ('Rex', 1), ('Fido', 2), ('Buddy', 1)`);
+    await db.execute(sql`INSERT INTO owners (name) VALUES ('Alice'), ('Bob')`);
+    await db.execute(sql`INSERT INTO pets (name, owner_id) VALUES ('Rex', 1), ('Fido', 2), ('Buddy', 1)`);
 
     class Owners extends db.Table("owners") {
       id = (Int8<1>).column({ nonNull: true });
@@ -404,17 +406,17 @@ test("inner join", async () => {
 
 test("left join — unmatched rows return null", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE authors (
+    await db.execute(sql`CREATE TABLE authors (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL
     )`);
-    await exec.execute(sql`CREATE TABLE books (
+    await db.execute(sql`CREATE TABLE books (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       title text NOT NULL,
       author_id int8 NOT NULL REFERENCES authors(id)
     )`);
-    await exec.execute(sql`INSERT INTO authors (name) VALUES ('Alice'), ('Bob')`);
-    await exec.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1)`);
+    await db.execute(sql`INSERT INTO authors (name) VALUES ('Alice'), ('Bob')`);
+    await db.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1)`);
 
     class Authors extends db.Table("authors") {
       id = (Int8<1>).column({ nonNull: true });
@@ -444,17 +446,17 @@ test("left join — unmatched rows return null", async () => {
 
 test("join with where on joined table", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE departments (
+    await db.execute(sql`CREATE TABLE departments (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL
     )`);
-    await exec.execute(sql`CREATE TABLE employees (
+    await db.execute(sql`CREATE TABLE employees (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       dept_id int8 REFERENCES departments(id)
     )`);
-    await exec.execute(sql`INSERT INTO departments (name) VALUES ('Engineering'), ('Sales')`);
-    await exec.execute(sql`INSERT INTO employees (name, dept_id) VALUES ('Alice', 1), ('Bob', 1), ('Carol', 2)`);
+    await db.execute(sql`INSERT INTO departments (name) VALUES ('Engineering'), ('Sales')`);
+    await db.execute(sql`INSERT INTO employees (name, dept_id) VALUES ('Alice', 1), ('Bob', 1), ('Carol', 2)`);
 
     class Departments extends db.Table("departments") {
       id = (Int8<1>).column({ nonNull: true });
@@ -487,17 +489,17 @@ test("join with where on joined table", async () => {
 
 test("scalar with cardinality 'one'", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE authors (
+    await db.execute(sql`CREATE TABLE authors (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL
     )`);
-    await exec.execute(sql`CREATE TABLE books (
+    await db.execute(sql`CREATE TABLE books (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       title text NOT NULL,
       author_id int8 NOT NULL REFERENCES authors(id)
     )`);
-    await exec.execute(sql`INSERT INTO authors (name) VALUES ('Alice')`);
-    await exec.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1), ('Book B', 1)`);
+    await db.execute(sql`INSERT INTO authors (name) VALUES ('Alice')`);
+    await db.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1), ('Book B', 1)`);
 
     class Authors extends db.Table("authors") {
       id = (Int8<1>).column({ nonNull: true, generated: true });
@@ -531,17 +533,17 @@ test("scalar with cardinality 'one'", async () => {
 
 test("scalar with cardinality 'maybe' — null when no match", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE people (
+    await db.execute(sql`CREATE TABLE people (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL
     )`);
-    await exec.execute(sql`CREATE TABLE profiles (
+    await db.execute(sql`CREATE TABLE profiles (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       person_id int8 UNIQUE NOT NULL REFERENCES people(id),
       bio text NOT NULL
     )`);
-    await exec.execute(sql`INSERT INTO people (name) VALUES ('Alice'), ('Bob')`);
-    await exec.execute(sql`INSERT INTO profiles (person_id, bio) VALUES (1, 'Hello')`);
+    await db.execute(sql`INSERT INTO people (name) VALUES ('Alice'), ('Bob')`);
+    await db.execute(sql`INSERT INTO profiles (person_id, bio) VALUES (1, 'Hello')`);
 
     class People extends db.Table("people") {
       id = (Int8<1>).column({ nonNull: true, generated: true });
@@ -578,17 +580,17 @@ test("scalar with cardinality 'maybe' — null when no match", async () => {
 
 test("scalar with cardinality 'many' — array result", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`CREATE TABLE parents (
+    await db.execute(sql`CREATE TABLE parents (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL
     )`);
-    await exec.execute(sql`CREATE TABLE children (
+    await db.execute(sql`CREATE TABLE children (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       parent_id int8 NOT NULL REFERENCES parents(id)
     )`);
-    await exec.execute(sql`INSERT INTO parents (name) VALUES ('Alice'), ('Bob')`);
-    await exec.execute(sql`INSERT INTO children (name, parent_id) VALUES ('Charlie', 1), ('Diana', 1)`);
+    await db.execute(sql`INSERT INTO parents (name) VALUES ('Alice'), ('Bob')`);
+    await db.execute(sql`INSERT INTO children (name, parent_id) VALUES ('Charlie', 1), ('Diana', 1)`);
 
     class Parents extends db.Table("parents") {
       id = (Int8<1>).column({ nonNull: true, generated: true });

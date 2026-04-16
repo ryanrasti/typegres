@@ -5,13 +5,13 @@ import { exec, db, withinTransaction } from "./builder/test-helper";
 
 test("Table.from().select()", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
-    await exec.execute(sql`CREATE TABLE dogs (
+    await db.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
+    await db.execute(sql`CREATE TABLE dogs (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       breed text
     )`);
-    await exec.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
+    await db.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
 
     class Dogs extends db.Table("dogs") {
       id = (Int8<1>).column({ nonNull: true });
@@ -33,13 +33,13 @@ test("Table.from().select()", async () => {
 
 test("Table.as() alias", async () => {
   await withinTransaction(async () => {
-    await exec.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
-    await exec.execute(sql`CREATE TABLE dogs (
+    await db.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
+    await db.execute(sql`CREATE TABLE dogs (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       breed text
     )`);
-    await exec.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
+    await db.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
 
     class Dogs extends db.Table("dogs") {
       id = (Int8<1>).column({ nonNull: true });

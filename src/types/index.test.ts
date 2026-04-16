@@ -160,46 +160,46 @@ test("chained operations", () => {
 
 test("e2e: integer addition (raw strings)", async () => {
   const expr = Int4.from(1)["+"](Int4.from(2));
-  const rows = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
-  expect(rows[0]?.["result"]).toBe("3");
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
+  expect(result.rows[0]?.["result"]).toBe("3");
 });
 
 test("e2e: string upper (raw strings)", async () => {
   const expr = Text.from("hello").upper();
-  const rows = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
-  expect(rows[0]?.["result"]).toBe("HELLO");
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
+  expect(result.rows[0]?.["result"]).toBe("HELLO");
 });
 
 test("e2e: boolean equality (raw strings)", async () => {
   const expr = Bool.from(true)["="](Bool.from(true));
-  const rows = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
-  expect(rows[0]?.["result"]).toBe("t");
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
+  expect(result.rows[0]?.["result"]).toBe("t");
 });
 
 test("e2e: integer comparison (raw strings)", async () => {
   const expr = Int4.from(5)[">"](Int4.from(3));
-  const rows = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
-  expect(rows[0]?.["result"]).toBe("t");
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
+  expect(result.rows[0]?.["result"]).toBe("t");
 });
 
 test("e2e: string concatenation (raw strings)", async () => {
   const expr = Text.from("hello")["||"](Text.from(" world"));
-  const rows = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
-  expect(rows[0]?.["result"]).toBe("hello world");
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
+  expect(result.rows[0]?.["result"]).toBe("hello world");
 });
 
 test("e2e: primitive arg (raw strings)", async () => {
   const expr = Int4.from(10)["+"](5);
-  const rows = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
-  expect(rows[0]?.["result"]).toBe("15");
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
+  expect(result.rows[0]?.["result"]).toBe("15");
 });
 
 test("e2e: nested expressions", async () => {
   const left = Int4.from(1)["+"](Int4.from(2));
   const right = Int4.from(3)["+"](Int4.from(4));
-  const result = left["*"](right);
-  const rows = await exec.execute(sql`SELECT ${result.toSql()} as ${sql.ident("result")}`);
-  expect(rows[0]?.["result"]).toBe("21");
+  const expr = left["*"](right);
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("result")}`);
+  expect(result.rows[0]?.["result"]).toBe("21");
 });
 
 // --- Column descriptor ---
@@ -239,19 +239,19 @@ test("Bool.and / or / not", async () => {
 
   // and
   const andResult = await exec.execute(sql`SELECT ${a.and(b).toSql()} as result`);
-  expect(andResult[0]!["result"]).toBe("f");
+  expect(andResult.rows[0]!["result"]).toBe("f");
 
   // or
   const orResult = await exec.execute(sql`SELECT ${a.or(b).toSql()} as result`);
-  expect(orResult[0]!["result"]).toBe("t");
+  expect(orResult.rows[0]!["result"]).toBe("t");
 
   // not
   const notResult = await exec.execute(sql`SELECT ${a.not().toSql()} as result`);
-  expect(notResult[0]!["result"]).toBe("f");
+  expect(notResult.rows[0]!["result"]).toBe("f");
 
   // chaining: (true AND false) OR true → true
   const chainResult = await exec.execute(sql`SELECT ${a.and(b).or(a).toSql()} as result`);
-  expect(chainResult[0]!["result"]).toBe("t");
+  expect(chainResult.rows[0]!["result"]).toBe("t");
 
   // type: and/or propagate nullability
   expectTypeOf(a.and(b)).toEqualTypeOf<Bool<1>>();
@@ -277,14 +277,14 @@ test("coalesce nullability", async () => {
 
   // runtime: coalesce picks first non-null
   const result = await exec.execute(sql`SELECT ${nullable.coalesce(nonNull).toSql()} as val`);
-  expect(result[0]!["val"]).toBe("hello");
+  expect(result.rows[0]!["val"]).toBe("hello");
 
   // chaining
   const fallback = Text.from("default") as Text<1>;
   const chained = nullable.coalesce(nullable).coalesce(fallback);
   expectTypeOf(chained).toEqualTypeOf<Text<1>>();
   const chainResult = await exec.execute(sql`SELECT ${chained.toSql()} as val`);
-  expect(chainResult[0]!["val"]).toBe("default");
+  expect(chainResult.rows[0]!["val"]).toBe("default");
 
   // @ts-expect-error — Int4 is not assignable to Text
   nonNull.coalesce(Int4.from(1) as Int4<1>);
@@ -303,13 +303,13 @@ test("isNull / isNotNull", async () => {
 
   // runtime
   const r1 = await exec.execute(sql`SELECT ${val.isNull().toSql()} as result`);
-  expect(r1[0]!["result"]).toBe("f");
+  expect(r1.rows[0]!["result"]).toBe("f");
 
   const r2 = await exec.execute(sql`SELECT ${val.isNotNull().toSql()} as result`);
-  expect(r2[0]!["result"]).toBe("t");
+  expect(r2.rows[0]!["result"]).toBe("t");
 
   const r3 = await exec.execute(sql`SELECT ${nullable.isNull().toSql()} as result`);
-  expect(r3[0]!["result"]).toBe("t");
+  expect(r3.rows[0]!["result"]).toBe("t");
 });
 
 // --- Type.from() ---

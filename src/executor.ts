@@ -1,13 +1,13 @@
 import pg from "pg";
-import { AsyncLocalStorage } from "node:async_hooks";
 import type { Sql } from "./builder/sql";
 import { defaultPgConnectionString } from "./pg";
 
-export type IsolationLevel = "read committed" | "repeatable read" | "serializable";
+export type QueryResult = { rows: unknown[] };
+export type ExecuteFn = (query: Sql) => Promise<QueryResult>;
 
 export interface Executor {
-  execute(query: Sql): Promise<{ [key: string]: string }[]>;
-  transaction?<T>(isolation: IsolationLevel, fn: () => Promise<T>): Promise<T>;
+  execute: ExecuteFn;
+  runInSingleConnection<T>(cb: (execute: ExecuteFn) => Promise<T>): Promise<T>;
   close(): Promise<void>;
 }
 
@@ -21,40 +21,21 @@ export const pgExecutor = (
     getTypeParser: () => (v: string) => v,
   };
   const pool = new pg.Pool({ connectionString, ...poolOptions, types: rawTypes as any });
-  const txClient = new AsyncLocalStorage<{ client: pg.PoolClient; tail: Promise<unknown> }>();
 
   return {
-    async execute(query: Sql): Promise<{ [key: string]: string }[]> {
+    async execute(query: Sql): Promise<QueryResult> {
       const compiled = query.compile("pg");
-      const tx = txClient.getStore();
-      if (!tx) {
-        const { rows } = await pool.query(compiled.text, compiled.values);
-        return rows as { [key: string]: string }[];
-      }
-
-      const run = async () => {
-        const { rows } = await tx.client.query(compiled.text, compiled.values);
-        return rows as { [key: string]: string }[];
-      };
-      const result = tx.tail.then(run, run);
-      tx.tail = result.then(() => undefined, () => undefined);
-      return result;
+      return pool.query(compiled.text, compiled.values);
     },
 
-    async transaction<T>(isolation: IsolationLevel, fn: () => Promise<T>): Promise<T> {
-      if (txClient.getStore()) {
-        throw new Error("Nested transactions are not supported");
-      }
-
+    async runInSingleConnection<T>(cb: (execute: ExecuteFn) => Promise<T>): Promise<T> {
       const client = await pool.connect();
+      const execute: ExecuteFn = async (query) => {
+        const compiled = query.compile("pg");
+        return client.query(compiled.text, compiled.values);
+      };
       try {
-        await client.query(`BEGIN ISOLATION LEVEL ${isolation.toUpperCase()}`);
-        const result = await txClient.run({ client, tail: Promise.resolve() }, fn);
-        await client.query("COMMIT");
-        return result;
-      } catch (e) {
-        await client.query("ROLLBACK");
-        throw e;
+        return await cb(execute);
       } finally {
         client.release();
       }
@@ -82,24 +63,20 @@ export const pgliteExecutor = async (): Promise<Executor> => {
   }
 
   return {
-    async execute(query: Sql): Promise<{ [key: string]: string }[]> {
+    async execute(query: Sql): Promise<QueryResult> {
       const compiled = query.compile("pg");
-      const { rows } = await db.query(compiled.text, compiled.values, {
+      return db.query(compiled.text, compiled.values, {
         parsers: rawParsers,
       });
-      return rows as { [key: string]: string }[];
     },
-    async transaction<T>(isolation: IsolationLevel, fn: () => Promise<T>): Promise<T> {
-      await db.query(`BEGIN`);
-      await db.query(`SET TRANSACTION ISOLATION LEVEL ${isolation.toUpperCase()}`);
-      try {
-        const result = await fn();
-        await db.query(`COMMIT`);
-        return result;
-      } catch (e) {
-        await db.query(`ROLLBACK`);
-        throw e;
-      }
+    async runInSingleConnection<T>(cb: (execute: ExecuteFn) => Promise<T>): Promise<T> {
+      const execute: ExecuteFn = async (query) => {
+        const compiled = query.compile("pg");
+        return db.query(compiled.text, compiled.values, {
+          parsers: rawParsers,
+        });
+      };
+      return cb(execute);
     },
     async close() {
       await db.close();
