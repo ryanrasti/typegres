@@ -1,241 +1,337 @@
 # Live Queries
 
-## Overview
+## Goal
 
-`.live()` on a query returns an async iterator that yields the current result set and re-yields it whenever the underlying data could have changed. No WAL, no logical replication. Shared event bus + snapshot-based cursor + in-memory predicate matching.
+Provide `.live()` for queries:
 
 ```typescript
-for await (const rows of Dogs.where(d => d.owner_id.eq(5)).live()) {
+for await (const rows of db.live(Dogs.where((d) => d.owner_id.eq(5)))) {
   render(rows);
 }
 ```
 
+Semantics: yield the current result set, then re-yield whenever a committed mutation *might* have changed that result. v1 should prioritize:
+
+1. Correctness
+2. Simple restart semantics
+3. Small implementation surface
+4. Planner-stable extraction queries
+
+This document is the implementation plan, not the long-term dream.
+
+## Important architectural prerequisite
+
+Before live work, fix transactions.
+
+Current `Database.transaction()` issues `BEGIN` / `COMMIT`, but the pg executor uses `Pool.query()` per statement, so queries are not guaranteed to run on the same backend connection. That means we do **not** currently have a real transaction boundary for pg.
+
+Live queries require:
+
+- `REPEATABLE READ`
+- `pg_current_snapshot()`
+- extractor query + main query in the same transaction
+- mutation wrapping in the same transaction as the user mutation
+
+So step 0 is a real connection-pinned transaction API.
+
+## Recommended surface
+
+Prefer database-owned live execution:
+
+```typescript
+db.live(query)
+```
+
+over query-owned execution:
+
+```typescript
+query.live()
+```
+
+Reason: live execution needs more than a query executor. It needs:
+
+- transaction control
+- snapshot capture
+- access to the live event store / bus
+- retention / restart handling
+
+A query is just a compiled plan; live is runtime behavior.
+
+`query.live()` can remain as sugar later if the builder carries a reference to its `Database`.
+
+## v1 scope
+
+Supported:
+
+- `FROM` + `JOIN` + `LEFT JOIN`
+- top-level `WHERE` made of `AND`
+- equality predicates only for matching / extraction:
+  - `col = literal`
+  - `col = other_table.col`
+- queries where every table is reachable from at least one literal equality anchor
+- simple rerun-on-match invalidation
+
+Rejected in v1:
+
+- top-level `OR`
+- non-equality predicates (`<`, `>`, `LIKE`, `BETWEEN`, `IS NULL`, computed predicates)
+- `GROUP BY`, `HAVING`, aggregates, windows
+- `DISTINCT ON`
+- subqueries/correlated subqueries
+
+This is intentionally narrower than some earlier ideas. The narrower shape matches the current codebase and is much more likely to ship cleanly.
+
 ## Semantics
 
-Each iteration of the loop runs one `REPEATABLE READ` transaction that:
+Each loop iteration:
 
-1. Captures `pg_current_snapshot()` as the cursor.
-2. Runs the dependency-extraction query to get resolved predicate values.
-3. Runs the main query to get the data.
-4. Commits.
-5. Yields the data.
-6. Waits for the bus to report a potentially-affecting mutation.
+1. Open a `REPEATABLE READ` transaction.
+2. Capture `pg_current_snapshot()` as `cursor`.
+3. Run dependency extraction in that transaction.
+4. Run the main query in that transaction.
+5. Commit.
+6. Yield rows.
+7. Wait until an event after `cursor` matches the extracted predicates.
+8. Repeat.
 
-The cursor is new every iteration. Mutations that commit before the cursor are already reflected in the yielded data; mutations that commit after the cursor are compared against the subscription's predicate expression to decide whether a refresh is needed.
+If the bus no longer retains enough history to compare against `cursor`, throw / handle `CursorTooOldError` by restarting with a fresh iteration.
 
-## Supported Surface
+## Core idea
 
-Queries accepted by `.live()`:
+### 1. Extract watched equality values
 
-**Anchoring requirement** — for every table in the query, the predicates filtering that table must include at least one equality predicate (top-level conjunct, or at least one equality inside every `OR` branch) that either:
-- Is `col = literal` (literal anchor), or
-- Is `col = other_table.col` to a table that is itself anchored (parent edge).
-
-This is the only hard restriction on predicate shape. Anything else — ranges, `LIKE`, `BETWEEN`, inequalities, `IS NULL`, computed expressions on columns, `OR` compositions, nested boolean structure — is accepted. These non-equality predicates become additional `WHERE` clauses on the extractor's CTEs and additional leaves in the matching expression; they just can't substitute for the equality anchor.
-
-Explicitly rejected at `.live()` construction time (throws):
-- **Aggregates**, `HAVING`, `GROUP BY`, window functions. These change result semantics in ways the "re-run the query on a matching event" model can't handle precisely. A separate `.liveAggregate()` primitive with a different (likely IVM-based) engine is the right answer for these.
-- **`DISTINCT` ON joined rows** (ordinary `SELECT DISTINCT` on a single projection is fine).
-- **Any table not reachable via equality propagation from a literal anchor.** Raised with a clear error naming the offending table.
-
-## Architecture
-
-### Mutation path
-
-Every INSERT/UPDATE/DELETE is wrapped by the event store to emit an event in the same transaction as the mutation. The event carries:
-
-- `xid` = `pg_current_xact_id()` (same-tx, monotonic in assignment order).
-- `table` = target table name.
-- `before` = values of watched columns pre-mutation (null on INSERT).
-- `after` = values of watched columns post-mutation (null on DELETE).
-
-For PG shadow-table impl, the mutation becomes a CTE chain:
-
-```sql
--- UPDATE example
-WITH
-  old AS (SELECT <cols> FROM t WHERE <where> FOR UPDATE),
-  upd AS (UPDATE t SET <set> WHERE <where> RETURNING <cols>),
-  evt AS (INSERT INTO _live_events (xid, table, before, after)
-          SELECT pg_current_xact_id(), 't',
-                 jsonb_build_object('col', old.col, ...),
-                 jsonb_build_object('col', upd.col, ...)
-          FROM old JOIN upd USING (<pk>))
-SELECT * FROM upd;  -- passthrough for RETURNING
-```
-
-The store provides this wrapping via `wrap(mutationDescriptor) → Sql`.
-
-### Bus
-
-Long-lived shared component (one per process). Responsibilities:
-
-1. Ingest events from the PG shadow table (polling for v1; later: LISTEN/NOTIFY wake + SELECT).
-2. Maintain a retention window — a ring of recent events, bounded by time or count.
-3. Track `F` = lowest xid guaranteed retained. Bump `F` on eviction: `F ← max(F, evicted_xid + 1)`.
-4. Serve subscription `waitNext(preds, cursor)` calls.
-
-### Subscription
-
-One call per iteration:
+From the query AST, build a per-table/per-column watched set:
 
 ```typescript
-await sub.waitNext(preds, cursor);
-```
-
-First step is **admission**: if `xmin(cursor) < F`, throw `CursorTooOldError`. Caller catches and restarts `.live()` (new query, new cursor).
-
-Subsequent calls also atomically swap the subscription's `(preds, cursor)` pair and re-filter the buffered events with the new pair.
-
-Resolves when a buffered OR live event:
-- Has `pg_visible_in_snapshot(event.xid, cursor) = false` (committed after the cursor).
-- Matches the predicate expression under 3-valued logic (see Matching below).
-
-## Dependency Extraction
-
-The goal: produce the set of values on each watched column that could affect the query's result, and the predicate expression that determines matching.
-
-### Equality-propagation DAG
-
-1. Walk the query AST. Each (aliased) table becomes a DAG node.
-2. For each predicate filtering a table, partition into:
-   - **Anchor equalities**: `col = literal` (literal anchor) or `t1.col = t2.col` (parent edge). These drive DAG structure.
-   - **Other constraints**: everything else — ranges, `LIKE`, inequalities, computed expressions, `OR` branches without equality. These don't affect the DAG; they flow through to the CTE `WHERE` and to the matching expression.
-3. Direction of anchor edges comes from query **structure**, not from the predicate itself (equality is symmetric):
-   - **JOIN**: the table declared in `.join(T, pred)` depends on every prior-declared table referenced in `pred` (this includes self-joins)
-   - **Subselect**: the inner query depends on whatever variables from the enclosing scope its predicates capture.
-4. **Validation**:
-   - Every node must be reachable from a node that has a literal-anchor pred. Otherwise throw:
-     `live() query requires a literal equality filter on at least one table reachable from <table>`.
-   - v1 does not support `OR` at the top level of a table's predicate — require top-level `AND`. See "Future enhancements" for the OR plan.
-
-### CTE emission
-
-Topo-sort the DAG. Each node becomes one `MATERIALIZED` CTE. Each CTE's `WHERE`:
-
-- Literal preds on the node's table.
-- One `<col> IN (SELECT <parent_col> FROM <parent_cte>)` per incoming edge.
-- All other (non-anchor) predicates on the node's table — ranges, `LIKE`, inequalities, etc. They flow through as-is.
-
-```sql
--- Example query:
---   users u JOIN dogs d ON d.user_id = u.id
---           JOIN toys t ON t.dog_id   = d.id
---   WHERE u.id = 5
-
-WITH
-  s_users AS MATERIALIZED (
-    SELECT id FROM users WHERE id = 5
-  ),
-  s_dogs  AS MATERIALIZED (
-    SELECT id, user_id FROM dogs
-     WHERE user_id IN (SELECT id FROM s_users)
-  ),
-  s_toys  AS MATERIALIZED (
-    SELECT dog_id FROM toys
-     WHERE dog_id IN (SELECT id FROM s_dogs)
-  )
-SELECT tbl, col, val FROM (
-  SELECT 'users' AS tbl, 'id'      AS col, id::text      AS val FROM s_users
-  UNION ALL SELECT 'dogs',  'user_id',    user_id::text FROM s_dogs
-  UNION ALL SELECT 'dogs',  'id',         id::text      FROM s_dogs
-  UNION ALL SELECT 'toys',  'dog_id',     dog_id::text  FROM s_toys
-) x
-GROUP BY 1, 2, 3;
-```
-
-Output is flat `(table, column, value)` triples. No leaf ids — self-referencing queries (e.g. `users u JOIN users m ON u.manager_id = m.id`) just contribute additional triples under the same `(users, id)` key; the match side treats them as one set of watched values.
-
-Literal-sourced values (e.g. `owners.name = 'Alice'`) are **not** in the emitted SQL — they're static from the AST, merged into the client-side `PredicateSet` directly.
-
-### Type handling
-
-All leaf values serialize as `::text` for a uniform output column type. Covers ~95% of PG types with no ambiguity (integers, uuid, text, bool, date, bytea, jsonb, inet, enums, arrays of these). Special cases:
-
-- **`timestamptz`**: session TimeZone affects text output. Normalize at both emit and extract: `(col AT TIME ZONE 'UTC')::text` or `to_char(col, 'YYYY-MM-DD HH24:MI:SS.US+00')`.
-- **`citext`**: native equality is case-insensitive. Either reject in `.live()` preds, or cast `lower(col)::text` at both sites.
-- **`numeric` without fixed scale**: `1.0` and `1.00` differ as text. Use `trim_scale(col)::text` (PG 13+) or require declared scale.
-- **`float4`/`float8`**: `-0.0` vs `0.0`, `NaN` behavior. Edge cases; unlikely in equality-predicate columns.
-
-Codegen knows each column's PG type and picks the right cast per-column.
-
-## Matching
-
-v1 uses a flat predicate set — no expression tree, no boolean logic, no structural reasoning about the original query's predicates. The subscription holds:
-
-```typescript
-// table -> column -> set of watched values (as canonical text)
 type PredicateSet = Map<string, Map<string, Set<string>>>;
 ```
 
-Populated from two sources:
-- **Resolved values** from the extraction query output (the `(table, column, value)` triples).
-- **Literal values** from the query AST (e.g. `owners.name = 'Alice'` → `owners.name: {'Alice'}`).
+Example:
 
-For each incoming event on table `T` with `before` and `after` rows: fire if any watched `(T, col)` pair has a value in `PredicateSet[T][col]` matching `before[col]` OR `after[col]`.
+```sql
+SELECT *
+FROM users u
+JOIN dogs d ON d.user_id = u.id
+WHERE u.id = 5
+```
 
-That's it. Implicit OR across columns, tables, and within-set values. Match is `O(watched columns on T)` per event.
+Extracts roughly:
 
-## Event visibility
+```typescript
+{
+  users: { id: Set(["5"]) },
+  dogs: { user_id: Set(["5"]) },
+}
+```
 
-Cursor is `pg_current_snapshot()` (text-serialized). Events carry xid. The comparator is `pg_visible_in_snapshot(event.xid, cursor)`:
+### 2. Emit mutation events
 
-- `false` → event committed after the cursor's snapshot → deliver.
-- `true`  → already reflected in the cursor's data → skip.
+Every insert/update/delete emits an event in the same transaction:
 
-This handles concurrent transactions correctly via the snapshot's `xip_list` (txs that were in-progress at cursor time but commit later are correctly treated as "after" the cursor).
+```typescript
+interface LiveEvent {
+  xid: bigint;
+  table: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+}
+```
 
-## Retention and admission
+For v1, capture **all columns** in `before` / `after`. This is simpler and safer than trying to optimize watched columns early.
 
-Bus admission gate: `xmin(cursor) ≥ F`. If not, throw `CursorTooOldError`. Caller handles by re-running `.live()` to get a fresh cursor.
+### 3. Match events in memory
 
-Retention policy (v0): time-window ring buffer, sized to comfortably exceed typical query-to-subscribe latency (seconds). Principled GC rule: drop events with `xid < min(xmin across all live subscriptions)`, mirroring PG's own `backend_xmin`-based vacuum logic.
+For an event on table `T`, rerun if any watched `(T, col)` value matches `before[col]` or `after[col]`.
 
-## Design notes
+This is intentionally an over-approximation only in the sense that multi-column conjunctions are treated as independent watched sets. That is acceptable in v1 because spurious reruns are fine; missed reruns are not.
 
-Non-actionable context — explains *why* the v1 shape is what it is. Skip on first read.
+## Why we need a real expression AST first
 
-### Why the CTE-materialized chain (vs a big join)
+The extractor must inspect predicates structurally:
 
-- **Each CTE is one indexed scan** over its table's filter column. Planner can't regress this into a bad join plan.
-- **`MATERIALIZED` locks the plan** against PG 12+ inlining. Without it, the whole thing may get rewritten into a single join and replanned as stats drift. With it, every subscriber sees the same plan.
-- **Tight intermediate cardinalities**: `s_users` has ~1 row (literal-anchored), `s_dogs` has the small set of that user's dogs, `s_toys` those dogs' toys. No ancestor replication (unlike a LEFT JOIN version, where `u.id=5` would be duplicated once per dog × toy row).
-- **Robust to intermediate empties**: if `s_dogs` is empty, `s_toys` is trivially empty — but literal-anchored leaves still resolve from the AST, so the subscription stays correctly armed for a new dog insert.
-- **Plan stability as a feature**: Typegres's take on the problem Convex solves by disallowing joins. Keep joins in the language, but express them operationally as a nested-loop-over-indices chain so the planner's unpredictability is out of the critical path for live queries.
+- split top-level `AND`
+- detect `col = literal`
+- detect `col = other_table.col`
+- attribute predicates to specific tables
+- reject unsupported forms with clear errors
 
-### v1 match imprecision
+The current codebase composes a lot of expressions as generic SQL fragments. That is good for compilation, but not rich enough for reliable `.live()` extraction.
 
-The flat-set match is an over-approximation. Dogs filtered by `WHERE user_id=5 AND breed='Lab'` watch both `user_id: {5}` and `breed: {'Lab'}` as independent sets; a dog with `user_id=5, breed='Poodle'` fires (matches `user_id=5`), the refresh re-runs and finds no change. Spurious refreshes, never missed events. The cost is wasted re-runs; the benefit is a bunch of machinery we don't build yet (no expression tree, no 3-valued logic, no per-event tree walks, no rawRow evaluator). See Future enhancements for what tightens this.
+### Required refactor
 
-## Future enhancements
+Preserve predicate structure as inspectable nodes.
 
-Listed so the v1 scope is honest about the over-approximations it accepts and where fixes live.
+At minimum, retain:
 
-1. **Non-equality matching (`rawRow` leaves).** In v1, non-equality predicates (`age > 3`, `status LIKE 'X%'`, `IS NULL`) participate only in the CTE filter, not in event matching. Any event that matches the equality anchor fires, even if the event's row would fail the non-equality pred. Over-approximation cost scales with pred selectivity — `WHERE user_id=5 AND status='archived'` where archived rows are 1% of the table fires ~100× more events than strictly necessary. Fix: extend the leaf representation to a tagged union:
-    ```typescript
-    type Leaf =
-      | { kind: "eq"; expectedValues: Set<string> }
-      | { kind: "rawRow"; evaluate: (row) => boolean | null }
-      | ...;
-    ```
-    Each leaf knows how to answer "does this event's row match me?" Adding a kind is additive; the match loop dispatches on `kind`. Pair with a proper boolean expression tree and 3-valued logic.
+- boolean `and` / `or` / `not`
+- binary operators, especially `=`
+- column refs
+- params / literals
+- table alias identity
 
-2. **OR composition at the top level.** v1 rejects `WHERE a OR b`. Fix comes with the expression tree — each OR branch becomes a disjunct; each branch must itself have an anchor equality.
+We do **not** need a perfect general-purpose SQL AST. We just need enough structure to validate and extract the supported live subset.
 
-3. **Precise AND matching.** Expression-tree matching with per-leaf true/false/unknown evaluation closes the flat-set over-approximation. Biggest wins on queries with highly-selective secondary predicates.
+## Query validation / extraction model
 
-4. **`.liveAggregate()` for aggregates / HAVING / GROUP BY / windows.** Out of `.live()`'s scope entirely. Needs IVM (either custom narrow-scope or Feldera-as-sidecar).
+Treat the query as a DAG of aliased tables.
 
-5. **Self-ref precision loss.** v1 treats self-referencing joins as adding more triples under the same `(table, column)` key — all values merge into one set regardless of alias. Usually fine; pathological cases (e.g. a query filters users via one self-join and excludes them via another) over-fire. Fix: preserve alias identity in the match index.
+For each table:
 
-6. **Logical-replication-based event ingestion.** v1 uses a shadow table (~2× writes on mutated rows). For write-heavy workloads, a logical replication slot reading WAL avoids the write amplification. Same admission gate and xid/snapshot semantics; different pluggable event source.
+- incoming literal anchors: `table.col = literal`
+- incoming parent edges: `table.col = parent.col`
 
-7. **Narrower watched-columns per mutation.** v1 captures all columns of a mutated row into the event's `before`/`after`. Safe but wastes payload for tables with many columns that aren't referenced by any live subscription. Fix: union of columns referenced by currently-registered subscriptions' predicates, advertised by the bus to mutation wrappers. Harder than it sounds — needs an invalidation protocol so new subs that widen the set don't race with in-flight mutations. Defer until event payload size actually bites.
+Validation rules:
 
-8. **SQLite backend.** v1 is PG-only. For SQLite the equivalent shape:
-    - Event capture via `sqlite3_update_hook` (C API), accumulating a per-connection list of pending events; flush to an in-memory ring on `COMMIT`, discard on `ROLLBACK`.
-    - No xid/snapshot — single-writer SQLite makes commit order = insertion order. Cursor becomes `max(rowid)` from the events ring.
-    - Admission gate, retention floor, match logic all unchanged; just swap the cursor comparator from `pg_visible_in_snapshot(xid, snap)` to `event.rowid > cursor.rowid`.
-    - Mutation `wrap` can be a no-op at the SQL level (update_hook captures automatically) — the wrapper just tags the in-progress event list with the right table name since `update_hook` doesn't carry it.
+1. Query must have at least one literal anchor.
+2. Every table must be reachable from some literal-anchored table via equality edges.
+3. Every predicate in v1 must be a top-level equality conjunct.
 
-9. **Multi-cluster / cross-region PG.** xids don't cross cluster boundaries. Either per-cluster cursors (sub holds `N` snapshots, events tagged with cluster id) or switch to commit timestamps with `track_commit_timestamp = on` (globally comparable, clock-skew-bounded).
+If not, throw at `.live()` construction time with a message naming the unsupported predicate or unreachable table.
+
+## Extraction SQL shape
+
+Use one `MATERIALIZED` CTE per table in dependency order.
+
+Example:
+
+```sql
+WITH
+  s_users AS MATERIALIZED (
+    SELECT id
+    FROM users
+    WHERE id = 5
+  ),
+  s_dogs AS MATERIALIZED (
+    SELECT user_id
+    FROM dogs
+    WHERE user_id IN (SELECT id FROM s_users)
+  )
+SELECT 'users' AS tbl, 'id' AS col, id::text AS value FROM s_users
+UNION ALL
+SELECT 'dogs', 'user_id', user_id::text FROM s_dogs;
+```
+
+Why this shape:
+
+- planner-stable
+- index-friendly
+- easy to reason about
+- does not require rewriting the user query itself
+
+Implementation note: extracted equality values must be serialized canonically. In particular, do not forget `timestamptz` timezone normalization, `citext` case-insensitive equality, and `numeric` scale normalization. Those are correctness issues, not optimizations.
+
+## Mutation integration
+
+Keep the `MutationDescriptor` direction. The event store should own wrapping SQL shape.
+
+For v1, require live-enabled tables to have a primary key for update/delete event pairing.
+
+That avoids ambiguous old/new row matching logic.
+
+## Bus / retention
+
+One shared bus per process:
+
+- ingests committed events from the pg shadow table by polling in v1
+- keeps a ring buffer of recent events
+- tracks a retention floor `F`
+- serves `waitNext(preds, cursor)`
+
+Admission rule:
+
+- if `xmin(cursor) < F`, subscription is too old and must restart
+
+Visibility rule:
+
+- use `pg_visible_in_snapshot(event.xid, cursor)`
+- if visible, the event is already reflected in yielded rows
+- if not visible and predicate matches, rerun
+
+Idle subscriptions can still age past retention even if no matching event arrives. v1 can handle this lazily via `CursorTooOldError` on the next wait; proactive refresh / keepalive behavior is deferred.
+
+## Action plan
+
+### Phase 0 — prerequisites
+
+1. Fix pg transaction semantics with connection pinning.
+2. Add isolation-level support to transactions.
+3. Implement `Database` ownership of executor + live store.
+
+### Phase 1 — AST support
+
+1. Preserve predicate structure in emitted expressions.
+2. Add helpers to inspect:
+   - top-level `AND`
+   - equality predicates
+   - column-vs-literal
+   - column-vs-column
+3. Keep alias identity available through extraction.
+
+### Phase 2 — minimal extraction
+
+1. Validate only the narrow v1 subset.
+2. Build dependency DAG from joins + where equalities.
+3. Emit extractor SQL returning `(tbl, col, value)` triples.
+4. Materialize into `PredicateSet`.
+5. Canonicalize extracted equality values by pg type.
+
+### Phase 3 — mutation events
+
+1. Add pg shadow event table.
+2. Wrap insert/update/delete to emit `LiveEvent` rows atomically.
+3. Start with “capture all columns”.
+4. Require primary key on live-enabled update/delete tables.
+
+### Phase 4 — bus + subscription
+
+1. Poll event table into an in-memory ring buffer.
+2. Implement retention floor.
+3. Implement `waitNext(preds, cursor)`.
+4. Add restart on `CursorTooOldError`.
+
+### Phase 5 — first shipped live
+
+Ship only:
+
+- one-table literal equality queries
+- then simple equality joins
+
+Do **not** broaden supported predicates until this path works end-to-end.
+
+## Deferred
+
+These are good ideas, but not part of the first implementation.
+
+- non-equality predicate support with over-approximate matching
+- top-level `OR`
+- precise boolean-expression matching
+- alias-sensitive self-join precision
+- narrower watched-column capture
+- LISTEN/NOTIFY wakeups
+- logical replication / WAL ingestion
+- SQLite backend
+- `.liveAggregate()` / IVM-backed aggregation
+- cross-cluster / cross-region semantics
+
+## Notes
+
+### Why trim scope this aggressively?
+
+Because live queries touch every layer:
+
+- executor / transactions
+- query AST
+- mutation builders
+- database runtime
+- background event processing
+
+The smallest credible version is still fairly deep. A narrow, equality-only v1 gets us a real system sooner and gives us a clean base to extend later.
+
+### What matters most
+
+If forced to choose, prioritize these in order:
+
+1. real transactions
+2. inspectable predicate AST
+3. end-to-end correctness for equality-only live queries
+4. only then broader predicate support
