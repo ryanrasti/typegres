@@ -1,7 +1,22 @@
-import { test, expect } from "vitest";
+import { test, expect, beforeAll, afterAll } from "vitest";
 import { Int8, Text } from "./types";
 import { sql } from "./builder/sql";
 import { exec, db } from "./builder/test-helper";
+import { pgExecutor } from "./executor";
+import type { Executor } from "./executor";
+import { Database } from "./database";
+
+let concurrentExec: Executor;
+let concurrentDb: Database;
+
+beforeAll(async () => {
+  concurrentExec = pgExecutor(undefined, { max: 10 });
+  concurrentDb = new Database(concurrentExec);
+});
+
+afterAll(async () => {
+  await concurrentExec.close();
+});
 
 test("transaction commits on success", async () => {
   await exec.execute(sql`CREATE TABLE txtest (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name text NOT NULL)`);
@@ -45,4 +60,37 @@ test("transaction rollbacks on error", async () => {
 
   expect(rows).toEqual([]);
   await exec.execute(sql`DROP TABLE txtest2`);
+});
+
+test("transaction pins one backend connection under concurrent queries", async () => {
+  await concurrentDb.transaction(async () => {
+    const rows = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        concurrentExec.execute(sql`SELECT pg_backend_pid() AS pid, pg_sleep(0.05)`),
+      ),
+    );
+    const pids = new Set(rows.map((r) => r[0]?.pid));
+    expect(pids.size).toBe(1);
+  });
+});
+
+test("transaction preserves session-local temp tables", async () => {
+  await concurrentDb.transaction(async () => {
+    await concurrentExec.execute(sql`CREATE TEMP TABLE tx_session_test (id int4)`);
+    const rows = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        concurrentExec.execute(sql`
+          SELECT to_regclass('pg_temp.tx_session_test') IS NOT NULL AS exists, pg_sleep(0.05)
+        `),
+      ),
+    );
+    expect(rows.every((r) => r[0]?.exists === "t")).toBe(true);
+  });
+});
+
+test("transaction applies repeatable read isolation", async () => {
+  await concurrentDb.transaction(async () => {
+    const rows = await concurrentExec.execute(sql`SHOW transaction_isolation`);
+    expect(rows[0]?.transaction_isolation.toLowerCase()).toContain("repeatable read");
+  });
 });

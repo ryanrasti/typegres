@@ -1,14 +1,13 @@
 import { beforeAll, afterAll } from "vitest";
-import { pgliteExecutor } from "../executor";
+import { pgExecutor } from "../executor";
 import type { Executor } from "../executor";
 import { Database } from "../database";
-import { sql } from "./sql";
 
 export let exec: Executor;
 export let db: Database;
 
 beforeAll(async () => {
-  exec = await pgliteExecutor();
+  exec = pgExecutor(undefined, { max: 1 });
   db = new Database(exec);
 });
 
@@ -17,10 +16,12 @@ afterAll(async () => {
 });
 
 export const withinTransaction = async (fn: () => Promise<void>) => {
-  await exec.execute(sql`BEGIN`);
-  try {
+  await db.transaction(async () => {
     await fn();
-  } finally {
-    await exec.execute(sql`ROLLBACK`);
-  }
+    throw new Error("__test_rollback__");
+  }).catch((e) => {
+    if ((e as Error).message !== "__test_rollback__") {
+      throw e;
+    }
+  });
 };

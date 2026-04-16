@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PGDATA="$(cd "$(dirname "$0")/.." && pwd)/pg_data"
+
+echo "Stopping PostgreSQL (data: $PGDATA)"
+exec pg_ctl -D "$PGDATA" stop -m fast -w

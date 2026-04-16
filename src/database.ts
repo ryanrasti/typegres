@@ -1,4 +1,4 @@
-import type { Executor } from "./executor";
+import type { Executor, IsolationLevel } from "./executor";
 import type { Fromable, RowType, RowTypeToTsType, RowTypeOfFromable } from "./builder/query";
 import { aliasRowType, QueryBuilder, getRowType } from "./builder/query";
 import { sql } from "./builder/sql";
@@ -8,8 +8,24 @@ import { Values } from "./builder/values";
 export class Database {
   constructor(private executor: Executor) {}
 
-  async transaction<T>(fn: (tx: Database) => Promise<T>): Promise<T> {
+  async transaction<T>(fn: (tx: Database) => Promise<T>): Promise<T>;
+  async transaction<T>(isolation: IsolationLevel, fn: (tx: Database) => Promise<T>): Promise<T>;
+  async transaction<T>(
+    isolationOrFn: IsolationLevel | ((tx: Database) => Promise<T>),
+    maybeFn?: (tx: Database) => Promise<T>,
+  ): Promise<T> {
+    const isolation = typeof isolationOrFn === "function" ? "repeatable read" : isolationOrFn;
+    const fn = typeof isolationOrFn === "function" ? isolationOrFn : maybeFn;
+    if (!fn) {
+      throw new Error("transaction() requires a callback");
+    }
+
+    if (this.executor.transaction) {
+      return this.executor.transaction(isolation, async () => fn(this));
+    }
+
     await this.executor.execute(sql`BEGIN`);
+    await this.executor.execute(sql.raw(`SET TRANSACTION ISOLATION LEVEL ${isolation.toUpperCase()}`));
     try {
       const result = await fn(this);
       await this.executor.execute(sql`COMMIT`);

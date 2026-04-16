@@ -1,5 +1,5 @@
 import { test, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
-import { pgliteExecutor } from "../executor";
+import { pgExecutor } from "../executor";
 import type { Executor } from "../executor";
 import { Database } from "../database";
 import { Int4, Int8, Text, Bool, Jsonb } from "../types";
@@ -9,7 +9,7 @@ let exec: Executor;
 let db: Database;
 
 beforeAll(async () => {
-  exec = await pgliteExecutor();
+  exec = pgExecutor(undefined, { max: 1 });
   db = new Database(exec);
 });
 

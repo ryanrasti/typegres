@@ -1,7 +1,8 @@
-import { PGlite } from "@electric-sql/pglite";
+import pg from "pg";
 import camelcase from "camelcase";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { defaultPgConnectionString } from "../pg.ts";
 
 const GENERATED_DIR = path.resolve(import.meta.dirname, "generated");
 const OVERRIDES_DIR = path.resolve(import.meta.dirname, "overrides");
@@ -104,7 +105,11 @@ interface PgFunc {
   outColumns?: { name: string; typeOid: number }[];
 }
 
-const introspect = async (db: PGlite) => {
+type Queryable = {
+  query<T>(text: string): Promise<{ rows: T[] }>;
+};
+
+const introspect = async (db: Queryable) => {
   // Get all built-in base types and pseudo-types (not array types)
   const { rows: types } = await db.query<{ oid: number; typname: string }>(`
     SELECT t.oid, t.typname
@@ -752,7 +757,7 @@ const generateIndex = (typeMap: Map<number, PgType>, overrides: Set<string>) => 
 };
 
 export const generate = async () => {
-  const db = new PGlite();
+  const db = new pg.Pool({ connectionString: defaultPgConnectionString() });
 
   try {
     const { typeMap, pgFuncs } = await introspect(db);
@@ -777,7 +782,7 @@ export const generate = async () => {
 
     console.log(`Generated ${typeMap.size} types in ${GENERATED_DIR}`);
   } finally {
-    await db.close();
+    await db.end();
   }
 };
 

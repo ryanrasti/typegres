@@ -5,7 +5,6 @@ import type { Bool} from "../types";
 import { Any, Anyarray, Record } from "../types";
 import type { TsTypeOf, Nullable, AggregateRow} from "../types/runtime";
 import { meta } from "../types/runtime";
-import { live } from "../live";
 
 // Extract only Any<> instances from a row type
 export const selectList = <T extends RowType>(output: T): T => {
@@ -362,9 +361,5 @@ export class QueryBuilder<
   async execute(): Promise<RowTypeToTsType<O>[]> {
     const rows = await this.opts.executor.execute(this);
     return deserializeRows<RowTypeToTsType<O>>(rows, this.opts.output as { [key: string]: unknown });
-  }
-
-  async *live(): AsyncIterable<RowTypeToTsType<O>[]> {
-    return live(this);
   }
 }

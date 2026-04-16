@@ -4,13 +4,13 @@ import type { StrictNull, MaybeNull, NullOf, TsTypeOf } from "./runtime";
 import type { Any, Float8, Anyarray, Anyrange, Anymultirange } from "./index";
 import { Int4, Text, Bool, Int8 } from "./index";
 import { sql } from "../builder/sql";
-import { pgliteExecutor } from "../executor";
+import { pgExecutor } from "../executor";
 import type { Executor } from "../executor";
 
 let exec: Executor;
 
 beforeAll(async () => {
-  exec = await pgliteExecutor();
+  exec = pgExecutor(undefined, { max: 1 });
 });
 
 afterAll(async () => {

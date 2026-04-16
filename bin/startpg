@@ -10,6 +10,7 @@ if [ ! -d "$PGDATA" ]; then
   cat >> "$PGDATA/postgresql.conf" <<EOF
 unix_socket_directories = '$PGDATA'
 listen_addresses = ''
+max_connections = 128
 EOF
 fi
 
