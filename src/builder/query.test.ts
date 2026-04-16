@@ -53,13 +53,13 @@ test("values with select computed column", async () => {
 // --- e2e ---
 
 test("e2e: values single row", async () => {
-  const result = await db.values({ a: Int4.from(1), b: Text.from("hello") }).execute();
+  const result = await db.execute(db.values({ a: Int4.from(1), b: Text.from("hello") }));
   expectTypeOf(result).toEqualTypeOf<{ a: number; b: string }[]>();
   expect(result).toEqual([{ a: 1, b: "hello" }]);
 });
 
 test("e2e: values multiple rows", async () => {
-  const result = await db.values({ x: Int4.from(1), y: Text.from("a") }, { x: 2, y: "b" }).execute();
+  const result = await db.execute(db.values({ x: Int4.from(1), y: Text.from("a") }, { x: 2, y: "b" }));
   expectTypeOf(result).toEqualTypeOf<{ x: number; y: string }[]>();
   expect(result).toEqual([
     { x: 1, y: "a" },
@@ -68,37 +68,37 @@ test("e2e: values multiple rows", async () => {
 });
 
 test("e2e: values with select expression", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ a: Int4.from(10), b: Int4.from(20) })
     .select((n) => ({
       sum: n.values.a["+"](n.values.b),
     }))
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ sum: number }[]>();
   expect(result).toEqual([{ sum: 30 }]);
 });
 
 test("e2e: values with string upper", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ name: Text.from("hello") })
     .select((n) => ({
       upper: n.values.name.upper(),
     }))
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ upper: string }[]>();
   expect(result).toEqual([{ upper: "HELLO" }]);
 });
 
 test("e2e: values with mixed types", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ num: Int4.from(42), str: Text.from("test"), flag: Bool.from(true) })
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ num: number; str: string; flag: boolean }[]>();
   expect(result).toEqual([{ num: 42, str: "test", flag: true }]);
 });
 
 test("e2e: values with primitive second row", async () => {
-  const result = await db.values({ a: Int4.from(1) }, { a: 2 }, { a: 3 }).execute();
+  const result = await db.execute(db.values({ a: Int4.from(1) }, { a: 2 }, { a: 3 }));
   expectTypeOf(result).toEqualTypeOf<{ a: number }[]>();
   expect(result).toEqual([{ a: 1 }, { a: 2 }, { a: 3 }]);
 });
@@ -106,19 +106,19 @@ test("e2e: values with primitive second row", async () => {
 // --- where ---
 
 test("e2e: where filters rows", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ a: Int4.from(1), b: Text.from("yes") }, { a: 2, b: "no" }, { a: 3, b: "yes" })
     .where((n) => n.values.a[">"](2))
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ a: number; b: string }[]>();
   expect(result).toEqual([{ a: 3, b: "yes" }]);
 });
 
 test("e2e: where with equality", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ x: Int4.from(10) }, { x: 20 }, { x: 10 })
     .where((n) => n.values.x["="](10))
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
   expect(result).toEqual([{ x: 10 }, { x: 10 }]);
 });
@@ -145,7 +145,7 @@ test("groupBy compiles to SQL", () => {
 
 test("e2e: groupBy select using numeric index", async () => {
   // n.values.category is the same expression used in groupBy — should work directly
-  const result = await db
+  const result = await db.execute(db
     .values(
       { category: Text.from("x"), val: Int4.from(1) },
       { category: "x", val: 2 },
@@ -155,13 +155,13 @@ test("e2e: groupBy select using numeric index", async () => {
     .select(({ 0: cat }) => ({
       cat: cat,
     }))
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ cat: string }[]>();
   expect(result.sort((a, b) => a.cat.localeCompare(b.cat))).toEqual([{ cat: "x" }, { cat: "y" }]);
 });
 
 test("e2e: groupBy with select", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values(
       { category: Text.from("a"), amount: Int4.from(10) },
       { category: "a", amount: 20 },
@@ -171,7 +171,7 @@ test("e2e: groupBy with select", async () => {
     .select((n) => ({
       category: n.values.category,
     }))
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ category: string }[]>();
   expect(result.sort((a, b) => a.category.localeCompare(b.category))).toEqual([
     { category: "a" },
@@ -197,7 +197,7 @@ test("having compiles to SQL", () => {
 
 test("e2e: having filters groups", async () => {
   // Group by category, only keep groups where category > 'a'
-  const result = await db
+  const result = await db.execute(db
     .values(
       { category: Text.from("a"), val: Int4.from(1) },
       { category: "b", val: 2 },
@@ -208,7 +208,7 @@ test("e2e: having filters groups", async () => {
     .select(({ 0: cat }) => ({
       cat,
     }))
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ cat: string }[]>();
   expect(result.sort((a, b) => a.cat.localeCompare(b.cat))).toEqual([
     { cat: "b" },
@@ -217,7 +217,7 @@ test("e2e: having filters groups", async () => {
 });
 
 test("e2e: where + groupBy + having", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values(
       { category: Text.from("a"), amount: Int4.from(10) },
       { category: "a", amount: 20 },
@@ -231,7 +231,7 @@ test("e2e: where + groupBy + having", async () => {
     .select(({ 0: cat }) => ({
       cat,
     }))
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ cat: string }[]>();
   expect(result.sort((a, b) => a.cat.localeCompare(b.cat))).toEqual([
     { cat: "a" },
@@ -251,25 +251,25 @@ test("orderBy compiles to SQL", () => {
 });
 
 test("e2e: orderBy single expr (default asc)", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ x: Int4.from(3) }, { x: 1 }, { x: 2 })
     .orderBy((n) => n.values.x)
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
   expect(result).toEqual([{ x: 1 }, { x: 2 }, { x: 3 }]);
 });
 
 test("e2e: orderBy single tuple", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ x: Int4.from(3) }, { x: 1 }, { x: 2 })
     .orderBy((n) => [n.values.x, "desc"])
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
   expect(result).toEqual([{ x: 3 }, { x: 2 }, { x: 1 }]);
 });
 
 test("e2e: orderBy stacking", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values(
       { a: Text.from("x"), b: Int4.from(2) },
       { a: "x", b: 1 },
@@ -277,7 +277,7 @@ test("e2e: orderBy stacking", async () => {
     )
     .orderBy((n) => n.values.a)
     .orderBy((n) => [n.values.b, "desc"])
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ a: string; b: number }[]>();
   expect(result).toEqual([
     { a: "x", b: 2 },
@@ -287,7 +287,7 @@ test("e2e: orderBy stacking", async () => {
 });
 
 test("e2e: orderBy multiple columns", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values(
       { a: Text.from("x"), b: Int4.from(2) },
       { a: "x", b: 1 },
@@ -297,7 +297,7 @@ test("e2e: orderBy multiple columns", async () => {
       [n.values.a, "asc"],
       [n.values.b, "desc"],
     ])
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ a: string; b: number }[]>();
   expect(result).toEqual([
     { a: "x", b: 2 },
@@ -309,43 +309,43 @@ test("e2e: orderBy multiple columns", async () => {
 // --- limit / offset ---
 
 test("e2e: limit", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 })
     .orderBy((n) => [[n.values.x, "asc"]])
     .limit(2)
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
   expect(result).toEqual([{ x: 1 }, { x: 2 }]);
 });
 
 test("e2e: offset", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 })
     .orderBy((n) => [[n.values.x, "asc"]])
     .offset(1)
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
   expect(result).toEqual([{ x: 2 }, { x: 3 }]);
 });
 
 test("e2e: limit + offset (pagination)", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 }, { x: 4 }, { x: 5 })
     .orderBy((n) => [[n.values.x, "asc"]])
     .limit(2)
     .offset(2)
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
   expect(result).toEqual([{ x: 3 }, { x: 4 }]);
 });
 
 test("e2e: where + orderBy + limit", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ x: Int4.from(10) }, { x: 5 }, { x: 20 }, { x: 1 }, { x: 15 })
     .where((n) => n.values.x[">"](5))
     .orderBy((n) => [[n.values.x, "asc"]])
     .limit(2)
-    .execute();
+    );
   expectTypeOf(result).toEqualTypeOf<{ x: number }[]>();
   expect(result).toEqual([{ x: 10 }, { x: 15 }]);
 });
@@ -385,13 +385,13 @@ test("inner join", async () => {
       owner_id = (Int8<1>).column({ nonNull: true });
     }
 
-    const rows = await Pets.from()
+    const rows = await db.execute(Pets.from()
       .join(Owners, ({ pets, owners }) => pets.owner_id["="](owners.id))
       .select(({ pets, owners }) => ({
         pet: pets.name,
         owner: owners.name,
       }))
-      .execute();
+      );
 
     expectTypeOf(rows).toEqualTypeOf<{ pet: string; owner: string }[]>();
     expect(rows).toEqual([
@@ -426,13 +426,13 @@ test("left join — unmatched rows return null", async () => {
       author_id = (Int8<1>).column({ nonNull: true });
     }
 
-    const rows = await Authors.from()
+    const rows = await db.execute(Authors.from()
       .leftJoin(Books, ({ authors, books }) => authors.id["="](books.author_id))
       .select(({ authors, books }) => ({
         author: authors.name,
         title: books.title,
       }))
-      .execute();
+      );
 
     expectTypeOf(rows).toEqualTypeOf<{ author: string; title: string | null }[]>();
     expect(rows).toEqual([
@@ -466,14 +466,14 @@ test("join with where on joined table", async () => {
       dept_id = (Int8<0 | 1>).column();
     }
 
-    const rows = await Departments.from()
+    const rows = await db.execute(Departments.from()
       .join(Employees, ({ departments, employees }) => departments.id["="](employees.dept_id))
       .select(({ departments, employees }) => ({
         dept: departments.name,
         emp: employees.name,
       }))
       .where(({ departments }) => departments.name["="]("Engineering"))
-      .execute();
+      );
 
     expectTypeOf(rows).toEqualTypeOf<{ dept: string; emp: string }[]>();
     expect(rows).toEqual([
@@ -510,7 +510,7 @@ test("scalar with cardinality 'one'", async () => {
     }
 
     // Scalar subquery: get author for a book (cardinality 'one')
-    const rows = await Books.from()
+    const rows = await db.execute(Books.from()
       .select(({ books }) => ({
         title: books.title,
         author: Authors.from()
@@ -519,7 +519,7 @@ test("scalar with cardinality 'one'", async () => {
           .cardinality("one")
           .scalar(),
       }))
-      .execute();
+      );
 
     // TODO: TsTypeOf doesn't recursively unwrap Record<O> — nested type is O not TsTypeOf<O>
     expectTypeOf(rows[0]!.title).toEqualTypeOf<string>();
@@ -553,7 +553,7 @@ test("scalar with cardinality 'maybe' — null when no match", async () => {
       bio = (Text<1>).column({ nonNull: true });
     }
 
-    const rows = await People.from()
+    const rows = await db.execute(People.from()
       .select(({ people }) => ({
         name: people.name,
         profile: Profiles.from()
@@ -563,7 +563,7 @@ test("scalar with cardinality 'maybe' — null when no match", async () => {
           .scalar(),
       }))
       .orderBy(({ people }) => people.name)
-      .execute();
+      );
 
     expectTypeOf(rows).toEqualTypeOf<{
       name: string;
@@ -600,7 +600,7 @@ test("scalar with cardinality 'many' — array result", async () => {
       parent_id = (Int8<1>).column({ nonNull: true });
     }
 
-    const rows = await Parents.from()
+    const rows = await db.execute(Parents.from()
       .select(({ parents }) => ({
         name: parents.name,
         kids: Children.from()
@@ -610,7 +610,7 @@ test("scalar with cardinality 'many' — array result", async () => {
           .scalar(),
       }))
       .orderBy(({ parents }) => parents.name)
-      .execute();
+      );
 
     expectTypeOf(rows).toEqualTypeOf<{
       name: string;
@@ -626,29 +626,29 @@ test("scalar with cardinality 'many' — array result", async () => {
 // --- aggregates ---
 
 test("count on values", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 })
     .groupBy()
     .select((n) => ({ total: n.values.x.count() }))
-    .execute();
+    );
 
   expectTypeOf(result).toEqualTypeOf<{ total: bigint }[]>();
   expect(result).toEqual([{ total: 3n }]);
 });
 
 test("sum and avg", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ x: Int4.from(10) }, { x: 20 }, { x: 30 })
     .groupBy()
     .select((n) => ({ total: n.values.x.sum(), average: n.values.x.avg() }))
-    .execute();
+    );
 
   expectTypeOf(result).toEqualTypeOf<{ total: bigint | null; average: string | null }[]>();
   expect(result).toEqual([{ total: 60n, average: "20.0000000000000000" }]);
 });
 
 test("groupBy with count", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values(
       { cat: Text.from("a"), val: Int4.from(1) },
       { cat: "a", val: 2 },
@@ -661,7 +661,7 @@ test("groupBy with count", async () => {
       total: values.val.sum(),
     }))
     .orderBy(({ 0: cat }) => cat)
-    .execute();
+    );
 
   expectTypeOf(result).toEqualTypeOf<{ cat: string; count: bigint; total: bigint | null }[]>();
   expect(result).toEqual([
@@ -671,11 +671,11 @@ test("groupBy with count", async () => {
 });
 
 test("max and min", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ x: Int4.from(5) }, { x: 1 }, { x: 9 })
     .groupBy()
     .select((n) => ({ hi: n.values.x.max(), lo: n.values.x.min() }))
-    .execute();
+    );
 
   expectTypeOf(result).toEqualTypeOf<{ hi: number | null; lo: number | null }[]>();
   expect(result).toEqual([{ hi: 9, lo: 1 }]);
@@ -685,7 +685,7 @@ test("max and min", async () => {
 
 test("generate_series as Fromable via db.from()", async () => {
   const series = Int4.from(1).generateSeries(3, 1);
-  const result = await db.from(series).execute();
+  const result = await db.execute(db.from(series));
 
   expectTypeOf(result).toEqualTypeOf<{ generate_series: number }[]>();
   expect(result).toEqual([
@@ -698,9 +698,9 @@ test("generate_series as Fromable via db.from()", async () => {
 test("jsonb_each_text as multi-column SRF", async () => {
   const jsonVal = Jsonb.from('{"a": 1, "b": 2}');
   const each = jsonVal.jsonbEachText();
-  const result = await db.from(each)
+  const result = await db.execute(db.from(each)
     .orderBy(({ jsonb_each_text }) => jsonb_each_text.key)
-    .execute();
+    );
 
   expectTypeOf(result).toEqualTypeOf<{ key: string; value: string }[]>();
   expect(result).toEqual([
@@ -712,28 +712,28 @@ test("jsonb_each_text as multi-column SRF", async () => {
 // --- method idempotency ---
 
 test("select: last call wins", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ a: Int4.from(1), b: Text.from("x") })
     .select((n) => ({ first: n.values.a }))
     .select((n) => ({ second: n.values.b }))
-    .execute();
+    );
 
   expectTypeOf(result).toEqualTypeOf<{ second: string }[]>();
   expect(result).toEqual([{ second: "x" }]);
 });
 
 test("where: multiple calls AND-combine", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 }, { x: 4 })
     .where((n) => n.values.x[">"](1))
     .where((n) => n.values.x["<"](4))
-    .execute();
+    );
 
   expect(result).toEqual([{ x: 2 }, { x: 3 }]);
 });
 
 test("orderBy: multiple calls stack", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values(
       { a: Text.from("b"), b: Int4.from(2) },
       { a: "a", b: 1 },
@@ -742,7 +742,7 @@ test("orderBy: multiple calls stack", async () => {
     )
     .orderBy((n) => [n.values.a, "asc"])
     .orderBy((n) => [n.values.b, "asc"])
-    .execute();
+    );
 
   expect(result).toEqual([
     { a: "a", b: 1 },
@@ -753,29 +753,29 @@ test("orderBy: multiple calls stack", async () => {
 });
 
 test("limit: multiple calls take MIN", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 }, { x: 4 }, { x: 5 })
     .orderBy((n) => n.values.x)
     .limit(3)
     .limit(2)
-    .execute();
+    );
 
   expect(result).toEqual([{ x: 1 }, { x: 2 }]);
 });
 
 test("offset: multiple calls sum", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 }, { x: 4 }, { x: 5 })
     .orderBy((n) => n.values.x)
     .offset(1)
     .offset(2)
-    .execute();
+    );
 
   expect(result).toEqual([{ x: 4 }, { x: 5 }]);
 });
 
 test("groupBy: multiple calls stack", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values(
       { a: Text.from("x"), b: Text.from("1"), c: Int4.from(10) },
       { a: "x", b: "1", c: 20 },
@@ -785,7 +785,7 @@ test("groupBy: multiple calls stack", async () => {
     .groupBy((n) => [n.values.b])
     .select(({ 0: a, 1: b, values }) => ({ a, b, total: values.c.sum() }))
     .orderBy((n) => [n[0] as any, "asc"])
-    .execute();
+    );
 
   expect(result).toEqual([
     { a: "x", b: "1", total: 30n },
@@ -794,7 +794,7 @@ test("groupBy: multiple calls stack", async () => {
 });
 
 test("having: multiple calls AND-combine", async () => {
-  const result = await db
+  const result = await db.execute(db
     .values(
       { cat: Text.from("a"), val: Int4.from(1) },
       { cat: "a", val: 2 },
@@ -805,7 +805,7 @@ test("having: multiple calls AND-combine", async () => {
     .having((n) => n.values.val.count()[">"](Int8.from(1n)))
     .having((n) => n.values.val.sum()["<"](Int8.from(50n)))
     .select(({ 0: cat, values }) => ({ cat, total: values.val.sum() }))
-    .execute();
+    );
 
   expect(result).toEqual([{ cat: "a", total: 3n }]);
 });

@@ -18,15 +18,17 @@ test("update with where", async () => {
       active = (Text<1>).column({ nonNull: true, default: sql`'yes'` });
     }
 
-    await Users.update()
-      .where(({ users }) => users.name["="]("Bob"))
-      .set(() => ({ active: "no" }))
-      .execute();
+    await db.execute(
+      Users.update()
+        .where(({ users }) => users.name["="]("Bob"))
+        .set(() => ({ active: "no" })),
+    );
 
-    const rows = await Users.from()
-      .select(({ users }) => ({ name: users.name, active: users.active }))
-      .orderBy(({ users }) => users.name)
-      .execute();
+    const rows = await db.execute(
+      Users.from()
+        .select(({ users }) => ({ name: users.name, active: users.active }))
+        .orderBy(({ users }) => users.name),
+    );
 
     expect(rows).toEqual([
       { name: "Alice", active: "yes" },
@@ -48,11 +50,11 @@ test("update all with where(true)", async () => {
       active = (Text<1>).column({ nonNull: true, default: sql`'yes'` });
     }
 
-    await Flags.update().where(true).set(() => ({ active: "no" })).execute();
+    await db.execute(Flags.update().where(true).set(() => ({ active: "no" })));
 
-    const rows = await Flags.from()
-      .select(({ flags }) => ({ active: flags.active }))
-      .execute();
+    const rows = await db.execute(
+      Flags.from().select(({ flags }) => ({ active: flags.active })),
+    );
 
     expect(rows).toEqual([{ active: "no" }, { active: "no" }]);
   });
@@ -73,11 +75,12 @@ test("update returning", async () => {
       score = (Text<1>).column({ nonNull: true, default: sql`'0'` });
     }
 
-    const rows = await Scores.update()
-      .where(({ scores }) => scores.name["="]("Alice"))
-      .set(() => ({ score: "100" }))
-      .returning(({ scores }) => ({ name: scores.name, score: scores.score }))
-      .execute();
+    const rows = await db.execute(
+      Scores.update()
+        .where(({ scores }) => scores.name["="]("Alice"))
+        .set(() => ({ score: "100" }))
+        .returning(({ scores }) => ({ name: scores.name, score: scores.score })),
+    );
 
     expectTypeOf(rows).toEqualTypeOf<{ name: string; score: string }[]>();
     expect(rows).toEqual([{ name: "Alice", score: "100" }]);
@@ -101,16 +104,18 @@ test("update: multiple where calls AND-combine", async () => {
       active = (Text<1>).column({ nonNull: true, default: sql`'yes'` });
     }
 
-    await Products.update()
-      .where(({ products }) => products.price["="](10n))
-      .where(({ products }) => products.name["="]("a"))
-      .set(() => ({ active: "no" }))
-      .execute();
+    await db.execute(
+      Products.update()
+        .where(({ products }) => products.price["="](10n))
+        .where(({ products }) => products.name["="]("a"))
+        .set(() => ({ active: "no" })),
+    );
 
-    const rows = await Products.from()
-      .select(({ products }) => ({ name: products.name, active: products.active }))
-      .orderBy(({ products }) => products.name)
-      .execute();
+    const rows = await db.execute(
+      Products.from()
+        .select(({ products }) => ({ name: products.name, active: products.active }))
+        .orderBy(({ products }) => products.name),
+    );
 
     expect(rows).toEqual([
       { name: "a", active: "no" },
@@ -128,8 +133,6 @@ test("update without where throws", async () => {
       id = (Int8<1>).column({ nonNull: true, generated: true });
     }
 
-    await expect(
-      Noop.update().set(() => ({})).execute()
-    ).rejects.toThrow("requires .where()");
+    await expect(db.execute(Noop.update().set(() => ({})))).rejects.toThrow("requires .where()");
   });
 });

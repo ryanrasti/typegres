@@ -19,9 +19,9 @@ test("Table.from().select()", async () => {
       breed = (Text<0 | 1>).column();
     }
 
-    const rows = await Dogs.from()
+    const rows = await db.execute(Dogs.from()
       .select(({ dogs }) => ({ id: dogs.id, name: dogs.name, breed: dogs.breed }))
-      .execute();
+      );
 
     expectTypeOf(rows).toEqualTypeOf<{ id: bigint; name: string; breed: string | null }[]>();
     expect(rows).toEqual([
@@ -47,9 +47,9 @@ test("Table.as() alias", async () => {
       breed = (Text<0 | 1>).column();
     }
 
-    const rows = await Dogs.as("d").from()
+    const rows = await db.execute(Dogs.as("d").from()
       .select(({ d }) => ({ id: d.id, name: d.name, breed: d.breed }))
-      .execute();
+      );
 
     expectTypeOf(rows).toEqualTypeOf<{ id: bigint; name: string; breed: string | null }[]>();
     expect(rows).toEqual([

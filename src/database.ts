@@ -1,12 +1,43 @@
 import type { Executor, IsolationLevel } from "./executor";
 import type { Fromable, RowType, RowTypeToTsType, RowTypeOfFromable } from "./builder/query";
-import { aliasRowType, QueryBuilder, getRowType } from "./builder/query";
-import { sql } from "./builder/sql";
+import { aliasRowType, QueryBuilder, getRowType, deserializeRows } from "./builder/query";
+import { sql, Sql } from "./builder/sql";
 import { TableBase } from "./table";
 import { Values } from "./builder/values";
+import { InsertBuilder } from "./builder/insert";
+import { UpdateBuilder } from "./builder/update";
+import { DeleteBuilder } from "./builder/delete";
 
 export class Database {
   constructor(private executor: Executor) {}
+
+  async execute(query: Sql): Promise<{ [key: string]: string }[]>;
+  async execute<O extends RowType, GB extends any[], Card extends "one" | "maybe" | "many">(
+    query: QueryBuilder<any, O, GB, Card>,
+  ): Promise<RowTypeToTsType<O>[]>;
+  async execute<Name extends string, T extends { [key: string]: any }, R extends RowType>(
+    query: InsertBuilder<Name, T, R>,
+  ): Promise<RowTypeToTsType<R>[]>;
+  async execute<Name extends string, T extends { [key: string]: any }, R extends RowType>(
+    query: UpdateBuilder<Name, T, R>,
+  ): Promise<RowTypeToTsType<R>[]>;
+  async execute<Name extends string, T extends { [key: string]: any }, R extends RowType>(
+    query: DeleteBuilder<Name, T, R>,
+  ): Promise<RowTypeToTsType<R>[]>;
+  async execute(query: Sql): Promise<any> {
+    const rows = await this.executor.execute(query);
+    if (query instanceof QueryBuilder) {
+      return deserializeRows(rows, query.rowType as { [key: string]: unknown });
+    }
+    if (query instanceof InsertBuilder || query instanceof UpdateBuilder || query instanceof DeleteBuilder) {
+      const returning = query.returningRowType;
+      if (!returning) {
+        return [];
+      }
+      return deserializeRows(rows, returning as { [key: string]: unknown });
+    }
+    return rows;
+  }
 
   async transaction<T>(fn: (tx: Database) => Promise<T>): Promise<T>;
   async transaction<T>(isolation: IsolationLevel, fn: (tx: Database) => Promise<T>): Promise<T>;
@@ -45,7 +76,6 @@ export class Database {
       namespace: { [fromable.tsAlias]: aliased } as any,
       output: aliased,
       from: { source: fromable as any, tableAlias },
-      executor: this.executor,
       tsAlias: fromable.tsAlias,
     });
   }
@@ -60,18 +90,15 @@ export class Database {
       namespace: { values: aliased } as { values: R },
       output: aliased,
       from: { source: vals as any, tableAlias },
-      executor: this.executor,
       tsAlias: "q",
     });
   }
 
   public Table = <Name extends string>(name: Name) => {
-    const executor = this.executor;
     const obj = {
       [name]: class extends TableBase {
         static tableName = name;
         static tsAlias: Name = name;
-        static executor = executor;
 
         static as<T extends typeof TableBase, A extends string>(
           this: T,

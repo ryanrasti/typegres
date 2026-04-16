@@ -1,15 +1,13 @@
-import type { Executor } from "../executor";
 import { Sql, sql } from "./sql";
 import type { CompileContext, TableAlias } from "./sql";
 import { Bool } from "../types";
-import type { RowType, RowTypeToTsType } from "./query";
-import { combinePredicates, compileSelectList, deserializeRows } from "./query";
+import type { RowType } from "./query";
+import { combinePredicates, compileSelectList } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
 type DeleteOpts<Name extends string, T, R extends RowType> = {
   tableName: Name;
-  executor: Executor;
   namespace: Namespace<Name, T>;
   tableAlias: TableAlias;
   where?: Bool<any>;
@@ -18,6 +16,10 @@ type DeleteOpts<Name extends string, T, R extends RowType> = {
 
 export class DeleteBuilder<Name extends string, T extends { [key: string]: any }, R extends RowType = {}> extends Sql {
   #opts: DeleteOpts<Name, T, R>;
+
+  get returningRowType(): R | undefined {
+    return this.#opts.returning;
+  }
 
   constructor(opts: DeleteOpts<Name, T, R>) {
     super();
@@ -58,13 +60,5 @@ export class DeleteBuilder<Name extends string, T extends { [key: string]: any }
     const compiled = this.compile("pg");
     console.log(compiled.text, compiled.values, this.#opts);
     return this;
-  }
-
-  async execute(): Promise<RowTypeToTsType<R>[]> {
-    const result = await this.#opts.executor.execute(this);
-    if (this.#opts.returning) {
-      return deserializeRows(result, this.#opts.returning as { [key: string]: unknown }) as any;
-    }
-    return [] as any;
   }
 }

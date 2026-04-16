@@ -22,11 +22,11 @@ test("insert", async () => {
     // @ts-expect-error — missing required field 'name'
     const _bad: InsertRow<InstanceType<typeof Cats>> = { color: "black" };
 
-    await Cats.insert({ name: "Whiskers" }, { name: "Tom", color: "orange" }).execute();
+    await db.execute(Cats.insert({ name: "Whiskers" }, { name: "Tom", color: "orange" }));
 
-    const rows = await Cats.from()
-      .select(({ cats }) => ({ name: cats.name, color: cats.color }))
-      .execute();
+    const rows = await db.execute(
+      Cats.from().select(({ cats }) => ({ name: cats.name, color: cats.color })),
+    );
 
     expect(rows).toEqual([
       { name: "Whiskers", color: null },
@@ -47,9 +47,10 @@ test("insert returning", async () => {
       label = (Text<1>).column({ nonNull: true });
     }
 
-    const rows = await Items.insert({ label: "A" }, { label: "B" })
-      .returning(({ items }) => ({ id: items.id, label: items.label }))
-      .execute();
+    const rows = await db.execute(
+      Items.insert({ label: "A" }, { label: "B" })
+        .returning(({ items }) => ({ id: items.id, label: items.label })),
+    );
 
     expectTypeOf(rows).toEqualTypeOf<{ id: bigint; label: string }[]>();
     expect(rows).toEqual([

@@ -16,11 +16,11 @@ test("delete with where", async () => {
       msg = (Text<1>).column({ nonNull: true });
     }
 
-    await Logs.delete().where(({ logs }) => logs.msg["="]("remove")).execute();
+    await db.execute(Logs.delete().where(({ logs }) => logs.msg["="]("remove")));
 
-    const rows = await Logs.from()
-      .select(({ logs }) => ({ msg: logs.msg }))
-      .execute();
+    const rows = await db.execute(
+      Logs.from().select(({ logs }) => ({ msg: logs.msg })),
+    );
 
     expect(rows).toEqual([{ msg: "keep" }, { msg: "keep2" }]);
   });
@@ -39,10 +39,11 @@ test("delete returning", async () => {
       name = (Text<1>).column({ nonNull: true });
     }
 
-    const rows = await Tags.delete()
-      .where(({ tags }) => tags.name["="]("b"))
-      .returning(({ tags }) => ({ id: tags.id, name: tags.name }))
-      .execute();
+    const rows = await db.execute(
+      Tags.delete()
+        .where(({ tags }) => tags.name["="]("b"))
+        .returning(({ tags }) => ({ id: tags.id, name: tags.name })),
+    );
 
     expectTypeOf(rows).toEqualTypeOf<{ id: bigint; name: string }[]>();
     expect(rows).toEqual([{ id: 2n, name: "b" }]);
@@ -64,15 +65,17 @@ test("delete: multiple where calls AND-combine", async () => {
       score = (Int8<1>).column({ nonNull: true, default: sql`0` });
     }
 
-    await Items.delete()
-      .where(({ items }) => items.score["="](10n))
-      .where(({ items }) => items.name["="]("a"))
-      .execute();
+    await db.execute(
+      Items.delete()
+        .where(({ items }) => items.score["="](10n))
+        .where(({ items }) => items.name["="]("a")),
+    );
 
-    const rows = await Items.from()
-      .select(({ items }) => ({ name: items.name }))
-      .orderBy(({ items }) => items.name)
-      .execute();
+    const rows = await db.execute(
+      Items.from()
+        .select(({ items }) => ({ name: items.name }))
+        .orderBy(({ items }) => items.name),
+    );
 
     expect(rows).toEqual([{ name: "b" }, { name: "c" }, { name: "d" }]);
   });
@@ -86,8 +89,6 @@ test("delete without where throws", async () => {
       id = (Int8<1>).column({ nonNull: true, generated: true });
     }
 
-    await expect(
-      Noop2.delete().execute()
-    ).rejects.toThrow("requires .where()");
+    await expect(db.execute(Noop2.delete())).rejects.toThrow("requires .where()");
   });
 });

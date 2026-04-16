@@ -1,4 +1,3 @@
-import type { Executor } from "../executor";
 import { sql, Sql } from "./sql";
 import type { CompileContext , TableAlias } from "./sql";
 import type { Bool} from "../types";
@@ -115,7 +114,6 @@ type QueryBuilderOptions<
 > = {
   namespace: N;
   output: O;
-  executor: Executor;
   tsAlias: string;
   from?: { source: Fromable; tableAlias: TableAlias };
   where?: Bool<any>;
@@ -356,10 +354,5 @@ export class QueryBuilder<
     const compiled = this.compile("pg");
     console.log(compiled.text, compiled.values, this.opts);
     return this;
-  }
-
-  async execute(): Promise<RowTypeToTsType<O>[]> {
-    const rows = await this.opts.executor.execute(this);
-    return deserializeRows<RowTypeToTsType<O>>(rows, this.opts.output as { [key: string]: unknown });
   }
 }

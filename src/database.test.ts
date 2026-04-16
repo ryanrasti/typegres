@@ -27,13 +27,13 @@ test("transaction commits on success", async () => {
   }
 
   await db.transaction(async () => {
-    await TxTest.insert({ name: "Alice" }).execute();
-    await TxTest.insert({ name: "Bob" }).execute();
+    await db.execute(TxTest.insert({ name: "Alice" }));
+    await db.execute(TxTest.insert({ name: "Bob" }));
   });
 
-  const rows = await TxTest.from()
-    .select(({ txtest }) => ({ name: txtest.name }))
-    .execute();
+  const rows = await db.execute(
+    TxTest.from().select(({ txtest }) => ({ name: txtest.name })),
+  );
 
   expect(rows).toEqual([{ name: "Alice" }, { name: "Bob" }]);
   await exec.execute(sql`DROP TABLE txtest`);
@@ -49,14 +49,14 @@ test("transaction rollbacks on error", async () => {
 
   await expect(
     db.transaction(async () => {
-      await TxTest2.insert({ name: "Alice" }).execute();
+      await db.execute(TxTest2.insert({ name: "Alice" }));
       throw new Error("rollback!");
-    })
+    }),
   ).rejects.toThrow("rollback!");
 
-  const rows = await TxTest2.from()
-    .select(({ txtest2 }) => ({ name: txtest2.name }))
-    .execute();
+  const rows = await db.execute(
+    TxTest2.from().select(({ txtest2 }) => ({ name: txtest2.name })),
+  );
 
   expect(rows).toEqual([]);
   await exec.execute(sql`DROP TABLE txtest2`);

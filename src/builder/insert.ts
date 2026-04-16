@@ -1,14 +1,12 @@
-import type { Executor } from "../executor";
 import { Sql, sql } from "./sql";
 import type { CompileContext, TableAlias } from "./sql";
-import type { RowType, RowTypeToTsType } from "./query";
-import { compileSelectList, deserializeRows } from "./query";
+import type { RowType } from "./query";
+import { compileSelectList } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
 type InsertOpts<Name extends string, T, R extends RowType> = {
   tableName: Name;
-  executor: Executor;
   instance: T;
   namespace: Namespace<Name, T>;
   tableAlias: TableAlias;
@@ -19,6 +17,10 @@ type InsertOpts<Name extends string, T, R extends RowType> = {
 
 export class InsertBuilder<Name extends string, T extends { [key: string]: any }, R extends RowType = {}> extends Sql {
   #opts: InsertOpts<Name, T, R>;
+
+  get returningRowType(): R | undefined {
+    return this.#opts.returning;
+  }
 
   constructor(opts: InsertOpts<Name, T, R>) {
     super();
@@ -63,13 +65,5 @@ export class InsertBuilder<Name extends string, T extends { [key: string]: any }
     const compiled = this.compile("pg");
     console.log(compiled.text, compiled.values, this.#opts);
     return this;
-  }
-
-  async execute(): Promise<RowTypeToTsType<R>[]> {
-    const result = await this.#opts.executor.execute(this);
-    if (this.#opts.returning) {
-      return deserializeRows(result, this.#opts.returning as { [key: string]: unknown }) as any;
-    }
-    return [] as any;
   }
 }
