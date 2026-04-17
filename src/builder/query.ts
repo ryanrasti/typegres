@@ -145,6 +145,12 @@ export class QueryBuilder<
     return this.opts.output;
   }
 
+  registerAndCompile(ctx: CompileContext, alias: TableAlias): string {
+    const resolved = ctx.register(alias, alias.name);
+    using _ = ctx.child();
+    return `(${this.emit(ctx)}) AS "${resolved}"`;
+  }
+
   constructor(opts: QueryBuilderOptions<N, O, GB>, card?: Card) {
     super();
     this.opts = opts;
@@ -163,6 +169,7 @@ export class QueryBuilder<
 
   // Multiple `where` calls are combined with AND
   where(whereFn: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
+    //console.log("ns", this.opts.namespace, this.opts.namespace.users.id);
     return new QueryBuilder({
       ...this.opts,
       where: combinePredicates(this.opts.where, whereFn(this.opts.namespace)),

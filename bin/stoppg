@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PGDATA="$(cd "$(dirname "$0")/.." && pwd)/pg_data"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+HASH="$(printf '%s' "$ROOT" | sha256sum | cut -c1-12)"
+PGDATA="/tmp/typegres-pg-$HASH/data"
 
 echo "Stopping PostgreSQL (data: $PGDATA)"
 exec pg_ctl -D "$PGDATA" stop -m fast -w

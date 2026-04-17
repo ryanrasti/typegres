@@ -11,6 +11,7 @@ export default defineConfig({
       "**/dist/**",
       "**/.direnv/**",
       "**/examples/**",
+      "packages/**",
     ],
   },
 });

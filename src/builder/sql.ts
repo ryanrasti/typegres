@@ -1,3 +1,5 @@
+import { RpcTarget } from "../../packages/capnweb/dist/index.js";
+
 // --- Table alias & scope ---
 
 export class TableAlias {
@@ -94,7 +96,11 @@ export type CompiledSql = { text: string; values: unknown[] };
 
 // --- Sql base class ---
 
-export abstract class Sql {
+export abstract class Sql extends RpcTarget {
+  constructor() {
+    super();
+  }
+
   // Internal: emit SQL string, mutating ctx for params and scope
   abstract emit(ctx: CompileContext): string;
 

@@ -3,7 +3,7 @@ import type { ExecuteFn, Executor, QueryResult } from "./executor";
 import type { Fromable, RowType, RowTypeToTsType, RowTypeOfFromable } from "./builder/query";
 import { aliasRowType, QueryBuilder, getRowType, deserializeRows } from "./builder/query";
 import { sql, Sql } from "./builder/sql";
-import { TableBase } from "./table";
+import { Table, TableBase } from "./table";
 import { Values } from "./builder/values";
 import { InsertBuilder } from "./builder/insert";
 import { UpdateBuilder } from "./builder/update";
@@ -145,23 +145,5 @@ export class Database {
     }
   }
 
-  public Table = <Name extends string>(name: Name) => {
-    const obj = {
-      [name]: class extends TableBase {
-        static tableName = name;
-        static tsAlias: Name = name;
-
-        static as<T extends typeof TableBase, A extends string>(
-          this: T,
-          alias: A,
-        ) {
-          return class extends (this as any) {
-            static tsAlias: A = alias;
-          } as unknown as Omit<T, 'tsAlias'> & { new (): InstanceType<T>; tsAlias: A };
-        }
-      },
-    };
-    type Obj = typeof obj;
-    return obj[name] as NonNullable<Obj[Name]>;
-  };
+  public Table = Table;
 }
