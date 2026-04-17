@@ -76,6 +76,7 @@ export class LiveBus {
   #floor: bigint = 0n;
   #lastSeenId: bigint = 0n;
   #waiters = new Set<() => void>();
+  #subs = new Set<Subscription>();
   #pollTimer: ReturnType<typeof setInterval> | undefined;
   #initialized = false;
 
@@ -100,6 +101,9 @@ export class LiveBus {
       clearInterval(this.#pollTimer);
       this.#pollTimer = undefined;
     }
+    // Close any live subscriptions so their pending waitNext rejects.
+    for (const sub of [...this.#subs]) { sub.close(); }
+    this.#subs.clear();
     this.#waiters.clear();
   }
 
@@ -172,8 +176,12 @@ export class LiveBus {
   }
 
   subscribe(): Subscription {
-    return new Subscription(this);
+    const sub = new Subscription(this);
+    this.#subs.add(sub);
+    return sub;
   }
+
+  _removeSubscription(sub: Subscription): void { this.#subs.delete(sub); }
 }
 
 // --- Subscription ---
@@ -195,41 +203,68 @@ const eventMatchesPreds = (event: LiveEvent, preds: PredicateSet): boolean => {
   return false;
 };
 
+// Sentinel thrown by waitNext when the subscription is closed mid-wait. The
+// generator in db.live() catches this to exit cleanly when the consumer stops
+// iterating.
+class SubscriptionClosedError extends LiveQueryError {
+  name = "SubscriptionClosedError";
+  constructor() { super("subscription closed"); }
+}
+
 export class Subscription {
   #bus: LiveBus;
   #unregister: (() => void) | undefined;
+  #rejectPending: ((err: Error) => void) | undefined;
+  #closed = false;
 
   constructor(bus: LiveBus) { this.#bus = bus; }
 
   close(): void {
+    if (this.#closed) { return; }
+    this.#closed = true;
+    if (this.#rejectPending) {
+      this.#rejectPending(new SubscriptionClosedError());
+    }
     if (this.#unregister) {
       this.#unregister();
       this.#unregister = undefined;
     }
+    this.#bus._removeSubscription(this);
   }
 
   // Block until at least one event not-visible-in-cursor matches preds.
   // Admission: throws CursorTooOldError if xmin(cursor) < bus.retentionFloor.
+  // Rejects with SubscriptionClosedError if close() is called while waiting.
   async waitNext(preds: PredicateSet, cursor: Cursor): Promise<void> {
-    // Admission: only enforced once the bus has initialized its floor.
+    if (this.#closed) { throw new SubscriptionClosedError(); }
+
     const snap = parseSnapshot(cursor);
     if (snap.xmin < this.#bus.retentionFloor) {
       throw new CursorTooOldError(cursor, this.#bus.retentionFloor);
     }
 
-    // If a match is already in the ring, resolve immediately.
     if (this.#bus._hasMatchingEvent(preds, cursor)) { return; }
 
-    // Otherwise wait for a wake-up and re-check.
-    await new Promise<void>((resolve) => {
-      const unreg = this.#bus._onNewEvents(() => {
-        if (this.#bus._hasMatchingEvent(preds, cursor)) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const unreg = this.#bus._onNewEvents(() => {
+          if (this.#bus._hasMatchingEvent(preds, cursor)) {
+            unreg();
+            this.#rejectPending = undefined;
+            resolve();
+          }
+        });
+        this.#unregister = unreg;
+        this.#rejectPending = (err) => {
           unreg();
-          resolve();
-        }
+          this.#rejectPending = undefined;
+          reject(err);
+        };
       });
-      this.#unregister = unreg;
-    });
-    this.#unregister = undefined;
+    } finally {
+      this.#unregister = undefined;
+    }
   }
 }
+
+export { SubscriptionClosedError };

@@ -332,15 +332,53 @@ export type Extractor = {
 export const buildExtractor = (qb: QueryBuilder<any, any, any>): Extractor => {
   const dag = analyze(qb);
 
-  const literals: PredicateSet = new Map();
+  // Per-alias, per-col effective literal set. Propagates along parent edges:
+  // if node A has a literal on colA and there's an edge B.colB = A.colA, then
+  // B.colB inherits A's literal set. Covers the "join one side empty" case
+  // that the CTE chain handles server-side but that wouldn't fire client-side
+  // matching otherwise.
+  const perAlias = new Map<string, Map<string, Set<string>>>();
+  const getOrInit = (alias: string): Map<string, Set<string>> => {
+    let m = perAlias.get(alias);
+    if (!m) { m = new Map(); perAlias.set(alias, m); }
+    return m;
+  };
+  // Seed with declared literals.
   for (const node of dag.nodes.values()) {
-    const perTable = literals.get(node.tableName) ?? new Map<string, Set<string>>();
+    const m = getOrInit(node.aliasName);
     for (const [col, values] of node.literalPreds) {
-      const set = perTable.get(col) ?? new Set<string>();
+      const set = m.get(col) ?? new Set<string>();
       for (const v of values) { set.add(canonicalize(v)); }
+      m.set(col, set);
+    }
+  }
+  // Propagate along edges in topo order: each edge `child.toCol = parent.parentCol`
+  // contributes parent's literal set on parentCol into child's toCol.
+  for (const aliasName of dag.order) {
+    const node = dag.nodes.get(aliasName)!;
+    for (const edge of node.parentEdges) {
+      const parentLits = perAlias.get(edge.parentAlias)?.get(edge.parentCol);
+      if (!parentLits || parentLits.size === 0) { continue; }
+      const childMap = getOrInit(node.aliasName);
+      const set = childMap.get(edge.myCol) ?? new Set<string>();
+      for (const v of parentLits) { set.add(v); }
+      childMap.set(edge.myCol, set);
+    }
+  }
+
+  // Flatten per-alias into per-real-table (multiple aliases of the same
+  // table merge their literal sets — consistent with the skinny extractor
+  // output and the flat PredicateSet matching model).
+  const literals: PredicateSet = new Map();
+  for (const [aliasName, cols] of perAlias) {
+    const tableName = dag.nodes.get(aliasName)!.tableName;
+    const perTable = literals.get(tableName) ?? new Map<string, Set<string>>();
+    for (const [col, values] of cols) {
+      const set = perTable.get(col) ?? new Set<string>();
+      for (const v of values) { set.add(v); }
       perTable.set(col, set);
     }
-    if (perTable.size > 0) { literals.set(node.tableName, perTable); }
+    if (perTable.size > 0) { literals.set(tableName, perTable); }
   }
 
   return {

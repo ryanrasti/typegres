@@ -8,11 +8,20 @@ import { Values } from "./builder/values";
 import { InsertBuilder } from "./builder/insert";
 import { UpdateBuilder } from "./builder/update";
 import { DeleteBuilder } from "./builder/delete";
+import type { LiveBus } from "./live/bus";
+import { SubscriptionClosedError } from "./live/bus";
+import { buildExtractor } from "./live/extractor";
+import { LiveQueryError } from "./live/types";
 
 export class Database {
   #context = new AsyncLocalStorage<{ execute: ExecuteFn; inTransaction: boolean }>();
+  #liveBus: LiveBus | undefined;
 
   constructor(private executor: Executor) {}
+
+  // Attach a LiveBus so db.live(query) can serve subscriptions.
+  // Called once at startup by an application wiring live queries.
+  enableLive(bus: LiveBus): void { this.#liveBus = bus; }
 
   async execute(query: Sql): Promise<QueryResult>;
   async execute<O extends RowType, GB extends any[], Card extends "one" | "maybe" | "many">(
@@ -89,6 +98,51 @@ export class Database {
       from: { source: vals as any, tableAlias },
       tsAlias: "q",
     });
+  }
+
+  // Subscribe to a query's live result set. Yields an array of rows on each
+  // iteration — initial state, then re-yields whenever the bus detects a
+  // mutation that could affect the result.
+  //
+  // Each iteration opens a REPEATABLE READ transaction that captures a
+  // snapshot cursor and runs both the predicate extractor and the main query
+  // against the same snapshot; events committed after that snapshot are
+  // compared against the extracted predicates to decide when to re-yield.
+  async *live<O extends RowType>(
+    query: QueryBuilder<any, O, any, any>,
+  ): AsyncGenerator<RowTypeToTsType<O>[]> {
+    if (!this.#liveBus) {
+      throw new LiveQueryError(
+        "db.live() requires a LiveBus — call db.enableLive(bus) during startup",
+      );
+    }
+    const extractor = buildExtractor(query);
+    const sub = this.#liveBus.subscribe();
+    try {
+      while (true) {
+        const { data, cursor, preds } = await this.transaction(async () => {
+          const cursorResult = await this.execute(sql`SELECT pg_current_snapshot()::text AS s`);
+          const cursor = (cursorResult.rows as { s: string }[])[0]!.s;
+          const extractorRows = (await this.execute(extractor.sql)).rows as {
+            tbl: string;
+            col: string;
+            value: string;
+          }[];
+          const preds = extractor.materialize(extractorRows);
+          const data = await this.execute(query) as unknown as RowTypeToTsType<O>[];
+          return { data, cursor, preds };
+        });
+        yield data;
+        try {
+          await sub.waitNext(preds, cursor);
+        } catch (e) {
+          if (e instanceof SubscriptionClosedError) { return; }
+          throw e;
+        }
+      }
+    } finally {
+      sub.close();
+    }
   }
 
   public Table = <Name extends string>(name: Name) => {
