@@ -61,4 +61,13 @@ export class DeleteBuilder<Name extends string, T extends { [key: string]: any }
     console.log(compiled.text, compiled.values, this.#opts);
     return this;
   }
+
+  // Internal: expose structured parts for live-event wrapping.
+  liveIntrospect() {
+    return {
+      tableName: this.#opts.tableName,
+      where: this.#opts.where,
+      returning: this.#opts.returning,
+    };
+  }
 }

@@ -66,4 +66,15 @@ export class InsertBuilder<Name extends string, T extends { [key: string]: any }
     console.log(compiled.text, compiled.values, this.#opts);
     return this;
   }
+
+  // Internal: expose structured parts for live-event wrapping.
+  liveIntrospect() {
+    return {
+      tableName: this.#opts.tableName,
+      instance: this.#opts.instance,
+      columnNames: this.#opts.columnNames,
+      rows: this.#opts.rows,
+      returning: this.#opts.returning,
+    };
+  }
 }

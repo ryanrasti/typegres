@@ -81,4 +81,15 @@ export class UpdateBuilder<Name extends string, T extends { [key: string]: any }
     console.log(compiled.text, compiled.values, this.#opts);
     return this;
   }
+
+  // Internal: expose structured parts for live-event wrapping.
+  liveIntrospect() {
+    return {
+      tableName: this.#opts.tableName,
+      instance: this.#opts.instance,
+      where: this.#opts.where,
+      set: this.#opts.set,
+      returning: this.#opts.returning,
+    };
+  }
 }
