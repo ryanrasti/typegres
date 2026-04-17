@@ -2,6 +2,11 @@
 
 export class TableAlias {
   constructor(readonly name: string) {}
+
+  emit(ctx: CompileContext): string {
+    const resolved = ctx.resolveOrRegister(this, this.name);
+    return `"${resolved}"`;
+  }
 }
 
 export class Scope {
@@ -25,11 +30,11 @@ export class Scope {
     return name;
   }
 
-  resolve(alias: TableAlias): string {
+  resolve(alias: TableAlias): string | undefined {
     const local = this.aliases.get(alias);
     if (local) { return local; }
     if (this.parent) { return this.parent.resolve(alias); }
-    throw new Error("Unknown table alias");
+    return undefined;
   }
 
   child(): Scope {
@@ -63,7 +68,15 @@ export class CompileContext {
   }
 
   resolve(alias: TableAlias): string {
-    return this.scope.resolve(alias);
+    const resolved = this.scope.resolve(alias);
+    if (!resolved) {
+      throw new Error("Unknown table alias");
+    }
+    return resolved;
+  }
+
+  resolveOrRegister(alias: TableAlias, name: string): string {
+    return this.scope.resolve(alias) ?? this.scope.register(alias, name);
   }
 
   get isTopLevel(): boolean {
@@ -113,14 +126,14 @@ export class Ident extends Sql {
 export class Column extends Sql {
   constructor(readonly table: TableAlias, readonly name: string) { super(); }
   emit(ctx: CompileContext): string {
-    return `"${ctx.resolve(this.table)}"."${this.name}"`;
+    return `${this.table.emit(ctx)}."${this.name}"`;
   }
 }
 
 export class TableRef extends Sql {
   constructor(readonly table: TableAlias) { super(); }
   emit(ctx: CompileContext): string {
-    return `"${ctx.resolve(this.table)}"`;
+    return this.table.emit(ctx);
   }
 }
 
@@ -144,6 +157,13 @@ export class Op extends Sql {
   constructor(readonly op: string, readonly lhs: Sql, readonly rhs: Sql) { super(); }
   emit(ctx: CompileContext): string {
     return `(${this.lhs.emit(ctx)} ${this.op} ${this.rhs.emit(ctx)})`;
+  }
+}
+
+export class UnaryOp extends Sql {
+  constructor(readonly op: string, readonly expr: Sql) { super(); }
+  emit(ctx: CompileContext): string {
+    return `(${this.op} ${this.expr.emit(ctx)})`;
   }
 }
 

@@ -1,5 +1,5 @@
 import type { Sql, CompileContext , TableAlias } from "../builder/sql";
-import { sql } from "../builder/sql";
+import { Func, Op, TableAlias as AliasNode, sql } from "../builder/sql";
 import * as types from "./index";
 import type { Any } from "./index";
 import { getTypeDef } from "./deserialize";
@@ -111,13 +111,11 @@ const argToSql = (arg: unknown): Sql => {
 
 // Expression node builders — construct real typed instances via constructor(Sql)
 export const PgFunc = (name: string, args: unknown[], type: typeof Any) => {
-  const rawSql = sql`${sql.ident(name)}(${sql.join(args.map(argToSql))})`;
-  return type.from(rawSql);
+  return type.from(new Func(name, args.map(argToSql)));
 };
 
 export const PgOp = (op: string, args: [unknown, unknown], type: typeof Any) => {
-  const rawSql = sql`(${argToSql(args[0])} ${sql.raw(op)} ${argToSql(args[1])})`;
-  return type.from(rawSql);
+  return type.from(new Op(op, argToSql(args[0]), argToSql(args[1])));
 };
 
 // Set-returning function result — implements Fromable for use in FROM/JOIN
@@ -131,7 +129,8 @@ export class PgSrf<R extends { [key: string]: Any<any> }, A extends string> {
     this.tsAlias = name;
     this.#name = name;
     // Placeholder rowType — aliasRowType will replace column refs with proper TableAlias refs
-    this.rowType = { [columnName]: type.from(sql`"${sql.raw(name)}"."${sql.raw(columnName)}"`) } as R;
+    const alias = new AliasNode(name);
+    this.rowType = { [columnName]: type.from(sql.column(alias, columnName)) } as R;
     this.#argsSql = sql.join(args.map(argToSql));
   }
 
@@ -159,8 +158,9 @@ export const PgSrfMulti = <A extends string>(
   const srf = new PgSrf(name, args, columns[0]![0], columns[0]![1]);
   // Override rowType — placeholders, aliasRowType will replace with proper refs
   const rowType: { [key: string]: Any<any> } = {};
+  const alias = new AliasNode(name);
   for (const [colName, type] of columns) {
-    rowType[colName] = type.from(sql`"${sql.raw(name)}"."${sql.raw(colName)}"`);
+    rowType[colName] = type.from(sql.column(alias, colName));
   }
   srf.rowType = rowType;
   return srf;
