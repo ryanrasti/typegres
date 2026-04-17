@@ -1,6 +1,7 @@
 import { test, expect, describe } from "vitest";
 import { Int8, Text } from "../types";
-import { db } from "../builder/test-helper";
+import { db, withinTransaction } from "../builder/test-helper";
+import { sql } from "../builder/sql";
 import { buildExtractor } from "./extractor";
 import { LiveQueryError } from "./types";
 
@@ -154,5 +155,43 @@ describe("Phase 1: extractor", () => {
     const qb = Users.from().where(({ users }) => users.id["="](5n));
     const { literals } = buildExtractor(qb);
     expect(literals.get("users")?.get("id")).toEqual(new Set(["5"])); // bigint → "5"
+  });
+
+  // End-to-end: run the extractor SQL against a real PG and check the rows.
+  test("e2e: extractor SQL executes and returns expected (tbl, col, value) rows", async () => {
+    await withinTransaction(async () => {
+      await db.execute(sql`DROP TABLE IF EXISTS users CASCADE`);
+      await db.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
+      await db.execute(sql`CREATE TABLE users (id int8 PRIMARY KEY, name text NOT NULL)`);
+      await db.execute(sql`CREATE TABLE dogs (id int8 PRIMARY KEY, user_id int8 NOT NULL, name text NOT NULL)`);
+      await db.execute(sql`INSERT INTO users (id, name) VALUES (5, 'alice'), (6, 'bob')`);
+      await db.execute(sql`INSERT INTO dogs (id, user_id, name) VALUES (1, 5, 'Rex'), (2, 5, 'Max'), (3, 6, 'Fido')`);
+
+      class Users extends db.Table("users") {
+        id = (Int8<1>).column({ nonNull: true });
+        name = (Text<1>).column({ nonNull: true });
+      }
+      class Dogs extends db.Table("dogs") {
+        id = (Int8<1>).column({ nonNull: true });
+        user_id = (Int8<1>).column({ nonNull: true });
+        name = (Text<1>).column({ nonNull: true });
+      }
+
+      const qb = Users.from()
+        .join(Dogs, ({ users, dogs }) => dogs.user_id["="](users.id))
+        .where(({ users }) => users.id["="](5n));
+
+      const extractor = buildExtractor(qb);
+      const result = await db.execute(extractor.sql);
+      const rows = result.rows as { tbl: string; col: string; value: string }[];
+
+      // One row per (tbl, col, value) triple — note DISTINCT is achieved via
+      // the set-based materialize; the emitted SQL doesn't dedupe, so
+      // multi-row CTEs produce multiple triples. That's fine — the materialize
+      // step collapses duplicates.
+      const ps = extractor.materialize(rows);
+      expect(ps.get("users")?.get("id")).toEqual(new Set(["5"]));
+      expect(ps.get("dogs")?.get("user_id")).toEqual(new Set(["5"]));
+    });
   });
 });
