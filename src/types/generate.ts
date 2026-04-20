@@ -226,7 +226,12 @@ const generateTypeFile = (
     lines.push(`    __any: ${ref}<any>;`);
     lines.push(`  };`);
     lines.push(`  static __typname = "${pgType.typname}";`);
-    lines.push(`  declare deserialize: (raw: string) => ${tsType};`);
+    // Only narrow the deserialize return type if there's no override — the
+    // override is the source of truth (e.g. Record widens to
+    // RowTypeToTsType<T>, which isn't expressible here).
+    if (!overrideNames.has(pgType.typname)) {
+      lines.push(`  declare deserialize: (raw: string) => ${tsType};`);
+    }
   } else {
     // any* hierarchy type — inherits [meta] from parent, no re-declaration needed
   }

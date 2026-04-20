@@ -40,8 +40,10 @@ const parseComposite = (raw: string): string[] => {
 export class Record<T = unknown, N extends number = number> extends Generated<N> {
   static __columns: { [key: string]: Any<any> } = {};
 
-  // @ts-expect-error — intentional: widen return type from string → RowTypeToTsType<T>
-  declare deserialize: (raw: string) => RowTypeToTsType<T>;
+  // Conditional so the declaration tolerates T being filled with a non-row
+  // type (e.g. codegen's `types.Record<0 | 1>` in variant [meta] fields,
+  // where the slot is positionally wrong but inert).
+  declare deserialize: (raw: string) => T extends object ? RowTypeToTsType<T> : unknown;
 
   static of<T extends { [key: string]: Any<any> }>(columns: T) {
     const entries = Object.entries(columns);
