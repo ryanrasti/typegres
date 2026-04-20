@@ -20,11 +20,10 @@ const parseBigInt = (raw: string): bigint => BigInt(raw);
 const parseBytea = (raw: string): Uint8Array => {
   // pg hex format: \x48656c6c6f
   const hex = raw.slice(2);
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
-  }
-  return bytes;
+  return Uint8Array.from(
+    { length: hex.length / 2 },
+    (_, i) => parseInt(hex.slice(i * 2, i * 2 + 2), 16),
+  );
 };
 
 // Non-string types — everything else defaults to string/identity

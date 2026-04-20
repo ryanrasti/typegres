@@ -3,18 +3,21 @@ import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
 import type { NullOf } from "../runtime";
 import { sql, Sql } from "../../builder/sql";
-import type { CompileContext } from "../../builder/sql";
 import * as types from "../index";
 
 type ColumnOpts = { nonNull?: boolean; default?: Sql; generated?: boolean };
 
-export class Any<N extends number> extends Generated<N> {
+export class Any<in out N extends number> extends Generated<N> {
+  // [meta] is an internal bag keyed by a symbol so it doesn't clutter
+  // autocomplete. __class is runtime-set (see from()); __raw holds the
+  // underlying Sql node for this expression; __nullability is a phantom
+  // that makes N structurally visible so TS distinguishes e.g. Text<0>
+  // from Text<0|1>.
   declare [meta]: {
     __class: typeof Any;
+    __raw: Sql;
+    __nullability: N;
   };
-  // Phantom field — makes N structurally visible so TS distinguishes e.g. Text<0> from Text<0|1>.
-  declare __nullability: N;
-  __raw!: Sql;
   static __typname = "any";
 
   deserialize(raw: string): unknown {
@@ -23,12 +26,7 @@ export class Any<N extends number> extends Generated<N> {
 
   // Returns the underlying Sql node for embedding in other expressions
   toSql(): Sql {
-    return this.__raw;
-  }
-
-  // Emit SQL string with context (delegates to __raw)
-  emit(ctx: CompileContext): string {
-    return this.__raw.emit(ctx);
+    return this[meta].__raw;
   }
 
   isNull(): types.Bool<1> {
@@ -56,16 +54,14 @@ export class Any<N extends number> extends Generated<N> {
   static from<T extends typeof Any>(this: T, v: unknown): InstanceType<T> extends { [meta]: { __nonNullable: infer U } } ? U : InstanceType<T>;
   static from(v: Sql | unknown): any {
     const instance = new this();
+    const __raw = v instanceof Sql
+      ? v
+      : sql`CAST(${sql.param(v)} AS ${sql.raw(this.__typname)})`;
     // Set [meta] at runtime — subclasses' `declare [meta]` narrows the type only
     Object.defineProperty(instance, meta, {
-      value: { __class: this },
+      value: { __class: this, __raw },
       enumerable: false,
     });
-    if (v instanceof Sql) {
-      instance.__raw = v;
-    } else {
-      instance.__raw = sql`CAST(${sql.param(v)} AS ${sql.raw(this.__typname)})`;
-    }
     return instance;
   }
 

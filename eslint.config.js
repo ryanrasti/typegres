@@ -31,6 +31,9 @@ export default [
       }, {
         selector: "CallExpression[callee.name='require']",
         message: "Use top-level imports. require() is not allowed.",
+      }, {
+        selector: "AssignmentExpression[left.type='MemberExpression'][left.computed=true][left.property.type!='Literal']",
+        message: "Don't mutate via computed keys (proto-pollution risk, and we prefer immutable construction). Use Object.fromEntries, a Map, or Object.defineProperty when you really mean it.",
       }],
       "@typescript-eslint/no-restricted-types": ["error", {
         types: {

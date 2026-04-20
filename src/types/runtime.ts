@@ -1,4 +1,5 @@
 import type { Sql, CompileContext , TableAlias } from "../builder/sql";
+export type { Sql } from "../builder/sql";
 import { Func, Op, TableAlias as AliasNode, sql } from "../builder/sql";
 import * as types from "./index";
 import type { Any } from "./index";
@@ -118,50 +119,28 @@ export const PgOp = (op: string, args: [unknown, unknown], type: typeof Any) => 
   return type.from(new Op(op, argToSql(args[0]), argToSql(args[1])));
 };
 
-// Set-returning function result — implements Fromable for use in FROM/JOIN
+// Set-returning function result — implements Fromable for use in FROM/JOIN.
+// columns is the row shape: [[name, constructor], ...]. Single-column SRFs
+// pass a 1-element array; multi-column SRFs with OUT params pass N entries.
 export class PgSrf<R extends { [key: string]: Any<any> }, A extends string> {
   tsAlias: A;
   rowType: R;
   #name: string;
   #argsSql: Sql;
 
-  constructor(name: A, args: unknown[], columnName: string, type: typeof Any) {
+  constructor(name: A, args: unknown[], columns: [string, typeof Any][]) {
     this.tsAlias = name;
     this.#name = name;
     // Placeholder rowType — aliasRowType will replace column refs with proper TableAlias refs
     const alias = new AliasNode(name);
-    this.rowType = { [columnName]: type.from(sql.column(alias, columnName)) } as R;
+    this.rowType = Object.fromEntries(
+      columns.map(([colName, type]) => [colName, type.from(sql.column(alias, colName))]),
+    ) as R;
     this.#argsSql = sql.join(args.map(argToSql));
   }
 
   registerAndCompile(ctx: CompileContext, alias: TableAlias): string {
     const resolved = ctx.register(alias, alias.name);
-    return `"${this.#name}"(${this.#argsSql.emit(ctx)}) AS "${resolved}"`;
+    return sql`${sql.ident(this.#name)}(${this.#argsSql}) AS ${sql.ident(resolved)}`.emit(ctx);
   }
 }
-
-export const PgSrfFunc = <R extends { [key: string]: Any<any> }, A extends string>(
-  name: A,
-  args: unknown[],
-  columnName: string,
-  type: typeof Any,
-): PgSrf<R, A> => {
-  return new PgSrf(name, args, columnName, type);
-};
-
-// Multi-column SRF: columns defined by OUT params
-export const PgSrfMulti = <A extends string>(
-  name: A,
-  args: unknown[],
-  columns: [string, typeof Any][],
-): PgSrf<any, A> => {
-  const srf = new PgSrf(name, args, columns[0]![0], columns[0]![1]);
-  // Override rowType — placeholders, aliasRowType will replace with proper refs
-  const rowType: { [key: string]: Any<any> } = {};
-  const alias = new AliasNode(name);
-  for (const [colName, type] of columns) {
-    rowType[colName] = type.from(sql.column(alias, colName));
-  }
-  srf.rowType = rowType;
-  return srf;
-};

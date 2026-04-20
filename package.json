@@ -5,19 +5,19 @@
   "exports": {
     ".": {
       "import": "./dist/index.mjs",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.mts"
     },
     "./config": {
       "import": "./dist/config.mjs",
-      "types": "./dist/config.d.ts"
+      "types": "./dist/config.d.mts"
     },
     "./types": {
       "import": "./dist/types/index.mjs",
-      "types": "./dist/types/index.d.ts"
+      "types": "./dist/types/index.d.mts"
     },
     "./sql-builder": {
       "import": "./dist/builder/sql.mjs",
-      "types": "./dist/builder/sql.d.ts"
+      "types": "./dist/builder/sql.d.mts"
     }
   },
   "bin": {
@@ -31,7 +31,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsdown && tsgo --emitDeclarationOnly --declaration --outDir dist",
+    "build": "tsdown",
     "codegen": "node --experimental-strip-types src/types/generate.ts",
     "lint": "eslint src",
     "typecheck": "tsgo --noEmit",

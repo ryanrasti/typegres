@@ -57,10 +57,9 @@ export const pgliteExecutor = async (): Promise<Executor> => {
   const { rows: types } = await db.query<{ oid: number }>(
     "SELECT oid FROM pg_type",
   );
-  const rawParsers: { [key: number]: (v: string) => string } = {};
-  for (const t of types) {
-    rawParsers[t.oid] = (v: string) => v;
-  }
+  const rawParsers: { [key: number]: (v: string) => string } = Object.fromEntries(
+    types.map((t) => [t.oid, (v: string) => v]),
+  );
 
   return {
     async execute(query: Sql): Promise<QueryResult> {

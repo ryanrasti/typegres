@@ -2,7 +2,7 @@ import { test, expect, expectTypeOf } from "vitest";
 import { Int8, Text } from "../types";
 import type { InsertRow } from "../types/runtime";
 import { sql } from "./sql";
-import { exec, db, withinTransaction } from "./test-helper";
+import { db, withinTransaction } from "./test-helper";
 
 test("insert", async () => {
   await withinTransaction(async () => {

@@ -36,7 +36,7 @@ export class TableBase extends RpcTarget {
     const instance = new this() as InstanceType<T>;
     const [aliased, tableAlias] = aliasRowType(instance, this.tableName) as [InstanceType<T>, any];
     const ns = { [this.tableName]: aliased } as { [K in T["tableName"]]: InstanceType<T> };
-    const columnNames = Object.keys(instance as Record<string, any>).filter((k) => (instance as Record<string, any>)[k]?.__column);
+    const columnNames = Object.keys(instance as { [key: string]: any }).filter((k) => (instance as { [key: string]: any })[k]?.__column);
     return new InsertBuilder({ tableName: this.tableName, instance, namespace: ns, columnNames, rows: rows as { [key: string]: unknown }[], tableAlias });
   }
 

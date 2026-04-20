@@ -9,8 +9,8 @@ export interface LiveEvent {
   id: bigint;                   // monotonic insert order on the shadow table
   xid: bigint;                  // pg xid8 of the emitting tx
   table: string;
-  before: Record<string, unknown> | null;
-  after: Record<string, unknown> | null;
+  before: { [key: string]: unknown } | null;
+  after: { [key: string]: unknown } | null;
 }
 
 // --- Cursor (pg_current_snapshot text) ---
@@ -196,7 +196,7 @@ const eventMatchesPreds = (event: LiveEvent, preds: PredicateSet): boolean => {
     if (!row) { continue; }
     for (const [col, values] of perTable) {
       const v = row[col];
-      if (v == null) { continue; }
+      if (v === null || v === undefined) { continue; }
       if (values.has(String(v))) { return true; }
     }
   }

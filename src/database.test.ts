@@ -1,7 +1,7 @@
 import { test, expect, beforeAll, afterAll } from "vitest";
 import { Int8, Text } from "./types";
 import { sql } from "./builder/sql";
-import { exec, db } from "./builder/test-helper";
+import { db } from "./builder/test-helper";
 import { pgExecutor } from "./executor";
 import type { Executor } from "./executor";
 import { Database } from "./database";

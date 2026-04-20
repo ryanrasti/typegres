@@ -3,17 +3,18 @@ import camelcase from "camelcase";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { defaultPgConnectionString } from "../pg.ts";
+import { getTypeDef } from "./deserialize.ts";
+import {
+  introspect,
+  groupByFirstArg,
+  pgNameToClassName,
+  type PgType,
+  type PgFunc,
+} from "./introspect.ts";
 
 const GENERATED_DIR = path.resolve(import.meta.dirname, "generated");
 const OVERRIDES_DIR = path.resolve(import.meta.dirname, "overrides");
 const TYPES_INDEX = path.resolve(import.meta.dirname, "index.ts");
-
-// Map pg type names to TS-friendly class names
-export const pgNameToClassName = (name: string): string => {
-  return camelcase(name, { pascalCase: true });
-};
-
-import { getTypeDef } from "./deserialize.ts";
 
 const tsPrimitiveFor = (typname: string): string =>
   getTypeDef(typname).tsType;
@@ -26,22 +27,6 @@ const GENERIC_TYPES = new Set([
   "anycompatiblerange",
   "anymultirange",
   "anycompatiblemultirange",
-]);
-
-// Internal Postgres types that are never used in SQL — exclude from codegen
-const EXCLUDED_TYPES = new Set([
-  "cstring",
-  "internal",
-  "trigger",
-  "event_trigger",
-  "void",
-  "language_handler",
-  "fdw_handler",
-  "index_am_handler",
-  "tsm_handler",
-  "table_am_handler",
-  "opaque",
-  "pg_ddl_command",
 ]);
 
 // Types that become T when referenced from other classes
@@ -87,275 +72,51 @@ const EXTENDS_MAP: { [key: string]: string } = {
   anymultirange: "Anycompatiblemultirange",
 };
 
-interface PgType {
-  oid: number;
-  typname: string;
-  className: string;
-}
 
-interface PgFunc {
-  name: string;
-  argTypes: number[];
-  returnType: number;
-  isOperator?: boolean;
-  isStrict?: boolean;
-  isAggregate?: boolean;
-  isSrf?: boolean;
-  // For multi-column SRFs: OUT param names and types
-  outColumns?: { name: string; typeOid: number }[];
-}
+// Resolution of a pg-type OID to its TS representation, before the
+// nullability param is filled in. Containers (Anyarray<T, N> etc.) need an
+// element arg; bare references close directly with <N>; references to an
+// element type from inside a container forward the owner's T.
+type ResolvedType =
+  | { kind: "T" }
+  | { kind: "unknown" }
+  | { kind: "simple"; className: string }
+  | { kind: "container"; className: string; elementArg: "T" | "types.Any<any>" };
 
-type Queryable = {
-  query<T>(text: string): Promise<{ rows: T[] }>;
-};
-
-const introspect = async (db: Queryable) => {
-  // Get all built-in base types and pseudo-types (not array types)
-  const { rows: types } = await db.query<{ oid: number; typname: string }>(`
-    SELECT t.oid, t.typname
-    FROM pg_type t
-    JOIN pg_namespace n ON t.typnamespace = n.oid
-    WHERE n.nspname = 'pg_catalog'
-      AND t.typtype IN ('b', 'p')
-      AND t.typelem = 0
-      AND t.typname NOT LIKE '\\_%'
-    ORDER BY t.typname
-  `);
-
-  const typeMap = new Map<number, PgType>();
-  for (const t of types) {
-    if (EXCLUDED_TYPES.has(t.typname)) { continue; }
-    typeMap.set(t.oid, {
-      oid: t.oid,
-      typname: t.typname,
-      className: pgNameToClassName(t.typname),
-    });
-  }
-
-  // Get functions: name, arg types, return type, strictness
-  const { rows: funcs } = await db.query<{
-    proname: string;
-    proargtypes: string;
-    prorettype: number;
-    proisstrict: boolean;
-  }>(`
-    SELECT p.proname, p.proargtypes::text, p.prorettype, p.proisstrict
-    FROM pg_proc p
-    JOIN pg_namespace n ON p.pronamespace = n.oid
-    WHERE n.nspname = 'pg_catalog'
-      AND p.prokind = 'f'                                                       -- only plain functions
-      AND p.provolatile IN ('i', 's')                                           -- no side effects (exclude volatile)
-      AND p.proretset = false                                                   -- no set-returning functions (for now)
-      AND array_length(string_to_array(trim(p.proargtypes::text), ' '), 1) > 0 -- must have at least one arg
-      AND p.proargtypes::text != ''
-      AND p.oid NOT IN (SELECT oprcode FROM pg_operator WHERE oprcode != 0)     -- exclude operator implementations (e.g. int4eq)
-      AND p.oid NOT IN (SELECT amproc FROM pg_amproc)                           -- exclude index support functions (e.g. btint4cmp, hashint4)
-    ORDER BY p.proname
-  `);
-
-  // Get operators (operators are always strict in terms of null propagation)
-  const { rows: operators } = await db.query<{
-    oprname: string;
-    oprleft: number;
-    oprright: number;
-    oprresult: number;
-  }>(`
-    SELECT o.oprname, o.oprleft, o.oprright, o.oprresult
-    FROM pg_operator o
-    JOIN pg_namespace n ON o.oprnamespace = n.oid
-    WHERE n.nspname = 'pg_catalog'
-      AND o.oprleft != 0
-      AND o.oprright != 0
-    ORDER BY o.oprname
-  `);
-
-  // Build function list, filtering to only known types
-  const pgFuncs: PgFunc[] = [];
-
-  for (const f of funcs) {
-    const argOids = f.proargtypes
-      .trim()
-      .split(/\s+/)
-      .map(Number);
-    if (argOids.every((oid) => typeMap.has(oid)) && typeMap.has(f.prorettype)) {
-      pgFuncs.push({
-        name: f.proname,
-        argTypes: argOids,
-        returnType: f.prorettype,
-        isStrict: f.proisstrict,
-      });
-    }
-  }
-
-  for (const o of operators) {
-    if (
-      typeMap.has(o.oprleft) &&
-      typeMap.has(o.oprright) &&
-      typeMap.has(o.oprresult)
-    ) {
-      pgFuncs.push({
-        name: o.oprname,
-        argTypes: [o.oprleft, o.oprright],
-        returnType: o.oprresult,
-        isOperator: true,
-        isStrict: true,
-      });
-    }
-  }
-
-  // Get aggregate functions
-  const { rows: aggFuncs } = await db.query<{
-    proname: string;
-    proargtypes: string;
-    prorettype: number;
-  }>(`
-    SELECT p.proname, p.proargtypes::text, p.prorettype
-    FROM pg_proc p
-    JOIN pg_namespace n ON p.pronamespace = n.oid
-    WHERE n.nspname = 'pg_catalog'
-      AND p.prokind = 'a'
-      AND p.proretset = false
-      AND array_length(string_to_array(trim(p.proargtypes::text), ' '), 1) > 0
-      AND p.proargtypes::text != ''
-    ORDER BY p.proname
-  `);
-
-  for (const f of aggFuncs) {
-    const argOids = f.proargtypes
-      .trim()
-      .split(/\s+/)
-      .map(Number);
-    if (argOids.every((oid) => typeMap.has(oid)) && typeMap.has(f.prorettype)) {
-      pgFuncs.push({
-        name: f.proname,
-        argTypes: argOids,
-        returnType: f.prorettype,
-        isAggregate: true,
-      });
-    }
-  }
-
-  // Get set-returning functions (with OUT param info for multi-column SRFs)
-  const { rows: srfFuncs } = await db.query<{
-    proname: string;
-    proargtypes: string;
-    prorettype: number;
-    proisstrict: boolean;
-    proargnames: string[] | null;
-    proargmodes: string[] | null;
-    proallargtypes: number[] | null;
-  }>(`
-    SELECT p.proname, p.proargtypes::text, p.prorettype, p.proisstrict,
-           p.proargnames, p.proargmodes::text[], p.proallargtypes::int[]
-    FROM pg_proc p
-    JOIN pg_namespace n ON p.pronamespace = n.oid
-    WHERE n.nspname = 'pg_catalog'
-      AND p.prokind = 'f'
-      AND p.proretset = true
-      AND p.provolatile IN ('i', 's')
-      AND array_length(string_to_array(trim(p.proargtypes::text), ' '), 1) > 0
-      AND p.proargtypes::text != ''
-      AND p.oid NOT IN (SELECT oprcode FROM pg_operator WHERE oprcode != 0)
-      AND p.oid NOT IN (SELECT amproc FROM pg_amproc)
-    ORDER BY p.proname
-  `);
-
-  for (const f of srfFuncs) {
-    const argOids = f.proargtypes
-      .trim()
-      .split(/\s+/)
-      .map(Number);
-    if (!argOids.every((oid) => typeMap.has(oid))) { continue; }
-
-    // Extract OUT columns from proargmodes/proargnames/proallargtypes
-    let outColumns: { name: string; typeOid: number }[] | undefined;
-    if (f.proargmodes && f.proargnames && f.proallargtypes) {
-      const outs: { name: string; typeOid: number }[] = [];
-      for (let i = 0; i < f.proargmodes.length; i++) {
-        if (f.proargmodes[i] === "o" || f.proargmodes[i] === "t") { // 'o' = OUT, 't' = TABLE
-          const name = f.proargnames[i];
-          const typeOid = f.proallargtypes[i];
-          if (name && typeOid && typeMap.has(typeOid)) {
-            outs.push({ name, typeOid });
-          }
-        }
-      }
-      if (outs.length > 0) {
-        outColumns = outs;
-      }
-    }
-
-    // For single-column SRFs, need the return type to be known
-    if (!outColumns && !typeMap.has(f.prorettype)) { continue; }
-
-    pgFuncs.push({
-      name: f.proname,
-      argTypes: argOids,
-      returnType: f.prorettype,
-      isStrict: f.proisstrict,
-      isSrf: true,
-      ...(outColumns ? { outColumns } : {}),
-    });
-  }
-
-  return { typeMap, pgFuncs };
-};
-
-// Group functions by their first argument type (the "self" type)
-const groupByFirstArg = (pgFuncs: PgFunc[]) => {
-  const grouped = new Map<number, PgFunc[]>();
-
-  for (const f of pgFuncs) {
-    const firstArg = f.argTypes[0];
-    if (firstArg === undefined) { continue; }
-    if (!grouped.has(firstArg)) {
-      grouped.set(firstArg, []);
-    }
-    grouped.get(firstArg)!.push(f);
-  }
-
-  return grouped;
-};
-
-// Resolve a type OID to its base TS name (without nullability param)
-// Only apply T substitution when the owning class is itself generic (an any* type)
 const resolveBaseTypeName = (
   oid: number,
   ownerType: PgType,
   typeMap: Map<number, PgType>,
-): string => {
+): ResolvedType => {
   const t = typeMap.get(oid);
-  if (!t) { return "unknown"; }
+  if (!t) { return { kind: "unknown" }; }
 
-  const ownerIsGeneric = GENERIC_TYPES.has(ownerType.typname) || ELEMENT_TYPES.has(ownerType.typname);
+  const ownerIsContainer = GENERIC_TYPES.has(ownerType.typname);
 
-  if (ownerIsGeneric) {
-    // Inside a generic class: element types become T, containers get <T>
-    if (ELEMENT_TYPES.has(t.typname) && t.typname !== ownerType.typname) {
-      return "T";
-    }
-    // Self-references and container references get <T>
-    if (GENERIC_TYPES.has(t.typname) || ELEMENT_TYPES.has(t.typname)) {
-      return `types.${t.className}<T, `;
-    }
-  } else {
-    // Non-generic class referencing a generic any* type: use <types.Any<any>>
-    if (GENERIC_TYPES.has(t.typname) || ELEMENT_TYPES.has(t.typname)) {
-      return `types.${t.className}<types.Any<any>, `;
-    }
+  if (GENERIC_TYPES.has(t.typname)) {
+    return {
+      kind: "container",
+      className: t.className,
+      elementArg: ownerIsContainer ? "T" : "types.Any<any>",
+    };
   }
 
-  return `types.${t.className}`;
+  // Inside a container, references to element-type classes forward the
+  // owner's T — that's the semantic "the element type" slot.
+  if (ownerIsContainer && ELEMENT_TYPES.has(t.typname)) {
+    return { kind: "T" };
+  }
+
+  return { kind: "simple", className: t.className };
 };
 
-// Format a type reference with nullability param
-const formatTypeWithNull = (baseName: string, nullParam: string): string => {
-  // "T" is a raw generic — no nullability param on it
-  if (baseName === "T") { return "T"; }
-  // Types that already opened a generic (end with ", ") just need the null param + close
-  if (baseName.endsWith(", ")) { return `${baseName}${nullParam}>`; }
-  // Regular types get <nullParam>
-  return `${baseName}<${nullParam}>`;
+const formatTypeWithNull = (r: ResolvedType, nullParam: string): string => {
+  switch (r.kind) {
+    case "T":         return "T";
+    case "unknown":   return "unknown";
+    case "simple":    return `types.${r.className}<${nullParam}>`;
+    case "container": return `types.${r.className}<${r.elementArg}, ${nullParam}>`;
+  }
 };
 
 const generateTypeFile = (
@@ -367,11 +128,20 @@ const generateTypeFile = (
   const isGeneric = GENERIC_TYPES.has(pgType.typname);
   const isElement = ELEMENT_TYPES.has(pgType.typname);
   const extendsClass = EXTENDS_MAP[pgType.typname];
-  const needsGenericT = isGeneric || isElement;
+  // Only container types carry a T param. Element types (anyelement,
+  // anynonarray, anycompatible, anycompatiblenonarray, anyenum) dropped T to
+  // break the self-referential variance loop: Int4 used to extend
+  // Anynonarray<Int4<N>, N>, which forced TS to relate Int4 to itself to
+  // compute variance. Containers still keep T (they genuinely need the
+  // element type in their method signatures).
+  const needsGenericT = isGeneric;
+  const parentIsContainer = extendsClass !== undefined
+    && [...GENERIC_TYPES].some((n) => pgNameToClassName(n) === extendsClass);
 
-  // Separate functions (dedup by name) and operators (keep all overloads, group by name)
-  const seenFuncs = new Set<string>();
-  const emittedFuncs: PgFunc[] = [];
+  // Group both functions and operators by name so real pg overloads (e.g.
+  // substring(bit, int4) and substring(bit, int4, int4)) become a single
+  // method with multiple TS overload signatures.
+  const funcGroups = new Map<string, PgFunc[]>();
   const operatorGroups = new Map<string, PgFunc[]>();
 
   for (const f of funcs) {
@@ -381,142 +151,54 @@ const generateTypeFile = (
     if (pgType.typname === "anynonarray" && f.isOperator && f.name === "||") { continue; } // overloaded: text||anynonarray, but concrete types define their own ||
     if (pgType.typname === "anycompatible" && !f.isOperator && f.name === "width_bucket") { continue; } // overloaded with different arities by float8, numeric
 
-    if (f.isOperator) {
-      if (!operatorGroups.has(f.name)) { operatorGroups.set(f.name, []); }
-      operatorGroups.get(f.name)!.push(f);
-    } else {
-      const key = camelcase(f.name);
-      if (seenFuncs.has(key)) { continue; }
-      seenFuncs.add(key);
-      emittedFuncs.push(f);
-    }
-  }
-
-  // Flatten for import collection
-  const allOperators = [...operatorGroups.values()].flat();
-  const emitted = [...emittedFuncs, ...allOperators];
-
-  // Collect referenced types only from emitted functions
-  const referencedTypes = new Set<string>();
-  for (const f of emitted) {
-    for (const argOid of f.argTypes.slice(1)) {
-      const resolved = resolveBaseTypeName(argOid, pgType, typeMap);
-      const t = typeMap.get(argOid);
-      if (t && resolved !== "T" && t.className !== pgType.className) {
-        referencedTypes.add(t.className);
-      }
-    }
-    const ret = typeMap.get(f.returnType);
-    const resolvedRet = resolveBaseTypeName(f.returnType, pgType, typeMap);
-    if (ret && resolvedRet !== "T" && ret.className !== pgType.className) {
-      referencedTypes.add(ret.className);
-    }
-  }
-
-  // Track value imports (for extends) separately from type imports
-  const valueImports = new Set<string>();
-  if (extendsClass) {
-    valueImports.add(extendsClass);
-  } else if (pgType.typname !== "any") {
-    // Concrete types extend Anynonarray
-    valueImports.add("Anynonarray");
-  }
-
-  if (needsGenericT && !referencedTypes.has("Any") && !valueImports.has("Any")) {
-    referencedTypes.add("Any");
-  }
-
-  // Determine which null helpers we need
-  const needsStrictNull = emitted.some((f) => f.isStrict && f.argTypes.length > 1 && !(f.isOperator && MAYBE_NULL_OPS.has(f.name)));
-  const needsMaybeNull = emitted.some((f) => f.isOperator && MAYBE_NULL_OPS.has(f.name));
-
-  // Determine which runtime type helpers and concrete type value imports we need
-  let needsPgType = false;
-  let needsPgElement = false;
-  for (const f of emitted) {
-    const retBase = resolveBaseTypeName(f.returnType, pgType, typeMap);
-    if (retBase === "T") {
-      needsPgElement = true;
-    } else if (f.returnType === f.argTypes[0] && (isGeneric || isElement)) {
-      needsPgType = true;
-    } else {
-      // Concrete class used as type arg — needs a value import
-      const retT = typeMap.get(f.returnType);
-      if (retT && retT.className !== pgType.className) {
-        valueImports.add(retT.className);
-      }
-    }
+    const groups = f.isOperator ? operatorGroups : funcGroups;
+    const key = f.isOperator ? f.name : camelcase(f.name);
+    if (!groups.has(key)) { groups.set(key, []); }
+    groups.get(key)!.push(f);
   }
 
   const lines: string[] = [];
   lines.push("// Auto-generated — do not edit");
+  lines.push('import * as runtime from "../runtime";');
 
-  const hasFuncs = emitted.some((f) => !f.isOperator);
-  const hasOps = emitted.some((f) => f.isOperator);
-  const needsNullOf = emitted.some((f) => f.argTypes.length > 1);
-  // TsTypeOf needed when any arg references a generic any* type
-  const needsTsTypeOf = emitted.some((f) =>
-    f.argTypes.slice(1).some((oid) => {
-      const t = typeMap.get(oid);
-      return t && (GENERIC_TYPES.has(t.typname) || ELEMENT_TYPES.has(t.typname));
-    }),
-  );
-  // Concrete types need meta for the [meta] declaration
-  const needsMeta = !EXTENDS_MAP[pgType.typname] && pgType.typname !== "any";
-  const runtimeImports = [
-    ...(needsMeta ? ["meta"] : []),
-    ...(hasFuncs ? ["PgFunc"] : []),
-    ...(hasOps ? ["PgOp"] : []),
-    ...(needsStrictNull ? ["StrictNull"] : []),
-    ...(needsMaybeNull ? ["MaybeNull"] : []),
-    ...(needsNullOf ? ["NullOf"] : []),
-    ...(needsTsTypeOf ? ["TsTypeOf"] : []),
-    ...(needsPgType ? ["pgType"] : []),
-    ...(needsPgElement ? ["pgElement"] : []),
-    ...(emitted.some((f) => f.isSrf && !f.outColumns) ? ["PgSrfFunc"] : []),
-    ...(emitted.some((f) => f.isSrf && f.outColumns) ? ["PgSrfMulti"] : []),
-    ...(emitted.some((f) => f.isSrf) ? ["PgSrf"] : []),
-    ...(emitted.length > 0 ? ["match"] : []),
-  ];
-  if (runtimeImports.length > 0) {
-    lines.push(`import { ${runtimeImports.join(", ")} } from "../runtime";`);
-  }
-  // Concrete types no longer need Sql import (constructor removed, from() is on Any)
-  // Extends: import parent class directly from its source file.
-  // This avoids circular deps at class definition time — the parent must be
-  // fully loaded before the child class evaluates `extends`.
-  for (const name of [...valueImports].sort()) {
-    const matchingType = [...typeMap.values()].find((t) => t.className === name);
-    if (matchingType && overrideNames.has(matchingType.typname)) {
-      lines.push(`import { ${name} } from "../overrides/${matchingType.typname}";`);
-    } else if (matchingType) {
-      lines.push(`import { ${name} } from "../generated/${matchingType.typname}";`);
-    }
+  // Parent class needs a direct import, not `types.Parent`: class `extends`
+  // clauses evaluate at module-load time, and the barrel may not have finished
+  // loading when this file runs. Method bodies use `types.X` freely — those
+  // are lazy, so load order doesn't matter.
+  const parentTypname = pgType.typname === "any"
+    ? undefined
+    : extendsClass
+      ? Object.keys(EXTENDS_MAP).find((k) => pgNameToClassName(k) === extendsClass)
+        ?? "any"
+      : "anynonarray";
+  if (parentTypname) {
+    const parentClass = pgNameToClassName(parentTypname);
+    const dir = overrideNames.has(parentTypname) ? "overrides" : "generated";
+    lines.push(`import { ${parentClass} } from "../${dir}/${parentTypname}";`);
   }
 
-  // Everything else (PgFunc/PgOp type args, type annotations): namespace import
-  // from the barrel. `types.ClassName` is only accessed in method bodies at call
-  // time, so all modules are loaded by then — no circular dep issue.
   lines.push('import * as types from "../index";');
 
   lines.push("");
 
-  // Build class declaration — every class gets N extends number for nullability
+  // Build class declaration. Explicit `in out N` variance annotation skips
+  // TS's structural variance inference, which otherwise walks the full method
+  // surface across 77 concrete classes × ~100 mutually-referencing methods
+  // and recurses deep enough to overflow stock tsc's default stack. With the
+  // annotation, stock tsc typechecks cleanly in ~1.5s at default stack.
   let classDecl = `export class ${pgType.className}`;
   if (needsGenericT) {
-    classDecl += `<T extends types.Any<any>, N extends number>`;
+    classDecl += `<T extends types.Any<any>, in out N extends number>`;
   } else {
-    classDecl += `<N extends number>`;
+    classDecl += `<in out N extends number>`;
   }
   if (extendsClass) {
-    if (extendsClass === "Any") {
-      classDecl += ` extends ${extendsClass}<N>`;
-    } else {
-      classDecl += ` extends ${extendsClass}<T, N>`;
-    }
+    // Parent takes T only if it's a container itself.
+    classDecl += parentIsContainer
+      ? ` extends ${extendsClass}<T, N>`
+      : ` extends ${extendsClass}<N>`;
   } else if (pgType.typname !== "any") {
-    // Concrete types extend Anynonarray (scalars in the type hierarchy)
-    classDecl += ` extends Anynonarray<${pgType.className}<N>, N>`;
+    classDecl += ` extends Anynonarray<N>`;
   }
   classDecl += " {";
   lines.push(classDecl);
@@ -532,8 +214,12 @@ const generateTypeFile = (
     const tsType = tsPrimitiveFor(pgType.typname);
     const cls = pgType.className;
     const ref = overrideNames.has(pgType.typname) ? `types.${cls}` : cls;
-    lines.push(`  declare [meta]: {`);
+    // Subclass [meta] redeclarations replace the parent's — repeat __raw
+    // and __nullability from Any to keep them visible on concrete instances.
+    lines.push(`  declare [runtime.meta]: {`);
     lines.push(`    __class: typeof ${ref};`);
+    lines.push(`    __raw: runtime.Sql;`);
+    lines.push(`    __nullability: N;`);
     lines.push(`    __nullable: ${ref}<0 | 1>;`);
     lines.push(`    __nonNullable: ${ref}<1>;`);
     lines.push(`    __aggregate: ${ref}<number>;`);
@@ -551,15 +237,15 @@ const generateTypeFile = (
 
   // Build generic param + TS type for a single arg
   const buildArgGeneric = (oid: number, i: number, allowPrimitive: boolean): string => {
-    const baseName = resolveBaseTypeName(oid, pgType, typeMap);
-    const constraint = formatTypeWithNull(baseName, "any");
+    const resolved = resolveBaseTypeName(oid, pgType, typeMap);
+    const constraint = formatTypeWithNull(resolved, "any");
     const t = typeMap.get(oid);
     if (!t) { return `M${i} extends ${constraint}`; }
     if (GENERIC_TYPES.has(t.typname) && needsGenericT) {
-      return `M${i} extends ${constraint}${allowPrimitive ? " | TsTypeOf<T>[]" : ""}`;
+      return `M${i} extends ${constraint}${allowPrimitive ? " | runtime.TsTypeOf<T>[]" : ""}`;
     }
     if (ELEMENT_TYPES.has(t.typname) && needsGenericT) {
-      return `M${i} extends ${constraint}${allowPrimitive ? " | TsTypeOf<T>" : ""}`;
+      return `M${i} extends ${constraint}${allowPrimitive ? " | runtime.TsTypeOf<T>" : ""}`;
     }
     if (GENERIC_TYPES.has(t.typname) || ELEMENT_TYPES.has(t.typname)) {
       return `M${i} extends ${constraint}`;
@@ -576,10 +262,10 @@ const generateTypeFile = (
     if (f.isAggregate) {
       return formatTypeWithNull(retBase, f.name === "count" ? "1" : "0 | 1");
     }
-    const nullParts = ["N", ...restArgs.map((_, i) => `NullOf<M${i}>`)];
+    const nullParts = ["N", ...restArgs.map((_, i) => `runtime.NullOf<M${i}>`)];
     const nullUnion = nullParts.join(" | ");
     if (f.isOperator && MAYBE_NULL_OPS.has(f.name)) {
-      return formatTypeWithNull(retBase, `MaybeNull<${nullUnion}>`);
+      return formatTypeWithNull(retBase, `runtime.MaybeNull<${nullUnion}>`);
     }
     if (!f.isStrict) {
       return formatTypeWithNull(retBase, "1");
@@ -587,16 +273,19 @@ const generateTypeFile = (
     if (restArgs.length === 0) {
       return formatTypeWithNull(retBase, "N");
     }
-    return formatTypeWithNull(retBase, `StrictNull<${nullUnion}>`);
+    return formatTypeWithNull(retBase, `runtime.StrictNull<${nullUnion}>`);
   };
 
-  // Build the runtime type arg (for zero-arg functions or SRFs that don't use match)
-  const buildTypeArg = (f: PgFunc): string => {
+  // Runtime expression for a function's return-type constructor.
+  // For methods on abstract hierarchy types, the actual concrete class isn't
+  // known statically — resolve via pgElement(this) (container → element) or
+  // pgType(this) (abstract → self). Otherwise use the concrete class directly.
+  const runtimeRetType = (f: PgFunc): string => {
     const retBase = resolveBaseTypeName(f.returnType, pgType, typeMap);
-    if (retBase === "T") { return "pgElement(this)"; }
-    if (f.returnType === f.argTypes[0] && (isGeneric || isElement)) { return "pgType(this)"; }
+    if (retBase.kind === "T") { return "runtime.pgElement(this)"; }
+    if (f.returnType === f.argTypes[0] && (isGeneric || isElement)) { return "runtime.pgType(this)"; }
     const retT = typeMap.get(f.returnType);
-    return retT ? `types.${retT.className}` : "undefined";
+    return retT ? `types.${retT.className}` : `types.${pgType.className}`;
   };
 
   // Build a match case string: [[{type, allowPrimitive?}, ...], retType]
@@ -609,105 +298,103 @@ const generateTypeFile = (
         : true;
       return ap ? `{ type: types.${t.className}, allowPrimitive: true }` : `{ type: types.${t.className} }`;
     });
-    const retT = typeMap.get(f.returnType);
-    const ret = retT ? `types.${retT.className}` : `types.${pgType.className}`;
-    return `[[${matchers.join(", ")}], ${ret}]`;
+    return `[[${matchers.join(", ")}], ${runtimeRetType(f)}]`;
   };
 
-  // Build overload signature (no body)
-  const buildOverloadSig = (f: PgFunc, allowPrimitive: boolean): string => {
+  // Whether an overload's arg types all share the owner's TS primitive, used
+  // to decide if primitive inputs (e.g. `5`, `"foo"`) are accepted without
+  // ambiguity. Applied per-overload for signatures; globally (any overload
+  // restricts) for the match-impl body.
+  const argsMatchOwnerPrimitive = (f: PgFunc): boolean =>
+    f.argTypes.slice(1).every((oid) => {
+      const t = typeMap.get(oid);
+      return t !== undefined && tsPrimitiveFor(t.typname) === ownerTsPrimitive;
+    });
+
+  // Method name as emitted — operators use ['...'] brackets.
+  const methodName = (f: PgFunc): string =>
+    f.isOperator ? `['${f.name}']` : camelcase(f.name);
+
+  // Build the "header" of a method signature: name + generic decl + params.
+  const buildSig = (f: PgFunc, allowPrimitive: boolean): string => {
     const restArgs = f.argTypes.slice(1);
     const genericDecl = restArgs.length > 0
       ? `<${restArgs.map((oid, i) => buildArgGeneric(oid, i, allowPrimitive)).join(", ")}>`
       : "";
     const params = restArgs.map((_, i) => `arg${i}: M${i}`).join(", ");
-    const retType = buildRetType(f);
-    const name = f.isOperator ? `['${f.name}']` : camelcase(f.name);
-    return `  ${name}${genericDecl}(${params}): ${retType};`;
+    return `${methodName(f)}${genericDecl}(${params})`;
   };
 
-  // Build implementation (with body) for one or more overloads
-  const buildImpl = (funcs: PgFunc[], isOp: boolean, restrictPrimitive: boolean): string => {
+  // Build the runtime body: match dispatch + caller. Uniform across 0-arg,
+  // n-arg, functions, operators, and single-column SRFs — the only thing
+  // that changes is which runtime entry point wraps __rt. `...__rest` spread
+  // tolerates overloads of differing arity within the same group.
+  const buildBody = (funcs: PgFunc[], restrictPrimitive: boolean): string => {
     const f0 = funcs[0]!;
-    const argNames = f0.argTypes.slice(1).map((_, i) => `arg${i}`);
-    const name = isOp ? `['${f0.name}']` : camelcase(f0.name);
-
-    // SRF — returns a PgSrf Fromable
-    if (f0.isSrf) {
-      const restArgs = f0.argTypes.slice(1);
-      const genericDecl = restArgs.length > 0
-        ? `<${restArgs.map((oid, i) => buildArgGeneric(oid, i, true)).join(", ")}>`
-        : "";
-      const params = restArgs.map((_, i) => `arg${i}: M${i}`).join(", ");
-      const allArgs = argNames.length > 0 ? `this, ${argNames.join(", ")}` : "this";
-      if (f0.outColumns && f0.outColumns.length > 0) {
-        const colEntries = f0.outColumns.map((c) => { const t = typeMap.get(c.typeOid)!; return `${c.name}: types.${t.className}<1>`; });
-        const colRuntime = f0.outColumns.map((c) => { const t = typeMap.get(c.typeOid)!; return `["${c.name}", types.${t.className}]`; });
-        return `  ${name}${genericDecl}(${params}): PgSrf<{ ${colEntries.join("; ")} }, "${f0.name}"> { return PgSrfMulti("${f0.name}", [${allArgs}], [${colRuntime.join(", ")}]) as any; }`;
-      }
-      const retType = buildRetType(f0);
-      return `  ${name}${genericDecl}(${params}): PgSrf<{ ${f0.name}: ${retType} }, "${f0.name}"> { return PgSrfFunc("${f0.name}", [${allArgs}], "${f0.name}", ${buildTypeArg(f0)}) as any; }`;
-    }
-
-    // Zero args — no match needed
-    if (argNames.length === 0) {
-      const restArgs = f0.argTypes.slice(1);
-      const genericDecl = restArgs.length > 0
-        ? `<${restArgs.map((oid, i) => buildArgGeneric(oid, i, true)).join(", ")}>`
-        : "";
-      const params = restArgs.map((_, i) => `arg${i}: M${i}`).join(", ");
-      const retType = buildRetType(f0);
-      const caller = isOp ? `PgOp("${f0.name}", [this], ${buildTypeArg(f0)})` : `PgFunc("${f0.name}", [this], ${buildTypeArg(f0)})`;
-      return `  ${name}${genericDecl}(${params}): ${retType} { return ${caller} as any; }`;
-    }
-
-    // Has args — emit match
+    const maxArity = Math.max(...funcs.map((f) => f.argTypes.length - 1));
+    const inputArgs = Array.from({ length: maxArity }, (_, i) => `arg${i}`);
     const cases = funcs.map((fn) => buildMatchCase(fn, restrictPrimitive));
-    const matchCall = `match([${argNames.join(", ")}], [${cases.join(", ")}])`;
-    const destructured = `const [__rt, ${argNames.map((n) => `__${n}`).join(", ")}] = ${matchCall}`;
-    const caller = isOp
-      ? `PgOp("${f0.name}", [this, ${argNames.map((n) => `__${n}`).join(", ")}], __rt)`
-      : `PgFunc("${f0.name}", [this, ${argNames.map((n) => `__${n}`).join(", ")}], __rt)`;
-
-    // Single overload — include type signature
-    if (funcs.length === 1) {
-      const restArgs = f0.argTypes.slice(1);
-      const genericDecl = restArgs.length > 0
-        ? `<${restArgs.map((oid, i) => buildArgGeneric(oid, i, true)).join(", ")}>`
-        : "";
-      const params = restArgs.map((_, i) => `arg${i}: M${i}`).join(", ");
-      const retType = buildRetType(f0);
-      return `  ${name}${genericDecl}(${params}): ${retType} { ${destructured}; return ${caller} as any; }`;
-    }
-
-    // Multi-overload — implementation accepts unknown
-    const implParams = argNames.map((n) => `${n}: unknown`).join(", ");
-    return `  ${name}(${implParams}): any { ${destructured}; return ${caller} as any; }`;
+    const matchCall = `runtime.match([${inputArgs.join(", ")}], [${cases.join(", ")}])`;
+    const caller = f0.isSrf
+      ? `new runtime.PgSrf("${f0.name}", [this, ...__rest], [["${f0.name}", __rt]])`
+      : f0.isOperator
+        ? `runtime.PgOp("${f0.name}", [this, ...__rest] as [unknown, unknown], __rt)`
+        : `runtime.PgFunc("${f0.name}", [this, ...__rest], __rt)`;
+    return `const [__rt, ...__rest] = ${matchCall}; return ${caller} as any;`;
   };
+
+  // Wrap a bare pg return type for SRFs: `Int4<N>` → `PgSrf<{ name: Int4<N> }, "name">`.
+  const wrapSrfRet = (f: PgFunc, retType: string): string =>
+    `runtime.PgSrf<{ ${f.name}: ${retType} }, "${f.name}">`;
 
   // --- Emit methods ---
 
-  // Functions: single signature with body
-  for (const f of emittedFuncs) {
-    lines.push(buildImpl([f], false, false));
-  }
+  // One loop handles: functions, operators, and single-column SRFs. Every
+  // group goes through match; signatures become TS overloads when the pg
+  // overload set has more than one entry.
+  // Multi-column SRFs are handled separately below (row shape is driven by
+  // OUT params, not by args, so match doesn't apply).
+  const allGroups = [...funcGroups.values(), ...operatorGroups.values()];
+  for (const group of allGroups) {
+    const f0 = group[0]!;
 
-  // Operators: grouped by name
-  for (const [, overloads] of operatorGroups) {
-    if (overloads.length === 1) {
-      lines.push(buildImpl(overloads, true, false));
-    } else {
-      // Emit overload signatures
-      for (const overload of overloads) {
-        const argAllowPrimitive = overload.argTypes.slice(1).every((oid) => {
-          const t = typeMap.get(oid);
-          return t && tsPrimitiveFor(t.typname) === ownerTsPrimitive;
-        });
-        lines.push(buildOverloadSig(overload, argAllowPrimitive));
-      }
-      // Emit implementation with match
-      lines.push(buildImpl(overloads, true, true));
+    // Multi-column SRF: special-cased, shape comes from outColumns.
+    if (f0.isSrf && f0.outColumns && f0.outColumns.length > 0) {
+      const restArgs = f0.argTypes.slice(1);
+      const argNames = restArgs.map((_, i) => `arg${i}`);
+      const allArgs = argNames.length > 0 ? `this, ${argNames.join(", ")}` : "this";
+      const colEntries = f0.outColumns.map((c) => { const t = typeMap.get(c.typeOid)!; return `${c.name}: types.${t.className}<1>`; });
+      const colRuntime = f0.outColumns.map((c) => { const t = typeMap.get(c.typeOid)!; return `["${c.name}", types.${t.className}]`; });
+      const sig = buildSig(f0, true);
+      const ret = `runtime.PgSrf<{ ${colEntries.join("; ")} }, "${f0.name}">`;
+      lines.push(`  ${sig}: ${ret} { return new runtime.PgSrf("${f0.name}", [${allArgs}], [${colRuntime.join(", ")}]) as any; }`);
+      continue;
     }
+
+    const wrapRet = f0.isSrf ? wrapSrfRet : (_: PgFunc, r: string) => r;
+
+    if (group.length === 1) {
+      const sig = buildSig(f0, true);
+      const retType = wrapRet(f0, buildRetType(f0));
+      lines.push(`  ${sig}: ${retType} { ${buildBody(group, false)} }`);
+      continue;
+    }
+
+    // Multiple overloads: emit TS overload signatures, then one typed-as-any
+    // implementation dispatching via match with restrictPrimitive on.
+    for (const overload of group) {
+      const sig = buildSig(overload, argsMatchOwnerPrimitive(overload));
+      const retType = wrapRet(overload, buildRetType(overload));
+      lines.push(`  ${sig}: ${retType};`);
+    }
+    // Impl sig must cover all arities — required up to min, optional up to max.
+    const arities = group.map((f) => f.argTypes.length - 1);
+    const minArity = Math.min(...arities);
+    const maxArity = Math.max(...arities);
+    const implParams = Array.from({ length: maxArity }, (_, i) =>
+      `arg${i}${i >= minArity ? "?" : ""}: unknown`,
+    ).join(", ");
+    lines.push(`  ${methodName(f0)}(${implParams}): any { ${buildBody(group, true)} }`);
   }
 
   lines.push("}");

@@ -1,8 +1,8 @@
 import { test, expect, describe, beforeEach, afterEach } from "vitest";
 import { Int8, Text } from "../types";
-import { db, withinTransaction } from "../builder/test-helper";
+import { db } from "../builder/test-helper";
 import { sql } from "../builder/sql";
-import { wrapInsertWithEvents } from "./wrap";
+import { wrapInsertWithEvents, wrapUpdateWithEvents } from "./wrap";
 import { createShadowTableSql } from "./shadow";
 import { LiveBus, CursorTooOldError } from "./bus";
 import type { PredicateSet } from "./types";
@@ -157,7 +157,6 @@ describe("Phase 3: bus + subscription", () => {
     const cursor = await takeSnapshot();
 
     // Update to user_id=9. `before.user_id=5` matches our preds.
-    const { wrapUpdateWithEvents } = await import("./wrap");
     await db.execute(wrapUpdateWithEvents(
       Dogs.update()
         .where(({ dogs }) => dogs.id["="](1n))

@@ -1,7 +1,7 @@
 import { test, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
 import type { meta } from "./runtime";
 import type { StrictNull, MaybeNull, NullOf, TsTypeOf } from "./runtime";
-import type { Any, Float8, Anyarray, Anyrange, Anymultirange } from "./index";
+import type { Any, Float8, Anyrange, Anymultirange , Anyarray } from "./index";
 import { Int4, Text, Bool, Int8 } from "./index";
 import { sql } from "../builder/sql";
 import { pgExecutor } from "../executor";
@@ -311,6 +311,25 @@ test("isNull / isNotNull", async () => {
   const r3 = await exec.execute(sql`SELECT ${nullable.isNull().toSql()} as result`);
   expect(r3.rows[0]!["result"]).toBe("t");
 });
+
+// --- Container element-type forwarding (unnest) ---
+
+test("Anyarray.unnest() preserves element type at the type level", () => {
+  // Before the container→T forwarding fix, codegen resolved the unnest
+  // return type to the abstract Anyelement base, dropping the element type
+  // info at both the type and runtime levels. Now `T` threads through,
+  // so unnesting an Int4 array yields Int4-typed rows.
+  type ArrType = ReturnType<typeof Anyarray.of<Int4<any>>>;
+  type SrfRow = ReturnType<InstanceType<ArrType>["unnest"]>["rowType"];
+  expectTypeOf<SrfRow["unnest"]>().toMatchTypeOf<Int4<any>>();
+});
+
+// TODO: Anyarray.of() stores the element *instance* as static __element, but
+// runtime.pgElement expects the element *constructor*. Fixing this requires
+// changing Anyarray.of to store element.constructor (or introducing a
+// separate constructor field). Once fixed, extend this test with e2e
+// execution asserting that the yielded rows deserialize through the
+// element type's parser.
 
 // --- Type.from() ---
 

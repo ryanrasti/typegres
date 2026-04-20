@@ -1,8 +1,8 @@
 import { sql } from "../builder/sql";
 import type { Sql } from "../builder/sql";
-import { InsertBuilder } from "../builder/insert";
-import { UpdateBuilder } from "../builder/update";
-import { DeleteBuilder } from "../builder/delete";
+import type { InsertBuilder } from "../builder/insert";
+import type { UpdateBuilder } from "../builder/update";
+import type { DeleteBuilder } from "../builder/delete";
 import { compileSelectList } from "../builder/query";
 import { LiveQueryError } from "./types";
 

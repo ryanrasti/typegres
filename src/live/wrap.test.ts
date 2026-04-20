@@ -8,7 +8,7 @@ import { LiveQueryError } from "./types";
 
 // Executor runs every column through a raw parser so jsonb columns land as
 // strings. Parse before/after explicitly in the tests.
-const parseJson = <T>(v: unknown): T => (v == null ? null : JSON.parse(v as string)) as T;
+const parseJson = <T>(v: unknown): T => (v === null || v === undefined ? null : JSON.parse(v as string)) as T;
 
 // Phase 2 conformance tests. Run inside a transaction per case; each case
 // creates its own fixture tables plus the shadow event table, runs a wrapped

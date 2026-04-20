@@ -1,21 +1,7 @@
-import { test, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
-import { pgExecutor } from "../executor";
-import type { Executor } from "../executor";
-import { Database } from "../database";
+import { test, expect, expectTypeOf } from "vitest";
 import { Int4, Int8, Text, Bool, Jsonb } from "../types";
 import { sql } from "./sql";
-
-let exec: Executor;
-let db: Database;
-
-beforeAll(async () => {
-  exec = pgExecutor(undefined, { max: 1 });
-  db = new Database(exec);
-});
-
-afterAll(async () => {
-  await exec.close();
-});
+import { db } from "./test-helper";
 
 // --- values() ---
 
