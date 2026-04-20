@@ -53,10 +53,10 @@ test("TsTypeOf on container types", () => {
   expectTypeOf<TsTypeOf<Anyarray<Int4<1>, 1>>>().toEqualTypeOf<number[]>();
   // Array of text → string[]
   expectTypeOf<TsTypeOf<Anyarray<Text<1>, 1>>>().toEqualTypeOf<string[]>();
-  // Range of int4 → [number, number]
-  expectTypeOf<TsTypeOf<Anyrange<Int4<1>, 1>>>().toEqualTypeOf<[number, number]>();
-  // Multirange of int4 → [number, number][]
-  expectTypeOf<TsTypeOf<Anymultirange<Int4<1>, 1>>>().toEqualTypeOf<[number, number][]>();
+  // Range / multirange deserialize to the raw pg literal — pg's quoting +
+  // bound-kind format is non-trivial, so we surface it as a string.
+  expectTypeOf<TsTypeOf<Anyrange<Int4<1>, 1>>>().toEqualTypeOf<string>();
+  expectTypeOf<TsTypeOf<Anymultirange<Int4<1>, 1>>>().toEqualTypeOf<string>();
 });
 
 test("TsTypeOf falls through for TS primitives", () => {
