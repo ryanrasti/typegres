@@ -1,14 +1,11 @@
 import { sql, Sql, Alias } from "./sql";
-import type { CompileContext } from "./sql";
-import type { Bool} from "../types";
+import type { Bool } from "../types";
 import { Any, Anyarray, Record } from "../types";
-import type { TsTypeOf, Nullable, AggregateRow} from "../types/runtime";
+import { type TsTypeOf, type Nullable, type AggregateRow, meta } from "../types/runtime";
 
 // Extract only Any<> instances from a row type
 export const selectList = <T extends RowType>(output: T): T => {
-  return Object.fromEntries(
-    Object.entries(output).filter(([, v]) => v instanceof Any),
-  ) as T;
+  return Object.fromEntries(Object.entries(output).filter(([, v]) => v instanceof Any)) as T;
 };
 
 // Compile a row type into a SQL select list: col AS "name", ...
@@ -18,6 +15,17 @@ export const compileSelectList = (output: { [key: string]: unknown }): Sql => {
       v instanceof Any ? [sql`${v.toSql()} as ${sql.ident(k)}`] : [],
     ),
   );
+};
+
+export const reAlias = <R extends RowType>(row: R, alias: Alias): R => {
+  return Object.fromEntries(
+    Object.entries(row).map(([k, v]) => {
+      if (v instanceof Any) {
+        return [k, v[meta].__class.from(sql.column(alias, k))];
+      }
+      return [k, v];
+    }),
+  ) as R;
 };
 
 // Deserialize raw string rows using typed output descriptors
@@ -32,7 +40,7 @@ export const deserializeRows = <R>(
         if (!(type instanceof Any)) {
           throw new Error(
             `deserializeRows: output column '${k}' is not a typed pg expression (got ${typeof v}). ` +
-            `The select callback must return an object whose values are Any instances.`,
+              `The select callback must return an object whose values are Any instances.`,
           );
         }
         if (v === null || v === undefined) {
@@ -73,44 +81,43 @@ export const sortRowColumns = <R extends RowType>(row: R): R => {
 //   - Table *classes* via statics (`Users.alias`, `Users.rowType()`, `Users.emit`)
 //   - Instance-based sources (Values, PgSrf, QB subqueries) via instance
 //     fields/methods of the same names.
-export type Fromable<R extends RowType = RowType, A extends string = string> = {
-  readonly alias: Alias<A>;
+export type Fromable<R extends RowType = RowType, A extends string = string> = Sql & {
+  readonly tsAlias: A;
   rowType(): R;
-  emit(ctx: CompileContext): string;
+  emitColumnNamesWithAlias?: boolean; // default false; if true, emit column names in FROM clause (e.g. VALUES)
 };
 
-
-export const combinePredicates = (left: Bool<any> | undefined, right: Bool<any>) => {
-  if (!left) { return right; }
-  return left.and(right);
+export const combinePredicates = <N extends Namespace>(
+  left: ((ns: N) => Bool<any>) | undefined,
+  right: (ns: N) => Bool<any>,
+) => {
+  if (!left) {
+    return right;
+  }
+  return (ns: N) => left(ns).and(right(ns));
 };
-
 
 type OrderDirection = "asc" | "desc";
 type OrderByEntry = Any<any> | [Any<any>, OrderDirection];
 type Cardinality = "one" | "maybe" | "many";
 
-type QueryBuilderOptions<
-  N extends Namespace,
-  O extends RowType,
-  GB extends Any<any>[],
-> = {
-  namespace: N;
-  output: O;
+type JoinEntry<N extends Namespace> = {
+  source: Fromable;
+  on: (ns: N) => Bool<any>;
+  type: "join" | "leftJoin";
+};
+
+type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<any>[]> = {
   // Preferred name only. The QueryBuilder ctor creates its own fresh Alias
   // identity from this string, so every builder instance in a chain — and
   // each reuse — registers independently.
   tsAlias: string;
-  from: Fromable;
-  where?: Bool<any>;
-  groupBy?: GB;
-  having?: Bool<any>;
-  orderBy?: OrderByEntry[];
-  joins?: {
-    source: Fromable;
-    on: Bool<any>;
-    type?: "left";
-  }[];
+  select?: (ns: N) => O;
+  where?: (ns: N) => Bool<any>;
+  groupBy?: (ns: N) => GB;
+  having?: (ns: N) => Bool<any>;
+  orderBy?: (ns: N) => OrderByEntry[];
+  tables: [{ type: "from"; source: Fromable }, ...JoinEntry<N>[]];
   limit?: number;
   offset?: number;
 };
@@ -124,48 +131,48 @@ export class QueryBuilder<
   private opts: QueryBuilderOptions<N, O, GB>;
   private card: Card;
 
-  readonly alias: Alias;
-
-  rowType(): O { return this.opts.output; }
+  get tsAlias(): string {
+    return this.opts.tsAlias;
+  }
 
   constructor(opts: QueryBuilderOptions<N, O, GB>, card?: Card) {
     super();
     this.opts = opts;
     this.card = (card ?? "many") as Card;
-    this.alias = new Alias(opts.tsAlias);
   }
 
   // Subsequent `select` calls replace the output type (columns must be redefined)
-  select<O2 extends RowType>(
-    selectFn: (n: N) => O2,
-  ): QueryBuilder<N, O2, GB, Card> {
-    return new QueryBuilder({
-      ...this.opts,
-      output: selectFn(this.opts.namespace),
-    }, this.card);
+  select<O2 extends RowType>(select: (n: N) => O2): QueryBuilder<N, O2, GB, Card> {
+    return new QueryBuilder({ ...this.opts, select: select }, this.card);
   }
 
   // Multiple `where` calls are combined with AND
-  where(whereFn: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
-    //console.log("ns", this.opts.namespace, this.opts.namespace.users.id);
+  where(where: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
     return new QueryBuilder({
       ...this.opts,
-      where: combinePredicates(this.opts.where, whereFn(this.opts.namespace)),
+      where: combinePredicates(this.opts.where, where),
     });
+  }
+
+  #assertNotInNamespace(alias: string) {
+    for (const table of this.opts.tables) {
+      if (table.source.tsAlias === alias) {
+        throw new Error(
+          `Alias '${alias}' is already used in the query. ` +
+            `Each table source must have a unique alias, and it cannot be reused in the namespace.`,
+        );
+      }
+    }
   }
 
   join<R extends RowType, A extends string>(
     from: Fromable<R, A>,
-    onFn: (ns: N & { [k in A]: R }) => Bool<any>,
+    on: (ns: N & { [k in A]: R }) => Bool<any>,
   ): QueryBuilder<N & { [k in A]: R }, O, GB> {
-    const namespace = { ...this.opts.namespace, [from.alias.tsAlias]: from.rowType() } as any;
+    this.#assertNotInNamespace(from.tsAlias);
     return new QueryBuilder({
       ...this.opts,
-      namespace,
-      joins: [
-        ...(this.opts.joins ?? []),
-        { source: from, on: onFn(namespace) },
-      ],
+      tables: [...this.opts.tables, { source: from, on, type: "join" }],
     });
   }
 
@@ -173,14 +180,10 @@ export class QueryBuilder<
     from: Fromable<R, A>,
     onFn: (ns: N & { [k in A]: RowTypeToNullable<R> }) => Bool<any>,
   ): QueryBuilder<N & { [k in A]: RowTypeToNullable<R> }, O, GB> {
-    const namespace = { ...this.opts.namespace, [from.alias.tsAlias]: from.rowType() } as any;
+    this.#assertNotInNamespace(from.tsAlias);
     return new QueryBuilder({
       ...this.opts,
-      namespace,
-      joins: [
-        ...(this.opts.joins ?? []),
-        { source: from, on: onFn(namespace), type: "left" },
-      ],
+      tables: [...this.opts.tables, { source: from, on: onFn, type: "leftJoin" }],
     });
   }
 
@@ -191,61 +194,46 @@ export class QueryBuilder<
   // Multiple groupBy calls are concatenated (GROUP BY a, b, c).
   groupBy(): QueryBuilder<{ [K in keyof N]: AggregateRow<N[K]> }, {}, GB, Card>;
   groupBy<G extends Any<any>[]>(
-    groupByFn: (n: N) => [...G],
+    groupBy: (n: N) => [...G],
   ): QueryBuilder<{ [K in keyof N]: AggregateRow<N[K]> } & G, {}, [...GB, ...G], Card>;
-  groupBy(groupByFn?: (n: N) => Any<any>[]): any {
-    if (!groupByFn) {
+  groupBy(groupBy?: (n: N) => Any<any>[]): any {
+    const { select: _, ...opts } = this.opts;
+    if (!groupBy) {
       // Whole-table aggregate: clear output, don't modify groupBy
-      return new QueryBuilder({ ...this.opts, output: {} }, this.card);
+      return new QueryBuilder(opts, this.card);
     }
 
-    const rawGroupBy = groupByFn(this.opts.namespace);
-    const mergedGroupBy = [...(this.opts.groupBy ?? []), ...rawGroupBy];
+    const prev = this.opts.groupBy;
+    const mergedGroupBy = (ns: N) =>
+      [...(prev?.(ns) ?? []), ...groupBy(ns)] as [...GB, ...Any<any>[]];
 
-    // Check that numeric indices don't collide with string keys in namespace
-    // (previous groupBy indices are fine — they're numeric)
-    const indices = Object.keys(mergedGroupBy);
-    for (const i of indices) {
-      if (i in this.opts.namespace && isNaN(Number(i))) {
-        throw new Error(
-          `Group by column index ${i} collides with namespace key.`,
-        );
-      }
-    }
-
-    return new QueryBuilder({
-      ...this.opts,
-      output: {},
-      namespace: {
-        ...this.opts.namespace,
-        ...mergedGroupBy,
-        [Symbol.iterator]: () => mergedGroupBy[Symbol.iterator](),
-      },
-      groupBy: mergedGroupBy,
-    } as any, this.card);
+    return new QueryBuilder({ ...opts, groupBy: mergedGroupBy } as any, this.card);
   }
 
   // Multiple `having` calls are combined with AND
-  having(havingFn: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
+  having(having: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
     return new QueryBuilder({
       ...this.opts,
-      having: combinePredicates(this.opts.having, havingFn(this.opts.namespace)),
+      having: combinePredicates(this.opts.having, having),
     });
   }
 
   // Multiple `orderBy` calls are concatenated (ORDER BY a, b, c).
-  orderBy(orderByFn: (n: N) => OrderByEntry | OrderByEntry[]): QueryBuilder<N, O, GB, Card> {
-    const result = orderByFn(this.opts.namespace);
-    // Normalize: single entry → array
-    const entries: OrderByEntry[] =
-      result instanceof Any ||
-      (Array.isArray(result) && result[0] instanceof Any && typeof result[1] === "string")
-        ? [result as OrderByEntry]
-        : (result as OrderByEntry[]);
-    return new QueryBuilder({
-      ...this.opts,
-      orderBy: [...(this.opts.orderBy ?? []), ...entries],
-    }, this.card);
+  orderBy(
+    orderBy: (n: N) => OrderByEntry | [OrderByEntry, ...OrderByEntry[]],
+  ): QueryBuilder<N, O, GB, Card> {
+    const prev = this.opts.orderBy;
+    const next = (ns: N) => {
+      const result = orderBy(ns);
+      // Normalize: single entry → array
+      const entries: OrderByEntry[] =
+        result instanceof Any ||
+        (Array.isArray(result) && result[0] instanceof Any && typeof result[1] === "string")
+          ? [result as OrderByEntry]
+          : (result as OrderByEntry[]);
+      return [...(prev?.(ns) ?? []), ...entries];
+    };
+    return new QueryBuilder({ ...this.opts, orderBy: next }, this.card);
   }
 
   // Multiple `limit` calls are combined with `MIN` (safest option)
@@ -266,14 +254,18 @@ export class QueryBuilder<
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scalar(this: QueryBuilder<N, O, GB, "many">): Anyarray<Record<O, 1>, 1>;
   scalar(): any {
-    const cols = selectList(this.opts.output);
-    const RecordClass = Record.of(cols as any);
-    // ROW() takes raw expressions without aliases
-    const rowExprs = Object.values(cols).map((type: any) => type.toSql());
-    const rowSql = sql`ROW(${sql.join(rowExprs)})`;
+    const staticCols = selectList(this.rowType());
+    const RecordClass = Record.of(staticCols as any);
+
     // Wrap as a subquery: (SELECT ROW(...) FROM ... WHERE ...)
     // inner QB — when embedded in sql``, its emit() wraps as subquery with AS
-    const inner = this.select(() => ({ __row: RecordClass.from(rowSql) }));
+    const inner = this.select((ns) => {
+      const cols = selectList(this.#doSelect(ns));
+      const rowExprs = Object.values(cols).map((type: any) => type.toSql());
+      // ROW() takes raw expressions without aliases
+      const rowSql = sql`ROW(${sql.join(rowExprs)})`;
+      return { __row: RecordClass.from(rowSql) };
+    });
     if (this.card === "many") {
       return Anyarray.of(RecordClass.from(sql``)).from(
         sql`COALESCE((SELECT array_agg("__row") FROM ${inner}), '{}')`,
@@ -282,34 +274,68 @@ export class QueryBuilder<
     return RecordClass.from(sql`(SELECT "__row" FROM ${inner})`);
   }
 
-  emit(ctx: CompileContext): string {
-    const isSubquery = !ctx.isTopLevel;
-    using _ = ctx.child();
+  #doSelect(ns: N): O {
+    if (!this.opts.select) {
+      return ns[this.opts.tables[0].source.tsAlias] as unknown as O;
+    }
+    return this.opts.select(ns);
+  }
 
-    // FROM/JOINs register aliases first — must happen before columns try to resolve
-    const fromSql = this.opts.from
-      ? sql.raw(this.opts.from.emit(ctx))
-      : undefined;
-    const joinSqls = (this.opts.joins ?? []).map((j) => {
-      const kw = j.type === "left" ? "LEFT JOIN" : "JOIN";
-      const source = j.source.emit(ctx);
-      return sql`${sql.raw(kw)} ${sql.raw(source)} ON ${j.on.toSql()}`;
-    });
+  rowType(): O {
+    const ns = Object.fromEntries(
+      this.opts.tables.map((t) => {
+        return [t.source.tsAlias, t.source.rowType()];
+      }),
+    ) as N;
+    return this.#doSelect(ns);
+  }
+
+  bind(): BoundSql {
+    const ns: N = {} as N;
+    const aliases: Alias[] = [];
+    const tableSql: Sql[] = [];
+
+    for (const t of this.opts.tables) {
+      const sourceSql = t.source.bind();
+      const alias = new Alias(t.source.tsAlias);
+      aliases.push(alias);
+      Object.defineProperty(ns, t.source.tsAlias, {
+        value: reAlias(t.source.rowType(), alias),
+        enumerable: true,
+      });
+      const asClause = t.source.emitColumnNamesWithAlias
+        ? sql`AS ${alias}(${sql.join(Object.keys(t.source.rowType()).map((col) => sql.ident(col)))})`
+        : sql`AS ${alias}`;
+      if (t.type === "from") {
+        tableSql.push(sql`FROM ${sourceSql} ${asClause}`);
+      } else {
+        tableSql.push(
+          sql`  ${t.type === "leftJoin" ? sql`LEFT JOIN` : sql`JOIN`} ${sourceSql} ${asClause} ON ${t.on(ns)}`,
+        );
+      }
+    }
+
+    const groups = this.opts.groupBy && this.opts.groupBy(ns);
+    for (const [i, g] of groups?.entries() ?? []) {
+      if (i in ns) {
+        throw new Error(
+          `Found a numeric namespace key ${i}. This is not allowed because it collides with groupBy column indices. ` +
+            `Please rename the '${i}' key in your namespace to something else.`,
+        );
+      }
+      Object.defineProperty(ns, i, { value: g, enumerable: true });
+    }
 
     const body = sql.join(
       [
-        sql`SELECT ${compileSelectList(this.opts.output as { [key: string]: unknown })}`,
-        fromSql && sql`FROM ${fromSql}`,
-        ...joinSqls,
-        this.opts.where && sql`WHERE ${this.opts.where.toSql()}`,
-        this.opts.groupBy &&
-          this.opts.groupBy.length > 0 &&
-          sql`GROUP BY ${sql.join(this.opts.groupBy.map((g) => g.toSql()))}`,
-        this.opts.having && sql`HAVING ${this.opts.having.toSql()}`,
+        sql`SELECT ${compileSelectList(this.#doSelect(ns) as { [key: string]: unknown })}`,
+        ...tableSql,
+        this.opts.where && sql`WHERE ${this.opts.where(ns).toSql()}`,
+        groups && groups.length > 0 && sql`GROUP BY ${sql.join(groups.map((g) => g.toSql()))}`,
+        this.opts.having && sql`HAVING ${this.opts.having(ns).toSql()}`,
         this.opts.orderBy &&
-          this.opts.orderBy.length > 0 &&
           sql`ORDER BY ${sql.join(
-            this.opts.orderBy.map((entry) => {
+            this.opts.orderBy(ns).map((entry) => {
               if (entry instanceof Any) {
                 return entry.toSql();
               }
@@ -324,14 +350,9 @@ export class QueryBuilder<
         this.opts.offset !== undefined && sql`OFFSET ${sql.param(this.opts.offset)}`,
       ],
       sql`\n`,
-    ).emit(ctx);
+    );
 
-    if (!isSubquery) { return body; }
-    // Subquery position: register our alias in the parent scope (the child
-    // scope for the body was entered above). Double-register check fires in
-    // the parent, which is what we want.
-    const resolved = ctx.scope.parent!.register(this.alias);
-    return `(${body}) AS ${sql.ident(resolved).emit(ctx)}`;
+    return sql.withScope(aliases, body).bind();
   }
 
   cardinality<C extends Cardinality>(card: C): QueryBuilder<N, O, GB, C> {
