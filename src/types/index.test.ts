@@ -1,8 +1,8 @@
 import { test, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
 import type { meta } from "./runtime";
 import type { StrictNull, MaybeNull, NullOf, TsTypeOf } from "./runtime";
-import type { Any, Float8, Anyrange, Anymultirange , Anyarray } from "./index";
-import { Int4, Text, Bool, Int8 } from "./index";
+import type { Any, Float8, Anyrange, Anymultirange } from "./index";
+import { Int4, Text, Bool, Int8, Record, Anyarray } from "./index";
 import { sql, Alias } from "../builder/sql";
 import { pgExecutor } from "../executor";
 import type { Executor } from "../executor";
@@ -53,10 +53,12 @@ test("TsTypeOf on container types", () => {
   expectTypeOf<TsTypeOf<Anyarray<Int4<1>, 1>>>().toEqualTypeOf<number[]>();
   // Array of text → string[]
   expectTypeOf<TsTypeOf<Anyarray<Text<1>, 1>>>().toEqualTypeOf<string[]>();
-  // Range / multirange deserialize to the raw pg literal — pg's quoting +
-  // bound-kind format is non-trivial, so we surface it as a string.
-  expectTypeOf<TsTypeOf<Anyrange<Int4<1>, 1>>>().toEqualTypeOf<string>();
-  expectTypeOf<TsTypeOf<Anymultirange<Int4<1>, 1>>>().toEqualTypeOf<string>();
+  // Range / multirange have no override; deserialize falls through to
+  // Any.deserialize which returns unknown. Pg's range output format is
+  // non-trivial (quoting, bracket kinds, infinity bounds) so callers who
+  // want structured bounds can do their own parsing.
+  expectTypeOf<TsTypeOf<Anyrange<Int4<1>, 1>>>().toEqualTypeOf<unknown>();
+  expectTypeOf<TsTypeOf<Anymultirange<Int4<1>, 1>>>().toEqualTypeOf<unknown>();
 });
 
 test("TsTypeOf falls through for TS primitives", () => {
@@ -327,6 +329,116 @@ test("Anyarray.unnest() preserves element type at the type level", () => {
 // separate constructor field). Once fixed, extend this test with e2e
 // execution asserting that the yielded rows deserialize through the
 // element type's parser.
+
+// --- Composite + array deserialization edge cases ---
+
+// Helper: build a Record class bound to a column schema. `.from(sql`\``)`
+// gives us an instance so we can call the prototype-installed deserialize.
+const makeRecord = <T extends { [k: string]: Any<any> }>(cols: T) =>
+  Record.of(cols).from(sql``);
+
+test("record deserialize: NULL vs empty string", () => {
+  const r = makeRecord({
+    a: Int4.from(null as any),
+    b: Text.from(null as any),
+    c: Int4.from(null as any),
+  });
+
+  // Unquoted empty between commas = pg NULL.
+  expect(r.deserialize("(1,,3)")).toEqual({ a: 1, b: null, c: 3 });
+
+  // Quoted empty = real empty string.
+  expect(r.deserialize('(1,"",3)')).toEqual({ a: 1, b: "", c: 3 });
+
+  // Mixed: trailing field null.
+  expect(r.deserialize("(1,hi,)")).toEqual({ a: 1, b: "hi", c: null });
+
+  // All-null composite.
+  expect(r.deserialize("(,,)")).toEqual({ a: null, b: null, c: null });
+});
+
+test("record deserialize: quoted strings with commas and backslash escapes", () => {
+  const r = makeRecord({
+    a: Text.from(null as any),
+    b: Text.from(null as any),
+  });
+
+  // Quoted value containing commas — must not split the field.
+  expect(r.deserialize('("a,b,c",hi)')).toEqual({ a: "a,b,c", b: "hi" });
+
+  // Backslash-escaped quote inside quoted value.
+  expect(r.deserialize('("say \\"hi\\"",ok)')).toEqual({ a: 'say "hi"', b: "ok" });
+});
+
+test("array deserialize: NULL element vs literal \"NULL\" string", () => {
+  const IntArr = Anyarray.of(Int4.from(null as any));
+  const arr = IntArr.from(sql``);
+
+  // Unquoted NULL is pg null.
+  expect(arr.deserialize("{1,NULL,3}")).toEqual([1, null, 3]);
+  expect(arr.deserialize("{NULL}")).toEqual([null]);
+
+  const TextArr = Anyarray.of(Text.from(null as any));
+  const tarr = TextArr.from(sql``);
+
+  // Quoted "NULL" is the 4-char string.
+  expect(tarr.deserialize('{"NULL",x}')).toEqual(["NULL", "x"]);
+  // Mixed: unquoted NULL stays null even next to a literal "NULL".
+  expect(tarr.deserialize('{NULL,"NULL",x}')).toEqual([null, "NULL", "x"]);
+});
+
+test("array deserialize: quoted strings with commas and empty elements", () => {
+  const TextArr = Anyarray.of(Text.from(null as any));
+  const arr = TextArr.from(sql``);
+
+  // Comma inside quoted element — don't split.
+  expect(arr.deserialize('{"a,b","c,d"}')).toEqual(["a,b", "c,d"]);
+
+  // Quoted empty string — valid array element.
+  expect(arr.deserialize('{"","hi"}')).toEqual(["", "hi"]);
+
+  // Empty array.
+  expect(arr.deserialize("{}")).toEqual([]);
+});
+
+test("array of records: nested deserialize", () => {
+  // record(a int4, b text) → {"(1,hi)","(2,bye)"} → [{a:1,b:"hi"}, {a:2,b:"bye"}]
+  const R = Record.of({ a: Int4.from(null as any), b: Text.from(null as any) });
+  const Arr = Anyarray.of(R.from(sql``));
+  const arr = Arr.from(sql``);
+
+  expect(arr.deserialize('{"(1,hi)","(2,bye)"}')).toEqual([
+    { a: 1, b: "hi" },
+    { a: 2, b: "bye" },
+  ]);
+
+  // Nested composite with a NULL inner field.
+  expect(arr.deserialize('{"(1,)","(2,ok)"}')).toEqual([
+    { a: 1, b: null },
+    { a: 2, b: "ok" },
+  ]);
+});
+
+test("record containing an array: nested deserialize", () => {
+  // Pg wraps the inner array in quotes when embedded in a composite, so
+  // commas inside {a,b} don't break the composite split.
+  const TextArr = Anyarray.of(Text.from(null as any));
+  const R = Record.of({
+    id: Int4.from(null as any),
+    tags: TextArr.from(sql``),
+  });
+  const r = R.from(sql``);
+
+  // "{a,b,c}" is the array field; composite parser sees it as one value.
+  // Array parser then splits {a,b,c} into its elements.
+  expect(r.deserialize('(1,"{a,b,c}")')).toEqual({
+    id: 1,
+    tags: ["a", "b", "c"],
+  });
+
+  // Empty array inside composite.
+  expect(r.deserialize('(1,"{}")')).toEqual({ id: 1, tags: [] });
+});
 
 // --- Type.from() ---
 

@@ -2,16 +2,25 @@ import { Record as Generated } from "../generated/record";
 import type { Any } from "../index";
 import type { RowTypeToTsType } from "../../builder/query";
 
-// Pg composite format parser: (val1,val2,...) → string[]
-// Handles quoted values and nested composites
-const parseComposite = (raw: string): string[] => {
+// Pg composite format parser: `(val1,val2,...)` → per-field string, or null
+// for a pg NULL field. Pg encodes NULL as absence between commas
+// (`(1,,3)` → field 2 is NULL); empty string is quoted (`(1,"",3)` → field
+// 2 is ""). Track `wasQuoted` so we can tell them apart after stripping
+// the surrounding quote chars.
+const parseComposite = (raw: string): (string | null)[] => {
   const inner = raw.slice(1, -1);
   if (inner === "") { return []; }
-  const fields: string[] = [];
+  const fields: (string | null)[] = [];
   let current = "";
   let inQuotes = false;
+  let wasQuoted = false;
   let depth = 0;
   let escaped = false;
+  const pushField = () => {
+    fields.push(current === "" && !wasQuoted ? null : current);
+    current = "";
+    wasQuoted = false;
+  };
   for (const ch of inner) {
     if (escaped) {
       current += ch;
@@ -20,6 +29,7 @@ const parseComposite = (raw: string): string[] => {
       escaped = true;
     } else if (ch === '"') {
       inQuotes = !inQuotes;
+      wasQuoted = true;
     } else if (!inQuotes && ch === "(") {
       depth++;
       current += ch;
@@ -27,13 +37,12 @@ const parseComposite = (raw: string): string[] => {
       depth--;
       current += ch;
     } else if (ch === "," && !inQuotes && depth === 0) {
-      fields.push(current);
-      current = "";
+      pushField();
     } else {
       current += ch;
     }
   }
-  fields.push(current);
+  pushField();
   return fields;
 };
 
@@ -57,7 +66,10 @@ export class Record<T = unknown, N extends number = number> extends Generated<N>
       return Object.fromEntries(
         entries.map(([name, type], i) => {
           const val = fields[i];
-          return [name, val === undefined || val === "" ? null : type.deserialize(val)];
+          // undefined = column not emitted (pg output always emits every
+          // field, so this is just a safety net); null = pg NULL; "" = real
+          // empty string and flows through to type.deserialize.
+          return [name, val === undefined || val === null ? null : type.deserialize(val)];
         }),
       );
     };
