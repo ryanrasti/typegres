@@ -2,7 +2,10 @@ import pg from "pg";
 import type { Sql } from "./builder/sql";
 import { defaultPgConnectionString } from "./pg";
 
-export type QueryResult = { rows: unknown[] };
+// Rows come back as plain objects keyed by column name. Values are always
+// strings here because every type parser is overridden to return raw text;
+// typed coercion happens downstream in QueryBuilder/InsertBuilder/etc.
+export type QueryResult = { rows: { [key: string]: string }[] };
 export type ExecuteFn = (query: Sql) => Promise<QueryResult>;
 
 export interface Executor {

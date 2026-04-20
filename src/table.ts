@@ -29,6 +29,11 @@ export abstract class TableBase {
   static readonly tableName: string;
   static readonly alias: Alias;
 
+  // TS types `instance.constructor` as `Function` by default — that hides
+  // the static `alias` from callers like `Int4.column(this, "id", ...)`
+  // inside a column getter. Narrow it so `this.constructor.alias` resolves.
+  declare ["constructor"]: typeof TableBase;
+
   // Fresh row-type instance per call — callers don't hold onto these;
   // they're just vessels for the column getters. Method form so the return
   // type can thread the subclass generic (`Users.rowType()` → Users).
@@ -121,7 +126,7 @@ export const columnGetterNames = (instance: TableBase): string[] => {
   ) {
     for (const k of Object.getOwnPropertyNames(proto)) {
       const desc = Object.getOwnPropertyDescriptor(proto, k);
-      if (desc?.get && (instance as { [key: string]: unknown })[k] instanceof Any) {
+      if (desc?.get && (instance as unknown as { [key: string]: unknown })[k] instanceof Any) {
         names.add(k);
       }
     }
