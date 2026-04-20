@@ -13,9 +13,9 @@ test("insert", async () => {
     )`);
 
     class Cats extends db.Table("cats") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      name = (Text<1>).column({ nonNull: true });
-      color = (Text<0 | 1>).column();
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
+      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
+      get color() { return (Text<0 | 1>).column(this, "color"); }
     }
 
     // name is required, id and color are optional
@@ -43,8 +43,8 @@ test("insert returning", async () => {
     )`);
 
     class Items extends db.Table("items") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      label = (Text<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
+      get label() { return (Text<1>).column(this, "label", { nonNull: true }); }
     }
 
     const rows = await db.execute(

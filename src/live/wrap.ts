@@ -4,6 +4,8 @@ import type { InsertBuilder } from "../builder/insert";
 import type { UpdateBuilder } from "../builder/update";
 import type { DeleteBuilder } from "../builder/delete";
 import { compileSelectList } from "../builder/query";
+import { Any } from "../types";
+import { meta } from "../types/runtime";
 import { LiveQueryError } from "./types";
 
 // A wrapped mutation compiles to a CTE chain:
@@ -45,12 +47,18 @@ export const wrapInsertWithEvents = <Name extends string, T extends { [key: stri
       const v = row[k];
       if (v === undefined) { return sql`DEFAULT`; }
       const col = parts.instance[k];
-      return col.__class.from(v).toSql();
+      if (!(col instanceof Any)) {
+        throw new LiveQueryError(
+          `live wrap: INSERT INTO "${parts.tableName}" — column '${k}' is not declared as an Any-typed column on the table class. ` +
+          `Check that ${k}() is a column getter.`,
+        );
+      }
+      return (col as Any<any>)[meta].__class.from(v).toSql();
     });
     return sql`(${sql.join(vals)})`;
   });
 
-  const coreInsert = sql`INSERT INTO ${sql.ident(parts.tableName)} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)} RETURNING *`;
+  const coreInsert = sql`${sql.register(parts.alias)}INSERT INTO ${sql.ident(parts.tableName)} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)} RETURNING *`;
 
   const eventInsert = sql`
     INSERT INTO _live_events (xid, ${sql.ident("table")}, before, after)
@@ -85,15 +93,20 @@ export const wrapUpdateWithEvents = <Name extends string, T extends { [key: stri
 
   const setClauses = Object.entries(parts.set).map(([k, v]) => {
     const col = parts.instance[k];
-    if (!col?.__column) { throw new LiveQueryError(`Unknown column: ${k}`); }
-    return sql`${sql.ident(k)} = ${col.__class.from(v).toSql()}`;
+    if (!(col instanceof Any)) {
+      throw new LiveQueryError(
+        `live wrap: UPDATE on "${parts.tableName}" set {${k}: ...} — no column '${k}' on table class. ` +
+        `Did you forget to declare it as a column getter?`,
+      );
+    }
+    return sql`${sql.ident(k)} = ${(col as Any<any>)[meta].__class.from(v).toSql()}`;
   });
 
   // old: capture pre-mutation rows using the same WHERE. All CTEs in a single
   // WITH share one snapshot, so `old` reads pre-update values without needing
   // FOR UPDATE (and FOR UPDATE would in fact deadlock against the sibling
   // UPDATE that's updating the same rows in the same statement).
-  const oldCte = sql`SELECT * FROM ${sql.ident(parts.tableName)} WHERE ${parts.where.toSql()}`;
+  const oldCte = sql`${sql.register(parts.alias)}SELECT * FROM ${sql.ident(parts.tableName)} WHERE ${parts.where.toSql()}`;
 
   // The UPDATE uses the same WHERE. Pairing old ↔ new happens inside _evt's SELECT.
   const coreUpdate = sql`UPDATE ${sql.ident(parts.tableName)} SET ${sql.join(setClauses)} WHERE ${parts.where.toSql()} RETURNING *`;
@@ -131,7 +144,7 @@ export const wrapDeleteWithEvents = <Name extends string, T extends { [key: stri
     );
   }
 
-  const coreDelete = sql`DELETE FROM ${sql.ident(parts.tableName)} WHERE ${parts.where.toSql()} RETURNING *`;
+  const coreDelete = sql`${sql.register(parts.alias)}DELETE FROM ${sql.ident(parts.tableName)} WHERE ${parts.where.toSql()} RETURNING *`;
 
   const eventInsert = sql`
     INSERT INTO _live_events (xid, ${sql.ident("table")}, before, after)

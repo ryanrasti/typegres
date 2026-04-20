@@ -1,7 +1,8 @@
 import { Sql, sql } from "./sql";
-import type { CompileContext, TableAlias } from "./sql";
-import { Bool } from "../types";
+import type { CompileContext , Alias } from "./sql";
+import { Any, Bool } from "../types";
 import type { SetRow } from "../types/runtime";
+import { meta } from "../types/runtime";
 import type { RowType } from "./query";
 import { combinePredicates, compileSelectList } from "./query";
 
@@ -11,7 +12,7 @@ type UpdateOpts<Name extends string, T, R extends RowType> = {
   tableName: Name;
   instance: T;
   namespace: Namespace<Name, T>;
-  tableAlias: TableAlias;
+  alias: Alias;
   where?: Bool<any>;
   set?: { [key: string]: unknown };
   returning?: R;
@@ -61,12 +62,17 @@ export class UpdateBuilder<Name extends string, T extends { [key: string]: any }
     }
 
     using _ = ctx.child();
-    ctx.register(this.#opts.tableAlias, this.#opts.tableAlias.name);
+    ctx.register(this.#opts.alias);
 
     const setClauses = Object.entries(this.#opts.set).map(([k, v]) => {
       const col = this.#opts.instance[k];
-      if (!col?.__column) { throw new Error(`Unknown column: ${k}`); }
-      return sql`${sql.ident(k)} = ${col.__class.from(v).toSql()}`;
+      if (!(col instanceof Any)) {
+        throw new Error(
+          `update().set({${k}: ...}) on "${this.#opts.tableName}" — no column '${k}' on the table class. ` +
+          `Declare it as a column getter (\`get ${k}() { return Type.column(this, "${k}", ...); }\`).`,
+        );
+      }
+      return sql`${sql.ident(k)} = ${(col as Any<any>)[meta].__class.from(v).toSql()}`;
     });
 
     return sql.join([
@@ -87,6 +93,7 @@ export class UpdateBuilder<Name extends string, T extends { [key: string]: any }
     return {
       tableName: this.#opts.tableName,
       instance: this.#opts.instance,
+      alias: this.#opts.alias,
       where: this.#opts.where,
       set: this.#opts.set,
       returning: this.#opts.returning,

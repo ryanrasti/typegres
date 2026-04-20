@@ -1,5 +1,5 @@
 import { sql, Op, Column, Param, Seq, Func, UnaryOp } from "../builder/sql";
-import type { Sql, TableAlias } from "../builder/sql";
+import type { Sql, Alias } from "../builder/sql";
 import type { QueryBuilder } from "../builder/query";
 import type { PredicateSet } from "./types";
 import { LiveQueryError } from "./types";
@@ -65,11 +65,11 @@ const splitAnd = (node: Sql): Sql[] => {
 };
 
 type ParsedPred =
-  | { kind: "literal"; alias: TableAlias; col: string; value: unknown }
+  | { kind: "literal"; alias: Alias; col: string; value: unknown }
   | {
       kind: "edge";
-      left: { alias: TableAlias; col: string };
-      right: { alias: TableAlias; col: string };
+      left: { alias: Alias; col: string };
+      right: { alias: Alias; col: string };
     };
 
 // Recognize col = literal, literal = col, or col = col. Anything else → null.
@@ -99,7 +99,7 @@ const parseEquality = (node: Sql): ParsedPred | null => {
 // --- Table / DAG model ---
 
 type TableNode = {
-  alias: TableAlias;
+  alias: Alias;
   aliasName: string;     // the TS-level alias (also the key in the namespace)
   tableName: string;     // the actual pg table name
   literalPreds: Map<string, Set<unknown>>; // col -> values (from literal equalities)
@@ -131,7 +131,7 @@ const analyze = (qb: QueryBuilder<any, any, any>): Dag => {
   const nodes = new Map<string, TableNode>();
   const order: string[] = [];
 
-  const addTable = (source: unknown, alias: TableAlias, aliasName: string) => {
+  const addTable = (source: unknown, alias: Alias, aliasName: string) => {
     const s = source as { tableName?: unknown; tsAlias?: unknown };
     if (typeof s.tableName !== "string") {
       throw new LiveQueryError(
@@ -151,12 +151,12 @@ const analyze = (qb: QueryBuilder<any, any, any>): Dag => {
     order.push(aliasName);
   };
 
-  addTable(opts.from.source, opts.from.tableAlias, opts.from.source.tsAlias);
+  addTable(opts.from, opts.from.alias, opts.from.alias.tsAlias);
   for (const j of opts.joins ?? []) {
-    addTable(j.source, j.tableAlias, j.source.tsAlias);
+    addTable(j.source, j.source.alias, j.source.alias.tsAlias);
   }
 
-  const aliasToName = (alias: TableAlias): string => {
+  const aliasToName = (alias: Alias): string => {
     for (const node of nodes.values()) {
       if (node.alias === alias) { return node.aliasName; }
     }

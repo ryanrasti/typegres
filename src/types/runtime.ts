@@ -1,6 +1,6 @@
-import type { Sql, CompileContext , TableAlias } from "../builder/sql";
+import type { CompileContext } from "../builder/sql";
 export type { Sql } from "../builder/sql";
-import { Func, Op, TableAlias as AliasNode, sql } from "../builder/sql";
+import { Func, Op, Alias, Sql, sql } from "../builder/sql";
 import * as types from "./index";
 import type { Any } from "./index";
 import { getTypeDef } from "./deserialize";
@@ -119,28 +119,29 @@ export const PgOp = (op: string, args: [unknown, unknown], type: typeof Any) => 
   return type.from(new Op(op, argToSql(args[0]), argToSql(args[1])));
 };
 
-// Set-returning function result — implements Fromable for use in FROM/JOIN.
+// Set-returning function result — a Fromable for use in FROM/JOIN.
 // columns is the row shape: [[name, constructor], ...]. Single-column SRFs
 // pass a 1-element array; multi-column SRFs with OUT params pass N entries.
-export class PgSrf<R extends { [key: string]: Any<any> }, A extends string> {
-  tsAlias: A;
-  rowType: R;
+export class PgSrf<R extends { [key: string]: Any<any> }, A extends string> extends Sql {
+  readonly alias: Alias<A>;
+  #row: R;
   #name: string;
   #argsSql: Sql;
 
   constructor(name: A, args: unknown[], columns: [string, typeof Any][]) {
-    this.tsAlias = name;
+    super();
+    this.alias = new Alias(name);
     this.#name = name;
-    // Placeholder rowType — aliasRowType will replace column refs with proper TableAlias refs
-    const alias = new AliasNode(name);
-    this.rowType = Object.fromEntries(
-      columns.map(([colName, type]) => [colName, type.from(sql.column(alias, colName))]),
+    this.#row = Object.fromEntries(
+      columns.map(([colName, type]) => [colName, type.from(sql.column(this.alias, colName))]),
     ) as R;
     this.#argsSql = sql.join(args.map(argToSql));
   }
 
-  registerAndCompile(ctx: CompileContext, alias: TableAlias): string {
-    const resolved = ctx.register(alias, alias.name);
+  rowType(): R { return this.#row; }
+
+  emit(ctx: CompileContext): string {
+    const resolved = ctx.register(this.alias);
     return sql`${sql.ident(this.#name)}(${this.#argsSql}) AS ${sql.ident(resolved)}`.emit(ctx);
   }
 }

@@ -364,13 +364,13 @@ test("inner join", async () => {
     await db.execute(sql`INSERT INTO pets (name, owner_id) VALUES ('Rex', 1), ('Fido', 2), ('Buddy', 1)`);
 
     class Owners extends db.Table("owners") {
-      id = (Int8<1>).column({ nonNull: true });
-      name = (Text<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
+      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
     }
     class Pets extends db.Table("pets") {
-      id = (Int8<1>).column({ nonNull: true });
-      name = (Text<1>).column({ nonNull: true });
-      owner_id = (Int8<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
+      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
+      get owner_id() { return (Int8<1>).column(this, "owner_id", { nonNull: true }); }
     }
 
     const rows = await db.execute(Pets.from()
@@ -405,13 +405,13 @@ test("left join — unmatched rows return null", async () => {
     await db.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1)`);
 
     class Authors extends db.Table("authors") {
-      id = (Int8<1>).column({ nonNull: true });
-      name = (Text<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
+      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
     }
     class Books extends db.Table("books") {
-      id = (Int8<1>).column({ nonNull: true });
-      title = (Text<1>).column({ nonNull: true });
-      author_id = (Int8<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
+      get title() { return (Text<1>).column(this, "title", { nonNull: true }); }
+      get author_id() { return (Int8<1>).column(this, "author_id", { nonNull: true }); }
     }
 
     const rows = await db.execute(Authors.from()
@@ -445,13 +445,13 @@ test("join with where on joined table", async () => {
     await db.execute(sql`INSERT INTO employees (name, dept_id) VALUES ('Alice', 1), ('Bob', 1), ('Carol', 2)`);
 
     class Departments extends db.Table("departments") {
-      id = (Int8<1>).column({ nonNull: true });
-      name = (Text<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
+      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
     }
     class Employees extends db.Table("employees") {
-      id = (Int8<1>).column({ nonNull: true });
-      name = (Text<1>).column({ nonNull: true });
-      dept_id = (Int8<0 | 1>).column();
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
+      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
+      get dept_id() { return (Int8<0 | 1>).column(this, "dept_id"); }
     }
 
     const rows = await db.execute(Departments.from()
@@ -488,13 +488,13 @@ test("scalar with cardinality 'one'", async () => {
     await db.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1), ('Book B', 1)`);
 
     class Authors extends db.Table("authors") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      name = (Text<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
+      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
     }
     class Books extends db.Table("books") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      title = (Text<1>).column({ nonNull: true });
-      author_id = (Int8<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
+      get title() { return (Text<1>).column(this, "title", { nonNull: true }); }
+      get author_id() { return (Int8<1>).column(this, "author_id", { nonNull: true }); }
     }
 
     // Scalar subquery: get author for a book (cardinality 'one')
@@ -532,13 +532,13 @@ test("scalar with cardinality 'maybe' — null when no match", async () => {
     await db.execute(sql`INSERT INTO profiles (person_id, bio) VALUES (1, 'Hello')`);
 
     class People extends db.Table("people") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      name = (Text<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
+      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
     }
     class Profiles extends db.Table("profiles") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      person_id = (Int8<1>).column({ nonNull: true });
-      bio = (Text<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
+      get person_id() { return (Int8<1>).column(this, "person_id", { nonNull: true }); }
+      get bio() { return (Text<1>).column(this, "bio", { nonNull: true }); }
     }
 
     const rows = await db.execute(People.from()
@@ -579,13 +579,13 @@ test("scalar with cardinality 'many' — array result", async () => {
     await db.execute(sql`INSERT INTO children (name, parent_id) VALUES ('Charlie', 1), ('Diana', 1)`);
 
     class Parents extends db.Table("parents") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      name = (Text<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
+      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
     }
     class Children extends db.Table("children") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      name = (Text<1>).column({ nonNull: true });
-      parent_id = (Int8<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
+      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
+      get parent_id() { return (Int8<1>).column(this, "parent_id", { nonNull: true }); }
     }
 
     const rows = await db.execute(Parents.from()
@@ -671,9 +671,9 @@ test("max and min", async () => {
 
 // --- set-returning functions ---
 
-test("generate_series as Fromable via db.from()", async () => {
+test("generate_series as Fromable via db.From()", async () => {
   const series = Int4.from(1).generateSeries(3, 1);
-  const result = await db.execute(db.from(series));
+  const result = await db.execute(db.From(series));
 
   expectTypeOf(result).toEqualTypeOf<{ generate_series: number }[]>();
   expect(result).toEqual([
@@ -686,7 +686,7 @@ test("generate_series as Fromable via db.from()", async () => {
 test("jsonb_each_text as multi-column SRF", async () => {
   const jsonVal = Jsonb.from('{"a": 1, "b": 2}');
   const each = jsonVal.jsonbEachText();
-  const result = await db.execute(db.from(each)
+  const result = await db.execute(db.From(each)
     .orderBy(({ jsonb_each_text }) => jsonb_each_text.key)
     );
 

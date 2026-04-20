@@ -1,5 +1,5 @@
 import { Sql, sql } from "./sql";
-import type { CompileContext, TableAlias } from "./sql";
+import type { CompileContext , Alias } from "./sql";
 import { Bool } from "../types";
 import type { RowType } from "./query";
 import { combinePredicates, compileSelectList } from "./query";
@@ -9,7 +9,7 @@ type Namespace<Name extends string, T> = { [K in Name]: T };
 type DeleteOpts<Name extends string, T, R extends RowType> = {
   tableName: Name;
   namespace: Namespace<Name, T>;
-  tableAlias: TableAlias;
+  alias: Alias;
   where?: Bool<any>;
   returning?: R;
 };
@@ -47,7 +47,7 @@ export class DeleteBuilder<Name extends string, T extends { [key: string]: any }
       throw new Error("delete() requires .where() — use .where(true) to delete all rows");
     }
     using _ = ctx.child();
-    ctx.register(this.#opts.tableAlias, this.#opts.tableAlias.name);
+    ctx.register(this.#opts.alias);
 
     return sql.join([
       sql`DELETE FROM ${sql.ident(this.#opts.tableName)}`,
@@ -66,6 +66,7 @@ export class DeleteBuilder<Name extends string, T extends { [key: string]: any }
   liveIntrospect() {
     return {
       tableName: this.#opts.tableName,
+      alias: this.#opts.alias,
       where: this.#opts.where,
       returning: this.#opts.returning,
     };

@@ -27,9 +27,9 @@ const setupTables = async () => {
 
 const makeDogs = () =>
   class Dogs extends db.Table("dogs") {
-    id = (Int8<1>).column({ nonNull: true });
-    user_id = (Int8<1>).column({ nonNull: true });
-    name = (Text<1>).column({ nonNull: true });
+    get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
+    get user_id() { return (Int8<1>).column(this, "user_id", { nonNull: true }); }
+    get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
   };
 
 describe("Phase 2: mutation wrapping", () => {

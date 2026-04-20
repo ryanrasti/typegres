@@ -1,21 +1,37 @@
-import { sql } from "./sql";
-import type { CompileContext, TableAlias } from "./sql";
+import { sql, Sql, Alias } from "./sql";
+import type { CompileContext } from "./sql";
 import { Any } from "../types";
 import { meta } from "../types/runtime";
-import { sortRowColumns, type RowType, type RowTypeToTsType } from "./query";
+import { sortRowColumns, type RowType, type RowTypeToTsType, type Fromable } from "./query";
 
-export class Values<R extends RowType> {
-  public tsAlias: string = "values";
+export class Values<R extends RowType> extends Sql implements Fromable<R> {
+  readonly alias = new Alias("values");
   private vals0: R;
   private valsRest: (R | RowTypeToTsType<R>)[];
 
   constructor(vals0: R, ...valsRest: (R | RowTypeToTsType<R>)[]) {
+    super();
     this.vals0 = vals0;
     this.valsRest = valsRest;
   }
 
-  registerAndCompile(ctx: CompileContext, alias: TableAlias): string {
-    const resolved = ctx.register(alias, alias.name);
+  // Rebind user-supplied column types as column references against our alias
+  // so selectors see `ns.values.a` as `Column(alias, "a")`, not the literal.
+  rowType(): R {
+    return Object.fromEntries(
+      Object.entries(this.vals0 as { [k: string]: unknown }).map(([k, v]) => {
+        if (!(v instanceof Any)) {
+          throw new Error(
+            `db.values({ ${k}: ... }) — values column '${k}' must be a typed pg expression (e.g. Int4.from(5)), got ${typeof v}.`,
+          );
+        }
+        return [k, (v[meta].__class as typeof Any).from(sql.column(this.alias, k))];
+      }),
+    ) as R;
+  }
+
+  emit(ctx: CompileContext): string {
+    const resolved = ctx.register(this.alias);
     const columnNames = Object.keys(sortRowColumns(this.vals0));
 
     const rowSqls = [this.vals0, ...this.valsRest].map((row) => {
@@ -24,7 +40,9 @@ export class Values<R extends RowType> {
         if (!(v instanceof Any)) {
           const type = this.vals0[k as keyof R];
           if (!(type instanceof Any)) {
-            throw new Error(`Expected ${k} to be an Any type`);
+            throw new Error(
+              `db.values(): column '${k}' in the first row must be a typed pg expression so subsequent rows can coerce against it.`,
+            );
           }
           v = (type[meta].__class as typeof Any).from(v);
         }

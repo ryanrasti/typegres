@@ -3,7 +3,7 @@ import type { meta } from "./runtime";
 import type { StrictNull, MaybeNull, NullOf, TsTypeOf } from "./runtime";
 import type { Any, Float8, Anyrange, Anymultirange , Anyarray } from "./index";
 import { Int4, Text, Bool, Int8 } from "./index";
-import { sql } from "../builder/sql";
+import { sql, Alias } from "../builder/sql";
 import { pgExecutor } from "../executor";
 import type { Executor } from "../executor";
 
@@ -204,15 +204,18 @@ test("e2e: nested expressions", async () => {
 
 // --- Column descriptor ---
 
-test("column() returns typed descriptor", () => {
-  const id = (Int4<1>).column({ nonNull: true });
-  const name = (Text<0 | 1>).column();
+test("column() returns typed instance bound to alias", () => {
+  const alias = new Alias("users");
+  const id = (Int4<1>).column(alias, "id", { nonNull: true });
+  const name = (Text<0 | 1>).column(alias, "name");
 
-  // column() returns the type with [meta].__required based on opts
+  // column() returns an Any instance with the __required type brand.
   expectTypeOf(id).toMatchTypeOf<Int4<1>>();
   expectTypeOf(name).toMatchTypeOf<Text<0 | 1>>();
+  expect(id).toBeInstanceOf(Int4);
+  expect(name).toBeInstanceOf(Text);
 
-  // Verify __required is computed correctly
+  // Verify __required is computed correctly at the type level.
   type IdMeta = (typeof id)[typeof meta];
   type NameMeta = (typeof name)[typeof meta];
   expectTypeOf<IdMeta["__required"]>().toEqualTypeOf<true>();
@@ -223,12 +226,6 @@ test("column() returns typed descriptor", () => {
   expectTypeOf<Text<0>>().toEqualTypeOf<Text<0 | 1>>();
   // @ts-expect-error Text<1> is not Text<0|1>
   expectTypeOf<Text<1>>().toEqualTypeOf<Text<0 | 1>>();
-
-  // Runtime: column descriptor has metadata
-  expect((id as any).__column).toBe(true);
-  expect((id as any).__class).toBe(Int4);
-  expect((id as any).nonNull).toBe(true);
-  expect((name as any).__class).toBe(Text);
 });
 
 // --- Bool logic ---

@@ -1,9 +1,8 @@
-import { sql, Sql } from "./sql";
-import type { CompileContext , TableAlias } from "./sql";
+import { sql, Sql, Alias } from "./sql";
+import type { CompileContext } from "./sql";
 import type { Bool} from "../types";
 import { Any, Anyarray, Record } from "../types";
 import type { TsTypeOf, Nullable, AggregateRow} from "../types/runtime";
-import { meta } from "../types/runtime";
 
 // Extract only Any<> instances from a row type
 export const selectList = <T extends RowType>(output: T): T => {
@@ -31,7 +30,10 @@ export const deserializeRows = <R>(
       Object.entries(row).map(([k, v]) => {
         const type = output[k];
         if (!(type instanceof Any)) {
-          throw new Error(`Expected ${k} to be an Any type, got ${typeof v}`);
+          throw new Error(
+            `deserializeRows: output column '${k}' is not a typed pg expression (got ${typeof v}). ` +
+            `The select callback must return an object whose values are Any instances.`,
+          );
         }
         if (v === null || v === undefined) {
           return [k, null];
@@ -61,41 +63,22 @@ export const sortRowColumns = <R extends RowType>(row: R): R => {
   return Object.fromEntries(Object.entries(row).sort(([a], [b]) => a.localeCompare(b))) as R;
 };
 
-export const aliasRowType = <R extends RowType>(row: R, name: string): [R, TableAlias] => {
-  const alias = sql.tableAlias(name);
-  const aliased = Object.fromEntries(
-    Object.entries(row).map(([k, v]) => {
-      const col = sql.column(alias, k);
-      if (v instanceof Any) {
-        return [k, (v[meta].__class as typeof Any).from(col)];
-      }
-      if (v && v.__column && v.__class) {
-        return [k, v.__class.from(col)];
-      }
-      return [k, v];
-    }),
-  );
-  Object.setPrototypeOf(aliased, Object.getPrototypeOf(row));
-  return [aliased as R, alias];
+// A Fromable has an Alias identity (carrying its tsAlias string literal),
+// can produce its rowType, and knows how to emit itself as a FROM-clause
+// fragment. rowType() is a method so generic return types thread correctly —
+// `Users.rowType()` returns the subclass instance type, which a static
+// getter can't express.
+//
+// Two shapes satisfy this structurally:
+//   - Table *classes* via statics (`Users.alias`, `Users.rowType()`, `Users.emit`)
+//   - Instance-based sources (Values, PgSrf, QB subqueries) via instance
+//     fields/methods of the same names.
+export type Fromable<R extends RowType = RowType, A extends string = string> = {
+  readonly alias: Alias<A>;
+  rowType(): R;
+  emit(ctx: CompileContext): string;
 };
 
-export type Fromable = {
-  tsAlias: string;
-  registerAndCompile: (ctx: CompileContext, alias: TableAlias) => string;
-} & ({ rowType: RowType } | { new (): object });
-
-export type RowTypeOfFromable<F extends Fromable> = F extends { rowType: infer R }
-  ? R
-  : F extends new () => infer R
-    ? R
-    : never;
-
-export const getRowType = (from: Fromable): RowType => {
-  if ("rowType" in from) {
-    return from.rowType;
-  }
-  return new (from as new () => object)();
-};
 
 export const combinePredicates = (left: Bool<any> | undefined, right: Bool<any>) => {
   if (!left) { return right; }
@@ -114,15 +97,17 @@ type QueryBuilderOptions<
 > = {
   namespace: N;
   output: O;
+  // Preferred name only. The QueryBuilder ctor creates its own fresh Alias
+  // identity from this string, so every builder instance in a chain — and
+  // each reuse — registers independently.
   tsAlias: string;
-  from?: { source: Fromable; tableAlias: TableAlias };
+  from: Fromable;
   where?: Bool<any>;
   groupBy?: GB;
   having?: Bool<any>;
   orderBy?: OrderByEntry[];
   joins?: {
     source: Fromable;
-    tableAlias: TableAlias;
     on: Bool<any>;
     type?: "left";
   }[];
@@ -138,23 +123,16 @@ export class QueryBuilder<
 > extends Sql {
   private opts: QueryBuilderOptions<N, O, GB>;
   private card: Card;
-  get tsAlias(): string {
-    return this.opts.tsAlias;
-  }
-  get rowType(): RowType {
-    return this.opts.output;
-  }
 
-  registerAndCompile(ctx: CompileContext, alias: TableAlias): string {
-    const resolved = ctx.register(alias, alias.name);
-    using _ = ctx.child();
-    return `(${this.emit(ctx)}) AS "${resolved}"`;
-  }
+  readonly alias: Alias;
+
+  rowType(): O { return this.opts.output; }
 
   constructor(opts: QueryBuilderOptions<N, O, GB>, card?: Card) {
     super();
     this.opts = opts;
     this.card = (card ?? "many") as Card;
+    this.alias = new Alias(opts.tsAlias);
   }
 
   // Subsequent `select` calls replace the output type (columns must be redefined)
@@ -176,34 +154,32 @@ export class QueryBuilder<
     });
   }
 
-  join<F extends Fromable>(
-    from: F,
-    onFn: (ns: N & { [k in F["tsAlias"]]: RowTypeOfFromable<F> }) => Bool<any>,
-  ): QueryBuilder<N & { [k in F["tsAlias"]]: RowTypeOfFromable<F> }, O, GB> {
-    const [aliased, tableAlias] = aliasRowType(getRowType(from), from.tsAlias);
-    const namespace = { ...this.opts.namespace, [from.tsAlias]: aliased } as any;
+  join<R extends RowType, A extends string>(
+    from: Fromable<R, A>,
+    onFn: (ns: N & { [k in A]: R }) => Bool<any>,
+  ): QueryBuilder<N & { [k in A]: R }, O, GB> {
+    const namespace = { ...this.opts.namespace, [from.alias.tsAlias]: from.rowType() } as any;
     return new QueryBuilder({
       ...this.opts,
       namespace,
       joins: [
         ...(this.opts.joins ?? []),
-        { source: from, tableAlias, on: onFn(namespace) },
+        { source: from, on: onFn(namespace) },
       ],
     });
   }
 
-  leftJoin<F extends Fromable>(
-    from: F,
-    onFn: (ns: N & { [k in F["tsAlias"]]: RowTypeToNullable<RowTypeOfFromable<F>> }) => Bool<any>,
-  ): QueryBuilder<N & { [k in F["tsAlias"]]: RowTypeToNullable<RowTypeOfFromable<F>> }, O, GB> {
-    const [aliased, tableAlias] = aliasRowType(getRowType(from), from.tsAlias);
-    const namespace = { ...this.opts.namespace, [from.tsAlias]: aliased } as any;
+  leftJoin<R extends RowType, A extends string>(
+    from: Fromable<R, A>,
+    onFn: (ns: N & { [k in A]: RowTypeToNullable<R> }) => Bool<any>,
+  ): QueryBuilder<N & { [k in A]: RowTypeToNullable<R> }, O, GB> {
+    const namespace = { ...this.opts.namespace, [from.alias.tsAlias]: from.rowType() } as any;
     return new QueryBuilder({
       ...this.opts,
       namespace,
       joins: [
         ...(this.opts.joins ?? []),
-        { source: from, tableAlias, on: onFn(namespace), type: "left" },
+        { source: from, on: onFn(namespace), type: "left" },
       ],
     });
   }
@@ -312,11 +288,11 @@ export class QueryBuilder<
 
     // FROM/JOINs register aliases first — must happen before columns try to resolve
     const fromSql = this.opts.from
-      ? sql.raw(this.opts.from.source.registerAndCompile(ctx, this.opts.from.tableAlias))
+      ? sql.raw(this.opts.from.emit(ctx))
       : undefined;
     const joinSqls = (this.opts.joins ?? []).map((j) => {
       const kw = j.type === "left" ? "LEFT JOIN" : "JOIN";
-      const source = j.source.registerAndCompile(ctx, j.tableAlias);
+      const source = j.source.emit(ctx);
       return sql`${sql.raw(kw)} ${sql.raw(source)} ON ${j.on.toSql()}`;
     });
 
@@ -350,7 +326,12 @@ export class QueryBuilder<
       sql`\n`,
     ).emit(ctx);
 
-    return isSubquery ? `(${body}) AS ${sql.ident(this.tsAlias).emit(ctx)}` : body;
+    if (!isSubquery) { return body; }
+    // Subquery position: register our alias in the parent scope (the child
+    // scope for the body was entered above). Double-register check fires in
+    // the parent, which is what we want.
+    const resolved = ctx.scope.parent!.register(this.alias);
+    return `(${body}) AS ${sql.ident(resolved).emit(ctx)}`;
   }
 
   cardinality<C extends Cardinality>(card: C): QueryBuilder<N, O, GB, C> {

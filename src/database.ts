@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ExecuteFn, Executor, QueryResult } from "./executor";
-import type { Fromable, RowType, RowTypeToTsType, RowTypeOfFromable } from "./builder/query";
-import { aliasRowType, QueryBuilder, getRowType, deserializeRows } from "./builder/query";
+import type { Fromable, RowType, RowTypeToTsType } from "./builder/query";
+import { QueryBuilder, deserializeRows } from "./builder/query";
 import type { Sql } from "./builder/sql";
 import { sql } from "./builder/sql";
 import { Table } from "./table";
@@ -40,7 +40,7 @@ export class Database {
   async execute(query: Sql): Promise<any> {
     const result = await (this.#context.getStore()?.execute ?? this.executor.execute.bind(this.executor))(query);
     if (query instanceof QueryBuilder) {
-      return deserializeRows(result.rows as { [key: string]: string }[], query.rowType as { [key: string]: unknown });
+      return deserializeRows(result.rows as { [key: string]: string }[], query.rowType() as { [key: string]: unknown });
     }
     if (query instanceof InsertBuilder || query instanceof UpdateBuilder || query instanceof DeleteBuilder) {
       const returning = query.returningRowType;
@@ -74,16 +74,15 @@ export class Database {
     });
   }
 
-  public from<F extends Fromable>(
-    fromable: F,
-  ): QueryBuilder<{ [K in F["tsAlias"]]: RowTypeOfFromable<F> }, RowTypeOfFromable<F>, []> {
-    const rowType = getRowType(fromable) as RowTypeOfFromable<F>;
-    const [aliased, tableAlias] = aliasRowType(rowType, fromable.tsAlias) as [RowTypeOfFromable<F>, any];
+  public From<R extends RowType, A extends string>(
+    from: Fromable<R, A>,
+  ): QueryBuilder<{ [K in A]: R }, R, []> {
+    const row = from.rowType();
     return new QueryBuilder({
-      namespace: { [fromable.tsAlias]: aliased } as any,
-      output: aliased,
-      from: { source: fromable as any, tableAlias },
-      tsAlias: fromable.tsAlias,
+      namespace: { [from.alias.tsAlias]: row } as any,
+      output: row,
+      from,
+      tsAlias: from.alias.tsAlias,
     });
   }
 
@@ -92,11 +91,11 @@ export class Database {
     ...valsRest: (NoInfer<R> | RowTypeToTsType<NoInfer<R>>)[]
   ): QueryBuilder<{ values: R }, R, []> {
     const vals = new Values(vals0, ...valsRest);
-    const [aliased, tableAlias] = aliasRowType(vals0, "values") as [R, any];
+    const row = vals.rowType();
     return new QueryBuilder<{ values: R }, R, []>({
-      namespace: { values: aliased } as { values: R },
-      output: aliased,
-      from: { source: vals as any, tableAlias },
+      namespace: { values: row } as { values: R },
+      output: row,
+      from: vals,
       tsAlias: "q",
     });
   }

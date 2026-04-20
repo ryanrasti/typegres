@@ -12,8 +12,8 @@ test("delete with where", async () => {
     await db.execute(sql`INSERT INTO logs (msg) VALUES ('keep'), ('remove'), ('keep2')`);
 
     class Logs extends db.Table("logs") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      msg = (Text<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
+      get msg() { return (Text<1>).column(this, "msg", { nonNull: true }); }
     }
 
     await db.execute(Logs.delete().where(({ logs }) => logs.msg["="]("remove")));
@@ -35,8 +35,8 @@ test("delete returning", async () => {
     await db.execute(sql`INSERT INTO tags (name) VALUES ('a'), ('b'), ('c')`);
 
     class Tags extends db.Table("tags") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      name = (Text<1>).column({ nonNull: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
+      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
     }
 
     const rows = await db.execute(
@@ -60,9 +60,9 @@ test("delete: multiple where calls AND-combine", async () => {
     await db.execute(sql`INSERT INTO items (name, score) VALUES ('a', 10), ('b', 20), ('c', 10), ('d', 30)`);
 
     class Items extends db.Table("items") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      name = (Text<1>).column({ nonNull: true });
-      score = (Int8<1>).column({ nonNull: true, default: sql`0` });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
+      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
+      get score() { return (Int8<1>).column(this, "score", { nonNull: true, default: sql`0` }); }
     }
 
     await db.execute(
@@ -86,7 +86,7 @@ test("delete without where throws", async () => {
     await db.execute(sql`CREATE TABLE noop2 (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)`);
 
     class Noop2 extends db.Table("noop2") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
+      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
     }
 
     await expect(db.execute(Noop2.delete())).rejects.toThrow("requires .where()");

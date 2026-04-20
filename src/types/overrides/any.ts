@@ -2,7 +2,7 @@ import { Any as Generated } from "../generated/any";
 import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
 import type { NullOf } from "../runtime";
-import { sql, Sql } from "../../builder/sql";
+import { sql, Sql, Alias } from "../../builder/sql";
 import * as types from "../index";
 
 type ColumnOpts = { nonNull?: boolean; default?: Sql; generated?: boolean };
@@ -71,17 +71,31 @@ export class Any<in out N extends number> extends Generated<N> {
     if (v instanceof this) { return v; }
     const expected = getTypeDef(this.__typname).tsType;
     if (typeof v === expected) { return this.from(v); }
-    throw new Error(`Expected ${this.__typname} (${expected}), got ${typeof v}`);
+    throw new Error(
+      `${this.__typname}.serialize: expected a ${this.__typname} instance or ${expected} primitive, got ${typeof v} (${String(v).slice(0, 60)}).`,
+    );
   }
 
-  // Column descriptor for Table definitions
-  // __required is computed at the type level: nonNull && no default && not generated
+  // Column binder for Table definitions. Called from a column getter on a
+  // Table subclass — pass `this` directly; column() pulls the alias from
+  // `this.constructor.alias` (the class's static). Also accepts an Alias
+  // instance for cases where the caller already has one.
+  //
+  // Example:
+  //   class Users extends Table("users") {
+  //     get id() { return Int8.column(this, "id", { nonNull: true }); }
+  //   }
+  //
+  // __required is a type-level brand used by InsertRow to distinguish
+  // required vs optional columns.
   static column<
     T extends typeof Any<any>,
     Opts extends ColumnOpts = {},
   >(
     this: T,
-    opts?: Opts,
+    source: Alias | { constructor: { alias: Alias } },
+    colName: string,
+    _opts?: Opts,
   ): InstanceType<T> & {
     [meta]: {
       __required: Opts extends { nonNull: true }
@@ -89,9 +103,9 @@ export class Any<in out N extends number> extends Generated<N> {
         : false;
     };
   } {
-    // TODO: this should return a real instance -- and then we have special code that
-    //         injects the instance with a reference to the table's column.
-    //         Look for references to `__class` in the builders -- they shouldn't exist.
-    return { __column: true, __class: this, ...opts } as any;
+    const alias = source instanceof Alias
+      ? source
+      : (source.constructor as { alias: Alias }).alias;
+    return this.from(sql.column(alias, colName)) as any;
   }
 }

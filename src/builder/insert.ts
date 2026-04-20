@@ -1,7 +1,9 @@
 import { Sql, sql } from "./sql";
-import type { CompileContext, TableAlias } from "./sql";
+import type { CompileContext , Alias } from "./sql";
 import type { RowType } from "./query";
 import { compileSelectList } from "./query";
+import type { Any } from "../types";
+import { meta } from "../types/runtime";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
@@ -9,7 +11,7 @@ type InsertOpts<Name extends string, T, R extends RowType> = {
   tableName: Name;
   instance: T;
   namespace: Namespace<Name, T>;
-  tableAlias: TableAlias;
+  alias: Alias;
   columnNames: string[];
   rows: { [key: string]: unknown }[];
   returning?: R;
@@ -40,7 +42,7 @@ export class InsertBuilder<Name extends string, T extends { [key: string]: any }
     }
 
     using _ = ctx.child();
-    ctx.register(this.#opts.tableAlias, this.#opts.tableAlias.name);
+    ctx.register(this.#opts.alias);
 
     const columns = this.#opts.columnNames.map((k) => sql.ident(k));
     const rowSqls = this.#opts.rows.map((row) => {
@@ -49,8 +51,8 @@ export class InsertBuilder<Name extends string, T extends { [key: string]: any }
         if (v === undefined) {
           return sql`DEFAULT`;
         }
-        const col = this.#opts.instance[k];
-        return col.__class.from(v).toSql();
+        const col = this.#opts.instance[k] as Any<any>;
+        return col[meta].__class.from(v).toSql();
       });
       return sql`(${sql.join(vals)})`;
     });
@@ -72,6 +74,7 @@ export class InsertBuilder<Name extends string, T extends { [key: string]: any }
     return {
       tableName: this.#opts.tableName,
       instance: this.#opts.instance,
+      alias: this.#opts.alias,
       columnNames: this.#opts.columnNames,
       rows: this.#opts.rows,
       returning: this.#opts.returning,
