@@ -1,8 +1,6 @@
-import { Database, PgliteExecutor, sql } from "typegres";
-import { Int8, Text } from "typegres/types";
+import { typegres, sql, Int8, Text } from "typegres";
 
-const exec = await PgliteExecutor.create();
-const db = new Database(exec);
+const db = await typegres({ type: "pglite" });
 
 // ------------------------------------
 // Set up a tiny schema + seed data.
@@ -86,4 +84,3 @@ const promoted = await db.execute(
 );
 console.log("Promoted:", promoted);
 
-await exec.close();
