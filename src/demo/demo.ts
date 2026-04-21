@@ -53,7 +53,8 @@ const alicePosts = await db.execute(
       id: ns.posts.id,
       preview: ns.posts.preview(),
     }))
-    .orderBy((ns) => ns.posts.id),
+    .orderBy((ns) => ns.posts.id)
+    .debug(),
 );
 console.log("Alice's posts:", alicePosts);
 
@@ -68,7 +69,8 @@ const likesByAuthor = await db.execute(
       author: ns[0],
       total: ns.posts.likes.sum(),
     }))
-    .orderBy((ns) => [ns.posts.likes.sum(), "desc"]),
+    .orderBy((ns) => [ns.posts.likes.sum(), "desc"])
+    .debug(),
 );
 console.log("Likes by author:", likesByAuthor);
 
@@ -80,7 +82,8 @@ const promoted = await db.execute(
   Posts.update()
     .where((ns) => ns.posts.author["="](Text.from("alice")))
     .set(() => ({ likes: 999n }))
-    .returning((ns) => ({ id: ns.posts.id, likes: ns.posts.likes })),
+    .returning((ns) => ({ id: ns.posts.id, likes: ns.posts.likes }))
+    .debug(),
 );
 console.log("Promoted:", promoted);
 

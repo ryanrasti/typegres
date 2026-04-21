@@ -382,7 +382,7 @@ export class QueryBuilder<
 
   debug(): this {
     const compiled = compile(this, "pg");
-    console.log(compiled.text, compiled.values, this.opts);
+    console.log("Debugging query:", { sql: compiled.text, parameters: compiled.values });
     return this;
   }
 

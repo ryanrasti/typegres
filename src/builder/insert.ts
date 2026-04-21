@@ -65,7 +65,7 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
 
   debug(): this {
     const compiled = compile(this, "pg");
-    console.log(compiled.text, compiled.values, this.#opts);
+    console.log("Debugging query:", { sql: compiled.text, parameters: compiled.values });
     return this;
   }
 
