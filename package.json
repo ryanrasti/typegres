@@ -2,6 +2,12 @@
   "name": "typegres",
   "version": "0.0.1",
   "type": "module",
+  "imports": {
+    "#als": {
+      "browser": "./src/als-browser.ts",
+      "default": "./src/als.ts"
+    }
+  },
   "exports": {
     ".": {
       "import": "./dist/index.mjs",

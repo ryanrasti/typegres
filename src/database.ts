@@ -1,4 +1,4 @@
-import { AsyncLocalStorage } from "node:async_hooks";
+import { AsyncLocalStorage } from "#als";
 import type { ExecuteFn, Executor, QueryResult } from "./executor";
 import type { Fromable, RowType, RowTypeToTsType } from "./builder/query";
 import { QueryBuilder, deserializeRows } from "./builder/query";

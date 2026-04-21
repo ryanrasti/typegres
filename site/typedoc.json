@@ -1,0 +1,23 @@
+{
+  "entryPoints": ["../src/index.ts"],
+  "entryPointStrategy": "resolve",
+  "out": "./public/api",
+  "tsconfig": "../tsconfig.json",
+  "exclude": [
+    "**/*.test.ts",
+    "**/test/**",
+    "**/gen/**/*.json",
+    "**/node_modules/**",
+    "**/site/**",
+    "**/dist/**",
+    "**/pages/**",
+    "**/*.tsx"
+  ],
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "name": "Typegres API Reference",
+  "theme": "default",
+  "includeVersion": true,
+  "skipErrorChecking": true
+}

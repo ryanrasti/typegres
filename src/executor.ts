@@ -23,7 +23,7 @@ export class PgExecutor implements Executor {
     poolOptions: pg.PoolConfig = {},
   ): Promise<PgExecutor> {
     // eslint-disable-next-line no-restricted-syntax -- optional dep, lazy loaded
-    const pgMod = (await import("pg")).default;
+    const pgMod = (await import(/* webpackIgnore: true */ "pg")).default;
     const pool = new pgMod.Pool({
       connectionString,
       ...poolOptions,
