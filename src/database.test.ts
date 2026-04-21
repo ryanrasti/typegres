@@ -2,7 +2,7 @@ import { test, expect, beforeAll, afterAll } from "vitest";
 import { Int8, Text } from "./types";
 import { sql } from "./builder/sql";
 import { db } from "./builder/test-helper";
-import { pgExecutor } from "./executor";
+import { PgExecutor } from "./executor";
 import type { Executor } from "./executor";
 import { defaultPgConnectionString } from "./pg";
 import { Database } from "./database";
@@ -11,7 +11,7 @@ let poolExec: Executor;
 let poolDb: Database;
 
 beforeAll(async () => {
-  poolExec = pgExecutor(defaultPgConnectionString(), { max: 10 });
+  poolExec = await PgExecutor.create(defaultPgConnectionString(), { max: 10 });
   poolDb = new Database(poolExec);
 });
 

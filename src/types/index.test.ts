@@ -5,14 +5,14 @@ import type { Any, Float8, Anyrange, Anymultirange } from "./index";
 import { Int4, Text, Bool, Int8, Record, Anyarray } from "./index";
 import { compile } from "../builder/sql";
 import { sql, Alias } from "../builder/sql";
-import { pgExecutor } from "../executor";
+import { PgExecutor } from "../executor";
 import { defaultPgConnectionString } from "../pg";
 import type { Executor } from "../executor";
 
 let exec: Executor;
 
 beforeAll(async () => {
-  exec = pgExecutor(defaultPgConnectionString(), { max: 1 });
+  exec = await PgExecutor.create(defaultPgConnectionString(), { max: 1 });
 });
 
 afterAll(async () => {
