@@ -75,6 +75,17 @@ export class Database {
     });
   }
 
+  // Entry point for non-Table Fromables (SRFs, Values, subqueries) —
+  // Table classes have their own static `.from()`.
+  public From<R extends RowType, A extends string>(
+    from: Fromable<R, A>,
+  ): QueryBuilder<{ [K in A]: R }, R, []> {
+    return new QueryBuilder({
+      tsAlias: from.tsAlias,
+      tables: [{ type: "from", source: from }],
+    });
+  }
+
   public values<R extends RowType>(
     vals0: R,
     ...valsRest: (NoInfer<R> | RowTypeToTsType<NoInfer<R>>)[]

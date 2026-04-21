@@ -19,14 +19,18 @@ export const compileSelectList = (output: { [key: string]: unknown }): Sql => {
 };
 
 export const reAlias = <R extends RowType>(row: R, alias: Alias): R => {
-  return Object.fromEntries(
-    Object.entries(row).map(([k, v]) => {
-      if (v instanceof Any) {
-        return [k, v[meta].__class.from(sql.column(alias, sql.ident(k)))];
-      }
-      return [k, v];
-    }),
-  ) as R;
+  // Preserve the prototype so Table-subclass methods (derived columns,
+  // relation helpers) remain callable via `ns.<alias>.<method>()`.
+  const out = Object.create(Object.getPrototypeOf(row));
+  for (const [k, v] of Object.entries(row)) {
+    Object.defineProperty(out, k, {
+      value: v instanceof Any
+        ? v[meta].__class.from(sql.column(alias, sql.ident(k)))
+        : v,
+      enumerable: true,
+    });
+  }
+  return out;
 };
 
 // Deserialize raw string rows using typed output descriptors
