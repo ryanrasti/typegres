@@ -57,7 +57,7 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
 
     const returning = this.#opts.returning?.(ns);
     const inner = sql.join([
-      sql`INSERT INTO ${sql.ident(tableName)} AS ${sql.tableRef(alias)} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`,
+      sql`INSERT INTO ${sql.ident(tableName)} AS ${alias} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`,
       returning && sql`RETURNING ${compileSelectList(returning as { [key: string]: unknown })}`,
     ], sql` `);
     return sql.withScope([alias], inner);

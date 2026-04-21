@@ -73,7 +73,7 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
     const where = this.#opts.where(ns);
     const returning = this.#opts.returning?.(ns);
     const inner = sql.join([
-      sql`UPDATE ${sql.ident(tableName)} AS ${sql.tableRef(alias)} SET ${sql.join(setClauses)}`,
+      sql`UPDATE ${sql.ident(tableName)} AS ${alias} SET ${sql.join(setClauses)}`,
       sql`WHERE ${where.toSql()}`,
       returning && sql`RETURNING ${compileSelectList(returning as { [key: string]: unknown })}`,
     ], sql` `);

@@ -1,4 +1,24 @@
-import { RpcTarget } from "../../packages/capnweb/dist/index.js";
+export type CompiledSql = { text: string; values: unknown[] };
+
+// --- Sql base class ---
+
+// Sql is the abstract root. Builder-style nodes (QueryBuilder,
+// Insert/Update/Delete, Values, PgSrf) extend Sql directly and implement
+// bind() to materialize themselves into a BoundSql tree. Leaf nodes extend
+// BoundSql, which adds emit() + compile().
+export abstract class Sql {
+  abstract bind(): BoundSql;
+}
+
+export abstract class BoundSql extends Sql {
+  abstract emit(ctx: CompileContext): string;
+  bind(): BoundSql { return this; }
+  compile(style: "pg" | "sqlite" = "pg"): CompiledSql {
+    const ctx = new CompileContext(style);
+    const text = this.emit(ctx);
+    return { text, values: ctx.values };
+  }
+}
 
 // --- Alias & scope ---
 
@@ -13,12 +33,18 @@ import { RpcTarget } from "../../packages/capnweb/dist/index.js";
 // invariant the scope relies on. Instead, every bind()/rowType() call
 // mints fresh Aliases; QB's reAlias rebinds column refs to them. The
 // alias identity exists only for the duration of compilation.
-export class Alias<A extends string = string> extends RpcTarget {
+export class Alias<A extends string = string> extends BoundSql {
   constructor(readonly tsAlias: A) { super(); }
 
   emit(ctx: CompileContext): string {
-    const resolved = ctx.resolve(this);
-    return sql.ident(resolved).emit(ctx);
+    const resolved = ctx.scope.resolve(this);
+    if (!resolved) {
+      throw new Error(
+        `Unknown alias '${this.tsAlias}' — a column reference was emitted without its Fromable being registered in the current scope. ` +
+        `This usually means a Sql fragment was compiled outside of the query-builder flow, or a hand-written Sql references a Table whose FROM clause isn't included.`,
+      );
+    }
+    return `"${resolved.replace(/"/g, '""')}"`;
   }
 }
 
@@ -32,15 +58,12 @@ export class Scope {
   }
 
   register(alias: Alias): string {
-    // Only the *parent* chain is a bug: an alias registered in an outer
-    // scope can't be re-registered in an inner one (that would mean the
-    // same Fromable appeared in both an outer FROM and a subquery's FROM).
-    // Duplicates within the same scope are allowed — sibling subqueries
-    // can reuse the same alias identity independently.
-    if (this.parent?.resolve(alias) !== undefined) {
+    // Aliases are minted fresh per bind(), so the same instance appearing
+    // twice — anywhere in the scope chain — is a bug (someone held onto
+    // an alias across compilations or reused one between sources).
+    if (this.resolve(alias) !== undefined) {
       throw new Error(
-        `Alias '${alias.tsAlias}' already registered in an enclosing scope. ` +
-        `A Fromable instance can't appear in both an outer query and a subquery — use a fresh instance.`,
+        `Alias '${alias.tsAlias}' already registered — Alias instances must be ephemeral to a single bind(), not stored or reused.`,
       );
     }
     let name = alias.tsAlias;
@@ -55,10 +78,7 @@ export class Scope {
   }
 
   resolve(alias: Alias): string | undefined {
-    const local = this.aliases.get(alias);
-    if (local) { return local; }
-    if (this.parent) { return this.parent.resolve(alias); }
-    return undefined;
+    return this.aliases.get(alias) ?? this.parent?.resolve(alias);
   }
 
   child(): Scope {
@@ -72,67 +92,12 @@ export class Scope {
 
 // --- Compile context ---
 
-export class CompileContext {
-  style: "pg" | "sqlite";
-  scope: Scope;
+// Mutable state threaded through emit(): scope stack for alias resolution,
+// param values accumulated in order, and the SQL dialect.
+class CompileContext {
+  scope = new Scope();
   values: unknown[] = [];
-
-  constructor(style: "pg" | "sqlite", scope?: Scope) {
-    this.style = style;
-    this.scope = scope ?? new Scope();
-  }
-
-  param(v: unknown): string {
-    this.values.push(v);
-    return this.style === "pg" ? `$${this.values.length}` : "?";
-  }
-
-  register(alias: Alias): string {
-    return this.scope.register(alias);
-  }
-
-  resolve(alias: Alias): string {
-    const resolved = this.scope.resolve(alias);
-    if (!resolved) {
-      throw new Error(
-        `Unknown alias '${alias.tsAlias}' — a column reference was emitted without its Fromable being registered in the current scope. ` +
-        `This usually means a Sql fragment was compiled outside of the query-builder flow, or a hand-written Sql references a Table whose FROM clause isn't included.`,
-      );
-    }
-    return resolved;
-  }
-
-  get isTopLevel(): boolean {
-    return this.scope.parent === undefined;
-  }
-
-  child(): Disposable {
-    const prev = this.scope;
-    this.scope = this.scope.child();
-    return { [Symbol.dispose]: () => { this.scope = prev; } };
-  }
-}
-
-export type CompiledSql = { text: string; values: unknown[] };
-
-// --- Sql base class ---
-
-// Sql is the abstract root. Builder-style nodes (QueryBuilder,
-// Insert/Update/Delete, Values, PgSrf) extend Sql directly and implement
-// bind() to materialize themselves into a BoundSql tree. Leaf nodes extend
-// BoundSql, which adds emit() + compile().
-export abstract class Sql extends RpcTarget {
-  abstract bind(): BoundSql;
-}
-
-export abstract class BoundSql extends Sql {
-  abstract emit(ctx: CompileContext): string;
-  bind(): BoundSql { return this; }
-  compile(style: "pg" | "sqlite" = "pg"): CompiledSql {
-    const ctx = new CompileContext(style);
-    const text = this.emit(ctx);
-    return { text, values: ctx.values };
-  }
+  constructor(readonly style: "pg" | "sqlite") {}
 }
 
 // --- Leaf nodes ---
@@ -144,7 +109,10 @@ export class Raw extends BoundSql {
 
 export class Param extends BoundSql {
   constructor(readonly value: unknown) { super(); }
-  emit(ctx: CompileContext): string { return ctx.param(this.value); }
+  emit(ctx: CompileContext): string {
+    ctx.values.push(this.value);
+    return ctx.style === "pg" ? `$${ctx.values.length}` : "?";
+  }
 }
 
 export class Ident extends BoundSql {
@@ -153,23 +121,17 @@ export class Ident extends BoundSql {
 }
 
 export class Column extends BoundSql {
-  constructor(readonly table: Alias, readonly name: string) { super(); }
+  constructor(readonly table: Alias, readonly name: BoundSql) { super(); }
   emit(ctx: CompileContext): string {
-    return `${this.table.emit(ctx)}."${this.name}"`;
+    return `${this.table.emit(ctx)}.${this.name.emit(ctx)}`;
   }
 }
 
-export class TableRef extends BoundSql {
-  constructor(readonly table: Alias) { super(); }
+export class Join extends BoundSql {
+  constructor(readonly children: readonly Sql[], readonly separator: Sql = new Raw("")) { super(); }
   emit(ctx: CompileContext): string {
-    return this.table.emit(ctx);
-  }
-}
-
-export class Seq extends BoundSql {
-  constructor(readonly children: readonly Sql[]) { super(); }
-  emit(ctx: CompileContext): string {
-    return this.children.map((c) => c.bind().emit(ctx)).join("");
+    const sep = this.separator.bind().emit(ctx);
+    return this.children.map((c) => c.bind().emit(ctx)).join(sep);
   }
 }
 
@@ -211,14 +173,13 @@ const _sql = (strings: TemplateStringsArray, ...exprs: unknown[]): BoundSql => {
       }
     }
   }
-  return new Seq(children);
+  return new Join(children);
 };
 
 _sql.param = (value: unknown): BoundSql => new Param(value);
 _sql.raw = (s: string): BoundSql => new Raw(s);
 _sql.ident = (name: string): BoundSql => new Ident(name);
-_sql.column = (table: Alias, name: string): BoundSql => new Column(table, name);
-_sql.tableRef = (table: Alias): BoundSql => new TableRef(table);
+_sql.column = (table: Alias, name: BoundSql): BoundSql => new Column(table, name);
 
 // Sentinel for SQL that must be replaced before emit. Used by rowType()
 // outputs: column refs on a row-shape instance reference sql.unbound()
@@ -242,23 +203,20 @@ _sql.unbound = (): BoundSql => new Unbound();
 class WithScope extends BoundSql {
   constructor(readonly aliases: readonly Alias[], readonly child: Sql) { super(); }
   emit(ctx: CompileContext): string {
-    using _ = ctx.child();
-    for (const a of this.aliases) { ctx.register(a); }
-    return this.child.bind().emit(ctx);
+    const prev = ctx.scope;
+    ctx.scope = prev.child();
+    try {
+      for (const a of this.aliases) { ctx.scope.register(a); }
+      return this.child.bind().emit(ctx);
+    } finally {
+      ctx.scope = prev;
+    }
   }
 }
 _sql.withScope = (aliases: readonly Alias[], child: Sql): BoundSql => new WithScope(aliases, child);
 
-_sql.join = (builders: (Sql | null | undefined | false)[], separator = sql`, `): BoundSql => {
-  const children: Sql[] = [];
-  let first = true;
-  for (const b of builders) {
-    if (b === null || b === undefined || b === false) { continue; }
-    if (!first) { children.push(separator); }
-    children.push(b);
-    first = false;
-  }
-  return new Seq(children);
+_sql.join = (builders: (Sql | null | undefined | false)[], separator: Sql = sql`, `): BoundSql => {
+  return new Join(builders.filter((b): b is Sql => b !== null && b !== undefined && b !== false), separator);
 };
 
 export const sql = _sql;

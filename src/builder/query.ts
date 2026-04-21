@@ -22,7 +22,7 @@ export const reAlias = <R extends RowType>(row: R, alias: Alias): R => {
   return Object.fromEntries(
     Object.entries(row).map(([k, v]) => {
       if (v instanceof Any) {
-        return [k, v[meta].__class.from(sql.column(alias, k))];
+        return [k, v[meta].__class.from(sql.column(alias, sql.ident(k)))];
       }
       return [k, v];
     }),
@@ -320,7 +320,7 @@ export class QueryBuilder<
         value: reAlias(t.source.rowType(), alias),
         enumerable: true,
       });
-      const aliasRef = sql.tableRef(alias);
+      const aliasRef = alias;
       const asClause = t.source.emitColumnNamesWithAlias
         ? sql`AS ${aliasRef}(${sql.join(Object.keys(t.source.rowType()).map((col) => sql.ident(col)))})`
         : sql`AS ${aliasRef}`;

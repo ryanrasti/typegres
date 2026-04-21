@@ -1,4 +1,4 @@
-import { sql, Op, Column, Param, Seq, Func, UnaryOp, Alias } from "../builder/sql";
+import { sql, Op, Column, Ident, Param, Join, Func, UnaryOp, Alias } from "../builder/sql";
 import type { Sql } from "../builder/sql";
 import type { QueryBuilder } from "../builder/query";
 import { reAlias } from "../builder/query";
@@ -13,7 +13,7 @@ const collectColumns = (node: Sql): Column[] => {
     if (n instanceof Op) { walk(n.lhs); walk(n.rhs); return; }
     if (n instanceof UnaryOp) { walk(n.expr); return; }
     if (n instanceof Func) { for (const a of n.args) { walk(a); } return; }
-    if (n instanceof Seq) { for (const c of n.children) { walk(c); } return; }
+    if (n instanceof Join) { for (const c of n.children) { walk(c); } return; }
   };
   walk(node);
   return out;
@@ -27,7 +27,7 @@ const collectParams = (node: Sql): unknown[] => {
     if (n instanceof Op) { walk(n.lhs); walk(n.rhs); return; }
     if (n instanceof UnaryOp) { walk(n.expr); return; }
     if (n instanceof Func) { for (const a of n.args) { walk(a); } return; }
-    if (n instanceof Seq) { for (const c of n.children) { walk(c); } return; }
+    if (n instanceof Join) { for (const c of n.children) { walk(c); } return; }
   };
   walk(node);
   return out;
@@ -76,6 +76,15 @@ type ParsedPred =
 // Recognize col = literal, literal = col, or col = col. Anything else → null.
 // Each side is classified through classifySide, which tolerates cast-wrappers
 // like `CAST($1 AS int8)` (produced by `.from(5n)`) without giving up.
+// Column.name is a BoundSql (typically an Ident). For the extractor we
+// need the raw column-name string.
+const colName = (c: Column): string => {
+  if (!(c.name instanceof Ident)) {
+    throw new LiveQueryError(`live(): column name must be a plain Ident, got ${c.name.constructor.name}`);
+  }
+  return c.name.name;
+};
+
 const parseEquality = (node: Sql): ParsedPred | null => {
   if (!(node instanceof Op) || node.op !== "=") { return null; }
   const left = classifySide(node.lhs);
@@ -84,15 +93,15 @@ const parseEquality = (node: Sql): ParsedPred | null => {
   if (left.kind === "column" && right.kind === "column") {
     return {
       kind: "edge",
-      left: { alias: left.column.table, col: left.column.name },
-      right: { alias: right.column.table, col: right.column.name },
+      left: { alias: left.column.table, col: colName(left.column) },
+      right: { alias: right.column.table, col: colName(right.column) },
     };
   }
   if (left.kind === "column" && right.kind === "literal") {
-    return { kind: "literal", alias: left.column.table, col: left.column.name, value: right.value };
+    return { kind: "literal", alias: left.column.table, col: colName(left.column), value: right.value };
   }
   if (left.kind === "literal" && right.kind === "column") {
-    return { kind: "literal", alias: right.column.table, col: right.column.name, value: left.value };
+    return { kind: "literal", alias: right.column.table, col: colName(right.column), value: left.value };
   }
   return null;
 };

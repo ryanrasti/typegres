@@ -56,7 +56,7 @@ export class DeleteBuilder<Name extends string, T extends TableBase, R extends R
     const where = this.#opts.where(ns);
     const returning = this.#opts.returning?.(ns);
     const inner = sql.join([
-      sql`DELETE FROM ${sql.ident(tableName)} AS ${sql.tableRef(alias)}`,
+      sql`DELETE FROM ${sql.ident(tableName)} AS ${alias}`,
       sql`WHERE ${where.toSql()}`,
       returning && sql`RETURNING ${compileSelectList(returning as { [key: string]: unknown })}`,
     ], sql` `);
