@@ -1,6 +1,7 @@
 import { beforeAll, afterAll } from "vitest";
 import { pgExecutor } from "../executor";
 import type { Executor } from "../executor";
+import { defaultPgConnectionString } from "../pg";
 import { Database } from "../database";
 import { sql } from "./sql";
 
@@ -14,7 +15,7 @@ export let db: Database;
 const schema = `test_w${process.env["VITEST_WORKER_ID"] ?? "1"}`;
 
 beforeAll(async () => {
-  exec = pgExecutor(undefined, {
+  exec = pgExecutor(defaultPgConnectionString(), {
     max: 1,
     options: `-csearch_path=${schema}`,
   });

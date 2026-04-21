@@ -4,13 +4,14 @@ import { sql } from "./builder/sql";
 import { db } from "./builder/test-helper";
 import { pgExecutor } from "./executor";
 import type { Executor } from "./executor";
+import { defaultPgConnectionString } from "./pg";
 import { Database } from "./database";
 
 let poolExec: Executor;
 let poolDb: Database;
 
 beforeAll(async () => {
-  poolExec = pgExecutor(undefined, { max: 10 });
+  poolExec = pgExecutor(defaultPgConnectionString(), { max: 10 });
   poolDb = new Database(poolExec);
 });
 

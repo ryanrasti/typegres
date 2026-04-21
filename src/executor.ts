@@ -1,7 +1,6 @@
 import pg from "pg";
 import type { Sql } from "./builder/sql";
 import { compile } from "./builder/sql";
-import { defaultPgConnectionString } from "./pg";
 
 // Rows come back as plain objects keyed by column name. Values are always
 // strings here because every type parser is overridden to return raw text;
@@ -17,7 +16,7 @@ export interface Executor {
 
 // pg adapter — returns raw text strings (no driver-side deserialization)
 export const pgExecutor = (
-  connectionString = defaultPgConnectionString(),
+  connectionString: string,
   poolOptions: pg.PoolConfig = {},
 ): Executor => {
   // Override all type parsers to return raw strings
