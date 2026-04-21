@@ -43,7 +43,7 @@ export class Database {
       return deserializeRows(result.rows as { [key: string]: string }[], query.rowType() as { [key: string]: unknown });
     }
     if (query instanceof InsertBuilder || query instanceof UpdateBuilder || query instanceof DeleteBuilder) {
-      const returning = query.returningRowType;
+      const returning = query.rowType();
       if (!returning) {
         return [];
       }

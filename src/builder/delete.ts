@@ -39,13 +39,8 @@ export class DeleteBuilder<Name extends string, T extends TableBase, R extends R
     return new DeleteBuilder({ ...this.#opts, returning: fn });
   }
 
-  get returningRowType(): R | undefined {
-    if (!this.#opts.returning) { return undefined; }
-    const tableName = this.#tableName;
-    const alias = new Alias(tableName);
-    const instance = reAlias(this.#opts.instance as RowType, alias) as T;
-    const ns = { [tableName]: instance } as Namespace<Name, T>;
-    return this.#opts.returning(ns);
+  rowType(): R | undefined {
+    return this.#opts.returning?.({ [this.#tableName]: this.#opts.instance } as Namespace<Name, T>);
   }
 
   bind(): BoundSql {
@@ -61,7 +56,7 @@ export class DeleteBuilder<Name extends string, T extends TableBase, R extends R
     const where = this.#opts.where(ns);
     const returning = this.#opts.returning?.(ns);
     const inner = sql.join([
-      sql`DELETE FROM ${sql.ident(tableName)}`,
+      sql`DELETE FROM ${sql.ident(tableName)} AS ${sql.tableRef(alias)}`,
       sql`WHERE ${where.toSql()}`,
       returning && sql`RETURNING ${compileSelectList(returning as { [key: string]: unknown })}`,
     ], sql` `);

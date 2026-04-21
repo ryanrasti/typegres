@@ -3,7 +3,7 @@ import type { BoundSql } from "./sql";
 import type { RowType } from "./query";
 import { compileSelectList, reAlias } from "./query";
 import type { TableBase } from "../table";
-import type { Any } from "../types";
+import { getColumn } from "../types/overrides/any";
 import { meta } from "../types/runtime";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
@@ -31,16 +31,11 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
     return new InsertBuilder({ ...this.#opts, returning: fn });
   }
 
-  // Shape of RETURNING rows, for deserialization. Fresh alias per call; the
-  // returned Any instances carry column refs that are never compiled, so
-  // the ephemeral alias is harmless.
-  get returningRowType(): R | undefined {
-    if (!this.#opts.returning) { return undefined; }
-    const tableName = this.#tableName;
-    const alias = new Alias(tableName);
-    const instance = reAlias(this.#opts.instance as RowType, alias) as T;
-    const ns = { [tableName]: instance } as Namespace<Name, T>;
-    return this.#opts.returning(ns);
+  // Shape of RETURNING rows, for deserialization. The Any instances in
+  // the output carry sql.unbound() as their SQL — harmless since rowType
+  // is never compiled, only its [meta].__class is read for deserialize.
+  rowType(): R | undefined {
+    return this.#opts.returning?.({ [this.#tableName]: this.#opts.instance } as Namespace<Name, T>);
   }
 
   bind(): BoundSql {
@@ -54,7 +49,7 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
       const vals = this.#opts.columnNames.map((k) => {
         const v = row[k];
         if (v === undefined) { return sql`DEFAULT`; }
-        const col = this.#opts.instance[k as keyof T] as Any<any>;
+        const col = getColumn(this.#opts.instance, k);
         return col[meta].__class.from(v).toSql();
       });
       return sql`(${sql.join(vals)})`;
@@ -62,7 +57,7 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
 
     const returning = this.#opts.returning?.(ns);
     const inner = sql.join([
-      sql`INSERT INTO ${sql.ident(tableName)} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`,
+      sql`INSERT INTO ${sql.ident(tableName)} AS ${sql.tableRef(alias)} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`,
       returning && sql`RETURNING ${compileSelectList(returning as { [key: string]: unknown })}`,
     ], sql` `);
     return sql.withScope([alias], inner);

@@ -2,7 +2,7 @@ import { Any as Generated } from "../generated/any";
 import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
 import type { NullOf } from "../runtime";
-import { sql, Sql } from "../../builder/sql";
+import { sql, Sql, Unbound } from "../../builder/sql";
 import * as types from "../index";
 
 type ColumnOpts = { nonNull?: boolean; default?: Sql; generated?: boolean };
@@ -106,3 +106,28 @@ export class Any<in out N extends number> extends Generated<N> {
     return this.from(sql.unbound()) as any;
   }
 }
+
+// Look up a column by name on a Table instance. Asserts the field exists
+// and is a column declaration (its underlying SQL is sql.unbound(), the
+// sentinel that .column() produces). Used by mutation builders and live
+// wrappers to resolve set/insert keys against the instance.
+export const getColumn = (
+  instance: { constructor: { tableName: string } },
+  name: string,
+): Any<any> => {
+  const col = (instance as { [k: string]: unknown })[name];
+  const tableName = instance.constructor.tableName;
+  if (!(col instanceof Any)) {
+    throw new Error(
+      `No column '${name}' on table '${tableName}'. ` +
+      `Declare it as a field: \`${name} = Type.column(...)\`.`,
+    );
+  }
+  if (!(col[meta].__raw instanceof Unbound)) {
+    throw new Error(
+      `Field '${name}' on table '${tableName}' is an expression, not a column. ` +
+      `Only fields declared via \`Type.column(...)\` can be targeted by mutations.`,
+    );
+  }
+  return col;
+};

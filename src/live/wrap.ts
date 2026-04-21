@@ -5,7 +5,7 @@ import type { UpdateBuilder } from "../builder/update";
 import type { DeleteBuilder } from "../builder/delete";
 import { compileSelectList, reAlias, type RowType } from "../builder/query";
 import type { TableBase } from "../table";
-import { Any } from "../types";
+import { getColumn } from "../types/overrides/any";
 import { meta } from "../types/runtime";
 import { LiveQueryError } from "./types";
 
@@ -59,13 +59,8 @@ export const wrapInsertWithEvents = <Name extends string, T extends TableBase, R
     const vals = parts.columnNames.map((k) => {
       const v = row[k];
       if (v === undefined) { return sql`DEFAULT`; }
-      const col = parts.instance[k as keyof T];
-      if (!(col instanceof Any)) {
-        throw new LiveQueryError(
-          `live wrap: INSERT INTO "${parts.tableName}" — column '${k}' is not declared as an Any-typed column on the table class.`,
-        );
-      }
-      return (col as Any<any>)[meta].__class.from(v).toSql();
+      const col = getColumn(parts.instance, k);
+      return col[meta].__class.from(v).toSql();
     });
     return sql`(${sql.join(vals)})`;
   });
@@ -115,13 +110,8 @@ export const wrapUpdateWithEvents = <Name extends string, T extends TableBase, R
   const returning = parts.returning?.(ns);
 
   const setClauses = Object.entries(setRow as { [key: string]: unknown }).map(([k, v]) => {
-    const col = parts.instance[k as keyof T];
-    if (!(col instanceof Any)) {
-      throw new LiveQueryError(
-        `live wrap: UPDATE on "${parts.tableName}" set {${k}: ...} — no column '${k}' on table class.`,
-      );
-    }
-    return sql`${sql.ident(k)} = ${(col as Any<any>)[meta].__class.from(v).toSql()}`;
+    const col = getColumn(parts.instance, k);
+    return sql`${sql.ident(k)} = ${col[meta].__class.from(v).toSql()}`;
   });
 
   // old: capture pre-mutation rows using the same WHERE. All CTEs in a single

@@ -1,11 +1,12 @@
 import { Sql, sql, Alias } from "./sql";
 import type { BoundSql } from "./sql";
-import { Any, Bool } from "../types";
+import { Bool } from "../types";
 import type { SetRow } from "../types/runtime";
 import { meta } from "../types/runtime";
 import type { RowType } from "./query";
 import { combinePredicates, compileSelectList, reAlias } from "./query";
 import type { TableBase } from "../table";
+import { getColumn } from "../types/overrides/any";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
@@ -46,13 +47,8 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
     return new UpdateBuilder({ ...this.#opts, returning: fn });
   }
 
-  get returningRowType(): R | undefined {
-    if (!this.#opts.returning) { return undefined; }
-    const tableName = this.#tableName;
-    const alias = new Alias(tableName);
-    const instance = reAlias(this.#opts.instance as RowType, alias) as T;
-    const ns = { [tableName]: instance } as Namespace<Name, T>;
-    return this.#opts.returning(ns);
+  rowType(): R | undefined {
+    return this.#opts.returning?.({ [this.#tableName]: this.#opts.instance } as Namespace<Name, T>);
   }
 
   bind(): BoundSql {
@@ -70,20 +66,14 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
 
     const setRow = this.#opts.set(ns);
     const setClauses = Object.entries(setRow as { [key: string]: unknown }).map(([k, v]) => {
-      const col = this.#opts.instance[k as keyof T];
-      if (!(col instanceof Any)) {
-        throw new Error(
-          `update().set({${k}: ...}) on "${tableName}" — no column '${k}' on the table class. ` +
-          `Declare it as a column field (\`${k} = Type.column(...)\`).`,
-        );
-      }
-      return sql`${sql.ident(k)} = ${(col as Any<any>)[meta].__class.from(v).toSql()}`;
+      const col = getColumn(this.#opts.instance, k);
+      return sql`${sql.ident(k)} = ${col[meta].__class.from(v).toSql()}`;
     });
 
     const where = this.#opts.where(ns);
     const returning = this.#opts.returning?.(ns);
     const inner = sql.join([
-      sql`UPDATE ${sql.ident(tableName)} SET ${sql.join(setClauses)}`,
+      sql`UPDATE ${sql.ident(tableName)} AS ${sql.tableRef(alias)} SET ${sql.join(setClauses)}`,
       sql`WHERE ${where.toSql()}`,
       returning && sql`RETURNING ${compileSelectList(returning as { [key: string]: unknown })}`,
     ], sql` `);

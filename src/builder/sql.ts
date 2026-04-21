@@ -225,7 +225,7 @@ _sql.tableRef = (table: Alias): BoundSql => new TableRef(table);
 // until the query builder reAlias'es them to a real, scoped alias at
 // bind() time. If one reaches emit, it means a rowType() output leaked
 // into compilation without being rebound — loud error is intentional.
-class Unbound extends BoundSql {
+export class Unbound extends BoundSql {
   emit(): string {
     throw new Error(
       "Unbound SQL reached emit — a rowType() column was compiled without being reAlias'd first. " +
