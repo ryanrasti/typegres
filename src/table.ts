@@ -1,4 +1,4 @@
-import { sql, Alias } from "./builder/sql";
+import { sql } from "./builder/sql";
 import type { Sql } from "./builder/sql";
 import type { Fromable} from "./builder/query";
 import { QueryBuilder } from "./builder/query";
@@ -12,27 +12,24 @@ import type { InsertRow } from "./types/runtime";
 // initializers:
 //
 //   class Users extends Table("users") {
-//     id   = Int8.column(this, "id", { nonNull: true });
-//     name = Text.column(this, "name");
+//     id   = Int8.column({ nonNull: true });
+//     name = Text.column();
 //   }
 //
-// Each `new Users()` gets its own ghost Alias (stored as `this.alias`),
-// minted in the constructor from the class's `tsAlias` string. Column
-// fields thread that instance alias through `.column(this, ...)`. The
-// alias exists only as long as the instance does — QB mints a fresh one
-// at bind() and re-binds column refs to it via reAlias.
+// Column fields store `sql.unbound()` as their underlying SQL. No Alias
+// is attached to the class or the instance. Query/mutation builders mint
+// a fresh Alias at bind() time and call reAlias() on the row shape,
+// replacing each column's unbound SQL with a real `Column(alias, key)`.
 //
 // For joining the same table twice: `Users.as("u2")` returns a fresh
-// subclass whose `tsAlias` is "u2". The class itself carries no alias.
+// subclass whose `tsAlias` is "u2".
 export abstract class TableBase {
   static readonly tableName: string;
   static readonly tsAlias: string;
 
-  readonly alias: Alias;
-
-  constructor() {
-    this.alias = new Alias((this.constructor as typeof TableBase).tsAlias);
-  }
+  // Narrow `instance.constructor` so `instance.constructor.tableName` /
+  // `.tsAlias` resolve without casts (TS defaults it to `Function`).
+  declare ["constructor"]: typeof TableBase;
 
   // Fresh row-type instance per call — callers don't hold onto these;
   // they're just vessels for column references. Method form so the return
@@ -64,40 +61,23 @@ export abstract class TableBase {
     ...rows: [InsertRow<InstanceType<T>>, ...InsertRow<InstanceType<T>>[]]
   ): InsertBuilder<T["tableName"], InstanceType<T>> {
     const instance = this.rowType() as InstanceType<T>;
-    const ns = { [this.tsAlias]: instance } as { [K in T["tableName"]]: InstanceType<T> };
     return new InsertBuilder({
-      tableName: this.tableName as T["tableName"],
       instance,
-      namespace: ns,
       columnNames: columnFieldNames(instance),
-      rows: rows as { [key: string]: unknown }[],
-      alias: instance.alias,
+      rows: rows as [{ [key: string]: unknown }, ...{ [key: string]: unknown }[]],
     });
   }
 
   static update<T extends typeof TableBase & (new () => TableBase)>(
     this: T,
   ): UpdateBuilder<T["tableName"], InstanceType<T>> {
-    const instance = this.rowType() as InstanceType<T>;
-    const ns = { [this.tsAlias]: instance } as { [K in T["tableName"]]: InstanceType<T> };
-    return new UpdateBuilder({
-      tableName: this.tableName as T["tableName"],
-      instance,
-      namespace: ns,
-      alias: instance.alias,
-    });
+    return new UpdateBuilder({ instance: this.rowType() as InstanceType<T> });
   }
 
   static delete<T extends typeof TableBase & (new () => TableBase)>(
     this: T,
   ): DeleteBuilder<T["tableName"], InstanceType<T>> {
-    const instance = this.rowType() as InstanceType<T>;
-    const ns = { [this.tsAlias]: instance } as { [K in T["tableName"]]: InstanceType<T> };
-    return new DeleteBuilder({
-      tableName: this.tableName as T["tableName"],
-      namespace: ns,
-      alias: instance.alias,
-    });
+    return new DeleteBuilder({ instance: this.rowType() as InstanceType<T> });
   }
 
   // Return a subclass with a different tsAlias — use to join the same

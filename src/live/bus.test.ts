@@ -24,7 +24,7 @@ const cleanup = async () => {
 
 const makeDogs = () =>
   class Dogs extends db.Table("dogs") {
-    id = (Int8<1>).column(this, "id", { nonNull: true });    user_id = (Int8<1>).column(this, "user_id", { nonNull: true });    name = (Text<1>).column(this, "name", { nonNull: true });  };
+    id = (Int8<1>).column({ nonNull: true });    user_id = (Int8<1>).column({ nonNull: true });    name = (Text<1>).column({ nonNull: true });  };
 
 const takeSnapshot = async (): Promise<string> => {
   const r = await db.execute(sql`SELECT pg_current_snapshot()::text AS s`);

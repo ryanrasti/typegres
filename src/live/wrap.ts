@@ -1,9 +1,10 @@
-import { sql } from "../builder/sql";
+import { sql, Alias } from "../builder/sql";
 import type { Sql } from "../builder/sql";
 import type { InsertBuilder } from "../builder/insert";
 import type { UpdateBuilder } from "../builder/update";
 import type { DeleteBuilder } from "../builder/delete";
-import { compileSelectList } from "../builder/query";
+import { compileSelectList, reAlias, type RowType } from "../builder/query";
+import type { TableBase } from "../table";
 import { Any } from "../types";
 import { meta } from "../types/runtime";
 import { LiveQueryError } from "./types";
@@ -30,9 +31,21 @@ export type LiveWrapOptions = {
   primaryKey?: readonly string[];
 };
 
+// Build a reAlias'd namespace for callback evaluation. Mints a fresh alias
+// tied to the current CTE scope so callback-constructed SQL references the
+// correct alias identity.
+const makeNs = <Name extends string, T extends TableBase>(
+  tableName: Name,
+  instance: T,
+): { alias: Alias; ns: { [K in Name]: T } } => {
+  const alias = new Alias(tableName);
+  const reAliased = reAlias(instance as RowType, alias) as T;
+  return { alias, ns: { [tableName]: reAliased } as { [K in Name]: T } };
+};
+
 // --- INSERT ---
 
-export const wrapInsertWithEvents = <Name extends string, T extends { [key: string]: any }, R extends { [key: string]: unknown }>(
+export const wrapInsertWithEvents = <Name extends string, T extends TableBase, R extends RowType>(
   builder: InsertBuilder<Name, T, R>,
   _opts: LiveWrapOptions = {},
 ): Sql => {
@@ -46,11 +59,10 @@ export const wrapInsertWithEvents = <Name extends string, T extends { [key: stri
     const vals = parts.columnNames.map((k) => {
       const v = row[k];
       if (v === undefined) { return sql`DEFAULT`; }
-      const col = parts.instance[k];
+      const col = parts.instance[k as keyof T];
       if (!(col instanceof Any)) {
         throw new LiveQueryError(
-          `live wrap: INSERT INTO "${parts.tableName}" — column '${k}' is not declared as an Any-typed column on the table class. ` +
-          `Check that ${k}() is a column getter.`,
+          `live wrap: INSERT INTO "${parts.tableName}" — column '${k}' is not declared as an Any-typed column on the table class.`,
         );
       }
       return (col as Any<any>)[meta].__class.from(v).toSql();
@@ -58,8 +70,11 @@ export const wrapInsertWithEvents = <Name extends string, T extends { [key: stri
     return sql`(${sql.join(vals)})`;
   });
 
+  const { alias, ns } = makeNs(parts.tableName, parts.instance);
+  const returning = parts.returning?.(ns);
+
   const coreInsert = sql.withScope(
-    [parts.alias],
+    [alias],
     sql`INSERT INTO ${sql.ident(parts.tableName)} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)} RETURNING *`,
   );
 
@@ -68,8 +83,8 @@ export const wrapInsertWithEvents = <Name extends string, T extends { [key: stri
     SELECT pg_current_xact_id(), ${sql.param(parts.tableName)}, NULL, to_jsonb(m.*)
     FROM m`;
 
-  const terminal = parts.returning
-    ? sql`SELECT ${compileSelectList(parts.returning as { [key: string]: unknown })} FROM m`
+  const terminal = returning
+    ? sql`SELECT ${compileSelectList(returning as { [key: string]: unknown })} FROM m`
     : sql`SELECT 1 FROM m WHERE FALSE`;
 
   return sql`WITH m AS (${coreInsert}), _evt AS (${eventInsert} RETURNING 1) ${terminal}`;
@@ -77,7 +92,7 @@ export const wrapInsertWithEvents = <Name extends string, T extends { [key: stri
 
 // --- UPDATE ---
 
-export const wrapUpdateWithEvents = <Name extends string, T extends { [key: string]: any }, R extends { [key: string]: unknown }>(
+export const wrapUpdateWithEvents = <Name extends string, T extends TableBase, R extends RowType>(
   builder: UpdateBuilder<Name, T, R>,
   opts: LiveWrapOptions = {},
 ): Sql => {
@@ -94,12 +109,16 @@ export const wrapUpdateWithEvents = <Name extends string, T extends { [key: stri
     );
   }
 
-  const setClauses = Object.entries(parts.set).map(([k, v]) => {
-    const col = parts.instance[k];
+  const { alias, ns } = makeNs(parts.tableName, parts.instance);
+  const setRow = parts.set(ns);
+  const whereSql = parts.where(ns).toSql();
+  const returning = parts.returning?.(ns);
+
+  const setClauses = Object.entries(setRow as { [key: string]: unknown }).map(([k, v]) => {
+    const col = parts.instance[k as keyof T];
     if (!(col instanceof Any)) {
       throw new LiveQueryError(
-        `live wrap: UPDATE on "${parts.tableName}" set {${k}: ...} — no column '${k}' on table class. ` +
-        `Did you forget to declare it as a column getter?`,
+        `live wrap: UPDATE on "${parts.tableName}" set {${k}: ...} — no column '${k}' on table class.`,
       );
     }
     return sql`${sql.ident(k)} = ${(col as Any<any>)[meta].__class.from(v).toSql()}`;
@@ -110,14 +129,14 @@ export const wrapUpdateWithEvents = <Name extends string, T extends { [key: stri
   // FOR UPDATE (and FOR UPDATE would in fact deadlock against the sibling
   // UPDATE that's updating the same rows in the same statement).
   const oldCte = sql.withScope(
-    [parts.alias],
-    sql`SELECT * FROM ${sql.ident(parts.tableName)} WHERE ${parts.where.toSql()}`,
+    [alias],
+    sql`SELECT * FROM ${sql.ident(parts.tableName)} WHERE ${whereSql}`,
   );
 
   // The UPDATE uses the same WHERE. Pairing old ↔ new happens inside _evt's SELECT.
   const coreUpdate = sql.withScope(
-    [parts.alias],
-    sql`UPDATE ${sql.ident(parts.tableName)} SET ${sql.join(setClauses)} WHERE ${parts.where.toSql()} RETURNING *`,
+    [alias],
+    sql`UPDATE ${sql.ident(parts.tableName)} SET ${sql.join(setClauses)} WHERE ${whereSql} RETURNING *`,
   );
 
   const pkJoinCondition = sql.join(
@@ -130,8 +149,8 @@ export const wrapUpdateWithEvents = <Name extends string, T extends { [key: stri
     SELECT pg_current_xact_id(), ${sql.param(parts.tableName)}, to_jsonb(old.*), to_jsonb(m.*)
     FROM old JOIN m ON ${pkJoinCondition}`;
 
-  const terminal = parts.returning
-    ? sql`SELECT ${compileSelectList(parts.returning as { [key: string]: unknown })} FROM m`
+  const terminal = returning
+    ? sql`SELECT ${compileSelectList(returning as { [key: string]: unknown })} FROM m`
     : sql`SELECT 1 FROM m WHERE FALSE`;
 
   return sql`WITH old AS (${oldCte}), m AS (${coreUpdate}), _evt AS (${eventInsert} RETURNING 1) ${terminal}`;
@@ -139,7 +158,7 @@ export const wrapUpdateWithEvents = <Name extends string, T extends { [key: stri
 
 // --- DELETE ---
 
-export const wrapDeleteWithEvents = <Name extends string, T extends { [key: string]: any }, R extends { [key: string]: unknown }>(
+export const wrapDeleteWithEvents = <Name extends string, T extends TableBase, R extends RowType>(
   builder: DeleteBuilder<Name, T, R>,
   opts: LiveWrapOptions = {},
 ): Sql => {
@@ -153,9 +172,13 @@ export const wrapDeleteWithEvents = <Name extends string, T extends { [key: stri
     );
   }
 
+  const { alias, ns } = makeNs(parts.tableName, parts.instance);
+  const whereSql = parts.where(ns).toSql();
+  const returning = parts.returning?.(ns);
+
   const coreDelete = sql.withScope(
-    [parts.alias],
-    sql`DELETE FROM ${sql.ident(parts.tableName)} WHERE ${parts.where.toSql()} RETURNING *`,
+    [alias],
+    sql`DELETE FROM ${sql.ident(parts.tableName)} WHERE ${whereSql} RETURNING *`,
   );
 
   const eventInsert = sql`
@@ -163,8 +186,8 @@ export const wrapDeleteWithEvents = <Name extends string, T extends { [key: stri
     SELECT pg_current_xact_id(), ${sql.param(parts.tableName)}, to_jsonb(m.*), NULL
     FROM m`;
 
-  const terminal = parts.returning
-    ? sql`SELECT ${compileSelectList(parts.returning as { [key: string]: unknown })} FROM m`
+  const terminal = returning
+    ? sql`SELECT ${compileSelectList(returning as { [key: string]: unknown })} FROM m`
     : sql`SELECT 1 FROM m WHERE FALSE`;
 
   return sql`WITH m AS (${coreDelete}), _evt AS (${eventInsert} RETURNING 1) ${terminal}`;

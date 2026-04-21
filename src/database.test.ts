@@ -22,7 +22,7 @@ test("transaction commits on success", async () => {
   await db.execute(sql`CREATE TABLE txtest (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name text NOT NULL)`);
 
   class TxTest extends db.Table("txtest") {
-    id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });    name = (Text<1>).column(this, "name", { nonNull: true });  }
+    id = (Int8<1>).column({ nonNull: true, generated: true });    name = (Text<1>).column({ nonNull: true });  }
 
   await db.transaction(async () => {
     await db.execute(TxTest.insert({ name: "Alice" }));
@@ -41,7 +41,7 @@ test("transaction rollbacks on error", async () => {
   await db.execute(sql`CREATE TABLE txtest2 (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name text NOT NULL)`);
 
   class TxTest2 extends db.Table("txtest2") {
-    id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });    name = (Text<1>).column(this, "name", { nonNull: true });  }
+    id = (Int8<1>).column({ nonNull: true, generated: true });    name = (Text<1>).column({ nonNull: true });  }
 
   await expect(
     db.transaction(async () => {

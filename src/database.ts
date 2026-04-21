@@ -4,7 +4,7 @@ import type { Fromable, RowType, RowTypeToTsType } from "./builder/query";
 import { QueryBuilder, deserializeRows } from "./builder/query";
 import type { Sql } from "./builder/sql";
 import { sql } from "./builder/sql";
-import { Table } from "./table";
+import { Table, type TableBase } from "./table";
 import { Values } from "./builder/values";
 import { InsertBuilder } from "./builder/insert";
 import { UpdateBuilder } from "./builder/update";
@@ -28,13 +28,13 @@ export class Database {
   async execute<O extends RowType, GB extends any[], Card extends "one" | "maybe" | "many">(
     query: QueryBuilder<any, O, GB, Card>,
   ): Promise<RowTypeToTsType<O>[]>;
-  async execute<Name extends string, T extends { [key: string]: any }, R extends RowType>(
+  async execute<Name extends string, T extends TableBase, R extends RowType>(
     query: InsertBuilder<Name, T, R>,
   ): Promise<RowTypeToTsType<R>[]>;
-  async execute<Name extends string, T extends { [key: string]: any }, R extends RowType>(
+  async execute<Name extends string, T extends TableBase, R extends RowType>(
     query: UpdateBuilder<Name, T, R>,
   ): Promise<RowTypeToTsType<R>[]>;
-  async execute<Name extends string, T extends { [key: string]: any }, R extends RowType>(
+  async execute<Name extends string, T extends TableBase, R extends RowType>(
     query: DeleteBuilder<Name, T, R>,
   ): Promise<RowTypeToTsType<R>[]>;
   async execute(query: Sql): Promise<any> {

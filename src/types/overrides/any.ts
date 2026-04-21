@@ -2,7 +2,7 @@ import { Any as Generated } from "../generated/any";
 import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
 import type { NullOf } from "../runtime";
-import { sql, Sql, Alias } from "../../builder/sql";
+import { sql, Sql } from "../../builder/sql";
 import * as types from "../index";
 
 type ColumnOpts = { nonNull?: boolean; default?: Sql; generated?: boolean };
@@ -76,15 +76,17 @@ export class Any<in out N extends number> extends Generated<N> {
     );
   }
 
-  // Column binder for Table definitions. Called from a column field
-  // initializer on a Table subclass — pass `this` directly; column() reads
-  // the instance's ghost `alias`. Also accepts an Alias instance for
-  // cases where the caller already has one.
+  // Column declaration for Table definitions. The field name doubles as
+  // the pg column name:
   //
-  // Example:
   //   class Users extends Table("users") {
-  //     id = Int8.column(this, "id", { nonNull: true });
+  //     id = Int8.column({ nonNull: true });
   //   }
+  //
+  // Underlying Sql is sql.unbound() — a sentinel that throws if emitted.
+  // The query builder calls reAlias() on the row shape before compiling,
+  // swapping each column's unbound SQL for a real `Column(alias, key)`
+  // against a freshly-minted scope alias.
   //
   // __required is a type-level brand used by InsertRow to distinguish
   // required vs optional columns.
@@ -93,8 +95,6 @@ export class Any<in out N extends number> extends Generated<N> {
     Opts extends ColumnOpts = {},
   >(
     this: T,
-    source: Alias | { alias: Alias },
-    colName: string,
     _opts?: Opts,
   ): InstanceType<T> & {
     [meta]: {
@@ -103,7 +103,6 @@ export class Any<in out N extends number> extends Generated<N> {
         : false;
     };
   } {
-    const alias = source instanceof Alias ? source : source.alias;
-    return this.from(sql.column(alias, colName)) as any;
+    return this.from(sql.unbound()) as any;
   }
 }

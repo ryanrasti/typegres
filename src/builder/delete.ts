@@ -1,45 +1,51 @@
-import { Sql, sql } from "./sql";
-import type { Alias , BoundSql} from "./sql";
+import { Sql, sql, Alias } from "./sql";
+import type { BoundSql } from "./sql";
 import { Bool } from "../types";
 import type { RowType } from "./query";
-import { combineBoolPredicates, compileSelectList } from "./query";
+import { combinePredicates, compileSelectList, reAlias } from "./query";
+import type { TableBase } from "../table";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
-type DeleteOpts<Name extends string, T, R extends RowType> = {
-  tableName: Name;
-  namespace: Namespace<Name, T>;
-  alias: Alias;
-  where?: Bool<any>;
-  returning?: R;
+type DeleteOpts<Name extends string, T extends TableBase, R extends RowType> = {
+  instance: T;
+  where?: (ns: Namespace<Name, T>) => Bool<any>;
+  returning?: (ns: Namespace<Name, T>) => R;
 };
 
-export class DeleteBuilder<Name extends string, T extends { [key: string]: any }, R extends RowType = {}> extends Sql {
+export class DeleteBuilder<Name extends string, T extends TableBase, R extends RowType = {}> extends Sql {
   #opts: DeleteOpts<Name, T, R>;
-
-  get returningRowType(): R | undefined {
-    return this.#opts.returning;
-  }
 
   constructor(opts: DeleteOpts<Name, T, R>) {
     super();
     this.#opts = opts;
   }
 
-  // Multiple where() calls are combined with AND
+  get #tableName(): Name {
+    return this.#opts.instance.constructor.tableName as Name;
+  }
+
+  // Multiple where() calls are combined with AND. .where(true) matches all rows.
   where(fn: ((ns: Namespace<Name, T>) => Bool<any>) | true): DeleteBuilder<Name, T, R> {
-    const cond = fn === true ? Bool.from(sql`TRUE`) : fn(this.#opts.namespace);
+    const wrapped: (ns: Namespace<Name, T>) => Bool<any> =
+      fn === true ? () => Bool.from(sql`TRUE`) as Bool<any> : fn;
     return new DeleteBuilder({
       ...this.#opts,
-      where: combineBoolPredicates(this.#opts.where, cond),
+      where: combinePredicates(this.#opts.where, wrapped),
     });
   }
 
   returning<R2 extends RowType>(fn: (ns: Namespace<Name, T>) => R2): DeleteBuilder<Name, T, R2> {
-    return new DeleteBuilder({
-      ...this.#opts,
-      returning: fn(this.#opts.namespace),
-    });
+    return new DeleteBuilder({ ...this.#opts, returning: fn });
+  }
+
+  get returningRowType(): R | undefined {
+    if (!this.#opts.returning) { return undefined; }
+    const tableName = this.#tableName;
+    const alias = new Alias(tableName);
+    const instance = reAlias(this.#opts.instance as RowType, alias) as T;
+    const ns = { [tableName]: instance } as Namespace<Name, T>;
+    return this.#opts.returning(ns);
   }
 
   bind(): BoundSql {
@@ -47,12 +53,19 @@ export class DeleteBuilder<Name extends string, T extends { [key: string]: any }
       throw new Error("delete() requires .where() — use .where(true) to delete all rows");
     }
 
+    const tableName = this.#tableName;
+    const alias = new Alias(tableName);
+    const instance = reAlias(this.#opts.instance as RowType, alias) as T;
+    const ns = { [tableName]: instance } as Namespace<Name, T>;
+
+    const where = this.#opts.where(ns);
+    const returning = this.#opts.returning?.(ns);
     const inner = sql.join([
-      sql`DELETE FROM ${sql.ident(this.#opts.tableName)}`,
-      sql`WHERE ${this.#opts.where.toSql()}`,
-      this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as { [key: string]: unknown })}`,
+      sql`DELETE FROM ${sql.ident(tableName)}`,
+      sql`WHERE ${where.toSql()}`,
+      returning && sql`RETURNING ${compileSelectList(returning as { [key: string]: unknown })}`,
     ], sql` `);
-    return sql.withScope([this.#opts.alias], inner);
+    return sql.withScope([alias], inner);
   }
 
   debug(): this {
@@ -61,11 +74,13 @@ export class DeleteBuilder<Name extends string, T extends { [key: string]: any }
     return this;
   }
 
-  // Internal: expose structured parts for live-event wrapping.
+  // Internal: expose raw callbacks for live-event wrapping. Caller mints
+  // its own Alias per CTE scope and evaluates the callbacks against a
+  // reAlias'd namespace.
   liveIntrospect() {
     return {
-      tableName: this.#opts.tableName,
-      alias: this.#opts.alias,
+      tableName: this.#tableName,
+      instance: this.#opts.instance,
       where: this.#opts.where,
       returning: this.#opts.returning,
     };

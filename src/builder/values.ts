@@ -1,5 +1,5 @@
 import type { BoundSql} from "./sql";
-import { sql, Sql, Alias } from "./sql";
+import { sql, Sql } from "./sql";
 import { Any } from "../types";
 import { meta } from "../types/runtime";
 import { type RowType, type RowTypeToTsType, type Fromable } from "./query";
@@ -17,9 +17,9 @@ export class Values<R extends RowType> extends Sql implements Fromable<R> {
     this.valsRest = valsRest;
   }
 
-  // Mint a fresh ghost alias per call — QB's reAlias replaces it.
+  // Shape-only: columns hold sql.unbound(). QB's reAlias replaces with
+  // real `Column(alias, key)` refs at bind time.
   rowType(): R {
-    const alias = new Alias(this.tsAlias);
     return Object.fromEntries(
       Object.entries(this.vals0 as { [k: string]: unknown }).map(([k, v]) => {
         if (!(v instanceof Any)) {
@@ -27,7 +27,7 @@ export class Values<R extends RowType> extends Sql implements Fromable<R> {
             `db.values({ ${k}: ... }) — values column '${k}' must be a typed pg expression (e.g. Int4.from(5)), got ${typeof v}.`,
           );
         }
-        return [k, (v[meta].__class as typeof Any).from(sql.column(alias, k))];
+        return [k, (v[meta].__class as typeof Any).from(sql.unbound())];
       }),
     ) as R;
   }

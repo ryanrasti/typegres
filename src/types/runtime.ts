@@ -1,6 +1,6 @@
 export type { Sql } from "../builder/sql";
 import type { BoundSql} from "../builder/sql";
-import { Func, Op, Alias, Sql, sql } from "../builder/sql";
+import { Func, Op, Sql, sql } from "../builder/sql";
 import * as types from "./index";
 import type { Any } from "./index";
 import { getTypeDef } from "./deserialize";
@@ -136,11 +136,11 @@ export class PgSrf<R extends { [key: string]: Any<any> }, A extends string> exte
     this.#argsSql = sql.join(args.map(argToSql));
   }
 
-  // Mint a fresh ghost alias per call — QB's reAlias replaces it.
+  // Shape-only: columns hold sql.unbound(). QB's reAlias replaces with
+  // real `Column(alias, key)` refs at bind time.
   rowType(): R {
-    const alias = new Alias(this.tsAlias);
     return Object.fromEntries(
-      this.#columns.map(([colName, type]) => [colName, type.from(sql.column(alias, colName))]),
+      this.#columns.map(([colName, type]) => [colName, type.from(sql.unbound())]),
     ) as R;
   }
 

@@ -220,6 +220,21 @@ _sql.ident = (name: string): BoundSql => new Ident(name);
 _sql.column = (table: Alias, name: string): BoundSql => new Column(table, name);
 _sql.tableRef = (table: Alias): BoundSql => new TableRef(table);
 
+// Sentinel for SQL that must be replaced before emit. Used by rowType()
+// outputs: column refs on a row-shape instance reference sql.unbound()
+// until the query builder reAlias'es them to a real, scoped alias at
+// bind() time. If one reaches emit, it means a rowType() output leaked
+// into compilation without being rebound — loud error is intentional.
+class Unbound extends BoundSql {
+  emit(): string {
+    throw new Error(
+      "Unbound SQL reached emit — a rowType() column was compiled without being reAlias'd first. " +
+      "rowType() is for shape inspection only; its column refs must be rebound by the query builder before being emitted.",
+    );
+  }
+}
+_sql.unbound = (): BoundSql => new Unbound();
+
 // Scope primitive: pushes a child scope, registers the listed aliases in it,
 // then emits child. Outer column refs to these aliases resolve via the child
 // scope. When child emission completes, the scope is popped — sibling Sql

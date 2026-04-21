@@ -168,8 +168,8 @@ const generateColumnLine = (col: ColumnInfo): string => {
   if (col.identity_generation !== null) {
     opts.push("generated: true");
   }
-  const optsStr = opts.length > 0 ? `, { ${opts.join(", ")} }` : "";
-  return `  ${col.column_name} = (${cls}<${nullable}>).column(this, "${col.column_name}"${optsStr});`;
+  const optsArg = opts.length > 0 ? `{ ${opts.join(", ")} }` : "";
+  return `  ${col.column_name} = (${cls}<${nullable}>).column(${optsArg});`;
 };
 
 const generateRelationLine = (rel: Relation): string => {

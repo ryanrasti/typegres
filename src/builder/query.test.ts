@@ -364,9 +364,9 @@ test("inner join", async () => {
     await db.execute(sql`INSERT INTO pets (name, owner_id) VALUES ('Rex', 1), ('Fido', 2), ('Buddy', 1)`);
 
     class Owners extends db.Table("owners") {
-      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });    }
+      id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });    }
     class Pets extends db.Table("pets") {
-      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });      owner_id = (Int8<1>).column(this, "owner_id", { nonNull: true });    }
+      id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });      owner_id = (Int8<1>).column({ nonNull: true });    }
 
     const rows = await db.execute(Pets.from()
       .join(Owners, ({ pets, owners }) => pets.owner_id["="](owners.id))
@@ -400,9 +400,9 @@ test("left join — unmatched rows return null", async () => {
     await db.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1)`);
 
     class Authors extends db.Table("authors") {
-      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });    }
+      id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });    }
     class Books extends db.Table("books") {
-      id = (Int8<1>).column(this, "id", { nonNull: true });      title = (Text<1>).column(this, "title", { nonNull: true });      author_id = (Int8<1>).column(this, "author_id", { nonNull: true });    }
+      id = (Int8<1>).column({ nonNull: true });      title = (Text<1>).column({ nonNull: true });      author_id = (Int8<1>).column({ nonNull: true });    }
 
     const rows = await db.execute(Authors.from()
       .leftJoin(Books, ({ authors, books }) => authors.id["="](books.author_id))
@@ -435,9 +435,9 @@ test("join with where on joined table", async () => {
     await db.execute(sql`INSERT INTO employees (name, dept_id) VALUES ('Alice', 1), ('Bob', 1), ('Carol', 2)`);
 
     class Departments extends db.Table("departments") {
-      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });    }
+      id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });    }
     class Employees extends db.Table("employees") {
-      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });      dept_id = (Int8<0 | 1>).column(this, "dept_id");    }
+      id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });      dept_id = (Int8<0 | 1>).column();    }
 
     const rows = await db.execute(Departments.from()
       .join(Employees, ({ departments, employees }) => departments.id["="](employees.dept_id))
@@ -473,9 +473,9 @@ test("scalar with cardinality 'one'", async () => {
     await db.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1), ('Book B', 1)`);
 
     class Authors extends db.Table("authors") {
-      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      name = (Text<1>).column(this, "name", { nonNull: true });    }
+      id = (Int8<1>).column({ nonNull: true, generated: true });      name = (Text<1>).column({ nonNull: true });    }
     class Books extends db.Table("books") {
-      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      title = (Text<1>).column(this, "title", { nonNull: true });      author_id = (Int8<1>).column(this, "author_id", { nonNull: true });    }
+      id = (Int8<1>).column({ nonNull: true, generated: true });      title = (Text<1>).column({ nonNull: true });      author_id = (Int8<1>).column({ nonNull: true });    }
 
     // Scalar subquery: get author for a book (cardinality 'one')
     const rows = await db.execute(Books.from()
@@ -512,9 +512,9 @@ test("scalar with cardinality 'maybe' — null when no match", async () => {
     await db.execute(sql`INSERT INTO profiles (person_id, bio) VALUES (1, 'Hello')`);
 
     class People extends db.Table("people") {
-      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      name = (Text<1>).column(this, "name", { nonNull: true });    }
+      id = (Int8<1>).column({ nonNull: true, generated: true });      name = (Text<1>).column({ nonNull: true });    }
     class Profiles extends db.Table("profiles") {
-      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      person_id = (Int8<1>).column(this, "person_id", { nonNull: true });      bio = (Text<1>).column(this, "bio", { nonNull: true });    }
+      id = (Int8<1>).column({ nonNull: true, generated: true });      person_id = (Int8<1>).column({ nonNull: true });      bio = (Text<1>).column({ nonNull: true });    }
 
     const rows = await db.execute(People.from()
       .select(({ people }) => ({
@@ -554,9 +554,9 @@ test("scalar with cardinality 'many' — array result", async () => {
     await db.execute(sql`INSERT INTO children (name, parent_id) VALUES ('Charlie', 1), ('Diana', 1)`);
 
     class Parents extends db.Table("parents") {
-      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      name = (Text<1>).column(this, "name", { nonNull: true });    }
+      id = (Int8<1>).column({ nonNull: true, generated: true });      name = (Text<1>).column({ nonNull: true });    }
     class Children extends db.Table("children") {
-      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      name = (Text<1>).column(this, "name", { nonNull: true });      parent_id = (Int8<1>).column(this, "parent_id", { nonNull: true });    }
+      id = (Int8<1>).column({ nonNull: true, generated: true });      name = (Text<1>).column({ nonNull: true });      parent_id = (Int8<1>).column({ nonNull: true });    }
 
     const rows = await db.execute(Parents.from()
       .select(({ parents }) => ({

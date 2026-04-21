@@ -15,7 +15,7 @@ test("Table.from().select()", async () => {
     await db.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
 
     class Dogs extends db.Table("dogs") {
-      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });      breed = (Text<0 | 1>).column(this, "breed");    }
+      id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });      breed = (Text<0 | 1>).column();    }
 
     const rows = await db.execute(Dogs.from()
       .select(({ dogs }) => ({ id: dogs.id, name: dogs.name, breed: dogs.breed }))
@@ -40,7 +40,7 @@ test("Table.as() alias", async () => {
     await db.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
 
     class Dogs extends db.Table("dogs") {
-      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });      breed = (Text<0 | 1>).column(this, "breed");    }
+      id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });      breed = (Text<0 | 1>).column();    }
 
     const rows = await db.execute(Dogs.as("d").from()
       .select(({ d }) => ({ id: d.id, name: d.name, breed: d.breed }))
@@ -74,7 +74,7 @@ test("Table class is a Fromable and self-joins via .as()", async () => {
     `);
 
     class Employees extends db.Table("employees") {
-      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });      manager_id = (Int8<0 | 1>).column(this, "manager_id");    }
+      id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });      manager_id = (Int8<0 | 1>).column();    }
 
     // 1. The class itself has the Fromable-shaped statics.
     expect(Employees.tsAlias).toBe("employees");
