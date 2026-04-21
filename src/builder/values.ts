@@ -1,11 +1,12 @@
-import { sql, Sql, Alias } from "./sql";
-import type { CompileContext } from "./sql";
+import { sql, Sql, BoundSql, Alias } from "./sql";
 import { Any } from "../types";
 import { meta } from "../types/runtime";
-import { sortRowColumns, type RowType, type RowTypeToTsType, type Fromable } from "./query";
+import { type RowType, type RowTypeToTsType, type Fromable } from "./query";
 
 export class Values<R extends RowType> extends Sql implements Fromable<R> {
-  readonly alias = new Alias("values");
+  readonly tsAlias = "values";
+  // VALUES emits `AS q(col1, col2, ...)` — column names go into the AS clause.
+  readonly emitColumnNamesWithAlias = true;
   private vals0: R;
   private valsRest: (R | RowTypeToTsType<R>)[];
 
@@ -15,9 +16,9 @@ export class Values<R extends RowType> extends Sql implements Fromable<R> {
     this.valsRest = valsRest;
   }
 
-  // Rebind user-supplied column types as column references against our alias
-  // so selectors see `ns.values.a` as `Column(alias, "a")`, not the literal.
+  // Mint a fresh ghost alias per call — QB's reAlias replaces it.
   rowType(): R {
+    const alias = new Alias(this.tsAlias);
     return Object.fromEntries(
       Object.entries(this.vals0 as { [k: string]: unknown }).map(([k, v]) => {
         if (!(v instanceof Any)) {
@@ -25,15 +26,14 @@ export class Values<R extends RowType> extends Sql implements Fromable<R> {
             `db.values({ ${k}: ... }) — values column '${k}' must be a typed pg expression (e.g. Int4.from(5)), got ${typeof v}.`,
           );
         }
-        return [k, (v[meta].__class as typeof Any).from(sql.column(this.alias, k))];
+        return [k, (v[meta].__class as typeof Any).from(sql.column(alias, k))];
       }),
     ) as R;
   }
 
-  emit(ctx: CompileContext): string {
-    const resolved = ctx.register(this.alias);
-    const columnNames = Object.keys(sortRowColumns(this.vals0));
-
+  // Return the pre-AS VALUES fragment. QB appends `AS q(col1, col2, ...)`.
+  bind(): BoundSql {
+    const columnNames = Object.keys(this.vals0);
     const rowSqls = [this.vals0, ...this.valsRest].map((row) => {
       const vals = columnNames.map((k) => {
         let v = (row as { [key: string]: unknown })[k];
@@ -50,8 +50,6 @@ export class Values<R extends RowType> extends Sql implements Fromable<R> {
       });
       return sql`(${sql.join(vals)})`;
     });
-
-    const columns = columnNames.map((k) => sql.ident(k));
-    return sql`(VALUES ${sql.join(rowSqls)}) AS ${sql.ident(resolved)}(${sql.join(columns)})`.emit(ctx);
+    return sql`(VALUES ${sql.join(rowSqls)})`;
   }
 }

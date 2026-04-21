@@ -1,5 +1,5 @@
-import { Sql, sql } from "./sql";
-import type { CompileContext , Alias } from "./sql";
+import { Sql, BoundSql, sql } from "./sql";
+import type { Alias } from "./sql";
 import type { RowType } from "./query";
 import { compileSelectList } from "./query";
 import type { Any } from "../types";
@@ -36,13 +36,10 @@ export class InsertBuilder<Name extends string, T extends { [key: string]: any }
     });
   }
 
-  emit(ctx: CompileContext): string {
+  bind(): BoundSql {
     if (this.#opts.rows.length === 0) {
       throw new Error("insert() requires at least one row");
     }
-
-    using _ = ctx.child();
-    ctx.register(this.#opts.alias);
 
     const columns = this.#opts.columnNames.map((k) => sql.ident(k));
     const rowSqls = this.#opts.rows.map((row) => {
@@ -57,14 +54,15 @@ export class InsertBuilder<Name extends string, T extends { [key: string]: any }
       return sql`(${sql.join(vals)})`;
     });
 
-    return sql.join([
+    const inner = sql.join([
       sql`INSERT INTO ${sql.ident(this.#opts.tableName)} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`,
       this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as { [key: string]: unknown })}`,
-    ], sql` `).emit(ctx);
+    ], sql` `);
+    return sql.withScope([this.#opts.alias], inner);
   }
 
   debug(): this {
-    const compiled = this.compile("pg");
+    const compiled = this.bind().compile("pg");
     console.log(compiled.text, compiled.values, this.#opts);
     return this;
   }

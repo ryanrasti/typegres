@@ -102,28 +102,28 @@ test("operator overloads: Int4 = accepts number but not string", () => {
 
 test("Int4.from(number) compiles with cast", () => {
   const expr = Int4.from(5);
-  const compiled = expr.toSql().compile("pg");
+  const compiled = expr.toSql().bind().compile("pg");
   expect(compiled.text).toBe("CAST($1 AS int4)");
   expect(compiled.values).toEqual([5]);
 });
 
 test("Text.from(string) compiles with cast", () => {
   const expr = Text.from("hello");
-  const compiled = expr.toSql().compile("pg");
+  const compiled = expr.toSql().bind().compile("pg");
   expect(compiled.text).toBe("CAST($1 AS text)");
   expect(compiled.values).toEqual(["hello"]);
 });
 
 test("Bool.from(boolean) compiles with cast", () => {
   const expr = Bool.from(true);
-  const compiled = expr.toSql().compile("pg");
+  const compiled = expr.toSql().bind().compile("pg");
   expect(compiled.text).toBe("CAST($1 AS bool)");
   expect(compiled.values).toEqual([true]);
 });
 
 test("Int8.from(bigint) compiles with cast", () => {
   const expr = Int8.from(9007199254740993n);
-  const compiled = expr.toSql().compile("pg");
+  const compiled = expr.toSql().bind().compile("pg");
   expect(compiled.text).toBe("CAST($1 AS int8)");
   expect(compiled.values).toEqual([9007199254740993n]);
 });
@@ -132,28 +132,28 @@ test("Int8.from(bigint) compiles with cast", () => {
 
 test("Int4 + Int4 compiles with casts", () => {
   const expr = Int4.from(5)["+"](Int4.from(3));
-  const compiled = expr.toSql().compile("pg");
+  const compiled = expr.toSql().bind().compile("pg");
   expect(compiled.text).toBe("(CAST($1 AS int4) + CAST($2 AS int4))");
   expect(compiled.values).toEqual([5, 3]);
 });
 
 test("Int4 + primitive compiles with casts", () => {
   const expr = Int4.from(5)["+"](3);
-  const compiled = expr.toSql().compile("pg");
+  const compiled = expr.toSql().bind().compile("pg");
   expect(compiled.text).toBe("(CAST($1 AS int4) + CAST($2 AS int4))");
   expect(compiled.values).toEqual([5, 3]);
 });
 
 test("Text.upper() compiles with cast", () => {
   const expr = Text.from("hello").upper();
-  const compiled = expr.toSql().compile("pg");
+  const compiled = expr.toSql().bind().compile("pg");
   expect(compiled.text).toBe('"upper"(CAST($1 AS text))');
   expect(compiled.values).toEqual(["hello"]);
 });
 
 test("chained operations", () => {
   const expr = Int4.from(1)["+"](Int4.from(2))["*"](Int4.from(3));
-  const compiled = expr.toSql().compile("pg");
+  const compiled = expr.toSql().bind().compile("pg");
   expect(compiled.text).toBe("((CAST($1 AS int4) + CAST($2 AS int4)) * CAST($3 AS int4))");
   expect(compiled.values).toEqual([1, 2, 3]);
 });

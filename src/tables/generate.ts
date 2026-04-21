@@ -169,7 +169,7 @@ const generateColumnLine = (col: ColumnInfo): string => {
     opts.push("generated: true");
   }
   const optsStr = opts.length > 0 ? `, { ${opts.join(", ")} }` : "";
-  return `  get ${col.column_name}() { return (${cls}<${nullable}>).column(this, "${col.column_name}"${optsStr}); }`;
+  return `  ${col.column_name} = (${cls}<${nullable}>).column(this, "${col.column_name}"${optsStr});`;
 };
 
 const generateRelationLine = (rel: Relation): string => {

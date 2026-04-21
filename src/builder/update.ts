@@ -1,10 +1,10 @@
-import { Sql, sql } from "./sql";
-import type { CompileContext , Alias } from "./sql";
+import { Sql, BoundSql, sql } from "./sql";
+import type { Alias } from "./sql";
 import { Any, Bool } from "../types";
 import type { SetRow } from "../types/runtime";
 import { meta } from "../types/runtime";
 import type { RowType } from "./query";
-import { combinePredicates, compileSelectList } from "./query";
+import { combineBoolPredicates, compileSelectList } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
@@ -35,7 +35,7 @@ export class UpdateBuilder<Name extends string, T extends { [key: string]: any }
     const cond = fn === true ? Bool.from(sql`TRUE`) : fn(this.#opts.namespace);
     return new UpdateBuilder({
       ...this.#opts,
-      where: combinePredicates(this.#opts.where, cond),
+      where: combineBoolPredicates(this.#opts.where, cond),
     });
   }
 
@@ -53,16 +53,13 @@ export class UpdateBuilder<Name extends string, T extends { [key: string]: any }
     });
   }
 
-  emit(ctx: CompileContext): string {
+  bind(): BoundSql {
     if (!this.#opts.where) {
       throw new Error("update() requires .where() — use .where(true) to update all rows");
     }
     if (!this.#opts.set) {
       throw new Error("update() requires .set()");
     }
-
-    using _ = ctx.child();
-    ctx.register(this.#opts.alias);
 
     const setClauses = Object.entries(this.#opts.set).map(([k, v]) => {
       const col = this.#opts.instance[k];
@@ -75,15 +72,16 @@ export class UpdateBuilder<Name extends string, T extends { [key: string]: any }
       return sql`${sql.ident(k)} = ${(col as Any<any>)[meta].__class.from(v).toSql()}`;
     });
 
-    return sql.join([
+    const inner = sql.join([
       sql`UPDATE ${sql.ident(this.#opts.tableName)} SET ${sql.join(setClauses)}`,
       sql`WHERE ${this.#opts.where.toSql()}`,
       this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as { [key: string]: unknown })}`,
-    ], sql` `).emit(ctx);
+    ], sql` `);
+    return sql.withScope([this.#opts.alias], inner);
   }
 
   debug(): this {
-    const compiled = this.compile("pg");
+    const compiled = this.bind().compile("pg");
     console.log(compiled.text, compiled.values, this.#opts);
     return this;
   }

@@ -7,14 +7,14 @@ import { db } from "./test-helper";
 
 test("values with single typed row", async () => {
   const q = db.values({ a: Int4.from(1), b: Text.from("hello") });
-  const compiled = q.compile("pg");
+  const compiled = q.bind().compile("pg");
   expect(compiled.text).toContain("VALUES");
   expect(compiled.text).toContain("CAST");
 });
 
 test("values with multiple rows, second row uses primitives", async () => {
   const q = db.values({ x: Int4.from(1), y: Text.from("a") }, { x: 2, y: "b" });
-  const compiled = q.compile("pg");
+  const compiled = q.bind().compile("pg");
   expect(compiled.text).toContain("VALUES");
 });
 
@@ -22,7 +22,7 @@ test("values with multiple rows, second row uses primitives", async () => {
 
 test("values with select identity", async () => {
   const q = db.values({ num: Int4.from(42), name: Text.from("test") }).select((n) => n.values);
-  const compiled = q.compile("pg");
+  const compiled = q.bind().compile("pg");
   expect(compiled.text).toContain("SELECT");
   expect(compiled.text).toContain("VALUES");
 });
@@ -31,7 +31,7 @@ test("values with select computed column", async () => {
   const q = db.values({ a: Int4.from(5), b: Int4.from(3) }).select((n) => ({
     sum: n.values.a["+"](n.values.b),
   }));
-  const compiled = q.compile("pg");
+  const compiled = q.bind().compile("pg");
   expect(compiled.text).toContain("SELECT");
   expect(compiled.text).toContain("+");
 });
@@ -111,7 +111,7 @@ test("e2e: where with equality", async () => {
 
 test("where compiles to SQL", () => {
   const q = db.values({ a: Int4.from(1) }).where((n) => n.values.a[">"](5));
-  const compiled = q.compile("pg");
+  const compiled = q.bind().compile("pg");
   expect(compiled.text).toContain("WHERE");
 });
 
@@ -125,7 +125,7 @@ test("groupBy compiles to SQL", () => {
       { category: "b", amount: 30 },
     )
     .groupBy((n) => [n.values.category]);
-  const compiled = q.compile("pg");
+  const compiled = q.bind().compile("pg");
   expect(compiled.text).toContain("GROUP BY");
 });
 
@@ -176,7 +176,7 @@ test("having compiles to SQL", () => {
     )
     .groupBy((n) => [n.values.category])
     .having((n) => n.values.category[">"](Text.from("a")));
-  const compiled = q.compile("pg");
+  const compiled = q.bind().compile("pg");
   expect(compiled.text).toContain("HAVING");
   expect(compiled.text).toContain("GROUP BY");
 });
@@ -231,7 +231,7 @@ test("orderBy compiles to SQL", () => {
   const q = db
     .values({ a: Int4.from(1) })
     .orderBy((n) => [n.values.a, "desc"]);
-  const compiled = q.compile("pg");
+  const compiled = q.bind().compile("pg");
   expect(compiled.text).toContain("ORDER BY");
   expect(compiled.text).toContain("DESC");
 });
@@ -364,14 +364,9 @@ test("inner join", async () => {
     await db.execute(sql`INSERT INTO pets (name, owner_id) VALUES ('Rex', 1), ('Fido', 2), ('Buddy', 1)`);
 
     class Owners extends db.Table("owners") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });    }
     class Pets extends db.Table("pets") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-      get owner_id() { return (Int8<1>).column(this, "owner_id", { nonNull: true }); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });      owner_id = (Int8<1>).column(this, "owner_id", { nonNull: true });    }
 
     const rows = await db.execute(Pets.from()
       .join(Owners, ({ pets, owners }) => pets.owner_id["="](owners.id))
@@ -405,14 +400,9 @@ test("left join — unmatched rows return null", async () => {
     await db.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1)`);
 
     class Authors extends db.Table("authors") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });    }
     class Books extends db.Table("books") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-      get title() { return (Text<1>).column(this, "title", { nonNull: true }); }
-      get author_id() { return (Int8<1>).column(this, "author_id", { nonNull: true }); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true });      title = (Text<1>).column(this, "title", { nonNull: true });      author_id = (Int8<1>).column(this, "author_id", { nonNull: true });    }
 
     const rows = await db.execute(Authors.from()
       .leftJoin(Books, ({ authors, books }) => authors.id["="](books.author_id))
@@ -445,14 +435,9 @@ test("join with where on joined table", async () => {
     await db.execute(sql`INSERT INTO employees (name, dept_id) VALUES ('Alice', 1), ('Bob', 1), ('Carol', 2)`);
 
     class Departments extends db.Table("departments") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });    }
     class Employees extends db.Table("employees") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-      get dept_id() { return (Int8<0 | 1>).column(this, "dept_id"); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });      dept_id = (Int8<0 | 1>).column(this, "dept_id");    }
 
     const rows = await db.execute(Departments.from()
       .join(Employees, ({ departments, employees }) => departments.id["="](employees.dept_id))
@@ -488,14 +473,9 @@ test("scalar with cardinality 'one'", async () => {
     await db.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1), ('Book B', 1)`);
 
     class Authors extends db.Table("authors") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
-      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      name = (Text<1>).column(this, "name", { nonNull: true });    }
     class Books extends db.Table("books") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
-      get title() { return (Text<1>).column(this, "title", { nonNull: true }); }
-      get author_id() { return (Int8<1>).column(this, "author_id", { nonNull: true }); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      title = (Text<1>).column(this, "title", { nonNull: true });      author_id = (Int8<1>).column(this, "author_id", { nonNull: true });    }
 
     // Scalar subquery: get author for a book (cardinality 'one')
     const rows = await db.execute(Books.from()
@@ -532,14 +512,9 @@ test("scalar with cardinality 'maybe' — null when no match", async () => {
     await db.execute(sql`INSERT INTO profiles (person_id, bio) VALUES (1, 'Hello')`);
 
     class People extends db.Table("people") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
-      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      name = (Text<1>).column(this, "name", { nonNull: true });    }
     class Profiles extends db.Table("profiles") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
-      get person_id() { return (Int8<1>).column(this, "person_id", { nonNull: true }); }
-      get bio() { return (Text<1>).column(this, "bio", { nonNull: true }); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      person_id = (Int8<1>).column(this, "person_id", { nonNull: true });      bio = (Text<1>).column(this, "bio", { nonNull: true });    }
 
     const rows = await db.execute(People.from()
       .select(({ people }) => ({
@@ -579,14 +554,9 @@ test("scalar with cardinality 'many' — array result", async () => {
     await db.execute(sql`INSERT INTO children (name, parent_id) VALUES ('Charlie', 1), ('Diana', 1)`);
 
     class Parents extends db.Table("parents") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
-      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      name = (Text<1>).column(this, "name", { nonNull: true });    }
     class Children extends db.Table("children") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
-      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-      get parent_id() { return (Int8<1>).column(this, "parent_id", { nonNull: true }); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      name = (Text<1>).column(this, "name", { nonNull: true });      parent_id = (Int8<1>).column(this, "parent_id", { nonNull: true });    }
 
     const rows = await db.execute(Parents.from()
       .select(({ parents }) => ({

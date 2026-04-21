@@ -13,10 +13,7 @@ test("insert", async () => {
     )`);
 
     class Cats extends db.Table("cats") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
-      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-      get color() { return (Text<0 | 1>).column(this, "color"); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      name = (Text<1>).column(this, "name", { nonNull: true });      color = (Text<0 | 1>).column(this, "color");    }
 
     // name is required, id and color are optional
     // @ts-expect-error — missing required field 'name'
@@ -43,9 +40,7 @@ test("insert returning", async () => {
     )`);
 
     class Items extends db.Table("items") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true, generated: true }); }
-      get label() { return (Text<1>).column(this, "label", { nonNull: true }); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true, generated: true });      label = (Text<1>).column(this, "label", { nonNull: true });    }
 
     const rows = await db.execute(
       Items.insert({ label: "A" }, { label: "B" })

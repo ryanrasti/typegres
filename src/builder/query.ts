@@ -1,4 +1,4 @@
-import { sql, Sql, Alias } from "./sql";
+import { sql, Sql, BoundSql, Alias } from "./sql";
 import type { Bool } from "../types";
 import { Any, Anyarray, Record } from "../types";
 import { type TsTypeOf, type Nullable, type AggregateRow, meta } from "../types/runtime";
@@ -71,19 +71,19 @@ export const sortRowColumns = <R extends RowType>(row: R): R => {
   return Object.fromEntries(Object.entries(row).sort(([a], [b]) => a.localeCompare(b))) as R;
 };
 
-// A Fromable has an Alias identity (carrying its tsAlias string literal),
-// can produce its rowType, and knows how to emit itself as a FROM-clause
-// fragment. rowType() is a method so generic return types thread correctly —
-// `Users.rowType()` returns the subclass instance type, which a static
-// getter can't express.
+// A Fromable has a tsAlias string, can produce its rowType, and knows how
+// to bind itself into a Sql fragment usable in a FROM clause. rowType() is
+// a method so generic return types thread correctly — `Users.rowType()`
+// returns the subclass instance type, which a static getter can't express.
 //
 // Two shapes satisfy this structurally:
-//   - Table *classes* via statics (`Users.alias`, `Users.rowType()`, `Users.emit`)
+//   - Table *classes* via statics (`Users.tsAlias`, `Users.rowType()`, `Users.bind()`)
 //   - Instance-based sources (Values, PgSrf, QB subqueries) via instance
 //     fields/methods of the same names.
-export type Fromable<R extends RowType = RowType, A extends string = string> = Sql & {
+export type Fromable<R extends RowType = RowType, A extends string = string> = {
   readonly tsAlias: A;
   rowType(): R;
+  bind(): Sql;
   emitColumnNamesWithAlias?: boolean; // default false; if true, emit column names in FROM clause (e.g. VALUES)
 };
 
@@ -97,15 +97,14 @@ export const combinePredicates = <N extends Namespace>(
   return (ns: N) => left(ns).and(right(ns));
 };
 
+// Bool-valued predicate combine (used by UPDATE/DELETE where the predicate
+// has already been evaluated against the single-table namespace).
+export const combineBoolPredicates = (left: Bool<any> | undefined, right: Bool<any>): Bool<any> =>
+  left ? left.and(right) : right;
+
 type OrderDirection = "asc" | "desc";
 type OrderByEntry = Any<any> | [Any<any>, OrderDirection];
 type Cardinality = "one" | "maybe" | "many";
-
-type JoinEntry<N extends Namespace> = {
-  source: Fromable;
-  on: (ns: N) => Bool<any>;
-  type: "join" | "leftJoin";
-};
 
 type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<any>[]> = {
   // Preferred name only. The QueryBuilder ctor creates its own fresh Alias
@@ -117,7 +116,14 @@ type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<
   groupBy?: (ns: N) => GB;
   having?: (ns: N) => Bool<any>;
   orderBy?: (ns: N) => OrderByEntry[];
-  tables: [{ type: "from"; source: Fromable }, ...JoinEntry<N>[]];
+  tables: [
+    { type: "from"; source: Fromable },
+    ...{
+      source: Fromable;
+      on: (ns: N) => Bool<any>;
+      type: "join" | "leftJoin";
+    }[],
+  ];
   limit?: number;
   offset?: number;
 };
@@ -268,10 +274,10 @@ export class QueryBuilder<
     });
     if (this.card === "many") {
       return Anyarray.of(RecordClass.from(sql``)).from(
-        sql`COALESCE((SELECT array_agg("__row") FROM ${inner}), '{}')`,
+        sql`COALESCE((SELECT array_agg("__row") FROM ${inner} AS "q"), '{}')`,
       );
     }
-    return RecordClass.from(sql`(SELECT "__row" FROM ${inner})`);
+    return RecordClass.from(sql`(SELECT "__row" FROM ${inner} AS "q")`);
   }
 
   #doSelect(ns: N): O {
@@ -282,12 +288,22 @@ export class QueryBuilder<
   }
 
   rowType(): O {
-    const ns = Object.fromEntries(
-      this.opts.tables.map((t) => {
-        return [t.source.tsAlias, t.source.rowType()];
-      }),
-    ) as N;
-    return this.#doSelect(ns);
+    // Mirror bind()'s ns construction — including numeric slots for groupBy
+    // columns — so select callbacks that reference `ns[0]` after a groupBy
+    // resolve correctly when rowType() is called for deserialization.
+    const ns: { [k: string]: unknown } = {};
+    for (const t of this.opts.tables) {
+      const alias = new Alias(t.source.tsAlias);
+      Object.defineProperty(ns, t.source.tsAlias, {
+        value: reAlias(t.source.rowType(), alias),
+        enumerable: true,
+      });
+    }
+    const groups = this.opts.groupBy && this.opts.groupBy(ns as unknown as N);
+    for (const [i, g] of groups?.entries() ?? []) {
+      Object.defineProperty(ns, i, { value: g, enumerable: true });
+    }
+    return this.#doSelect(ns as unknown as N);
   }
 
   bind(): BoundSql {
@@ -303,14 +319,15 @@ export class QueryBuilder<
         value: reAlias(t.source.rowType(), alias),
         enumerable: true,
       });
+      const aliasRef = sql.tableRef(alias);
       const asClause = t.source.emitColumnNamesWithAlias
-        ? sql`AS ${alias}(${sql.join(Object.keys(t.source.rowType()).map((col) => sql.ident(col)))})`
-        : sql`AS ${alias}`;
+        ? sql`AS ${aliasRef}(${sql.join(Object.keys(t.source.rowType()).map((col) => sql.ident(col)))})`
+        : sql`AS ${aliasRef}`;
       if (t.type === "from") {
         tableSql.push(sql`FROM ${sourceSql} ${asClause}`);
       } else {
         tableSql.push(
-          sql`  ${t.type === "leftJoin" ? sql`LEFT JOIN` : sql`JOIN`} ${sourceSql} ${asClause} ON ${t.on(ns)}`,
+          sql`  ${t.type === "leftJoin" ? sql`LEFT JOIN` : sql`JOIN`} ${sourceSql} ${asClause} ON ${t.on(ns).toSql()}`,
         );
       }
     }
@@ -352,7 +369,7 @@ export class QueryBuilder<
       sql`\n`,
     );
 
-    return sql.withScope(aliases, body).bind();
+    return sql`(${sql.withScope(aliases, body)})`.bind();
   }
 
   cardinality<C extends Cardinality>(card: C): QueryBuilder<N, O, GB, C> {
@@ -360,7 +377,7 @@ export class QueryBuilder<
   }
 
   debug(): this {
-    const compiled = this.compile("pg");
+    const compiled = this.bind().compile("pg");
     console.log(compiled.text, compiled.values, this.opts);
     return this;
   }

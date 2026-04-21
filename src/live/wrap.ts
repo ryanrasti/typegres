@@ -58,7 +58,10 @@ export const wrapInsertWithEvents = <Name extends string, T extends { [key: stri
     return sql`(${sql.join(vals)})`;
   });
 
-  const coreInsert = sql`${sql.register(parts.alias)}INSERT INTO ${sql.ident(parts.tableName)} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)} RETURNING *`;
+  const coreInsert = sql.withScope(
+    [parts.alias],
+    sql`INSERT INTO ${sql.ident(parts.tableName)} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)} RETURNING *`,
+  );
 
   const eventInsert = sql`
     INSERT INTO _live_events (xid, ${sql.ident("table")}, before, after)
@@ -106,10 +109,16 @@ export const wrapUpdateWithEvents = <Name extends string, T extends { [key: stri
   // WITH share one snapshot, so `old` reads pre-update values without needing
   // FOR UPDATE (and FOR UPDATE would in fact deadlock against the sibling
   // UPDATE that's updating the same rows in the same statement).
-  const oldCte = sql`${sql.register(parts.alias)}SELECT * FROM ${sql.ident(parts.tableName)} WHERE ${parts.where.toSql()}`;
+  const oldCte = sql.withScope(
+    [parts.alias],
+    sql`SELECT * FROM ${sql.ident(parts.tableName)} WHERE ${parts.where.toSql()}`,
+  );
 
   // The UPDATE uses the same WHERE. Pairing old ↔ new happens inside _evt's SELECT.
-  const coreUpdate = sql`UPDATE ${sql.ident(parts.tableName)} SET ${sql.join(setClauses)} WHERE ${parts.where.toSql()} RETURNING *`;
+  const coreUpdate = sql.withScope(
+    [parts.alias],
+    sql`UPDATE ${sql.ident(parts.tableName)} SET ${sql.join(setClauses)} WHERE ${parts.where.toSql()} RETURNING *`,
+  );
 
   const pkJoinCondition = sql.join(
     opts.primaryKey.map((k) => sql`old.${sql.ident(k)} = m.${sql.ident(k)}`),
@@ -144,7 +153,10 @@ export const wrapDeleteWithEvents = <Name extends string, T extends { [key: stri
     );
   }
 
-  const coreDelete = sql`${sql.register(parts.alias)}DELETE FROM ${sql.ident(parts.tableName)} WHERE ${parts.where.toSql()} RETURNING *`;
+  const coreDelete = sql.withScope(
+    [parts.alias],
+    sql`DELETE FROM ${sql.ident(parts.tableName)} WHERE ${parts.where.toSql()} RETURNING *`,
+  );
 
   const eventInsert = sql`
     INSERT INTO _live_events (xid, ${sql.ident("table")}, before, after)

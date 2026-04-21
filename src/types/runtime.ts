@@ -1,6 +1,5 @@
-import type { CompileContext } from "../builder/sql";
 export type { Sql } from "../builder/sql";
-import { Func, Op, Alias, Sql, sql } from "../builder/sql";
+import { Func, Op, Alias, Sql, BoundSql, sql } from "../builder/sql";
 import * as types from "./index";
 import type { Any } from "./index";
 import { getTypeDef } from "./deserialize";
@@ -123,25 +122,29 @@ export const PgOp = (op: string, args: [unknown, unknown], type: typeof Any) => 
 // columns is the row shape: [[name, constructor], ...]. Single-column SRFs
 // pass a 1-element array; multi-column SRFs with OUT params pass N entries.
 export class PgSrf<R extends { [key: string]: Any<any> }, A extends string> extends Sql {
-  readonly alias: Alias<A>;
-  #row: R;
+  readonly tsAlias: A;
   #name: string;
+  #columns: [string, typeof Any][];
   #argsSql: Sql;
 
   constructor(name: A, args: unknown[], columns: [string, typeof Any][]) {
     super();
-    this.alias = new Alias(name);
+    this.tsAlias = name;
     this.#name = name;
-    this.#row = Object.fromEntries(
-      columns.map(([colName, type]) => [colName, type.from(sql.column(this.alias, colName))]),
-    ) as R;
+    this.#columns = columns;
     this.#argsSql = sql.join(args.map(argToSql));
   }
 
-  rowType(): R { return this.#row; }
+  // Mint a fresh ghost alias per call — QB's reAlias replaces it.
+  rowType(): R {
+    const alias = new Alias(this.tsAlias);
+    return Object.fromEntries(
+      this.#columns.map(([colName, type]) => [colName, type.from(sql.column(alias, colName))]),
+    ) as R;
+  }
 
-  emit(ctx: CompileContext): string {
-    const resolved = ctx.register(this.alias);
-    return sql`${sql.ident(this.#name)}(${this.#argsSql}) AS ${sql.ident(resolved)}`.emit(ctx);
+  // FROM-clause source fragment (pre-AS). QB appends `AS <alias>`.
+  override bind(): BoundSql {
+    return sql`${sql.ident(this.#name)}(${this.#argsSql})`;
   }
 }

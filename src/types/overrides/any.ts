@@ -76,14 +76,14 @@ export class Any<in out N extends number> extends Generated<N> {
     );
   }
 
-  // Column binder for Table definitions. Called from a column getter on a
-  // Table subclass — pass `this` directly; column() pulls the alias from
-  // `this.constructor.alias` (the class's static). Also accepts an Alias
-  // instance for cases where the caller already has one.
+  // Column binder for Table definitions. Called from a column field
+  // initializer on a Table subclass — pass `this` directly; column() reads
+  // the instance's ghost `alias`. Also accepts an Alias instance for
+  // cases where the caller already has one.
   //
   // Example:
   //   class Users extends Table("users") {
-  //     get id() { return Int8.column(this, "id", { nonNull: true }); }
+  //     id = Int8.column(this, "id", { nonNull: true });
   //   }
   //
   // __required is a type-level brand used by InsertRow to distinguish
@@ -93,7 +93,7 @@ export class Any<in out N extends number> extends Generated<N> {
     Opts extends ColumnOpts = {},
   >(
     this: T,
-    source: Alias | { constructor: { alias: Alias } },
+    source: Alias | { alias: Alias },
     colName: string,
     _opts?: Opts,
   ): InstanceType<T> & {
@@ -103,9 +103,7 @@ export class Any<in out N extends number> extends Generated<N> {
         : false;
     };
   } {
-    const alias = source instanceof Alias
-      ? source
-      : (source.constructor as { alias: Alias }).alias;
+    const alias = source instanceof Alias ? source : source.alias;
     return this.from(sql.column(alias, colName)) as any;
   }
 }

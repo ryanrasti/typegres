@@ -1,8 +1,8 @@
-import { Sql, sql } from "./sql";
-import type { CompileContext , Alias } from "./sql";
+import { Sql, BoundSql, sql } from "./sql";
+import type { Alias } from "./sql";
 import { Bool } from "../types";
 import type { RowType } from "./query";
-import { combinePredicates, compileSelectList } from "./query";
+import { combineBoolPredicates, compileSelectList } from "./query";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
@@ -31,7 +31,7 @@ export class DeleteBuilder<Name extends string, T extends { [key: string]: any }
     const cond = fn === true ? Bool.from(sql`TRUE`) : fn(this.#opts.namespace);
     return new DeleteBuilder({
       ...this.#opts,
-      where: combinePredicates(this.#opts.where, cond),
+      where: combineBoolPredicates(this.#opts.where, cond),
     });
   }
 
@@ -42,22 +42,21 @@ export class DeleteBuilder<Name extends string, T extends { [key: string]: any }
     });
   }
 
-  emit(ctx: CompileContext): string {
+  bind(): BoundSql {
     if (!this.#opts.where) {
       throw new Error("delete() requires .where() — use .where(true) to delete all rows");
     }
-    using _ = ctx.child();
-    ctx.register(this.#opts.alias);
 
-    return sql.join([
+    const inner = sql.join([
       sql`DELETE FROM ${sql.ident(this.#opts.tableName)}`,
       sql`WHERE ${this.#opts.where.toSql()}`,
       this.#opts.returning && sql`RETURNING ${compileSelectList(this.#opts.returning as { [key: string]: unknown })}`,
-    ], sql` `).emit(ctx);
+    ], sql` `);
+    return sql.withScope([this.#opts.alias], inner);
   }
 
   debug(): this {
-    const compiled = this.compile("pg");
+    const compiled = this.bind().compile("pg");
     console.log(compiled.text, compiled.values, this.#opts);
     return this;
   }

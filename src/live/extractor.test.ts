@@ -11,27 +11,20 @@ import { LiveQueryError } from "./types";
 
 const makeUsers = () =>
   class Users extends db.Table("users") {
-    get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-    get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-  };
+    id = (Int8<1>).column(this, "id", { nonNull: true });    name = (Text<1>).column(this, "name", { nonNull: true });  };
 
 const makeDogs = () =>
   class Dogs extends db.Table("dogs") {
-    get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-    get user_id() { return (Int8<1>).column(this, "user_id", { nonNull: true }); }
-    get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-  };
+    id = (Int8<1>).column(this, "id", { nonNull: true });    user_id = (Int8<1>).column(this, "user_id", { nonNull: true });    name = (Text<1>).column(this, "name", { nonNull: true });  };
 
 const makeToys = () =>
   class Toys extends db.Table("toys") {
-    get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-    get dog_id() { return (Int8<1>).column(this, "dog_id", { nonNull: true }); }
-  };
+    id = (Int8<1>).column(this, "id", { nonNull: true });    dog_id = (Int8<1>).column(this, "dog_id", { nonNull: true });  };
 
 // Helper: compile the extractor SQL to a normalized PG string for comparison.
 const extractedText = (qb: any): string => {
   const { sql } = buildExtractor(qb);
-  return sql.compile("pg").text.replace(/\s+/g, " ").trim();
+  return sql.bind().compile("pg").text.replace(/\s+/g, " ").trim();
 };
 
 describe("Phase 1: extractor", () => {
@@ -168,14 +161,9 @@ describe("Phase 1: extractor", () => {
       await db.execute(sql`INSERT INTO dogs (id, user_id, name) VALUES (1, 5, 'Rex'), (2, 5, 'Max'), (3, 6, 'Fido')`);
 
       class Users extends db.Table("users") {
-        get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-        get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-      }
+        id = (Int8<1>).column(this, "id", { nonNull: true });        name = (Text<1>).column(this, "name", { nonNull: true });      }
       class Dogs extends db.Table("dogs") {
-        get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-        get user_id() { return (Int8<1>).column(this, "user_id", { nonNull: true }); }
-        get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-      }
+        id = (Int8<1>).column(this, "id", { nonNull: true });        user_id = (Int8<1>).column(this, "user_id", { nonNull: true });        name = (Text<1>).column(this, "name", { nonNull: true });      }
 
       const qb = Users.from()
         .join(Dogs, ({ users, dogs }) => dogs.user_id["="](users.id))

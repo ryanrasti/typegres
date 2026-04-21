@@ -27,14 +27,14 @@ export const pgExecutor = (
 
   return {
     async execute(query: Sql): Promise<QueryResult> {
-      const compiled = query.compile("pg");
+      const compiled = query.bind().compile("pg");
       return pool.query(compiled.text, compiled.values);
     },
 
     async runInSingleConnection<T>(cb: (execute: ExecuteFn) => Promise<T>): Promise<T> {
       const client = await pool.connect();
       const execute: ExecuteFn = async (query) => {
-        const compiled = query.compile("pg");
+        const compiled = query.bind().compile("pg");
         return client.query(compiled.text, compiled.values);
       };
       try {
@@ -66,14 +66,14 @@ export const pgliteExecutor = async (): Promise<Executor> => {
 
   return {
     async execute(query: Sql): Promise<QueryResult> {
-      const compiled = query.compile("pg");
+      const compiled = query.bind().compile("pg");
       return db.query(compiled.text, compiled.values, {
         parsers: rawParsers,
       });
     },
     async runInSingleConnection<T>(cb: (execute: ExecuteFn) => Promise<T>): Promise<T> {
       const execute: ExecuteFn = async (query) => {
-        const compiled = query.compile("pg");
+        const compiled = query.bind().compile("pg");
         return db.query(compiled.text, compiled.values, {
           parsers: rawParsers,
         });

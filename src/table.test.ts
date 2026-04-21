@@ -1,6 +1,6 @@
 import { test, expect, expectTypeOf } from "vitest";
 import { Int8, Text } from "./types";
-import { sql, Alias } from "./builder/sql";
+import { sql } from "./builder/sql";
 import { db, withinTransaction } from "./builder/test-helper";
 import type { Fromable } from "./builder/query";
 
@@ -15,10 +15,7 @@ test("Table.from().select()", async () => {
     await db.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
 
     class Dogs extends db.Table("dogs") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-      get breed() { return (Text<0 | 1>).column(this, "breed"); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });      breed = (Text<0 | 1>).column(this, "breed");    }
 
     const rows = await db.execute(Dogs.from()
       .select(({ dogs }) => ({ id: dogs.id, name: dogs.name, breed: dogs.breed }))
@@ -43,10 +40,7 @@ test("Table.as() alias", async () => {
     await db.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
 
     class Dogs extends db.Table("dogs") {
-      get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-      get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-      get breed() { return (Text<0 | 1>).column(this, "breed"); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });      breed = (Text<0 | 1>).column(this, "breed");    }
 
     const rows = await db.execute(Dogs.as("d").from()
       .select(({ d }) => ({ id: d.id, name: d.name, breed: d.breed }))
@@ -80,16 +74,12 @@ test("Table class is a Fromable and self-joins via .as()", async () => {
     `);
 
     class Employees extends db.Table("employees") {
-      get id()         { return (Int8<1>).column(this, "id", { nonNull: true }); }
-      get name()       { return (Text<1>).column(this, "name", { nonNull: true }); }
-      get manager_id() { return (Int8<0 | 1>).column(this, "manager_id"); }
-    }
+      id = (Int8<1>).column(this, "id", { nonNull: true });      name = (Text<1>).column(this, "name", { nonNull: true });      manager_id = (Int8<0 | 1>).column(this, "manager_id");    }
 
     // 1. The class itself has the Fromable-shaped statics.
-    expect(Employees.alias).toBeInstanceOf(Alias);
-    expect(Employees.alias.tsAlias).toBe("employees");
+    expect(Employees.tsAlias).toBe("employees");
     expect(Employees.rowType()).toBeInstanceOf(Employees);
-    expect(typeof Employees.emit).toBe("function");
+    expect(typeof Employees.bind).toBe("function");
     // Type-level: `typeof Employees` satisfies Fromable via its statics.
     //   (The `satisfies Fromable` on TableBase in src/table.ts asserts this
     //    for the base; repeating here ensures user subclasses preserve it.)
@@ -106,8 +96,8 @@ test("Table class is a Fromable and self-joins via .as()", async () => {
     //    two independent aliases. Without .as() (same class, same static
     //    alias), the scope would throw on double-register.
     const Mgr = Employees.as("mgr");
-    expect(Mgr.alias.tsAlias).toBe("mgr");
-    expect(Mgr.alias).not.toBe(Employees.alias); // fresh identity
+    expect(Mgr.tsAlias).toBe("mgr");
+    expect(Mgr.tsAlias).not.toBe(Employees.tsAlias); // fresh identity
 
     // Pass classes to .join, not `.from()` subqueries — the class IS the
     //    Fromable, so this emits `JOIN employees AS mgr ON ...` directly.

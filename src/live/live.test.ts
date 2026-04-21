@@ -23,10 +23,7 @@ const cleanup = async () => {
 
 const makeDogs = () =>
   class Dogs extends db.Table("dogs") {
-    get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-    get user_id() { return (Int8<1>).column(this, "user_id", { nonNull: true }); }
-    get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-  };
+    id = (Int8<1>).column(this, "id", { nonNull: true });    user_id = (Int8<1>).column(this, "user_id", { nonNull: true });    name = (Text<1>).column(this, "name", { nonNull: true });  };
 
 describe("Phase 4: db.live()", () => {
   let bus: LiveBus;
@@ -179,9 +176,7 @@ describe("Phase 4: db.live()", () => {
 
     try {
       class Users extends db.Table("users") {
-        get id() { return (Int8<1>).column(this, "id", { nonNull: true }); }
-        get name() { return (Text<1>).column(this, "name", { nonNull: true }); }
-      }
+        id = (Int8<1>).column(this, "id", { nonNull: true });        name = (Text<1>).column(this, "name", { nonNull: true });      }
       const Dogs = makeDogs();
 
       const iter = db.live(

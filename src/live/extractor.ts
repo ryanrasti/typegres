@@ -1,6 +1,7 @@
-import { sql, Op, Column, Param, Seq, Func, UnaryOp } from "../builder/sql";
-import type { Sql, Alias } from "../builder/sql";
+import { sql, Op, Column, Param, Seq, Func, UnaryOp, Alias } from "../builder/sql";
+import type { Sql } from "../builder/sql";
 import type { QueryBuilder } from "../builder/query";
+import { reAlias } from "../builder/query";
 import type { PredicateSet } from "./types";
 import { LiveQueryError } from "./types";
 
@@ -124,15 +125,19 @@ const analyze = (qb: QueryBuilder<any, any, any>): Dag => {
   if (opts.having) {
     throw new LiveQueryError("live(): HAVING is not supported");
   }
-  if (!opts.from) {
+  if (!opts.tables || opts.tables.length === 0) {
     throw new LiveQueryError("live(): query has no FROM clause");
   }
 
   const nodes = new Map<string, TableNode>();
   const order: string[] = [];
+  // Build fresh aliases per source — matches what QB.bind() does — and assemble
+  // the namespace that user callbacks will evaluate against.
+  const ns: { [key: string]: unknown } = {};
+  const aliasByName = new Map<string, Alias>();
 
-  const addTable = (source: unknown, alias: Alias, aliasName: string) => {
-    const s = source as { tableName?: unknown; tsAlias?: unknown };
+  const addTable = (source: unknown, aliasName: string) => {
+    const s = source as { tableName?: unknown; tsAlias?: unknown; rowType?: () => object };
     if (typeof s.tableName !== "string") {
       throw new LiveQueryError(
         `live(): only real tables supported in FROM/JOIN (got "${aliasName}")`,
@@ -141,6 +146,12 @@ const analyze = (qb: QueryBuilder<any, any, any>): Dag => {
     if (nodes.has(aliasName)) {
       throw new LiveQueryError(`live(): duplicate table alias "${aliasName}"`);
     }
+    const alias = new Alias(aliasName);
+    aliasByName.set(aliasName, alias);
+    Object.defineProperty(ns, aliasName, {
+      value: reAlias(s.rowType!(), alias),
+      enumerable: true,
+    });
     nodes.set(aliasName, {
       alias,
       aliasName,
@@ -151,9 +162,8 @@ const analyze = (qb: QueryBuilder<any, any, any>): Dag => {
     order.push(aliasName);
   };
 
-  addTable(opts.from, opts.from.alias, opts.from.alias.tsAlias);
-  for (const j of opts.joins ?? []) {
-    addTable(j.source, j.source.alias, j.source.alias.tsAlias);
+  for (const t of opts.tables) {
+    addTable(t.source, t.source.tsAlias);
   }
 
   const aliasToName = (alias: Alias): string => {
@@ -204,11 +214,12 @@ const analyze = (qb: QueryBuilder<any, any, any>): Dag => {
     }
   };
 
-  for (const j of opts.joins ?? []) {
-    absorbPredicates(j.on.toSql(), "join");
+  for (const t of opts.tables) {
+    if (t.type === "from") { continue; }
+    absorbPredicates(t.on(ns as any).toSql(), "join");
   }
   if (opts.where) {
-    absorbPredicates(opts.where.toSql(), "where");
+    absorbPredicates(opts.where(ns as any).toSql(), "where");
   }
 
   // Anchor reachability: every node must be reachable from a literal anchor.

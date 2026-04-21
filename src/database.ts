@@ -77,12 +77,9 @@ export class Database {
   public From<R extends RowType, A extends string>(
     from: Fromable<R, A>,
   ): QueryBuilder<{ [K in A]: R }, R, []> {
-    const row = from.rowType();
     return new QueryBuilder({
-      namespace: { [from.alias.tsAlias]: row } as any,
-      output: row,
-      from,
-      tsAlias: from.alias.tsAlias,
+      tsAlias: from.tsAlias,
+      tables: [{ type: "from", source: from }],
     });
   }
 
@@ -91,12 +88,9 @@ export class Database {
     ...valsRest: (NoInfer<R> | RowTypeToTsType<NoInfer<R>>)[]
   ): QueryBuilder<{ values: R }, R, []> {
     const vals = new Values(vals0, ...valsRest);
-    const row = vals.rowType();
     return new QueryBuilder<{ values: R }, R, []>({
-      namespace: { values: row } as { values: R },
-      output: row,
-      from: vals,
-      tsAlias: "q",
+      tsAlias: "values",
+      tables: [{ type: "from", source: vals }],
     });
   }
 
