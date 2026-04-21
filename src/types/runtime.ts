@@ -1,4 +1,5 @@
 export type { Sql } from "../builder/sql";
+export { sql } from "../builder/sql";
 import type { BoundSql} from "../builder/sql";
 import { Func, Op, Sql, sql } from "../builder/sql";
 import * as types from "./index";
@@ -88,7 +89,7 @@ export const match = (args: unknown[], cases: MatchCase[]): [typeof Any, ...unkn
       const arg = args[i];
       if (arg instanceof m.type) { return true; }
       if (m.allowPrimitive) {
-        const expected = getTypeDef(m.type.__typname).tsType;
+        const expected = getTypeDef(m.type.__typnameText).tsType;
         if (typeof arg === expected) { return true; }
       }
       return false;
@@ -115,7 +116,7 @@ export const PgFunc = (name: string, args: unknown[], type: typeof Any) => {
   return type.from(new Func(name, args.map(argToSql)));
 };
 
-export const PgOp = (op: string, args: [unknown, unknown], type: typeof Any) => {
+export const PgOp = (op: Sql, args: [unknown, unknown], type: typeof Any) => {
   return type.from(new Op(op, argToSql(args[0]), argToSql(args[1])));
 };
 
@@ -146,6 +147,8 @@ export class PgSrf<R extends { [key: string]: Any<any> }, A extends string> exte
 
   // FROM-clause source fragment (pre-AS). QB appends `AS <alias>`.
   override bind(): BoundSql {
-    return sql`${sql.ident(this.#name)}(${this.#argsSql})`;
+    return sql`${sql.ident(this.#name)}(${this.#argsSql})`.bind();
   }
+
+  override children(): readonly Sql[] { return []; }
 }

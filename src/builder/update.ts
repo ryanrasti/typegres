@@ -1,4 +1,4 @@
-import { Sql, sql, Alias } from "./sql";
+import { Sql, sql, Alias, compile } from "./sql";
 import type { BoundSql } from "./sql";
 import { Bool } from "../types";
 import type { SetRow } from "../types/runtime";
@@ -81,7 +81,7 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
   }
 
   debug(): this {
-    const compiled = this.bind().compile("pg");
+    const compiled = compile(this, "pg");
     console.log(compiled.text, compiled.values, this.#opts);
     return this;
   }

@@ -18,10 +18,14 @@ export class Any<in out N extends number> extends Generated<N> {
     __raw: Sql;
     __nullability: N;
   };
-  static __typname = "any";
+  // __typname: the pg type name as a SQL fragment (for use in templates
+  // like `CAST(x AS int4)`). __typnameText: the same name as a plain
+  // string (for map lookups, error messages). Codegen emits both.
+  static __typname: Sql = sql`any`;
+  static __typnameText = "any";
 
   deserialize(raw: string): unknown {
-    return getTypeDef((this.constructor as typeof Any).__typname).deserialize(raw);
+    return getTypeDef((this.constructor as typeof Any).__typnameText).deserialize(raw);
   }
 
   // Returns the underlying Sql node for embedding in other expressions
@@ -56,7 +60,7 @@ export class Any<in out N extends number> extends Generated<N> {
     const instance = new this();
     const __raw = v instanceof Sql
       ? v
-      : sql`CAST(${sql.param(v)} AS ${sql.raw(this.__typname)})`;
+      : sql`CAST(${sql.param(v)} AS ${this.__typname})`;
     // Set [meta] at runtime — subclasses' `declare [meta]` narrows the type only
     Object.defineProperty(instance, meta, {
       value: { __class: this, __raw },
@@ -69,10 +73,10 @@ export class Any<in out N extends number> extends Generated<N> {
   // Used by match() for runtime overload dispatch.
   static serialize(v: unknown): Any<any> {
     if (v instanceof this) { return v; }
-    const expected = getTypeDef(this.__typname).tsType;
+    const expected = getTypeDef(this.__typnameText).tsType;
     if (typeof v === expected) { return this.from(v); }
     throw new Error(
-      `${this.__typname}.serialize: expected a ${this.__typname} instance or ${expected} primitive, got ${typeof v} (${String(v).slice(0, 60)}).`,
+      `${this.__typnameText}.serialize: expected a ${this.__typnameText} instance or ${expected} primitive, got ${typeof v} (${String(v).slice(0, 60)}).`,
     );
   }
 

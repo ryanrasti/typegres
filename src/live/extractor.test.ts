@@ -1,7 +1,7 @@
 import { test, expect, describe } from "vitest";
 import { Int8, Text } from "../types";
 import { db, withinTransaction } from "../builder/test-helper";
-import { sql } from "../builder/sql";
+import { sql, compile } from "../builder/sql";
 import { buildExtractor } from "./extractor";
 import { LiveQueryError } from "./types";
 
@@ -24,7 +24,7 @@ const makeToys = () =>
 // Helper: compile the extractor SQL to a normalized PG string for comparison.
 const extractedText = (qb: any): string => {
   const { sql } = buildExtractor(qb);
-  return sql.bind().compile("pg").text.replace(/\s+/g, " ").trim();
+  return compile(sql, "pg").text.replace(/\s+/g, " ").trim();
 };
 
 describe("Phase 1: extractor", () => {

@@ -225,7 +225,8 @@ const generateTypeFile = (
     lines.push(`    __aggregate: ${ref}<number>;`);
     lines.push(`    __any: ${ref}<any>;`);
     lines.push(`  };`);
-    lines.push(`  static __typname = "${pgType.typname}";`);
+    lines.push(`  static __typname = runtime.sql\`${pgType.typname}\`;`);
+    lines.push(`  static __typnameText = "${pgType.typname}";`);
     // Only narrow the deserialize return type if there's no override — the
     // override is the source of truth (e.g. Record widens to
     // RowTypeToTsType<T>, which isn't expressible here).
@@ -343,7 +344,7 @@ const generateTypeFile = (
     const caller = f0.isSrf
       ? `new runtime.PgSrf("${f0.name}", [this, ...__rest], [["${f0.name}", __rt]])`
       : f0.isOperator
-        ? `runtime.PgOp("${f0.name}", [this, ...__rest] as [unknown, unknown], __rt)`
+        ? `runtime.PgOp(runtime.sql\`${f0.name}\`, [this, ...__rest] as [unknown, unknown], __rt)`
         : `runtime.PgFunc("${f0.name}", [this, ...__rest], __rt)`;
     return `const [__rt, ...__rest] = ${matchCall}; return ${caller} as any;`;
   };

@@ -1,18 +1,19 @@
 import { test, expect } from "vitest";
 import { Int4, Int8, Text, Bool } from "./index";
+import { compile } from "../builder/sql";
 
 // --- match via operators/functions ---
 
 test("match: correct type passes", () => {
   const a = Int4.from(5) as Int4<1>;
   const result = a["+"](Int4.from(3));
-  expect(result.toSql().bind().compile("pg").text).toContain("+");
+  expect(compile(result.toSql(), "pg").text).toContain("+");
 });
 
 test("match: primitive passes when allowed", () => {
   const a = Int4.from(5) as Int4<1>;
   const result = a["+"](3);
-  expect(result.toSql().bind().compile("pg").text).toContain("+");
+  expect(compile(result.toSql(), "pg").text).toContain("+");
 });
 
 test("match: wrong primitive type throws", () => {
@@ -42,11 +43,11 @@ test("match: multi-overload resolves correct return type", () => {
 
   // Int4 * Int4 → Int4
   const r1 = a["*"](Int4.from(3));
-  expect(r1.toSql().bind().compile("pg").text).toContain("*");
+  expect(compile(r1.toSql(), "pg").text).toContain("*");
 
   // Int4 * Int8 → Int8 (different return type per overload)
   const r2 = a["*"](Int8.from(3n));
-  expect(r2.toSql().bind().compile("pg").text).toContain("*");
+  expect(compile(r2.toSql(), "pg").text).toContain("*");
 });
 
 test("match: comparison operator returns Bool", () => {
@@ -60,7 +61,7 @@ test("match: serializes primitive arg into typed instance", () => {
   const a = Int4.from(5) as Int4<1>;
   const result = a["+"](3);
   // The compiled SQL should have CAST for both args (both are primitives wrapped)
-  const compiled = result.toSql().bind().compile("pg");
+  const compiled = compile(result.toSql(), "pg");
   expect(compiled.text).toContain("CAST");
 });
 

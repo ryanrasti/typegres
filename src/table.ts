@@ -1,5 +1,5 @@
 import { sql } from "./builder/sql";
-import type { Sql } from "./builder/sql";
+import type { BoundSql } from "./builder/sql";
 import type { Fromable} from "./builder/query";
 import { QueryBuilder } from "./builder/query";
 import { DeleteBuilder } from "./builder/delete";
@@ -40,7 +40,7 @@ export abstract class TableBase {
 
   // FROM-clause source fragment: just the table identifier. QB adds
   // `AS <alias>` in its own bind(), so no AS-clause here.
-  static bind(this: typeof TableBase): Sql {
+  static bind(this: typeof TableBase): BoundSql {
     return sql.ident(this.tableName);
   }
 

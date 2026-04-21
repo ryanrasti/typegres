@@ -1,6 +1,7 @@
 import { meta, type TsTypeOf } from "../runtime";
 import { Anycompatiblearray as Generated } from "../generated/anycompatiblearray";
 import type { Any } from "../index";
+import { sql } from "../../builder/sql";
 
 export class Anycompatiblearray<T extends Any<any>, N extends number> extends Generated<T, N> {
   static __element: Any<any>;
@@ -47,9 +48,11 @@ export class Anycompatiblearray<T extends Any<any>, N extends number> extends Ge
   }
 
   static of<T extends Any<any>>(element: T) {
+    const elClass = element[meta].__class;
     return class extends (this as any) {
       static __element = element;
-      static __typname = `${element[meta].__class.__typname}[]`;
+      static __typname = sql`${elClass.__typname}[]`;
+      static __typnameText = `${elClass.__typnameText}[]`;
     } as unknown as typeof Anycompatiblearray<T, any>;
   }
 }

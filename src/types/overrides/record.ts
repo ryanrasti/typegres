@@ -1,6 +1,7 @@
 import { Record as Generated } from "../generated/record";
 import type { Any } from "../index";
 import type { RowTypeToTsType } from "../../builder/query";
+import { sql } from "../../builder/sql";
 
 // Pg composite format parser: `(val1,val2,...)` → per-field string, or null
 // for a pg NULL field. Pg encodes NULL as absence between commas
@@ -58,7 +59,8 @@ export class Record<T = unknown, N extends number = number> extends Generated<N>
     const entries = Object.entries(columns);
     const cls = class extends (this as any) {
       static __columns = columns;
-      static __typname = "record";
+      static __typname = sql`record`;
+      static __typnameText = "record";
     };
     // Closure over entries — works even when called without `this` (e.g., from Anyarray)
     cls.prototype["deserialize"] = (raw: string) => {

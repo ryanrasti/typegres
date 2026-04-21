@@ -1,5 +1,5 @@
 import type { BoundSql} from "./sql";
-import { sql, Sql, Alias } from "./sql";
+import { sql, Sql, Alias, compile } from "./sql";
 import type { Bool } from "../types";
 import { Any, Anyarray, Record } from "../types";
 import { type TsTypeOf, type Nullable, type AggregateRow, meta } from "../types/runtime";
@@ -84,7 +84,7 @@ export const sortRowColumns = <R extends RowType>(row: R): R => {
 export type Fromable<R extends RowType = RowType, A extends string = string> = {
   readonly tsAlias: A;
   rowType(): R;
-  bind(): Sql;
+  bind(): BoundSql;
   emitColumnNamesWithAlias?: boolean; // default false; if true, emit column names in FROM clause (e.g. VALUES)
 };
 
@@ -313,17 +313,16 @@ export class QueryBuilder<
     const tableSql: Sql[] = [];
 
     for (const t of this.opts.tables) {
-      const sourceSql = t.source.bind();
       const alias = new Alias(t.source.tsAlias);
       aliases.push(alias);
       Object.defineProperty(ns, t.source.tsAlias, {
         value: reAlias(t.source.rowType(), alias),
         enumerable: true,
       });
-      const aliasRef = alias;
+      const sourceSql = t.source.bind();
       const asClause = t.source.emitColumnNamesWithAlias
-        ? sql`AS ${aliasRef}(${sql.join(Object.keys(t.source.rowType()).map((col) => sql.ident(col)))})`
-        : sql`AS ${aliasRef}`;
+        ? sql`AS ${alias}(${sql.join(Object.keys(t.source.rowType()).map((col) => sql.ident(col)))})`
+        : sql`AS ${alias}`;
       if (t.type === "from") {
         tableSql.push(sql`FROM ${sourceSql} ${asClause}`);
       } else {
@@ -370,7 +369,7 @@ export class QueryBuilder<
       sql`\n`,
     );
 
-    return sql`(${sql.withScope(aliases, body)})`.bind();
+    return sql`(${sql.withScope(aliases, body)})`;
   }
 
   cardinality<C extends Cardinality>(card: C): QueryBuilder<N, O, GB, C> {
@@ -378,7 +377,7 @@ export class QueryBuilder<
   }
 
   debug(): this {
-    const compiled = this.bind().compile("pg");
+    const compiled = compile(this, "pg");
     console.log(compiled.text, compiled.values, this.opts);
     return this;
   }

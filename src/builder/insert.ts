@@ -1,4 +1,4 @@
-import { Sql, sql, Alias } from "./sql";
+import { Sql, sql, Alias, compile } from "./sql";
 import type { BoundSql } from "./sql";
 import type { RowType } from "./query";
 import { compileSelectList, reAlias } from "./query";
@@ -64,7 +64,7 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
   }
 
   debug(): this {
-    const compiled = this.bind().compile("pg");
+    const compiled = compile(this, "pg");
     console.log(compiled.text, compiled.values, this.#opts);
     return this;
   }

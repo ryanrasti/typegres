@@ -1,35 +1,39 @@
-import { sql, Op, Column, Ident, Param, Join, Func, UnaryOp, Alias } from "../builder/sql";
+import { sql, Op, Column, Ident, Param, Raw, Alias } from "../builder/sql";
 import type { Sql } from "../builder/sql";
 import type { QueryBuilder } from "../builder/query";
 import { reAlias } from "../builder/query";
 import type { PredicateSet } from "./types";
 import { LiveQueryError } from "./types";
 
-// Walk an expression and collect every Column reference it contains.
+// Generic walk via Sql.children().
+const walkSql = (root: Sql, visit: (n: Sql) => void): void => {
+  const go = (n: Sql) => {
+    visit(n);
+    for (const c of n.children()) { go(c); }
+  };
+  go(root);
+};
+
 const collectColumns = (node: Sql): Column[] => {
   const out: Column[] = [];
-  const walk = (n: Sql) => {
-    if (n instanceof Column) { out.push(n); return; }
-    if (n instanceof Op) { walk(n.lhs); walk(n.rhs); return; }
-    if (n instanceof UnaryOp) { walk(n.expr); return; }
-    if (n instanceof Func) { for (const a of n.args) { walk(a); } return; }
-    if (n instanceof Join) { for (const c of n.children) { walk(c); } return; }
-  };
-  walk(node);
+  walkSql(node, (n) => {
+    if (n instanceof Column) { out.push(n); }
+  });
   return out;
 };
 
-// Walk an expression and collect every Param value it contains.
 const collectParams = (node: Sql): unknown[] => {
   const out: unknown[] = [];
-  const walk = (n: Sql) => {
-    if (n instanceof Param) { out.push(n.value); return; }
-    if (n instanceof Op) { walk(n.lhs); walk(n.rhs); return; }
-    if (n instanceof UnaryOp) { walk(n.expr); return; }
-    if (n instanceof Func) { for (const a of n.args) { walk(a); } return; }
-    if (n instanceof Join) { for (const c of n.children) { walk(c); } return; }
-  };
-  walk(node);
+  walkSql(node, (n) => {
+    if (n instanceof Param) { out.push(n.value); }
+  });
+  return out;
+};
+
+// Op.op is a Sql (typically `sql\`=\`` or similar). Extract the literal text.
+const opText = (op: Sql): string => {
+  let out = "";
+  walkSql(op, (n) => { if (n instanceof Raw) { out += n.value; } });
   return out;
 };
 
@@ -43,7 +47,7 @@ type Side =
   | null;
 
 const classifySide = (node: Sql): Side => {
-  // Unwrap: peek through Seq wrappers like `CAST($1 AS int8)`.
+  // Unwrap: peek through template wrappers like `CAST($1 AS int8)`.
   const columns = collectColumns(node);
   const params = collectParams(node);
   if (columns.length === 1 && params.length === 0) {
@@ -59,7 +63,7 @@ const classifySide = (node: Sql): Side => {
 
 // Split an AND-tree into its conjuncts: (a AND b) AND c -> [a, b, c].
 const splitAnd = (node: Sql): Sql[] => {
-  if (node instanceof Op && node.op === "AND") {
+  if (node instanceof Op && opText(node.op) === "AND") {
     return [...splitAnd(node.lhs), ...splitAnd(node.rhs)];
   }
   return [node];
@@ -86,7 +90,7 @@ const colName = (c: Column): string => {
 };
 
 const parseEquality = (node: Sql): ParsedPred | null => {
-  if (!(node instanceof Op) || node.op !== "=") { return null; }
+  if (!(node instanceof Op) || opText(node.op) !== "=") { return null; }
   const left = classifySide(node.lhs);
   const right = classifySide(node.rhs);
   if (!left || !right) { return null; }
