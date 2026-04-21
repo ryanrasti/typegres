@@ -91,12 +91,6 @@ function MobilePlayground({ initialCode }: { initialCode: string }) {
       // Replace typegres({ type: "pglite" }) with cached instance
       if (!window.cachedTg) {
         window.cachedTg = await window.typegres.typegres({ type: "pglite" });
-        // Wire the SQL-capture hook: Database.execute emits each compiled
-        // query through debugLog, and we surface it via the "Debugging
-        // query:" console.log convention the runner picks up below.
-        window.cachedTg.debugLog = (info: { sql: string; parameters: unknown[] }) => {
-          console.log("Debugging query:", info);
-        };
       }
       
       // Replace the typegres initialization with our cached instance

@@ -1,5 +1,4 @@
 import { AsyncLocalStorage } from "#als";
-import { compile } from "./builder/sql";
 import type { ExecuteFn, Executor, QueryResult } from "./executor";
 import type { Fromable, RowType, RowTypeToTsType } from "./builder/query";
 import { QueryBuilder, deserializeRows } from "./builder/query";
@@ -18,11 +17,6 @@ import { LiveQueryError } from "./live/types";
 export class Database {
   #context = new AsyncLocalStorage<{ execute: ExecuteFn; inTransaction: boolean }>();
   #liveBus: LiveBus | undefined;
-
-  // Optional observer, called with each compiled query just before it runs.
-  // The playground wires this up to display the generated SQL alongside the
-  // output; real apps can use it for logging/tracing. Default: no-op.
-  debugLog: ((info: { sql: string; parameters: unknown[] }) => void) | undefined;
 
   constructor(private executor: Executor) {}
 
@@ -44,10 +38,6 @@ export class Database {
     query: DeleteBuilder<Name, T, R>,
   ): Promise<RowTypeToTsType<R>[]>;
   async execute(query: Sql): Promise<any> {
-    if (this.debugLog) {
-      const c = compile(query, "pg");
-      this.debugLog({ sql: c.text, parameters: c.values });
-    }
     const result = await (this.#context.getStore()?.execute ?? this.executor.execute.bind(this.executor))(query);
     if (query instanceof QueryBuilder) {
       return deserializeRows(result.rows as { [key: string]: string }[], query.rowType() as { [key: string]: unknown });
