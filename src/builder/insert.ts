@@ -1,5 +1,5 @@
-import { Sql, BoundSql, sql } from "./sql";
-import type { Alias } from "./sql";
+import { Sql, sql } from "./sql";
+import type { Alias , BoundSql} from "./sql";
 import type { RowType } from "./query";
 import { compileSelectList } from "./query";
 import type { Any } from "../types";

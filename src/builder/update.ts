@@ -1,5 +1,5 @@
-import { Sql, BoundSql, sql } from "./sql";
-import type { Alias } from "./sql";
+import { Sql, sql } from "./sql";
+import type { Alias , BoundSql} from "./sql";
 import { Any, Bool } from "../types";
 import type { SetRow } from "../types/runtime";
 import { meta } from "../types/runtime";

@@ -1,5 +1,6 @@
 export type { Sql } from "../builder/sql";
-import { Func, Op, Alias, Sql, BoundSql, sql } from "../builder/sql";
+import type { BoundSql} from "../builder/sql";
+import { Func, Op, Alias, Sql, sql } from "../builder/sql";
 import * as types from "./index";
 import type { Any } from "./index";
 import { getTypeDef } from "./deserialize";

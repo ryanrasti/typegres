@@ -1,4 +1,5 @@
-import { sql, Sql, BoundSql, Alias } from "./sql";
+import type { BoundSql} from "./sql";
+import { sql, Sql, Alias } from "./sql";
 import { Any } from "../types";
 import { meta } from "../types/runtime";
 import { type RowType, type RowTypeToTsType, type Fromable } from "./query";
