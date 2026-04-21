@@ -55,6 +55,7 @@ export class Database {
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
     const current = this.#context.getStore();
     if (current?.inTransaction) {
+      // Flatten transactions:
       return fn();
     }
 
@@ -71,15 +72,6 @@ export class Database {
           throw e;
         }
       });
-    });
-  }
-
-  public From<R extends RowType, A extends string>(
-    from: Fromable<R, A>,
-  ): QueryBuilder<{ [K in A]: R }, R, []> {
-    return new QueryBuilder({
-      tsAlias: from.tsAlias,
-      tables: [{ type: "from", source: from }],
     });
   }
 
