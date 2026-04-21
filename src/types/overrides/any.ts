@@ -111,10 +111,15 @@ export class Any<in out N extends number> extends Generated<N> {
   }
 }
 
-// Look up a column by name on a Table instance. Asserts the field exists
-// and is a column declaration (its underlying SQL is sql.unbound(), the
-// sentinel that .column() produces). Used by mutation builders and live
-// wrappers to resolve set/insert keys against the instance.
+// True iff `v` is an Any whose underlying SQL is the sql.unbound() sentinel
+// — i.e., it was declared via `.column()` on a Table class, not built as
+// an arbitrary expression.
+export const isColumn = (v: unknown): v is Any<any> =>
+  v instanceof Any && v[meta].__raw instanceof Unbound;
+
+// Look up a column by name on a Table instance. Throws with a specific
+// message when the field is missing or is an expression rather than a
+// column declaration. Used by mutation builders and live wrappers.
 export const getColumn = (
   instance: { constructor: { tableName: string } },
   name: string,

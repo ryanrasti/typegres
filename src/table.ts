@@ -5,7 +5,7 @@ import { QueryBuilder } from "./builder/query";
 import { DeleteBuilder } from "./builder/delete";
 import { UpdateBuilder } from "./builder/update";
 import { InsertBuilder } from "./builder/insert";
-import { Any } from "./types";
+import { isColumn } from "./types/overrides/any";
 import type { InsertRow } from "./types/runtime";
 
 // Concrete tables extend `Table(name)` and declare columns as field
@@ -31,20 +31,15 @@ export abstract class TableBase {
   // `.tsAlias` resolve without casts (TS defaults it to `Function`).
   declare ["constructor"]: typeof TableBase;
 
-  // Fresh row-type instance per call — callers don't hold onto these;
-  // they're just vessels for column references. Method form so the return
-  // type can thread the subclass generic (`Users.rowType()` → Users).
   static rowType<T extends typeof TableBase>(this: T): InstanceType<T> {
     return new (this as unknown as new () => InstanceType<T>)();
   }
 
-  // FROM-clause source fragment: just the table identifier. QB adds
-  // `AS <alias>` in its own bind(), so no AS-clause here.
   static bind(this: typeof TableBase): BoundSql {
     return sql.ident(this.tableName);
   }
 
-  // Entry points. Static — you call `Users.from()`, not `(new Users()).from()`.
+  // Entry point for query builders: e.g., `Users.from()` 
   static from<T extends typeof TableBase & (new () => TableBase)>(this: T) {
     return new QueryBuilder<
       { [K in T["tsAlias"]]: InstanceType<T> },
@@ -60,7 +55,7 @@ export abstract class TableBase {
     this: T,
     ...rows: [InsertRow<InstanceType<T>>, ...InsertRow<InstanceType<T>>[]]
   ): InsertBuilder<T["tableName"], InstanceType<T>> {
-    const instance = this.rowType() as InstanceType<T>;
+    const instance = this.rowType();
     return new InsertBuilder({
       instance,
       columnNames: columnFieldNames(instance),
@@ -71,13 +66,13 @@ export abstract class TableBase {
   static update<T extends typeof TableBase & (new () => TableBase)>(
     this: T,
   ): UpdateBuilder<T["tableName"], InstanceType<T>> {
-    return new UpdateBuilder({ instance: this.rowType() as InstanceType<T> });
+    return new UpdateBuilder({ instance: this.rowType() });
   }
 
   static delete<T extends typeof TableBase & (new () => TableBase)>(
     this: T,
   ): DeleteBuilder<T["tableName"], InstanceType<T>> {
-    return new DeleteBuilder({ instance: this.rowType() as InstanceType<T> });
+    return new DeleteBuilder({ instance: this.rowType() });
   }
 
   // Return a subclass with a different tsAlias — use to join the same
@@ -90,13 +85,16 @@ export abstract class TableBase {
 }
 
 // Enumerate column field names on a Table instance. Columns are field
-// initializers, so they're own enumerable properties.
+// initializers that hold an Any with an Unbound sentinel; isColumn
+// filters out expressions and non-column fields.
 export const columnFieldNames = (instance: TableBase): string[] => {
   return Object.getOwnPropertyNames(instance).filter(
-    (k) => (instance as unknown as { [key: string]: unknown })[k] instanceof Any,
+    (k) => isColumn((instance as unknown as { [key: string]: unknown })[k]),
   );
 };
 
+// We can use a table class directly where a `Fromable` is expected. e.g., in the join:
+//   Users.from().join(Dogs, ...)
 TableBase satisfies Fromable;
 
 export const Table = <Name extends string>(name: Name) => {
