@@ -27,8 +27,6 @@ export class Database {
   // Overload resolution matches top-to-bottom and stops on the first
   // match — list specific builders before the general `Sql` fallback, or
   // every QueryBuilder/Insert/... call resolves as `Sql` → QueryResult.
-  // Keep the generics minimal (one per overload, the rest `any`) so
-  // inference succeeds without the user passing type args.
   async execute<O extends RowType>(query: QueryBuilder<any, O, any, any>): Promise<RowTypeToTsType<O>[]>;
   async execute<R extends RowType>(query: InsertBuilder<any, any, R>): Promise<RowTypeToTsType<R>[]>;
   async execute<R extends RowType>(query: UpdateBuilder<any, any, R>): Promise<RowTypeToTsType<R>[]>;

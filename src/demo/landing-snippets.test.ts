@@ -18,6 +18,7 @@ beforeAll(async () => {
   await db.execute(sql`
     CREATE TABLE users (
       id         int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      token      text NOT NULL,
       created_at timestamptz NOT NULL,
       metadata   jsonb
     )
@@ -30,9 +31,9 @@ beforeAll(async () => {
       completed bool NOT NULL DEFAULT false
     )
   `);
-  await db.execute(sql`INSERT INTO users (created_at, metadata) VALUES
-    (now(), '{"createdAt": "2026-04-20T10:00:00Z"}'),
-    (now() - interval '1 day', '{"createdAt": "2026-04-19T10:00:00Z"}')`);
+  await db.execute(sql`INSERT INTO users (token, created_at, metadata) VALUES
+    ('t1', now(), '{"createdAt": "2026-04-20T10:00:00Z"}'),
+    ('t2', now() - interval '1 day', '{"createdAt": "2026-04-19T10:00:00Z"}')`);
   await db.execute(sql`INSERT INTO todos (user_id, title, completed) VALUES
     (1, 'first', false), (1, 'second', true), (2, 'other user', false)`);
 });
@@ -46,6 +47,7 @@ beforeAll(async () => {
 
 class User extends Table("users") {
   id = (Int8<1>).column({ nonNull: true, generated: true });
+  token = (Text<1>).column({ nonNull: true });
   created_at = (Timestamptz<1>).column({ nonNull: true });
   metadata = (Jsonb<0 | 1>).column();
 
@@ -61,16 +63,12 @@ class User extends Table("users") {
   createdAtViaMetadata(): Timestamptz<0 | 1> {
     return this.metadata["->>"]("createdAt").cast(Timestamptz);
   }
-
-  todos() {
-    return Todo.from().where((ns) => ns.todos.user_id["="](this.id));
-  }
 }
 
 test("example 1: decouple interface from schema", async () => {
   const latest = await db.execute(
     User.from()
-      .orderBy((ns) => [ns.users.createdAt(), "desc"])
+      .orderBy(({ users }) => [users.createdAt(), "desc"])
       .limit(1),
   );
   expect(latest).toHaveLength(1);
@@ -88,26 +86,30 @@ class Todo extends Table("todos") {
 
   update(fields: { completed?: boolean; title?: string }) {
     return Todo.update()
-      .where((ns) => ns.todos.id["="](this.id))
+      .where(({ todos }) => todos.id["="](this.id))
       .set(() => fields);
   }
 }
 
 test("example 2: relations and mutations via hydrated instances", async () => {
-  const userId = 1n;
+  const token = "t1";
+
+  // Authorize: fetch the user by token.
   const [user] = await db.hydrate(
-    User.from().where((ns) => ns.users.id["="](userId)).limit(1),
+    User.from().where(({ users }) => users.token["="](token)).limit(1),
   );
 
-  // The only way to get a todo is through the user:
-  const [todo] = await db.hydrate(user!.todos().limit(1));
+  // The only way to get a todo is through the user's id:
+  const [todo] = await db.hydrate(
+    Todo.from().where(({ todos }) => todos.user_id["="](user!.id)).limit(1),
+  );
   expect(todo).toBeInstanceOf(Todo);
 
   // The only way to update a todo is via the hydrated instance:
   await db.execute(todo!.update({ completed: true }));
 
   const [after] = await db.execute<Todo>(
-    Todo.from().where((ns) => ns.todos.id["="](todo!.id)),
+    Todo.from().where(({ todos }) => todos.id["="](todo!.id)),
   );
   expect(after!.completed).toBe(true);
 });
@@ -122,14 +124,14 @@ const _aspirational = `
 export class Api extends RpcTarget {
   getUserFromToken(token: string) {
     return User.from()
-      .where((ns) => ns.users.token["="](token));
+      .where(({ users }) => users.token["="](token));
   }
 }
 
 export function TodoList({ searchQuery }: { searchQuery: string }) {
   const todos = useTypegresQuery((user) => user.todos()
-    .select((ns) => ({ id: ns.todos.id, title: ns.todos.title }))
-    .where((ns) => ns.todos.title.ilike(\`%\${searchQuery}%\`))
+    .select(({ todos }) => ({ id: todos.id, title: todos.title }))
+    .where(({ todos }) => todos.title.ilike(\`%\${searchQuery}%\`))
   );
 
   return (

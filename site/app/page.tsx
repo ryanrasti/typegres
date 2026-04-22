@@ -38,7 +38,7 @@ export default function HomePage() {
       rightCode: `// Compiles to the single SQL query you'd write manually.
 const latest = await db.execute(
   User.from()
-    .orderBy((ns) => [ns.users.createdAt(), "desc"])
+    .orderBy(({ users }) => [users.createdAt(), "desc"])
     .limit(1),
 );`,
       leftLabel: "api.ts",
@@ -52,10 +52,6 @@ const latest = await db.execute(
         "Allowed operations are just methods on your interface, including relations and mutations. Everything fully composable and typed.",
       leftCode: `class User extends Table("users") {
   // ...
-
-  todos() {
-    return Todo.from().where((ns) => ns.todos.user_id["="](this.id));
-  }
 }
 
 class Todo extends Table("todos") {
@@ -63,16 +59,19 @@ class Todo extends Table("todos") {
 
   update(fields: { completed?: boolean; title?: string }) {
     return Todo.update()
-      .where((ns) => ns.todos.id["="](this.id))
+      .where(({ todos }) => todos.id["="](this.id))
       .set(() => fields);
   }
 }`,
-      rightCode: `const [user] = await db.hydrate(
-  User.from().where((ns) => ns.users.id["="](userId)).limit(1),
+      rightCode: `// Authorize: fetch the user by token.
+const [user] = await db.hydrate(
+  User.from().where(({ users }) => users.token["="](token)).limit(1),
 );
 
-// The only way to get a todo is through the user:
-const [todo] = await db.hydrate(user!.todos().limit(1));
+// The only way to get a todo is through the user's id:
+const [todo] = await db.hydrate(
+  Todo.from().where(({ todos }) => todos.user_id["="](user!.id)).limit(1),
+);
 
 // The only way to update a todo is via the hydrated instance:
 await db.execute(todo!.update({ completed: true }));`,
@@ -96,7 +95,7 @@ class Todo extends Table("todos") {
 export class Api extends RpcTarget {
   getUserFromToken(token: string) {
     return User.from()
-      .where((ns) => ns.users.token["="](token));
+      .where(({ users }) => users.token["="](token));
   }
 }
 
@@ -105,9 +104,9 @@ export class Api extends RpcTarget {
       rightCode: `export function TodoList({ searchQuery }: { searchQuery: string }) {
   const todos = useTypegresQuery((user) => user.todos()
     // Arbitrarily compose your base query...
-    .select((ns) => ({ id: ns.todos.id, title: ns.todos.title }))
+    .select(({ todos }) => ({ id: todos.id, title: todos.title }))
     // ...using any Postgres function such as \`ilike\`:
-    .where((ns) => ns.todos.title.ilike(\`%\${searchQuery}%\`))
+    .where(({ todos }) => todos.title.ilike(\`%\${searchQuery}%\`))
   );
 
   return (
