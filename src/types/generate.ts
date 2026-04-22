@@ -42,12 +42,17 @@ const ELEMENT_TYPES = new Set([
 // Operators that can return null from non-null inputs (e.g. JSON key not found)
 const MAYBE_NULL_OPS = new Set(["->", "->>", "#>", "#>>"]);
 
-// Readable aliases for operators pg's catalog doesn't name (comparison,
-// arithmetic). Emitted as a second method next to the bracketed form:
+// Readable aliases for operators pg doesn't give a nice function name
+// (comparison + arithmetic). Emitted as a second method next to the
+// bracketed form:
 //     ['=']<M>(arg: M): Bool<...>   // already emitted
 //     eq<M>(arg: M): Bool<...>      // alias
-// For operators pg does name (`~~*` → `texticlike`, `->` → `jsonb_object_field`,
-// etc.), we rely on the pg function name instead — see introspect.ts.
+//
+// introspect.ts hides pg's oprcode implementations only for operators
+// in this map — so `int4eq`, `int42pl`, etc. don't clutter the types,
+// but pg's readable function names for unaliased operators (`texticlike`
+// for ~~*, `jsonb_object_field` for ->, `array_prepend` for ||, ...)
+// stay available alongside the bracketed form.
 const OPERATOR_ALIASES: { [op: string]: string } = {
   "=": "eq",
   "<>": "ne",
@@ -490,7 +495,7 @@ export const generate = async () => {
   const db = new pg.Pool({ connectionString: defaultPgConnectionString() });
 
   try {
-    const { typeMap, pgFuncs } = await introspect(db);
+    const { typeMap, pgFuncs } = await introspect(db, Object.keys(OPERATOR_ALIASES));
     const grouped = groupByFirstArg(pgFuncs);
     const overrideNames = scanOverrides();
 

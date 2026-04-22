@@ -44,7 +44,15 @@ export interface Introspection {
   pgFuncs: PgFunc[];
 }
 
-export const introspect = async (db: Pool): Promise<Introspection> => {
+export const introspect = async (
+  db: Pool,
+  // Operator names whose oprcode functions should be hidden (we emit a
+  // readable alias for the operator instead, so the pg impl function —
+  // `int4eq`, `texticlike`, etc. — would just be noise). For operators
+  // without an alias (`@>`, `->`, `~~*`, etc.), we let the pg function
+  // name through as a more readable alternative to the bracketed form.
+  aliasedOperators: readonly string[] = [],
+): Promise<Introspection> => {
   // Get all built-in base types and pseudo-types (not array types)
   const { rows: types } = await db.query<{ oid: number; typname: string }>(`
     SELECT t.oid, t.typname
@@ -79,19 +87,14 @@ export const introspect = async (db: Pool): Promise<Introspection> => {
     JOIN pg_namespace n ON p.pronamespace = n.oid
     WHERE n.nspname = 'pg_catalog'
       AND p.prokind = 'f'                                                       -- only plain functions
-      AND p.provolatile IN ('i', 's')                                           -- no side effects (exclude volatile)
+      AND p.provolatile = 'i'                                                   -- only pure (immutable) functions; stable fns include pg_stat_* etc.
       AND p.proretset = false                                                   -- no set-returning functions (for now)
       AND array_length(string_to_array(trim(p.proargtypes::text), ' '), 1) > 0 -- must have at least one arg
       AND p.proargtypes::text != ''
-      -- Previously excluded operator implementations here via
-      -- 'p.oid NOT IN (SELECT oprcode FROM pg_operator)', but that
-      -- hid usefully-named functions like jsonb_object_field (for ->),
-      -- array_prepend (for ||), texticlike (for ~~*), etc. Cryptic
-      -- names like int4eq are the cost — harmless since the operator
-      -- form stays the idiomatic callsite.
+      AND p.oid NOT IN (SELECT oprcode FROM pg_operator WHERE oprcode != 0 AND oprname = ANY($1::text[]))  -- exclude oprcode only for operators we give readable aliases
       AND p.oid NOT IN (SELECT amproc FROM pg_amproc)                           -- exclude index support functions (e.g. btint4cmp, hashint4)
     ORDER BY p.proname
-  `);
+  `, [aliasedOperators]);
 
   // Get operators (operators are always strict in terms of null propagation)
   const { rows: operators } = await db.query<{
@@ -181,7 +184,7 @@ export const introspect = async (db: Pool): Promise<Introspection> => {
     WHERE n.nspname = 'pg_catalog'
       AND p.prokind = 'f'
       AND p.proretset = true
-      AND p.provolatile IN ('i', 's')
+      AND p.provolatile = 'i'
       AND array_length(string_to_array(trim(p.proargtypes::text), ' '), 1) > 0
       AND p.proargtypes::text != ''
       AND p.oid NOT IN (SELECT oprcode FROM pg_operator WHERE oprcode != 0)
