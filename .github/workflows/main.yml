@@ -13,13 +13,20 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Start Postgres and run checks
         run: |
-          nix develop --command bash -c '
-            set -euo pipefail
-            bin/startpg
-            npm ci
-            (cd examples/basic && npm ci)
-            npm run check
-          '
+          set -e
+          # Real GHA runs as `runner`. `act` runs as root, which breaks
+          # initdb. Drop the whole step to an unprivileged user so both
+          # environments behave the same. `runuser` is used instead of
+          # `su` because some container images lack the PAM config `su`
+          # wants.
+          if [ "$(id -u)" = "0" ]; then
+            id pgrunner >/dev/null 2>&1 || useradd -m -s /bin/bash pgrunner
+            chown -R pgrunner:pgrunner "$PWD"
+            RUN=(runuser -u pgrunner -- bash -lc)
+          else
+            RUN=(bash -c)
+          fi
+          "${RUN[@]}" "cd '$PWD' && nix develop --command bash -c 'set -e; bin/startpg; npm ci; (cd examples/basic && npm ci); npm run codegen:check; npm run check'"
 
   site:
     needs: check

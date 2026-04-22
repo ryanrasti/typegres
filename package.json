@@ -33,6 +33,7 @@
   "scripts": {
     "build": "tsdown",
     "codegen": "node --experimental-strip-types src/types/generate.ts",
+    "codegen:check": "npm run codegen && { git diff --exit-code -- src/types/generated && test -z \"$(git ls-files --others --exclude-standard -- src/types/generated)\"; } || { echo 'src/types/generated/ is stale — run `npm run codegen` and commit.' >&2; exit 1; }",
     "lint": "eslint src",
     "typecheck": "tsgo --noEmit",
     "format": "prettier --write src",
