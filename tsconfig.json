@@ -16,7 +16,10 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "allowImportingTsExtensions": true,
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "typegres": ["./src/index.ts"]
+    }
   },
   "include": ["src"],
   "exclude": ["src/**/*.test.ts"]
