@@ -288,6 +288,22 @@ export class QueryBuilder<
     return new QueryBuilder({ ...this.opts, offset: (this.opts.offset ?? 0) + n });
   }
 
+  // Hydrate a single row. Throws if the query returns no rows. The caller
+  // passes a Database (structurally — we don't want a hard circular import).
+  async one(db: { hydrate(q: QueryBuilder<any, O, any, any>): Promise<O[]> }): Promise<O> {
+    const [row] = await db.hydrate(this.limit(1));
+    if (!row) {
+      throw new Error("QueryBuilder.one(): query returned no rows");
+    }
+    return row;
+  }
+
+  // Hydrate a single row or null.
+  async maybeOne(db: { hydrate(q: QueryBuilder<any, O, any, any>): Promise<O[]> }): Promise<O | null> {
+    const [row] = await db.hydrate(this.limit(1));
+    return row ?? null;
+  }
+
   // TODO: ROW(), array_agg(), COALESCE should be regular typed ops once we support them
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scalar(this: QueryBuilder<N, O, GB, "one">): Record<O, 1>;

@@ -52,6 +52,10 @@ const latest = await db.execute(
         "Allowed operations are just methods on your interface, including relations and mutations. Everything fully composable and typed.",
       leftCode: `class User extends Table("users") {
   // ...
+
+  todos() {
+    return Todo.from().where(({ todos }) => todos.user_id["="](this.id));
+  }
 }
 
 class Todo extends Table("todos") {
@@ -63,18 +67,15 @@ class Todo extends Table("todos") {
       .set(() => fields);
   }
 }`,
-      rightCode: `// Authorize: fetch the user by token.
-const [user] = await db.hydrate(
-  User.from().where(({ users }) => users.token["="](token)).limit(1),
-);
+      rightCode: `const user = ...
 
-// The only way to get a todo is through the user's id:
-const [todo] = await db.hydrate(
-  Todo.from().where(({ todos }) => todos.user_id["="](user!.id)).limit(1),
-);
+// The only way to get a todo is through a user:
+const todo = await user.todos()
+  .where(({ todos }) => todos.id["="](todoId))
+  .one(db);
 
 // The only way to update a todo is via the hydrated instance:
-await db.execute(todo!.update({ completed: true }));`,
+await db.execute(todo.update({ completed: true }));`,
       leftLabel: "api.ts",
       rightLabel: "route.ts",
       leftLanguage: "typescript",

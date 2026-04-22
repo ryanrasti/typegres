@@ -63,6 +63,10 @@ class User extends Table("users") {
   createdAtViaMetadata(): Timestamptz<0 | 1> {
     return this.metadata["->>"]("createdAt").cast(Timestamptz);
   }
+
+  todos() {
+    return Todo.from().where(({ todos }) => todos.user_id["="](this.id));
+  }
 }
 
 test("example 1: decouple interface from schema", async () => {
@@ -92,24 +96,23 @@ class Todo extends Table("todos") {
 }
 
 test("example 2: relations and mutations via hydrated instances", async () => {
-  const token = "t1";
+  // In the test we need a real user + todoId; the landing snippet elides
+  // these with `const user = ...`.
+  const user = (await db.hydrate(
+    User.from().where(({ users }) => users.token["="]("t1")).limit(1),
+  ))[0]!;
+  const todoId = 1n;
 
-  // Authorize: fetch the user by token.
-  const [user] = await db.hydrate(
-    User.from().where(({ users }) => users.token["="](token)).limit(1),
-  );
-
-  // The only way to get a todo is through the user's id:
-  const [todo] = await db.hydrate(
-    Todo.from().where(({ todos }) => todos.user_id["="](user!.id)).limit(1),
-  );
-  expect(todo).toBeInstanceOf(Todo);
+  // The only way to get a todo is through a user:
+  const todo = await user.todos()
+    .where(({ todos }) => todos.id["="](todoId))
+    .one(db);
 
   // The only way to update a todo is via the hydrated instance:
-  await db.execute(todo!.update({ completed: true }));
+  await db.execute(todo.update({ completed: true }));
 
   const [after] = await db.execute<Todo>(
-    Todo.from().where(({ todos }) => todos.id["="](todo!.id)),
+    Todo.from().where(({ todos }) => todos.id["="](todo.id)),
   );
   expect(after!.completed).toBe(true);
 });
@@ -162,10 +165,14 @@ describe("landing page snippets", () => {
       .map((m) => m[1]!);
     expect(snippets.length).toBeGreaterThan(0);
 
-    // Editorial or scaffolding comments the landing page is free to show
-    // without requiring a match in the test file.
+    // Editorial or scaffolding lines the landing page is free to show
+    // without requiring a match in the test file:
+    //  - `// ...` or `// <editorial>` comments (not diff markers)
+    //  - `const x = ...` elision placeholders
     const isEditorial = (line: string): boolean =>
-      line === "// ..." || (line.startsWith("//") && !line.startsWith("// -") && !line.startsWith("// +"));
+      line === "// ..."
+      || (line.startsWith("//") && !line.startsWith("// -") && !line.startsWith("// +"))
+      || /= \.\.\.\s*;?$/.test(line);
 
     // Diff markers point at real code — strip the prefix before matching.
     const stripDiffMarker = (line: string): string =>
