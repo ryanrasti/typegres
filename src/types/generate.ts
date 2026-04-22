@@ -42,6 +42,27 @@ const ELEMENT_TYPES = new Set([
 // Operators that can return null from non-null inputs (e.g. JSON key not found)
 const MAYBE_NULL_OPS = new Set(["->", "->>", "#>", "#>>"]);
 
+// Readable aliases for operators pg's catalog doesn't name (comparison,
+// arithmetic). Emitted as a second method next to the bracketed form:
+//     ['=']<M>(arg: M): Bool<...>   // already emitted
+//     eq<M>(arg: M): Bool<...>      // alias
+// For operators pg does name (`~~*` → `texticlike`, `->` → `jsonb_object_field`,
+// etc.), we rely on the pg function name instead — see introspect.ts.
+const OPERATOR_ALIASES: { [op: string]: string } = {
+  "=": "eq",
+  "<>": "ne",
+  "<": "lt",
+  "<=": "lte",
+  ">": "gt",
+  ">=": "gte",
+  "+": "plus",
+  "-": "minus",
+  "*": "times",
+  "/": "divide",
+  "%": "mod",
+  "^": "pow",
+};
+
 // Inheritance hierarchy:
 // Any<N>
 //   └─ Anycompatible<T, N>
@@ -317,18 +338,25 @@ const generateTypeFile = (
       return t !== undefined && tsPrimitiveFor(t.typname) === ownerTsPrimitive;
     });
 
-  // Method name as emitted — operators use ['...'] brackets.
+  // Method name(s) as emitted. Operators get the bracketed form plus a
+  // readable alias if one is defined (eq/lt/plus/…); pg's catalog
+  // doesn't give these a nice function name, so codegen synthesizes one.
+  // Functions get just the camelcased pg name.
   const methodName = (f: PgFunc): string =>
     f.isOperator ? `['${f.name}']` : camelcase(f.name);
+  const aliasName = (f: PgFunc): string | null =>
+    f.isOperator && f.name in OPERATOR_ALIASES ? OPERATOR_ALIASES[f.name]! : null;
 
   // Build the "header" of a method signature: name + generic decl + params.
-  const buildSig = (f: PgFunc, allowPrimitive: boolean): string => {
+  // `nameOverride` lets us emit the same signature under an alias name
+  // (e.g. `eq` next to `['=']`).
+  const buildSig = (f: PgFunc, allowPrimitive: boolean, nameOverride?: string): string => {
     const restArgs = f.argTypes.slice(1);
     const genericDecl = restArgs.length > 0
       ? `<${restArgs.map((oid, i) => buildArgGeneric(oid, i, allowPrimitive)).join(", ")}>`
       : "";
     const params = restArgs.map((_, i) => `arg${i}: M${i}`).join(", ");
-    return `${methodName(f)}${genericDecl}(${params})`;
+    return `${nameOverride ?? methodName(f)}${genericDecl}(${params})`;
   };
 
   // Build the runtime body: match dispatch + caller. Uniform across 0-arg,
@@ -378,29 +406,34 @@ const generateTypeFile = (
     }
 
     const wrapRet = f0.isSrf ? wrapSrfRet : (_: PgFunc, r: string) => r;
+    const alias = aliasName(f0);
 
-    if (group.length === 1) {
-      const sig = buildSig(f0, true);
-      const retType = wrapRet(f0, buildRetType(f0));
-      lines.push(`  ${sig}: ${retType} { ${buildBody(group, false)} }`);
-      continue;
-    }
+    const emit = (nameOverride?: string): void => {
+      if (group.length === 1) {
+        const sig = buildSig(f0, true, nameOverride);
+        const retType = wrapRet(f0, buildRetType(f0));
+        lines.push(`  ${sig}: ${retType} { ${buildBody(group, false)} }`);
+        return;
+      }
+      // Multiple overloads: emit TS overload signatures, then one typed-as-any
+      // implementation dispatching via match with restrictPrimitive on.
+      for (const overload of group) {
+        const sig = buildSig(overload, argsMatchOwnerPrimitive(overload), nameOverride);
+        const retType = wrapRet(overload, buildRetType(overload));
+        lines.push(`  ${sig}: ${retType};`);
+      }
+      // Impl sig must cover all arities — required up to min, optional up to max.
+      const arities = group.map((f) => f.argTypes.length - 1);
+      const minArity = Math.min(...arities);
+      const maxArity = Math.max(...arities);
+      const implParams = Array.from({ length: maxArity }, (_, i) =>
+        `arg${i}${i >= minArity ? "?" : ""}: unknown`,
+      ).join(", ");
+      lines.push(`  ${nameOverride ?? methodName(f0)}(${implParams}): any { ${buildBody(group, true)} }`);
+    };
 
-    // Multiple overloads: emit TS overload signatures, then one typed-as-any
-    // implementation dispatching via match with restrictPrimitive on.
-    for (const overload of group) {
-      const sig = buildSig(overload, argsMatchOwnerPrimitive(overload));
-      const retType = wrapRet(overload, buildRetType(overload));
-      lines.push(`  ${sig}: ${retType};`);
-    }
-    // Impl sig must cover all arities — required up to min, optional up to max.
-    const arities = group.map((f) => f.argTypes.length - 1);
-    const minArity = Math.min(...arities);
-    const maxArity = Math.max(...arities);
-    const implParams = Array.from({ length: maxArity }, (_, i) =>
-      `arg${i}${i >= minArity ? "?" : ""}: unknown`,
-    ).join(", ");
-    lines.push(`  ${methodName(f0)}(${implParams}): any { ${buildBody(group, true)} }`);
+    emit();
+    if (alias) { emit(alias); }
   }
 
   lines.push("}");

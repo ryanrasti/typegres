@@ -83,7 +83,12 @@ export const introspect = async (db: Pool): Promise<Introspection> => {
       AND p.proretset = false                                                   -- no set-returning functions (for now)
       AND array_length(string_to_array(trim(p.proargtypes::text), ' '), 1) > 0 -- must have at least one arg
       AND p.proargtypes::text != ''
-      AND p.oid NOT IN (SELECT oprcode FROM pg_operator WHERE oprcode != 0)     -- exclude operator implementations (e.g. int4eq)
+      -- Previously excluded operator implementations here via
+      -- 'p.oid NOT IN (SELECT oprcode FROM pg_operator)', but that
+      -- hid usefully-named functions like jsonb_object_field (for ->),
+      -- array_prepend (for ||), texticlike (for ~~*), etc. Cryptic
+      -- names like int4eq are the cost — harmless since the operator
+      -- form stays the idiomatic callsite.
       AND p.oid NOT IN (SELECT amproc FROM pg_amproc)                           -- exclude index support functions (e.g. btint4cmp, hashint4)
     ORDER BY p.proname
   `);
