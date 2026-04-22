@@ -314,12 +314,15 @@ export class QueryBuilder<
   }
 
   // TODO: ROW(), array_agg(), COALESCE should be regular typed ops once we support them
-  // eslint-disable-next-line @typescript-eslint/no-restricted-types
-  scalar(this: QueryBuilder<N, O, GB, "one">): Record<O, 1>;
-  // eslint-disable-next-line @typescript-eslint/no-restricted-types
-  scalar(this: QueryBuilder<N, O, GB, "maybe">): Record<O, 0 | 1>;
-  // eslint-disable-next-line @typescript-eslint/no-restricted-types
-  scalar(this: QueryBuilder<N, O, GB, "many">): Anyarray<Record<O, 1>, 1>;
+  // Conditional return type avoids overload resolution quirks: TS's `this:`
+  // overloads can pick the wrong branch when the Card type is already narrowed.
+  /* eslint-disable @typescript-eslint/no-restricted-types */
+  scalar(): [Card] extends ["one"]
+    ? Record<O, 1>
+    : [Card] extends ["maybe"]
+      ? Record<O, 0 | 1>
+      : Anyarray<Record<O, 1>, 1>;
+  /* eslint-enable @typescript-eslint/no-restricted-types */
   scalar(): any {
     const staticCols = selectList(this.rowType());
     const RecordClass = Record.of(staticCols as any);

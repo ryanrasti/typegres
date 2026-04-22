@@ -338,9 +338,9 @@ test("e2e: where + orderBy + limit", async () => {
 
 // --- joins ---
 
-const withinTransaction = async (fn: () => Promise<void>) => {
-  await db.transaction(async () => {
-    await fn();
+const withinTransaction = async (fn: (tx: typeof db) => Promise<void>) => {
+  await db.transaction(async (tx) => {
+    await fn(tx);
     throw new Error("__test_rollback__");
   }).catch((e) => {
     if ((e as Error).message !== "__test_rollback__") {
@@ -350,25 +350,25 @@ const withinTransaction = async (fn: () => Promise<void>) => {
 };
 
 test("inner join", async () => {
-  await withinTransaction(async () => {
-    await db.execute(sql`CREATE TABLE owners (
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE owners (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL
     )`);
-    await db.execute(sql`CREATE TABLE pets (
+    await tx.execute(sql`CREATE TABLE pets (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       owner_id int8 NOT NULL REFERENCES owners(id)
     )`);
-    await db.execute(sql`INSERT INTO owners (name) VALUES ('Alice'), ('Bob')`);
-    await db.execute(sql`INSERT INTO pets (name, owner_id) VALUES ('Rex', 1), ('Fido', 2), ('Buddy', 1)`);
+    await tx.execute(sql`INSERT INTO owners (name) VALUES ('Alice'), ('Bob')`);
+    await tx.execute(sql`INSERT INTO pets (name, owner_id) VALUES ('Rex', 1), ('Fido', 2), ('Buddy', 1)`);
 
     class Owners extends db.Table("owners") {
       id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });    }
     class Pets extends db.Table("pets") {
       id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });      owner_id = (Int8<1>).column({ nonNull: true });    }
 
-    const rows = await db.execute(Pets.from()
+    const rows = await tx.execute(Pets.from()
       .join(Owners, ({ pets, owners }) => pets.owner_id["="](owners.id))
       .select(({ pets, owners }) => ({
         pet: pets.name,
@@ -386,25 +386,25 @@ test("inner join", async () => {
 });
 
 test("left join — unmatched rows return null", async () => {
-  await withinTransaction(async () => {
-    await db.execute(sql`CREATE TABLE authors (
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE authors (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL
     )`);
-    await db.execute(sql`CREATE TABLE books (
+    await tx.execute(sql`CREATE TABLE books (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       title text NOT NULL,
       author_id int8 NOT NULL REFERENCES authors(id)
     )`);
-    await db.execute(sql`INSERT INTO authors (name) VALUES ('Alice'), ('Bob')`);
-    await db.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1)`);
+    await tx.execute(sql`INSERT INTO authors (name) VALUES ('Alice'), ('Bob')`);
+    await tx.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1)`);
 
     class Authors extends db.Table("authors") {
       id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });    }
     class Books extends db.Table("books") {
       id = (Int8<1>).column({ nonNull: true });      title = (Text<1>).column({ nonNull: true });      author_id = (Int8<1>).column({ nonNull: true });    }
 
-    const rows = await db.execute(Authors.from()
+    const rows = await tx.execute(Authors.from()
       .leftJoin(Books, ({ authors, books }) => authors.id["="](books.author_id))
       .select(({ authors, books }) => ({
         author: authors.name,
@@ -421,25 +421,25 @@ test("left join — unmatched rows return null", async () => {
 });
 
 test("join with where on joined table", async () => {
-  await withinTransaction(async () => {
-    await db.execute(sql`CREATE TABLE departments (
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE departments (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL
     )`);
-    await db.execute(sql`CREATE TABLE employees (
+    await tx.execute(sql`CREATE TABLE employees (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       dept_id int8 REFERENCES departments(id)
     )`);
-    await db.execute(sql`INSERT INTO departments (name) VALUES ('Engineering'), ('Sales')`);
-    await db.execute(sql`INSERT INTO employees (name, dept_id) VALUES ('Alice', 1), ('Bob', 1), ('Carol', 2)`);
+    await tx.execute(sql`INSERT INTO departments (name) VALUES ('Engineering'), ('Sales')`);
+    await tx.execute(sql`INSERT INTO employees (name, dept_id) VALUES ('Alice', 1), ('Bob', 1), ('Carol', 2)`);
 
     class Departments extends db.Table("departments") {
       id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });    }
     class Employees extends db.Table("employees") {
       id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });      dept_id = (Int8<0 | 1>).column();    }
 
-    const rows = await db.execute(Departments.from()
+    const rows = await tx.execute(Departments.from()
       .join(Employees, ({ departments, employees }) => departments.id["="](employees.dept_id))
       .select(({ departments, employees }) => ({
         dept: departments.name,
@@ -459,18 +459,18 @@ test("join with where on joined table", async () => {
 // --- scalar / cardinality ---
 
 test("scalar with cardinality 'one'", async () => {
-  await withinTransaction(async () => {
-    await db.execute(sql`CREATE TABLE authors (
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE authors (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL
     )`);
-    await db.execute(sql`CREATE TABLE books (
+    await tx.execute(sql`CREATE TABLE books (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       title text NOT NULL,
       author_id int8 NOT NULL REFERENCES authors(id)
     )`);
-    await db.execute(sql`INSERT INTO authors (name) VALUES ('Alice')`);
-    await db.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1), ('Book B', 1)`);
+    await tx.execute(sql`INSERT INTO authors (name) VALUES ('Alice')`);
+    await tx.execute(sql`INSERT INTO books (title, author_id) VALUES ('Book A', 1), ('Book B', 1)`);
 
     class Authors extends db.Table("authors") {
       id = (Int8<1>).column({ nonNull: true, generated: true });      name = (Text<1>).column({ nonNull: true });    }
@@ -478,7 +478,7 @@ test("scalar with cardinality 'one'", async () => {
       id = (Int8<1>).column({ nonNull: true, generated: true });      title = (Text<1>).column({ nonNull: true });      author_id = (Int8<1>).column({ nonNull: true });    }
 
     // Scalar subquery: get author for a book (cardinality 'one')
-    const rows = await db.execute(Books.from()
+    const rows = await tx.execute(Books.from()
       .select(({ books }) => ({
         title: books.title,
         author: Authors.from()
@@ -498,25 +498,25 @@ test("scalar with cardinality 'one'", async () => {
 });
 
 test("scalar with cardinality 'maybe' — null when no match", async () => {
-  await withinTransaction(async () => {
-    await db.execute(sql`CREATE TABLE people (
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE people (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL
     )`);
-    await db.execute(sql`CREATE TABLE profiles (
+    await tx.execute(sql`CREATE TABLE profiles (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       person_id int8 UNIQUE NOT NULL REFERENCES people(id),
       bio text NOT NULL
     )`);
-    await db.execute(sql`INSERT INTO people (name) VALUES ('Alice'), ('Bob')`);
-    await db.execute(sql`INSERT INTO profiles (person_id, bio) VALUES (1, 'Hello')`);
+    await tx.execute(sql`INSERT INTO people (name) VALUES ('Alice'), ('Bob')`);
+    await tx.execute(sql`INSERT INTO profiles (person_id, bio) VALUES (1, 'Hello')`);
 
     class People extends db.Table("people") {
       id = (Int8<1>).column({ nonNull: true, generated: true });      name = (Text<1>).column({ nonNull: true });    }
     class Profiles extends db.Table("profiles") {
       id = (Int8<1>).column({ nonNull: true, generated: true });      person_id = (Int8<1>).column({ nonNull: true });      bio = (Text<1>).column({ nonNull: true });    }
 
-    const rows = await db.execute(People.from()
+    const rows = await tx.execute(People.from()
       .select(({ people }) => ({
         name: people.name,
         profile: Profiles.from()
@@ -540,25 +540,25 @@ test("scalar with cardinality 'maybe' — null when no match", async () => {
 });
 
 test("scalar with cardinality 'many' — array result", async () => {
-  await withinTransaction(async () => {
-    await db.execute(sql`CREATE TABLE parents (
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE parents (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL
     )`);
-    await db.execute(sql`CREATE TABLE children (
+    await tx.execute(sql`CREATE TABLE children (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       parent_id int8 NOT NULL REFERENCES parents(id)
     )`);
-    await db.execute(sql`INSERT INTO parents (name) VALUES ('Alice'), ('Bob')`);
-    await db.execute(sql`INSERT INTO children (name, parent_id) VALUES ('Charlie', 1), ('Diana', 1)`);
+    await tx.execute(sql`INSERT INTO parents (name) VALUES ('Alice'), ('Bob')`);
+    await tx.execute(sql`INSERT INTO children (name, parent_id) VALUES ('Charlie', 1), ('Diana', 1)`);
 
     class Parents extends db.Table("parents") {
       id = (Int8<1>).column({ nonNull: true, generated: true });      name = (Text<1>).column({ nonNull: true });    }
     class Children extends db.Table("children") {
       id = (Int8<1>).column({ nonNull: true, generated: true });      name = (Text<1>).column({ nonNull: true });      parent_id = (Int8<1>).column({ nonNull: true });    }
 
-    const rows = await db.execute(Parents.from()
+    const rows = await tx.execute(Parents.from()
       .select(({ parents }) => ({
         name: parents.name,
         kids: Children.from()

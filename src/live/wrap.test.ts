@@ -14,15 +14,15 @@ const parseJson = <T>(v: unknown): T => (v === null || v === undefined ? null : 
 // creates its own fixture tables plus the shadow event table, runs a wrapped
 // mutation, and asserts on _live_events rows.
 
-const setupTables = async () => {
-  await db.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
-  await db.execute(sql`DROP TABLE IF EXISTS _live_events CASCADE`);
-  await db.execute(sql`CREATE TABLE dogs (
+const setupTables = async (tx: typeof db) => {
+  await tx.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
+  await tx.execute(sql`DROP TABLE IF EXISTS _live_events CASCADE`);
+  await tx.execute(sql`CREATE TABLE dogs (
     id int8 PRIMARY KEY,
     user_id int8 NOT NULL,
     name text NOT NULL
   )`);
-  await db.execute(createShadowTableSql);
+  await tx.execute(createShadowTableSql);
 };
 
 const makeDogs = () =>
@@ -39,8 +39,8 @@ describe("Phase 2: mutation wrapping", () => {
 
   // Test 1: Insert emits one event per row.
   test("INSERT emits one event per row with before=null, after=row jsonb", async () => {
-    await withinTransaction(async () => {
-      await setupTables();
+    await withinTransaction(async (tx) => {
+      await setupTables(tx);
       const Dogs = makeDogs();
 
       const insertSql = wrapInsertWithEvents(
@@ -49,9 +49,9 @@ describe("Phase 2: mutation wrapping", () => {
           { id: 2n, user_id: 5n, name: "Max" },
         ),
       );
-      await db.execute(insertSql);
+      await tx.execute(insertSql);
 
-      const result = await db.execute(sql`SELECT ${sql.ident("table")}, before, after FROM _live_events ORDER BY id`);
+      const result = await tx.execute(sql`SELECT ${sql.ident("table")}, before, after FROM _live_events ORDER BY id`);
       const rows = result.rows as { table: string; before: unknown; after: unknown }[];
       expect(rows).toHaveLength(2);
       expect(rows[0]!.table).toBe("dogs");
@@ -63,14 +63,14 @@ describe("Phase 2: mutation wrapping", () => {
 
   // Test 2: Update emits before AND after.
   test("UPDATE emits event with before + after", async () => {
-    await withinTransaction(async () => {
-      await setupTables();
+    await withinTransaction(async (tx) => {
+      await setupTables(tx);
       const Dogs = makeDogs();
 
-      await db.execute(wrapInsertWithEvents(
+      await tx.execute(wrapInsertWithEvents(
         Dogs.insert({ id: 1n, user_id: 5n, name: "Rex" }),
       ));
-      await db.execute(sql`TRUNCATE _live_events`);
+      await tx.execute(sql`TRUNCATE _live_events`);
 
       const updateSql = wrapUpdateWithEvents(
         Dogs.update()
@@ -78,9 +78,9 @@ describe("Phase 2: mutation wrapping", () => {
           .set(() => ({ name: "Buddy" })),
         { primaryKey: ["id"] },
       );
-      await db.execute(updateSql);
+      await tx.execute(updateSql);
 
-      const result = await db.execute(sql`SELECT before, after FROM _live_events`);
+      const result = await tx.execute(sql`SELECT before, after FROM _live_events`);
       const rows = result.rows as { before: unknown; after: unknown }[];
       expect(rows).toHaveLength(1);
       const before = parseJson<{ name: string; user_id: number }>(rows[0]!.before);
@@ -94,22 +94,22 @@ describe("Phase 2: mutation wrapping", () => {
 
   // Test 3: Delete emits event with before only.
   test("DELETE emits event with before + after=null", async () => {
-    await withinTransaction(async () => {
-      await setupTables();
+    await withinTransaction(async (tx) => {
+      await setupTables(tx);
       const Dogs = makeDogs();
 
-      await db.execute(wrapInsertWithEvents(
+      await tx.execute(wrapInsertWithEvents(
         Dogs.insert({ id: 1n, user_id: 5n, name: "Rex" }),
       ));
-      await db.execute(sql`TRUNCATE _live_events`);
+      await tx.execute(sql`TRUNCATE _live_events`);
 
       const deleteSql = wrapDeleteWithEvents(
         Dogs.delete().where(({ dogs }) => dogs.id["="](1n)),
         { primaryKey: ["id"] },
       );
-      await db.execute(deleteSql);
+      await tx.execute(deleteSql);
 
-      const result = await db.execute(sql`SELECT before, after FROM _live_events`);
+      const result = await tx.execute(sql`SELECT before, after FROM _live_events`);
       const rows = result.rows as { before: unknown; after: unknown }[];
       expect(rows).toHaveLength(1);
       expect(parseJson(rows[0]!.before)).toEqual({ id: 1, user_id: 5, name: "Rex" });
@@ -119,18 +119,18 @@ describe("Phase 2: mutation wrapping", () => {
 
   // Test 5: Multi-row update pairs each row's own before/after.
   test("multi-row UPDATE produces one event per row with correct pairing", async () => {
-    await withinTransaction(async () => {
-      await setupTables();
+    await withinTransaction(async (tx) => {
+      await setupTables(tx);
       const Dogs = makeDogs();
 
-      await db.execute(wrapInsertWithEvents(
+      await tx.execute(wrapInsertWithEvents(
         Dogs.insert(
           { id: 1n, user_id: 5n, name: "Rex" },
           { id: 2n, user_id: 5n, name: "Max" },
           { id: 3n, user_id: 5n, name: "Fido" },
         ),
       ));
-      await db.execute(sql`TRUNCATE _live_events`);
+      await tx.execute(sql`TRUNCATE _live_events`);
 
       const updateSql = wrapUpdateWithEvents(
         Dogs.update()
@@ -138,9 +138,9 @@ describe("Phase 2: mutation wrapping", () => {
           .set(() => ({ user_id: 9n })),
         { primaryKey: ["id"] },
       );
-      await db.execute(updateSql);
+      await tx.execute(updateSql);
 
-      const result = await db.execute(sql`SELECT before, after FROM _live_events ORDER BY (before->>'id')::int`);
+      const result = await tx.execute(sql`SELECT before, after FROM _live_events ORDER BY (before->>'id')::int`);
       const rawRows = result.rows as { before: unknown; after: unknown }[];
       expect(rawRows).toHaveLength(3);
       const rows = rawRows.map((r) => ({
@@ -158,20 +158,20 @@ describe("Phase 2: mutation wrapping", () => {
 
   // Test 6: xid is shared within a tx.
   test("two mutations in the same tx share an xid", async () => {
-    await withinTransaction(async () => {
-      await setupTables();
+    await withinTransaction(async (tx) => {
+      await setupTables(tx);
       const Dogs = makeDogs();
 
-      await db.transaction(async () => {
-        await db.execute(wrapInsertWithEvents(
+      await tx.transaction(async (tx2) => {
+        await tx2.execute(wrapInsertWithEvents(
           Dogs.insert({ id: 1n, user_id: 5n, name: "Rex" }),
         ));
-        await db.execute(wrapInsertWithEvents(
+        await tx2.execute(wrapInsertWithEvents(
           Dogs.insert({ id: 2n, user_id: 5n, name: "Max" }),
         ));
       });
 
-      const result = await db.execute(sql`SELECT DISTINCT xid::text FROM _live_events`);
+      const result = await tx.execute(sql`SELECT DISTINCT xid::text FROM _live_events`);
       const rows = result.rows as { xid: string }[];
       expect(rows).toHaveLength(1);
     });
@@ -179,18 +179,18 @@ describe("Phase 2: mutation wrapping", () => {
 
   // Test 4: Rollback emits nothing.
   test("ROLLBACK discards events alongside the mutation", async () => {
-    await withinTransaction(async () => {
-      await setupTables();
+    await withinTransaction(async (tx) => {
+      await setupTables(tx);
       const Dogs = makeDogs();
 
       // Savepoint-based partial rollback inside the enclosing tx.
-      await db.execute(sql`SAVEPOINT sp_rollback_test`);
-      await db.execute(wrapInsertWithEvents(
+      await tx.execute(sql`SAVEPOINT sp_rollback_test`);
+      await tx.execute(wrapInsertWithEvents(
         Dogs.insert({ id: 99n, user_id: 5n, name: "Ghost" }),
       ));
-      await db.execute(sql`ROLLBACK TO SAVEPOINT sp_rollback_test`);
+      await tx.execute(sql`ROLLBACK TO SAVEPOINT sp_rollback_test`);
 
-      const result = await db.execute(sql`SELECT COUNT(*)::int AS n FROM _live_events WHERE (after->>'id')::int = 99`);
+      const result = await tx.execute(sql`SELECT COUNT(*)::int AS n FROM _live_events WHERE (after->>'id')::int = 99`);
       const rows = result.rows as { n: string }[];
       expect(parseInt(rows[0]!.n, 10)).toBe(0);
     });

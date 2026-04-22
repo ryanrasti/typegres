@@ -2,21 +2,21 @@ import { test, expect, beforeAll, afterAll } from "vitest";
 import { Int8, Text } from "./types";
 import { sql } from "./builder/sql";
 import { db } from "./builder/test-helper";
-import { PgExecutor } from "./executor";
-import type { Executor } from "./executor";
-import { defaultPgConnectionString } from "./pg";
+import { PgDriver } from "./driver";
+import type { Driver } from "./driver";
+import { requireDatabaseUrl } from "./pg";
 import { Database } from "./database";
 
-let poolExec: Executor;
+let poolDriver: Driver;
 let poolDb: Database;
 
 beforeAll(async () => {
-  poolExec = await PgExecutor.create(defaultPgConnectionString(), { max: 10 });
-  poolDb = new Database(poolExec);
+  poolDriver = await PgDriver.create(requireDatabaseUrl(), { max: 10 });
+  poolDb = new Database(poolDriver);
 });
 
 afterAll(async () => {
-  await poolExec.close();
+  await poolDriver.close();
 });
 
 test("transaction commits on success", async () => {
@@ -25,9 +25,9 @@ test("transaction commits on success", async () => {
   class TxTest extends db.Table("txtest") {
     id = (Int8<1>).column({ nonNull: true, generated: true });    name = (Text<1>).column({ nonNull: true });  }
 
-  await db.transaction(async () => {
-    await db.execute(TxTest.insert({ name: "Alice" }));
-    await db.execute(TxTest.insert({ name: "Bob" }));
+  await db.transaction(async (tx) => {
+    await tx.execute(TxTest.insert({ name: "Alice" }));
+    await tx.execute(TxTest.insert({ name: "Bob" }));
   });
 
   const rows = await db.execute(
@@ -45,8 +45,8 @@ test("transaction rollbacks on error", async () => {
     id = (Int8<1>).column({ nonNull: true, generated: true });    name = (Text<1>).column({ nonNull: true });  }
 
   await expect(
-    db.transaction(async () => {
-      await db.execute(TxTest2.insert({ name: "Alice" }));
+    db.transaction(async (tx) => {
+      await tx.execute(TxTest2.insert({ name: "Alice" }));
       throw new Error("rollback!");
     }),
   ).rejects.toThrow("rollback!");
@@ -60,28 +60,28 @@ test("transaction rollbacks on error", async () => {
 });
 
 test("transaction pins one backend connection", async () => {
-  await poolDb.transaction(async () => {
-    const pid1 = await poolExec.execute(sql`SELECT pg_backend_pid() AS pid`);
-    const pid2 = await poolExec.execute(sql`SELECT pg_backend_pid() AS pid`);
-    expect(pid1[0]?.pid).toBe(pid2[0]?.pid);
+  await poolDb.transaction(async (tx) => {
+    const pid1 = await tx.execute(sql`SELECT pg_backend_pid() AS pid`);
+    const pid2 = await tx.execute(sql`SELECT pg_backend_pid() AS pid`);
+    expect(pid1.rows[0]?.pid).toBe(pid2.rows[0]?.pid);
   });
 });
 
 test("transaction preserves session-local temp tables", async () => {
-  await poolDb.transaction(async () => {
-    await poolExec.execute(sql`CREATE TEMP TABLE tx_session_test (id int4)`);
-    await poolExec.execute(sql`INSERT INTO tx_session_test (id) VALUES (1)`);
-    const result = await poolExec.execute(sql`SELECT id FROM tx_session_test`);
+  await poolDb.transaction(async (tx) => {
+    await tx.execute(sql`CREATE TEMP TABLE tx_session_test (id int4)`);
+    await tx.execute(sql`INSERT INTO tx_session_test (id) VALUES (1)`);
+    const result = await tx.execute(sql`SELECT id FROM tx_session_test`);
     expect(result.rows).toEqual([{ id: "1" }]);
   });
 });
 
 test("nested transactions flatten", async () => {
-  await poolDb.transaction(async () => {
-    const pid1 = await poolExec.execute(sql`SELECT pg_backend_pid() AS pid`);
-    await poolDb.transaction(async () => {
-      const pid2 = await poolExec.execute(sql`SELECT pg_backend_pid() AS pid`);
-      expect(pid2[0]?.pid).toBe(pid1[0]?.pid);
+  await poolDb.transaction(async (tx) => {
+    const pid1 = await tx.execute(sql`SELECT pg_backend_pid() AS pid`);
+    await tx.transaction(async (tx2) => {
+      const pid2 = await tx2.execute(sql`SELECT pg_backend_pid() AS pid`);
+      expect(pid2.rows[0]?.pid).toBe(pid1.rows[0]?.pid);
     });
   });
 });

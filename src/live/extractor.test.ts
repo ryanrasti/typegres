@@ -152,13 +152,13 @@ describe("Phase 1: extractor", () => {
 
   // End-to-end: run the extractor SQL against a real PG and check the rows.
   test("e2e: extractor SQL executes and returns expected (tbl, col, value) rows", async () => {
-    await withinTransaction(async () => {
-      await db.execute(sql`DROP TABLE IF EXISTS users CASCADE`);
-      await db.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
-      await db.execute(sql`CREATE TABLE users (id int8 PRIMARY KEY, name text NOT NULL)`);
-      await db.execute(sql`CREATE TABLE dogs (id int8 PRIMARY KEY, user_id int8 NOT NULL, name text NOT NULL)`);
-      await db.execute(sql`INSERT INTO users (id, name) VALUES (5, 'alice'), (6, 'bob')`);
-      await db.execute(sql`INSERT INTO dogs (id, user_id, name) VALUES (1, 5, 'Rex'), (2, 5, 'Max'), (3, 6, 'Fido')`);
+    await withinTransaction(async (tx) => {
+      await tx.execute(sql`DROP TABLE IF EXISTS users CASCADE`);
+      await tx.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
+      await tx.execute(sql`CREATE TABLE users (id int8 PRIMARY KEY, name text NOT NULL)`);
+      await tx.execute(sql`CREATE TABLE dogs (id int8 PRIMARY KEY, user_id int8 NOT NULL, name text NOT NULL)`);
+      await tx.execute(sql`INSERT INTO users (id, name) VALUES (5, 'alice'), (6, 'bob')`);
+      await tx.execute(sql`INSERT INTO dogs (id, user_id, name) VALUES (1, 5, 'Rex'), (2, 5, 'Max'), (3, 6, 'Fido')`);
 
       class Users extends db.Table("users") {
         id = (Int8<1>).column({ nonNull: true });        name = (Text<1>).column({ nonNull: true });      }
@@ -170,7 +170,7 @@ describe("Phase 1: extractor", () => {
         .where(({ users }) => users.id["="](5n));
 
       const extractor = buildExtractor(qb);
-      const result = await db.execute(extractor.sql);
+      const result = await tx.execute(extractor.sql);
       const rows = result.rows as { tbl: string; col: string; value: string }[];
 
       // One row per (tbl, col, value) triple — note DISTINCT is achieved via

@@ -16,7 +16,19 @@
           packages = with pkgs; [
             nodejs_22
             postgresql_17
+            act  # run GitHub Actions workflows locally (needs Docker on host)
           ];
+          shellHook = ''
+            # DATABASE_URL points at the per-repo socket provisioned by
+            # bin/startpg. Hash the repo root so parallel checkouts stay
+            # isolated. Honor a pre-existing DATABASE_URL (e.g. CI).
+            if [ -z "''${DATABASE_URL:-}" ]; then
+              repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+              hash="$(printf '%s' "$repo_root" | sha256sum | cut -c1-12)"
+              sock="/tmp/typegres-pg-$hash/socket"
+              export DATABASE_URL="postgresql:///postgres?host=$sock"
+            fi
+          '';
         };
       });
     };

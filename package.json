@@ -2,12 +2,6 @@
   "name": "typegres",
   "version": "0.0.1",
   "type": "module",
-  "imports": {
-    "#als": {
-      "browser": "./src/als-browser.ts",
-      "default": "./src/als.ts"
-    }
-  },
   "exports": {
     ".": {
       "import": "./dist/index.mjs",
@@ -43,7 +37,7 @@
     "typecheck": "tsgo --noEmit",
     "format": "prettier --write src",
     "test": "vitest run",
-    "check": "npm run lint && npm run typecheck && npm run test"
+    "check": "npm run lint && npm run typecheck && npm run test && npm --prefix examples/basic run check"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

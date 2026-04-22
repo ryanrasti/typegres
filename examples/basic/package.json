@@ -7,7 +7,8 @@
     "migrate": "node --experimental-strip-types migrate.ts",
     "generate": "tg generate",
     "typecheck": "tsgo --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run test"
   },
   "dependencies": {
     "pg": "^8.16.0",

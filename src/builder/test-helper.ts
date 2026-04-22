@@ -1,11 +1,11 @@
 import { beforeAll, afterAll } from "vitest";
-import { PgExecutor } from "../executor";
-import type { Executor } from "../executor";
-import { defaultPgConnectionString } from "../pg";
+import { PgDriver } from "../driver";
+import type { Driver } from "../driver";
+import { requireDatabaseUrl } from "../pg";
 import { Database } from "../database";
 import { sql } from "./sql";
 
-export let exec: Executor;
+export let driver: Driver;
 export let db: Database;
 
 // Per-worker schema isolates tables so test files can run in parallel against
@@ -15,23 +15,26 @@ export let db: Database;
 const schema = `test_w${process.env["VITEST_WORKER_ID"] ?? "1"}`;
 
 beforeAll(async () => {
-  exec = await PgExecutor.create(defaultPgConnectionString(), {
+  driver = await PgDriver.create(requireDatabaseUrl(), {
     max: 1,
     options: `-csearch_path=${schema}`,
   });
-  db = new Database(exec);
+  db = new Database(driver);
   await db.execute(sql`DROP SCHEMA IF EXISTS ${sql.ident(schema)} CASCADE`);
   await db.execute(sql`CREATE SCHEMA ${sql.ident(schema)}`);
 });
 
 afterAll(async () => {
   await db.execute(sql`DROP SCHEMA IF EXISTS ${sql.ident(schema)} CASCADE`);
-  await exec.close();
+  await driver.close();
 });
 
-export const withinTransaction = async (fn: () => Promise<void>) => {
-  await db.transaction(async () => {
-    await fn();
+// Runs `fn` inside a transaction that always rolls back. The tx is passed
+// in so tests explicitly operate on the txn-bound Database — queries, sql
+// fragments, and mutations all go through it.
+export const withinTransaction = async (fn: (tx: Database) => Promise<void>) => {
+  await db.transaction(async (tx) => {
+    await fn(tx);
     throw new Error("__test_rollback__");
   }).catch((e) => {
     if ((e as Error).message !== "__test_rollback__") {

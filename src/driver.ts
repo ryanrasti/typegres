@@ -8,7 +8,7 @@ import type pg from "pg";
 export type QueryResult = { rows: { [key: string]: string }[] };
 export type ExecuteFn = (query: Sql) => Promise<QueryResult>;
 
-export interface Executor {
+export interface Driver {
   execute: ExecuteFn;
   runInSingleConnection<T>(cb: (execute: ExecuteFn) => Promise<T>): Promise<T>;
   close(): Promise<void>;
@@ -17,11 +17,11 @@ export interface Executor {
 // pg adapter — returns raw text strings (no driver-side deserialization).
 // `pg` is loaded lazily so it's an optional peer dep; callers without pg
 // (e.g. pglite-only builds) never touch it.
-export class PgExecutor implements Executor {
+export class PgDriver implements Driver {
   static async create(
     connectionString: string,
     poolOptions: pg.PoolConfig = {},
-  ): Promise<PgExecutor> {
+  ): Promise<PgDriver> {
     // eslint-disable-next-line no-restricted-syntax -- optional dep, lazy loaded
     const pgMod = (await import(/* webpackIgnore: true */ "pg")).default;
     const pool = new pgMod.Pool({
@@ -29,7 +29,7 @@ export class PgExecutor implements Executor {
       ...poolOptions,
       types: { getTypeParser: () => (v: string) => v },
     });
-    return new PgExecutor(pool);
+    return new PgDriver(pool);
   }
 
   private constructor(private pool: pg.Pool) {}
@@ -64,8 +64,8 @@ type PgliteDb = {
   close(): Promise<void>;
 };
 
-export class PgliteExecutor implements Executor {
-  static async create(): Promise<PgliteExecutor> {
+export class PgliteDriver implements Driver {
+  static async create(): Promise<PgliteDriver> {
     // eslint-disable-next-line no-restricted-syntax -- optional dep, lazy loaded
     const { PGlite } = await import("@electric-sql/pglite");
     const db = new PGlite() as unknown as PgliteDb;
@@ -74,7 +74,7 @@ export class PgliteExecutor implements Executor {
     const parsers: { [key: number]: (v: string) => string } = Object.fromEntries(
       types.map((t) => [t.oid, (v: string) => v]),
     );
-    return new PgliteExecutor(db, parsers);
+    return new PgliteDriver(db, parsers);
   }
 
   private constructor(

@@ -2,7 +2,7 @@ import pg from "pg";
 import camelcase from "camelcase";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { defaultPgConnectionString } from "../pg.ts";
+import { requireDatabaseUrl } from "../pg.ts";
 import { getTypeDef } from "./deserialize.ts";
 import {
   introspect,
@@ -501,7 +501,7 @@ const generateIndex = (typeMap: Map<number, PgType>, overrides: Set<string>) => 
 };
 
 export const generate = async () => {
-  const db = new pg.Pool({ connectionString: defaultPgConnectionString() });
+  const db = new pg.Pool({ connectionString: requireDatabaseUrl() });
 
   try {
     const { typeMap, pgFuncs } = await introspect(db, Object.keys(OPERATOR_ALIASES));

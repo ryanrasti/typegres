@@ -1,5 +1,4 @@
-import { AsyncLocalStorage } from "#als";
-import type { ExecuteFn, Executor, QueryResult } from "./executor";
+import type { ExecuteFn, Driver, QueryResult } from "./driver";
 import type { Fromable, RowType, RowTypeToTsType } from "./builder/query";
 import { QueryBuilder, deserializeRows, hydrateRows } from "./builder/query";
 import type { Sql } from "./builder/sql";
@@ -15,14 +14,24 @@ import { buildExtractor } from "./live/extractor";
 import { LiveQueryError } from "./live/types";
 
 export class Database {
-  #context = new AsyncLocalStorage<{ execute: ExecuteFn; inTransaction: boolean }>();
   #liveBus: LiveBus | undefined;
+  #boundExecute?: ExecuteFn;
 
-  constructor(private executor: Executor) {}
+  // A pool-backed Database (`new Database(driver)`) routes each query
+  // through the driver's pool. A transaction-bound Database (constructed
+  // internally via .transaction()) carries a single-connection ExecuteFn
+  // so every query inside the txn callback lands on the same connection.
+  constructor(private driver: Driver, boundExecute?: ExecuteFn) {
+    if (boundExecute) { this.#boundExecute = boundExecute; }
+  }
 
   // Attach a LiveBus so db.live(query) can serve subscriptions.
   // Called once at startup by an application wiring live queries.
   enableLive(bus: LiveBus): void { this.#liveBus = bus; }
+
+  #exec(query: Sql): Promise<QueryResult> {
+    return (this.#boundExecute ?? this.driver.execute.bind(this.driver))(query);
+  }
 
   // Overload resolution matches top-to-bottom and stops on the first
   // match — list specific builders before the general `Sql` fallback, or
@@ -33,7 +42,7 @@ export class Database {
   async execute<R extends RowType>(query: DeleteBuilder<any, any, R>): Promise<RowTypeToTsType<R>[]>;
   async execute(query: Sql): Promise<QueryResult>;
   async execute(query: Sql): Promise<any> {
-    const result = await (this.#context.getStore()?.execute ?? this.executor.execute.bind(this.executor))(query);
+    const result = await this.#exec(query);
     if (query instanceof QueryBuilder) {
       return deserializeRows(result.rows as { [key: string]: string }[], query.rowType() as { [key: string]: unknown });
     }
@@ -69,7 +78,7 @@ export class Database {
     query: DeleteBuilder<Name, T, R>,
   ): Promise<R[]>;
   async hydrate(query: Sql): Promise<any> {
-    const result = await (this.#context.getStore()?.execute ?? this.executor.execute.bind(this.executor))(query);
+    const result = await this.#exec(query);
     let shape: { [k: string]: unknown } | undefined;
     if (query instanceof QueryBuilder) {
       shape = query.rowType() as { [k: string]: unknown };
@@ -83,26 +92,27 @@ export class Database {
     return hydrateRows(result.rows as { [key: string]: string }[], shape);
   }
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    const current = this.#context.getStore();
-    if (current?.inTransaction) {
-      // Flatten transactions:
-      return fn();
+  // Run `fn` inside a transaction (pg default isolation). The `tx` Database
+  // passed to fn is bound to a single connection; every execute/hydrate on it
+  // goes through that connection. Nested calls flatten: `tx.transaction(fn)`
+  // just invokes fn(tx) without opening a new BEGIN/COMMIT.
+  async transaction<T>(fn: (tx: Database) => Promise<T>): Promise<T> {
+    if (this.#boundExecute) {
+      // Already in a txn — flatten.
+      return fn(this);
     }
-
-    return this.executor.runInSingleConnection(async (execute: ExecuteFn) => {
-      return this.#context.run({ execute, inTransaction: true }, async () => {
-        await execute(sql`BEGIN`);
-        await execute(sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`);
-        try {
-          const result = await fn();
-          await execute(sql`COMMIT`);
-          return result;
-        } catch (e) {
-          await execute(sql`ROLLBACK`);
-          throw e;
-        }
-      });
+    return this.driver.runInSingleConnection(async (execute) => {
+      const tx = new Database(this.driver, execute);
+      tx.#liveBus = this.#liveBus;
+      await execute(sql`BEGIN`);
+      try {
+        const result = await fn(tx);
+        await execute(sql`COMMIT`);
+        return result;
+      } catch (e) {
+        await execute(sql`ROLLBACK`);
+        throw e;
+      }
     });
   }
 
@@ -148,16 +158,19 @@ export class Database {
     const sub = this.#liveBus.subscribe();
     try {
       while (true) {
-        const { data, cursor, preds } = await this.transaction(async () => {
-          const cursorResult = await this.execute(sql`SELECT pg_current_snapshot()::text AS s`);
+        const { data, cursor, preds } = await this.transaction(async (tx) => {
+          // Pin the extractor and main query to the same snapshot so
+          // post-snapshot events compare against consistent predicates.
+          await tx.execute(sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`);
+          const cursorResult = await tx.execute(sql`SELECT pg_current_snapshot()::text AS s`);
           const cursor = (cursorResult.rows as { s: string }[])[0]!.s;
-          const extractorRows = (await this.execute(extractor.sql)).rows as {
+          const extractorRows = (await tx.execute(extractor.sql)).rows as {
             tbl: string;
             col: string;
             value: string;
           }[];
           const preds = extractor.materialize(extractorRows);
-          const data = await this.execute(query) as unknown as RowTypeToTsType<O>[];
+          const data = await tx.execute(query) as unknown as RowTypeToTsType<O>[];
           return { data, cursor, preds };
         });
         yield data;

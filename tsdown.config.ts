@@ -9,9 +9,7 @@ export default defineConfig([
   },
   // Playground single-file bundle for the site's Monaco + esbuild-wasm
   // runtime. Emits directly into site/public/ so the site doesn't need a
-  // copy step. platform: "browser" picks the browser variant of the
-  // `#als` subpath import (AsyncLocalStorage shim, since the real one is
-  // a node-only API). pg is externalized via webpackIgnore on its dynamic
+  // copy step. pg is externalized via webpackIgnore on its dynamic
   // import call site.
   {
     entry: { typegres: "src/index.ts" },

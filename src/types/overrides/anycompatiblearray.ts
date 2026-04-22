@@ -6,7 +6,7 @@ import { sql } from "../../builder/sql";
 export class Anycompatiblearray<T extends Any<any>, N extends number> extends Generated<T, N> {
   static __element: Any<any>;
 
-  deserialize(raw: string): (TsTypeOf<T> | null)[] {
+  deserialize(raw: string): TsTypeOf<T>[] {
     // Pg array format: `{a,b,NULL,"quoted","with,comma"}`.
     // NULL elements are the unquoted word `NULL` (case-sensitive). Quoted
     // `"NULL"` is the 4-char string. Track wasQuoted per element so we can
@@ -44,7 +44,7 @@ export class Anycompatiblearray<T extends Any<any>, N extends number> extends Ge
     // `this.constructor` to look up the type in the registry.
     const element = (this[meta].__class as unknown as { __element: Any<any> }).__element;
     const elDeser = element.deserialize.bind(element);
-    return elements.map((el) => el === null ? null : elDeser(el)) as (TsTypeOf<T> | null)[];
+    return elements.map((el) => el === null ? null : elDeser(el)) as TsTypeOf<T>[];
   }
 
   static of<T extends Any<any>>(element: T) {

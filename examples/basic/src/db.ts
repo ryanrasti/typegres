@@ -1,5 +1,3 @@
-import { Database, pgliteExecutor } from "typegres";
+import { typegres } from "typegres";
 
-const executor = await pgliteExecutor();
-export const db = new Database(executor);
-export { executor };
+export const db = await typegres({ type: "pglite" });

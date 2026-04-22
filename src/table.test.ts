@@ -5,19 +5,19 @@ import { db, withinTransaction } from "./builder/test-helper";
 import type { Fromable } from "./builder/query";
 
 test("Table.from().select()", async () => {
-  await withinTransaction(async () => {
-    await db.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
-    await db.execute(sql`CREATE TABLE dogs (
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
+    await tx.execute(sql`CREATE TABLE dogs (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       breed text
     )`);
-    await db.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
+    await tx.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
 
     class Dogs extends db.Table("dogs") {
       id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });      breed = (Text<0 | 1>).column();    }
 
-    const rows = await db.execute(Dogs.from()
+    const rows = await tx.execute(Dogs.from()
       .select(({ dogs }) => ({ id: dogs.id, name: dogs.name, breed: dogs.breed }))
       );
 
@@ -30,19 +30,19 @@ test("Table.from().select()", async () => {
 });
 
 test("Table.as() alias", async () => {
-  await withinTransaction(async () => {
-    await db.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
-    await db.execute(sql`CREATE TABLE dogs (
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
+    await tx.execute(sql`CREATE TABLE dogs (
       id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       breed text
     )`);
-    await db.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
+    await tx.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
 
     class Dogs extends db.Table("dogs") {
       id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });      breed = (Text<0 | 1>).column();    }
 
-    const rows = await db.execute(Dogs.as("d").from()
+    const rows = await tx.execute(Dogs.as("d").from()
       .select(({ d }) => ({ id: d.id, name: d.name, breed: d.breed }))
       );
 
@@ -59,14 +59,14 @@ test("Table.as() alias", async () => {
 // .as() produces a fresh subclass with an independent alias so the same
 // table can self-join without a double-register error.
 test("Table class is a Fromable and self-joins via .as()", async () => {
-  await withinTransaction(async () => {
-    await db.execute(sql`DROP TABLE IF EXISTS employees CASCADE`);
-    await db.execute(sql`CREATE TABLE employees (
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`DROP TABLE IF EXISTS employees CASCADE`);
+    await tx.execute(sql`CREATE TABLE employees (
       id int8 PRIMARY KEY,
       name text NOT NULL,
       manager_id int8
     )`);
-    await db.execute(sql`
+    await tx.execute(sql`
       INSERT INTO employees (id, name, manager_id) VALUES
         (1, 'Alice', NULL),
         (2, 'Bob', 1),
@@ -87,7 +87,7 @@ test("Table class is a Fromable and self-joins via .as()", async () => {
     void _fromableCheck;
 
     // 2. db.From(Class) / Class.from() consume the statics directly.
-    const allNames = await db.execute(
+    const allNames = await tx.execute(
       Employees.from().select(({ employees }) => ({ name: employees.name })).orderBy(({ employees }) => employees.id),
     );
     expect(allNames.map((r) => r.name)).toEqual(["Alice", "Bob", "Carol"]);
@@ -101,7 +101,7 @@ test("Table class is a Fromable and self-joins via .as()", async () => {
 
     // Pass classes to .join, not `.from()` subqueries — the class IS the
     //    Fromable, so this emits `JOIN employees AS mgr ON ...` directly.
-    const reports = await db.execute(
+    const reports = await tx.execute(
       Employees.from()
         .join(Mgr, ({ employees, mgr }) => employees.manager_id["="](mgr.id))
         .select(({ employees, mgr }) => ({

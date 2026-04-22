@@ -23,7 +23,7 @@ This document is the implementation plan, not the long-term dream.
 
 Before live work, fix transactions.
 
-Current `Database.transaction()` issues `BEGIN` / `COMMIT`, but the pg executor uses `Pool.query()` per statement, so queries are not guaranteed to run on the same backend connection. That means we do **not** currently have a real transaction boundary for pg.
+Current `Database.transaction()` issues `BEGIN` / `COMMIT`, but the pg driver uses `Pool.query()` per statement, so queries are not guaranteed to run on the same backend connection. That means we do **not** currently have a real transaction boundary for pg.
 
 Live queries require:
 
@@ -48,7 +48,7 @@ over query-owned execution:
 query.live()
 ```
 
-Reason: live execution needs more than a query executor. It needs:
+Reason: live execution needs more than a query driver. It needs:
 
 - transaction control
 - snapshot capture
@@ -254,7 +254,7 @@ Idle subscriptions can still age past retention even if no matching event arrive
 Prerequisites already landed:
 
 - Connection-pinned transactions with isolation-level control.
-- `Database` owns executor and will own the live store.
+- `Database` owns driver and will own the live store.
 - Structured SQL AST with `Op`, `Column`, `TableAlias`, etc. — enough to pattern-match equality predicates and alias identity inline during extractor traversal. No separate "AST helpers" layer needed; the extractor walks the tree and matches node shapes where it needs them.
 
 ### Phase 1 — extractor
@@ -383,7 +383,7 @@ These are good ideas, but not part of the first implementation.
 
 Because live queries touch every layer:
 
-- executor / transactions
+- driver / transactions
 - query AST
 - mutation builders
 - database runtime

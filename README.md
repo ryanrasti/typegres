@@ -97,10 +97,10 @@ npm install typegres pg
 ```
 
 ```typescript
-import { Database, PgExecutor, sql } from "typegres";
+import { Database, PgDriver, sql } from "typegres";
 
-const exec = await PgExecutor.create(process.env.DATABASE_URL!);
-const db = new Database(exec);
+const driver = await PgDriver.create(process.env.DATABASE_URL!);
+const db = new Database(driver);
 
 const rows = await db.execute(sql`SELECT 1 + 1 AS sum`);
 ```
