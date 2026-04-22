@@ -65,7 +65,7 @@ class User extends Table("users") {
   }
 
   todos() {
-    return Todo.from().where(({ todos }) => todos.user_id["="](this.id));
+    return Todo.from().where(({ todos }) => todos.user_id.eq(this.id));
   }
 }
 
@@ -89,7 +89,7 @@ class Todo extends Table("todos") {
 
   update(fields: { completed?: boolean; title?: string }) {
     return Todo.update()
-      .where(({ todos }) => todos.id["="](this.id))
+      .where(({ todos }) => todos.id.eq(this.id))
       .set(() => fields);
   }
 }
@@ -98,20 +98,20 @@ test("example 2: relations and mutations via hydrated instances", async () => {
   // In the test we need a real user + todoId; the landing snippet elides
   // these with `const user = ...`.
   const user = (await db.hydrate(
-    User.from().where(({ users }) => users.token["="]("t1")).limit(1),
+    User.from().where(({ users }) => users.token.eq("t1")).limit(1),
   ))[0]!;
   const todoId = 1n;
 
   // The only way to get a todo is through a user:
   const todo = await user.todos()
-    .where(({ todos }) => todos.id["="](todoId))
+    .where(({ todos }) => todos.id.eq(todoId))
     .one(db);
 
   // The only way to update a todo is via the hydrated instance:
   await todo.update({ completed: true }).execute(db);
 
   const [after] = await Todo.from()
-    .where(({ todos }) => todos.id["="](todo.id))
+    .where(({ todos }) => todos.id.eq(todo.id))
     .execute(db);
   expect(after!.completed).toBe(true);
 });
@@ -126,7 +126,7 @@ const _aspirational = `
 export class Api extends RpcTarget {
   getUserFromToken(token: string) {
     return User.from()
-      .where(({ users }) => users.token["="](token));
+      .where(({ users }) => users.token.eq(token));
   }
 }
 

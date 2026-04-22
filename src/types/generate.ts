@@ -406,7 +406,11 @@ const generateTypeFile = (
     }
 
     const wrapRet = f0.isSrf ? wrapSrfRet : (_: PgFunc, r: string) => r;
-    const alias = aliasName(f0);
+    // Skip the alias if pg already has a function with that name on this
+    // type (e.g. `mod`, `pow`) — the pg function wins, its signature is
+    // authoritative, and a synthesized alias would collide.
+    const rawAlias = aliasName(f0);
+    const alias = rawAlias && !funcGroups.has(rawAlias) ? rawAlias : null;
 
     const emit = (nameOverride?: string): void => {
       if (group.length === 1) {

@@ -45,7 +45,7 @@ await Posts.insert(
 // ------------------------------------
 
 const alicePosts = await Posts.from()
-  .where(({ posts }) => posts.author["="](Text.from("alice")))
+  .where(({ posts }) => posts.author.eq(Text.from("alice")))
   .select(({ posts }) => ({ id: posts.id, preview: posts.preview() }))
   .orderBy(({ posts }) => posts.id)
   .debug()
@@ -72,7 +72,7 @@ console.log("Likes by author:", likesByAuthor);
 // ------------------------------------
 
 const promoted = await Posts.update()
-  .where(({ posts }) => posts.author["="](Text.from("alice")))
+  .where(({ posts }) => posts.author.eq(Text.from("alice")))
   .set(() => ({ likes: 999n }))
   .returning(({ posts }) => ({ id: posts.id, likes: posts.likes }))
   .debug()

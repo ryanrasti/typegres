@@ -53,7 +53,7 @@ const latest = await User.from()
   // ...
 
   todos() {
-    return Todo.from().where(({ todos }) => todos.user_id["="](this.id));
+    return Todo.from().where(({ todos }) => todos.user_id.eq(this.id));
   }
 }
 
@@ -62,7 +62,7 @@ class Todo extends Table("todos") {
 
   update(fields: { completed?: boolean; title?: string }) {
     return Todo.update()
-      .where(({ todos }) => todos.id["="](this.id))
+      .where(({ todos }) => todos.id.eq(this.id))
       .set(() => fields);
   }
 }`,
@@ -70,7 +70,7 @@ class Todo extends Table("todos") {
 
 // The only way to get a todo is through a user:
 const todo = await user.todos()
-  .where(({ todos }) => todos.id["="](todoId))
+  .where(({ todos }) => todos.id.eq(todoId))
   .one(db);
 
 // The only way to update a todo is via the hydrated instance:
@@ -95,7 +95,7 @@ class Todo extends Table("todos") {
 export class Api extends RpcTarget {
   getUserFromToken(token: string) {
     return User.from()
-      .where(({ users }) => users.token["="](token));
+      .where(({ users }) => users.token.eq(token));
   }
 }
 
