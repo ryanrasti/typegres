@@ -1,11 +1,10 @@
 # Typegres
 
 A Postgres-first TypeScript library where the database is the single source of
-truth — and your application's public API is exposed directly on top of it,
-reactively.
+truth — and your application's public API is exposed directly on top of it.
 
 > **Status:** clean rewrite in progress. Core architecture is settled. See
-> [AGENTS.md](./AGENTS.md) for conventions and project plan.
+> [ARCHITECTURE.md](./ARCHITECTURE.md) for design notes.
 
 ## Tenets
 
@@ -19,14 +18,7 @@ reactively.
    the interface, not the schema. You refactor tables freely without breaking
    anyone.
 
-3. **Queries are reactive by default.**
-   `db.live(query)` yields the current result set, then re-yields whenever a
-   commit touches the predicates the query depends on. The live-query engine
-   extracts a predicate DAG from the query AST, compares it against an event
-   log written by wrapped mutations, and invalidates only the subscriptions
-   that could have changed.
-
-4. **Every Postgres capability, as a typed TS method.**
+3. **Every Postgres capability, as a typed TS method.**
    All 77 pg base types, every operator, every function — codegen'd from the
    catalog with full overload preservation and compile-time null tracking.
    `Int4<1>["+"](Int4<0|1>)` returns `Int4<0|1>`; pg's strictness rules are
@@ -52,10 +44,9 @@ class Users extends db.Table("users") {
   }
 }
 
-// Subscribe to a live result set.
-for await (const rows of db.live(Users.from().orderBy((u) => u.created_at))) {
-  render(rows);
-}
+const rows = await Users.from()
+  .orderBy(({ users }) => users.created_at)
+  .execute(db);
 ```
 
 ## Architecture sketch
@@ -65,13 +56,12 @@ for await (const rows of db.live(Users.from().orderBy((u) => u.created_at))) {
 - **SQL builder** — a tiny core: five `BoundSql` atoms compiled by one
   stack-based pass. Every builder (`QueryBuilder`, `Insert/Update/Delete`,
   `Values`, `PgSrf`) is a macro that rewrites itself via `bind()`.
-- **Live queries** — per-query predicate DAGs, a wrapped-mutation event log,
-  REPEATABLE READ snapshots. Subscriptions re-fire only when relevant.
 - **Callback-based query construction.** `where`, `select`, `on`, etc. are
   closures evaluated at `bind()` time against a fresh namespace — aliases are
   ephemeral to compilation, never stored on classes.
 
-Deeper dive in [AGENTS.md](./AGENTS.md); code is annotated throughout.
+Deeper dive in [ARCHITECTURE.md](./ARCHITECTURE.md); code is annotated
+throughout.
 
 ## Status
 
@@ -79,8 +69,9 @@ Deeper dive in [AGENTS.md](./AGENTS.md); code is annotated throughout.
 - [x] Query builder (SELECT + JOIN + WHERE + GROUP BY + HAVING + ORDER BY + LIMIT)
 - [x] Mutations (INSERT / UPDATE / DELETE / RETURNING)
 - [x] Subqueries, scalar/array aggregation
-- [x] Live queries (predicate extraction + event-log invalidation)
 - [x] Table codegen from live schema
+- [ ] Live queries — previously prototyped under `src/live/`; pulled out for a
+      design pass. See [ISSUES.md](./ISSUES.md).
 
 ## Planned
 
