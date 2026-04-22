@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "#als";
 import type { ExecuteFn, Executor, QueryResult } from "./executor";
 import type { Fromable, RowType, RowTypeToTsType } from "./builder/query";
-import { QueryBuilder, deserializeRows } from "./builder/query";
+import { QueryBuilder, deserializeRows, hydrateRows } from "./builder/query";
 import type { Sql } from "./builder/sql";
 import { sql } from "./builder/sql";
 import { Table, type TableBase } from "./table";
@@ -50,6 +50,42 @@ export class Database {
       return deserializeRows(result.rows as { [key: string]: string }[], returning as { [key: string]: unknown });
     }
     return result;
+  }
+
+  // Materialize rows as class instances. Each column field is an Any
+  // wrapping a CAST(param) of the row's value, so methods on the class
+  // (relations, mutations, derived columns) compose into follow-up
+  // queries naturally: `const [user] = await db.hydrate(User.from()...);
+  // await db.execute(user.todos());`.
+  //
+  // For queries whose output shape is a plain object (e.g. `.select(ns =>
+  // ({a: ns.x.foo}))`), hydrate returns plain objects with each field an
+  // Any-wrapped value — the prototype-preservation is a no-op.
+  async hydrate<O extends RowType, GB extends any[], Card extends "one" | "maybe" | "many">(
+    query: QueryBuilder<any, O, GB, Card>,
+  ): Promise<O[]>;
+  async hydrate<Name extends string, T extends TableBase, R extends RowType>(
+    query: InsertBuilder<Name, T, R>,
+  ): Promise<R[]>;
+  async hydrate<Name extends string, T extends TableBase, R extends RowType>(
+    query: UpdateBuilder<Name, T, R>,
+  ): Promise<R[]>;
+  async hydrate<Name extends string, T extends TableBase, R extends RowType>(
+    query: DeleteBuilder<Name, T, R>,
+  ): Promise<R[]>;
+  async hydrate(query: Sql): Promise<any> {
+    const result = await (this.#context.getStore()?.execute ?? this.executor.execute.bind(this.executor))(query);
+    let shape: { [k: string]: unknown } | undefined;
+    if (query instanceof QueryBuilder) {
+      shape = query.rowType() as { [k: string]: unknown };
+    } else if (query instanceof InsertBuilder || query instanceof UpdateBuilder || query instanceof DeleteBuilder) {
+      const r = query.rowType();
+      if (!r) { return []; }
+      shape = r as { [k: string]: unknown };
+    } else {
+      throw new Error("db.hydrate requires a QueryBuilder or mutation with RETURNING");
+    }
+    return hydrateRows(result.rows as { [key: string]: string }[], shape);
   }
 
   async transaction<T>(fn: () => Promise<T>): Promise<T> {

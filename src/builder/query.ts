@@ -57,6 +57,37 @@ export const deserializeRows = <R>(
   ) as R[];
 };
 
+// Hydrate raw rows into typed instances that share the shape's prototype.
+// Each column field is an Any wrapping a CAST(param) of the deserialized
+// value — so methods on the class that reference `this.col` can compose
+// into follow-up queries (operator methods accept Any via match()).
+//
+// This is the materializing counterpart to deserializeRows: instead of
+// plain JS primitives, you get class instances with callable methods.
+export const hydrateRows = <R>(
+  rows: { [key: string]: string }[],
+  shape: { [key: string]: unknown },
+): R[] => {
+  const proto = Object.getPrototypeOf(shape);
+  return rows.map((row) => {
+    const instance = Object.create(proto);
+    for (const [k, raw] of Object.entries(row)) {
+      const col = shape[k];
+      let value: unknown;
+      if (col instanceof Any) {
+        const deserialized = raw === null || raw === undefined
+          ? null
+          : col.deserialize(String(raw));
+        value = col[meta].__class.from(deserialized);
+      } else {
+        value = raw;
+      }
+      Object.defineProperty(instance, k, { value, enumerable: true });
+    }
+    return instance;
+  }) as R[];
+};
+
 // Mapping of row name to type (class instance)
 export type RowType = object;
 // All of the row types in the current namespace

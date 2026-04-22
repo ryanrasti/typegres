@@ -25,20 +25,22 @@ export default function HomePage() {
       title: "1. Decouple Your Interface from Your Schema - With All of Postgres, Fully Typed",
       description:
         'Wrap your tables in a stable, public interface. You can refactor your "private" tables and columns without ever breaking clients.',
-      leftCode: `export class User extends Models.User {
+      leftCode: `class User extends Table("users") {
+  // ...
+
   // Your public interface stays stable as your schema evolves
-  createdAt() {
-    // -    return this.metadata['->>']('createdAt').cast(Timestamptz);
+  createdAt(): Timestamptz<1> {
+    // -    return this.metadata["->>"]("createdAt").cast(Timestamptz);
     // +    return this.created_at;
   }
 }`,
       leftDiff: true,
       rightCode: `// Compiles to the single SQL query you'd write manually.
-const user = await User
-  .select()
-  .orderBy((u) => u.createdAt(), { desc: true })
-  .limit(1)
-  .one(tg);`,
+const latest = await db.execute(
+  User.from()
+    .orderBy((ns) => [ns.users.createdAt(), "desc"])
+    .limit(1),
+);`,
       leftLabel: "api.ts",
       rightLabel: "route.ts",
       leftLanguage: "typescript",
@@ -48,29 +50,32 @@ const user = await User
       title: "2. Your Interface Defines Your Data Boundaries",
       description:
         "Allowed operations are just methods on your interface, including relations and mutations. Everything fully composable and typed.",
-      leftCode: `export class User extends Models.User {
+      leftCode: `class User extends Table("users") {
+  // ...
+
   todos() {
-    return Todo.select().where((t) => t.user_id.eq(this.id));
+    return Todo.from().where((ns) => ns.todos.user_id["="](this.id));
   }
 }
 
-export class Todo extends Models.Todos {
-  update({ completed }: { completed: boolean }) {
-    return update(Todo)
-      .set((t) => ({ completed }))
-      .where((t) => t.id.eq(this.id));
+class Todo extends Table("todos") {
+  // ...
+
+  update(fields: { completed?: boolean; title?: string }) {
+    return Todo.update()
+      .where((ns) => ns.todos.id["="](this.id))
+      .set(() => fields);
   }
 }`,
-      rightCode: `
-const user = ...
+      rightCode: `const [user] = await db.hydrate(
+  User.from().where((ns) => ns.users.id["="](userId)).limit(1),
+);
 
-// The only way to get a todo is through a user:
-const todo = await user.todos()
-  .where((t) => t.id.eq(todoId))
-  .one(tg);
+// The only way to get a todo is through the user:
+const [todo] = await db.hydrate(user!.todos().limit(1));
 
-// The only way to update a todo is by getting it from a user:
-await todo.update({ completed: true }).execute(tg);`,
+// The only way to update a todo is via the hydrated instance:
+await db.execute(todo!.update({ completed: true }));`,
       leftLabel: "api.ts",
       rightLabel: "route.ts",
       leftLanguage: "typescript",
@@ -80,18 +85,18 @@ await todo.update({ completed: true }).execute(tg);`,
       title: "3. Expose your API over RPC, Safely",
       description:
         "Give clients a composable query builder with your unescapable data boundaries. Compose queries in the client with every Postgres feature (joins, window functions, CTEs, etc.) and function as primitives.",
-      leftCode: `export class User extends Models.User {
+      leftCode: `class User extends Table("users") {
   // ...
 }
 
-export class Todo extends Models.Todos {
+class Todo extends Table("todos") {
   // ...
 }
 
 export class Api extends RpcTarget {
   getUserFromToken(token: string) {
-    return User.select((u) => new User(u))
-      .where((u) => u.token.eq(token));
+    return User.from()
+      .where((ns) => ns.users.token["="](token));
   }
 }
 
@@ -99,13 +104,12 @@ export class Api extends RpcTarget {
 // not flat results`,
       rightCode: `export function TodoList({ searchQuery }: { searchQuery: string }) {
   const todos = useTypegresQuery((user) => user.todos()
-    // Arbitrarily compose your base query...  
-    .select((t) => ({ id: t.id, title: t.title }))
+    // Arbitrarily compose your base query...
+    .select((ns) => ({ id: ns.todos.id, title: ns.todos.title }))
     // ...using any Postgres function such as \`ilike\`:
-    .where((t) => t.title.ilike(\`%\${searchQuery}%\`))
-    .execute(tg)
+    .where((ns) => ns.todos.title.ilike(\`%\${searchQuery}%\`))
   );
-  
+
   return (
     <ul>
       {todos.map((todo) => (
