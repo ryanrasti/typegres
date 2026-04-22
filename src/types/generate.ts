@@ -39,8 +39,17 @@ const ELEMENT_TYPES = new Set([
   "anyenum",
 ]);
 
-// Operators that can return null from non-null inputs (e.g. JSON key not found)
-const MAYBE_NULL_OPS = new Set(["->", "->>", "#>", "#>>"]);
+// Operators that can return null from non-null inputs (e.g. JSON key not
+// found). Includes the pg function names for the same ops, since those
+// are emitted when the operator doesn't have a readable alias in
+// OPERATOR_ALIASES (see introspect.ts oprcode filter).
+const MAYBE_NULL_OPS = new Set([
+  "->", "->>", "#>", "#>>",
+  "jsonb_object_field", "jsonb_object_field_text",
+  "jsonb_extract_path", "jsonb_extract_path_text",
+  "json_object_field", "json_object_field_text",
+  "json_extract_path", "json_extract_path_text",
+]);
 
 // Readable aliases for operators pg doesn't give a nice function name
 // (comparison + arithmetic). Emitted as a second method next to the
@@ -296,7 +305,7 @@ const generateTypeFile = (
     }
     const nullParts = ["N", ...restArgs.map((_, i) => `runtime.NullOf<M${i}>`)];
     const nullUnion = nullParts.join(" | ");
-    if (f.isOperator && MAYBE_NULL_OPS.has(f.name)) {
+    if (MAYBE_NULL_OPS.has(f.name)) {
       return formatTypeWithNull(retBase, `runtime.MaybeNull<${nullUnion}>`);
     }
     if (!f.isStrict) {
