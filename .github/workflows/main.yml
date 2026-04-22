@@ -60,11 +60,27 @@ jobs:
     needs: check
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # for pushing the tag
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: |
+      - name: Decide whether to release
+        id: v
+        run: |
+          LOCAL=$(node -p 'require("./package.json").version')
+          REMOTE=$(npm view typegres version 2>/dev/null || echo "")
+          echo "version=$LOCAL" >> "$GITHUB_OUTPUT"
+          if [ "$LOCAL" != "$REMOTE" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "package.json is $LOCAL, npm has '$REMOTE' — will release."
+          else
+            echo "package.json matches npm ($LOCAL) — skipping release."
+          fi
+      - name: Build and publish
+        if: steps.v.outputs.release == 'true'
+        run: |
           nix develop --command bash -c '
             set -euo pipefail
             npm ci
@@ -74,3 +90,10 @@ jobs:
         env:
           # npm reads this as a config key — avoids writing ~/.npmrc.
           NPM_CONFIG_//registry.npmjs.org/:_authToken: ${{ secrets.NODE_AUTH_TOKEN }}
+      - name: Tag the release
+        if: steps.v.outputs.release == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ steps.v.outputs.version }}"
+          git push --tags
