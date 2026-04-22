@@ -3,9 +3,10 @@ import type { BoundSql } from "./sql";
 import { Bool } from "../types";
 import type { SetRow } from "../types/runtime";
 import { meta } from "../types/runtime";
-import type { RowType } from "./query";
+import type { RowType, RowTypeToTsType } from "./query";
 import { combinePredicates, compileSelectList, reAlias } from "./query";
 import type { TableBase } from "../table";
+import type { Database } from "../database";
 import { getColumn } from "../types/overrides/any";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
@@ -78,6 +79,14 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
       returning && sql`RETURNING ${compileSelectList(returning as { [key: string]: unknown })}`,
     ], sql` `);
     return sql.withScope([alias], inner);
+  }
+
+  override async execute(db: Database): Promise<RowTypeToTsType<R>[]> {
+    return db.execute<R>(this);
+  }
+
+  async hydrate(db: Database): Promise<R[]> {
+    return db.hydrate<any, any, R>(this);
   }
 
   debug(): this {

@@ -70,11 +70,10 @@ class User extends Table("users") {
 }
 
 test("example 1: decouple interface from schema", async () => {
-  const latest = await db.execute(
-    User.from()
-      .orderBy(({ users }) => [users.createdAt(), "desc"])
-      .limit(1),
-  );
+  const latest = await User.from()
+    .orderBy(({ users }) => [users.createdAt(), "desc"])
+    .limit(1)
+    .execute(db);
   expect(latest).toHaveLength(1);
 });
 
@@ -109,11 +108,11 @@ test("example 2: relations and mutations via hydrated instances", async () => {
     .one(db);
 
   // The only way to update a todo is via the hydrated instance:
-  await db.execute(todo.update({ completed: true }));
+  await todo.update({ completed: true }).execute(db);
 
-  const [after] = await db.execute<Todo>(
-    Todo.from().where(({ todos }) => todos.id["="](todo.id)),
-  );
+  const [after] = await Todo.from()
+    .where(({ todos }) => todos.id["="](todo.id))
+    .execute(db);
   expect(after!.completed).toBe(true);
 });
 

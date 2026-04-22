@@ -1,3 +1,5 @@
+import type { Database } from "../database";
+
 export type CompiledSql = { text: string; values: unknown[] };
 
 // --- Root ---
@@ -12,6 +14,16 @@ export type CompiledSql = { text: string; values: unknown[] };
 export abstract class Sql {
   abstract bind(): BoundSql;
   children(): readonly Sql[] { return []; }
+  // Fluent terminator: `someSql.execute(db)` === `db.execute(someSql)`.
+  // Base returns Promise<unknown> so builder subclasses can narrow to
+  // their specific row-array types without the covariance rules
+  // complaining (QueryResult and a row array are disjoint shapes, so
+  // neither is a subtype of the other). For a raw `sql\`...\`` template
+  // the narrower type is QueryResult — callers can `db.execute(raw)` to
+  // get it typed, or cast the result of `raw.execute(db)`.
+  execute(db: Database): Promise<unknown> {
+    return db.execute(this);
+  }
 }
 
 // --- Scope ---

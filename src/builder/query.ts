@@ -1,5 +1,6 @@
 import type { BoundSql} from "./sql";
 import { sql, Sql, Alias, compile } from "./sql";
+import type { Database } from "../database";
 import type { Bool } from "../types";
 import { Any, Anyarray, Record } from "../types";
 import { type TsTypeOf, type Nullable, type AggregateRow, meta } from "../types/runtime";
@@ -288,9 +289,18 @@ export class QueryBuilder<
     return new QueryBuilder({ ...this.opts, offset: (this.opts.offset ?? 0) + n });
   }
 
-  // Hydrate a single row. Throws if the query returns no rows. The caller
-  // passes a Database (structurally — we don't want a hard circular import).
-  async one(db: { hydrate(q: QueryBuilder<any, O, any, any>): Promise<O[]> }): Promise<O> {
+  // Fluent terminators. Narrow the Sql.execute() return type from
+  // QueryResult to a row array, and expose the hydrated / single-row
+  // variants as chainable terminators too.
+  override async execute(db: Database): Promise<RowTypeToTsType<O>[]> {
+    return db.execute<O>(this);
+  }
+
+  async hydrate(db: Database): Promise<O[]> {
+    return db.hydrate<O, GB, Card>(this);
+  }
+
+  async one(db: Database): Promise<O> {
     const [row] = await db.hydrate(this.limit(1));
     if (!row) {
       throw new Error("QueryBuilder.one(): query returned no rows");
@@ -298,8 +308,7 @@ export class QueryBuilder<
     return row;
   }
 
-  // Hydrate a single row or null.
-  async maybeOne(db: { hydrate(q: QueryBuilder<any, O, any, any>): Promise<O[]> }): Promise<O | null> {
+  async maybeOne(db: Database): Promise<O | null> {
     const [row] = await db.hydrate(this.limit(1));
     return row ?? null;
   }

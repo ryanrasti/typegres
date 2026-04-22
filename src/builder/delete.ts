@@ -1,9 +1,10 @@
 import { Sql, sql, Alias, compile } from "./sql";
 import type { BoundSql } from "./sql";
 import { Bool } from "../types";
-import type { RowType } from "./query";
+import type { RowType, RowTypeToTsType } from "./query";
 import { combinePredicates, compileSelectList, reAlias } from "./query";
 import type { TableBase } from "../table";
+import type { Database } from "../database";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
@@ -61,6 +62,14 @@ export class DeleteBuilder<Name extends string, T extends TableBase, R extends R
       returning && sql`RETURNING ${compileSelectList(returning as { [key: string]: unknown })}`,
     ], sql` `);
     return sql.withScope([alias], inner);
+  }
+
+  override async execute(db: Database): Promise<RowTypeToTsType<R>[]> {
+    return db.execute<R>(this);
+  }
+
+  async hydrate(db: Database): Promise<R[]> {
+    return db.hydrate<any, any, R>(this);
   }
 
   debug(): this {

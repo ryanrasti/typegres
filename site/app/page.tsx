@@ -36,11 +36,10 @@ export default function HomePage() {
 }`,
       leftDiff: true,
       rightCode: `// Compiles to the single SQL query you'd write manually.
-const latest = await db.execute(
-  User.from()
-    .orderBy(({ users }) => [users.createdAt(), "desc"])
-    .limit(1),
-);`,
+const latest = await User.from()
+  .orderBy(({ users }) => [users.createdAt(), "desc"])
+  .limit(1)
+  .execute(db);`,
       leftLabel: "api.ts",
       rightLabel: "route.ts",
       leftLanguage: "typescript",
@@ -75,7 +74,7 @@ const todo = await user.todos()
   .one(db);
 
 // The only way to update a todo is via the hydrated instance:
-await db.execute(todo.update({ completed: true }));`,
+await todo.update({ completed: true }).execute(db);`,
       leftLabel: "api.ts",
       rightLabel: "route.ts",
       leftLanguage: "typescript",

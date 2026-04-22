@@ -34,56 +34,47 @@ class Posts extends db.Table("posts") {
   }
 }
 
-await db.execute(
-  Posts.insert(
-    { author: "alice", body: "first post", likes: 5n },
-    { author: "bob", body: "hello from pglite", likes: 12n },
-    { author: "alice", body: "another from alice", likes: 3n },
-  ),
-);
+await Posts.insert(
+  { author: "alice", body: "first post", likes: 5n },
+  { author: "bob", body: "hello from pglite", likes: 12n },
+  { author: "alice", body: "another from alice", likes: 3n },
+).execute(db);
 
 // ------------------------------------
 // Example 1: simple select with a derived column.
 // ------------------------------------
 
-const alicePosts = await db.execute(
-  Posts.from()
-    .where((ns) => ns.posts.author["="](Text.from("alice")))
-    .select((ns) => ({
-      id: ns.posts.id,
-      preview: ns.posts.preview(),
-    }))
-    .orderBy((ns) => ns.posts.id)
-    .debug(),
-);
+const alicePosts = await Posts.from()
+  .where(({ posts }) => posts.author["="](Text.from("alice")))
+  .select(({ posts }) => ({ id: posts.id, preview: posts.preview() }))
+  .orderBy(({ posts }) => posts.id)
+  .debug()
+  .execute(db);
 console.log("Alice's posts:", alicePosts);
 
 // ------------------------------------
 // Example 2: aggregate — total likes per author.
 // ------------------------------------
 
-const likesByAuthor = await db.execute(
-  Posts.from()
-    .groupBy((ns) => [ns.posts.author])
-    .select((ns) => ({
-      author: ns[0],
-      total: ns.posts.likes.sum(),
-    }))
-    .orderBy((ns) => [ns.posts.likes.sum(), "desc"])
-    .debug(),
-);
+const likesByAuthor = await Posts.from()
+  .groupBy(({ posts }) => [posts.author])
+  .select(({ posts, 0: author }) => ({
+    author,
+    total: posts.likes.sum(),
+  }))
+  .orderBy(({ posts }) => [posts.likes.sum(), "desc"])
+  .debug()
+  .execute(db);
 console.log("Likes by author:", likesByAuthor);
 
 // ------------------------------------
 // Example 3: update with RETURNING.
 // ------------------------------------
 
-const promoted = await db.execute(
-  Posts.update()
-    .where((ns) => ns.posts.author["="](Text.from("alice")))
-    .set(() => ({ likes: 999n }))
-    .returning((ns) => ({ id: ns.posts.id, likes: ns.posts.likes }))
-    .debug(),
-);
+const promoted = await Posts.update()
+  .where(({ posts }) => posts.author["="](Text.from("alice")))
+  .set(() => ({ likes: 999n }))
+  .returning(({ posts }) => ({ id: posts.id, likes: posts.likes }))
+  .debug()
+  .execute(db);
 console.log("Promoted:", promoted);
-
