@@ -12,7 +12,12 @@ import {
   type PgFunc,
 } from "./introspect.ts";
 
-const GENERATED_DIR = path.resolve(import.meta.dirname, "generated");
+// `--out-dir <path>` lets codegen:check write to a temp dir instead of
+// clobbering the committed sources.
+const outDirFlag = process.argv.indexOf("--out-dir");
+const GENERATED_DIR = outDirFlag >= 0
+  ? path.resolve(process.argv[outDirFlag + 1]!)
+  : path.resolve(import.meta.dirname, "generated");
 const OVERRIDES_DIR = path.resolve(import.meta.dirname, "overrides");
 const TYPES_INDEX = path.resolve(import.meta.dirname, "index.ts");
 
