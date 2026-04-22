@@ -54,10 +54,11 @@ class User extends Table("users") {
     return this.created_at;
   }
 
-  // "old" version the diff is migrating *away* from. Kept as a real code
-  // line so the `// -` branch on the landing page resolves to something
-  // real, not a ghost.
-  createdAtViaMetadata(): Timestamptz<1> {
+  // "old" version the diff is migrating away from. Kept as a real,
+  // compiling method so the `// -` branch on the landing page points at
+  // real code — the containment check strips the diff marker and looks
+  // the line up here.
+  createdAtViaMetadata(): Timestamptz<0 | 1> {
     return this.metadata["->>"]("createdAt").cast(Timestamptz);
   }
 
@@ -105,7 +106,7 @@ test("example 2: relations and mutations via hydrated instances", async () => {
   // The only way to update a todo is via the hydrated instance:
   await db.execute(todo!.update({ completed: true }));
 
-  const [after] = await db.execute(
+  const [after] = await db.execute<Todo>(
     Todo.from().where((ns) => ns.todos.id["="](todo!.id)),
   );
   expect(after!.completed).toBe(true);

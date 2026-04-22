@@ -1,6 +1,7 @@
 export { Database } from "./database";
 export { Table } from "./table";
 export { sql, Sql } from "./builder/sql";
+export { QueryBuilder } from "./builder/query";
 export { PgExecutor, PgliteExecutor } from "./executor";
 export type { Config } from "./config";
 export type { Executor } from "./executor";

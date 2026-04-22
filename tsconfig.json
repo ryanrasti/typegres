@@ -22,5 +22,20 @@
     }
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts"]
+  "exclude": [
+    // TODO: fix typecheck errors in these test files. Excluded so the rest
+    // of src/ (including test files) stays strict. Runtime-wise they all
+    // pass via vitest — the errors are structural mismatches (namespace
+    // types, stale `expectTypeOf` assertions from when execute returned
+    // QueryResult, test helpers indexing QueryResult like an array).
+    "src/database.test.ts",
+    "src/builder/delete.test.ts",
+    "src/builder/insert.test.ts",
+    "src/builder/query.test.ts",
+    "src/builder/update.test.ts",
+    "src/live/extractor.test.ts",
+    "src/live/live.test.ts",
+    "src/table.test.ts",
+    "src/types/index.test.ts"
+  ]
 }

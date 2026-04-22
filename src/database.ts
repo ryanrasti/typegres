@@ -24,19 +24,16 @@ export class Database {
   // Called once at startup by an application wiring live queries.
   enableLive(bus: LiveBus): void { this.#liveBus = bus; }
 
+  // Overload resolution matches top-to-bottom and stops on the first
+  // match — list specific builders before the general `Sql` fallback, or
+  // every QueryBuilder/Insert/... call resolves as `Sql` → QueryResult.
+  // Keep the generics minimal (one per overload, the rest `any`) so
+  // inference succeeds without the user passing type args.
+  async execute<O extends RowType>(query: QueryBuilder<any, O, any, any>): Promise<RowTypeToTsType<O>[]>;
+  async execute<R extends RowType>(query: InsertBuilder<any, any, R>): Promise<RowTypeToTsType<R>[]>;
+  async execute<R extends RowType>(query: UpdateBuilder<any, any, R>): Promise<RowTypeToTsType<R>[]>;
+  async execute<R extends RowType>(query: DeleteBuilder<any, any, R>): Promise<RowTypeToTsType<R>[]>;
   async execute(query: Sql): Promise<QueryResult>;
-  async execute<O extends RowType, GB extends any[], Card extends "one" | "maybe" | "many">(
-    query: QueryBuilder<any, O, GB, Card>,
-  ): Promise<RowTypeToTsType<O>[]>;
-  async execute<Name extends string, T extends TableBase, R extends RowType>(
-    query: InsertBuilder<Name, T, R>,
-  ): Promise<RowTypeToTsType<R>[]>;
-  async execute<Name extends string, T extends TableBase, R extends RowType>(
-    query: UpdateBuilder<Name, T, R>,
-  ): Promise<RowTypeToTsType<R>[]>;
-  async execute<Name extends string, T extends TableBase, R extends RowType>(
-    query: DeleteBuilder<Name, T, R>,
-  ): Promise<RowTypeToTsType<R>[]>;
   async execute(query: Sql): Promise<any> {
     const result = await (this.#context.getStore()?.execute ?? this.executor.execute.bind(this.executor))(query);
     if (query instanceof QueryBuilder) {

@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeAll } from "vitest";
 import { typegres, sql, Table, Int8, Text, Bool } from "typegres";
-import type { Database } from "typegres";
+import type { Database, QueryBuilder } from "typegres";
 
 // End-to-end tests for db.hydrate(): materialize query rows as class
 // instances with methods, then use those methods in follow-up queries.
@@ -11,7 +11,7 @@ class User extends Table("users") {
   id = (Int8<1>).column({ nonNull: true, generated: true });
   name = (Text<1>).column({ nonNull: true });
 
-  todos() {
+  todos(): QueryBuilder<{ todos: Todo }, Todo, []> {
     return Todo.from().where((ns) => ns.todos.user_id["="](this.id));
   }
 }
@@ -74,7 +74,7 @@ describe("db.hydrate", () => {
     // Call the relation method on the materialized instance. The method
     // composes `this.id` (an Any wrapping the param) into a fresh
     // QueryBuilder which we then run.
-    const aliceTodos = await db.execute(alice!.todos());
+    const aliceTodos = await db.execute<Todo>(alice!.todos());
     expect(aliceTodos).toHaveLength(2);
     expect(aliceTodos.map((t) => t.title).sort()).toEqual(["a-one", "a-two"]);
   });
@@ -87,7 +87,7 @@ describe("db.hydrate", () => {
 
     await db.execute(todo!.update({ completed: true }));
 
-    const [after] = await db.execute(
+    const [after] = await db.execute<Todo>(
       Todo.from().where((ns) => ns.todos.title["="](Text.from("a-one"))),
     );
     expect(after!.completed).toBe(true);
@@ -104,7 +104,7 @@ describe("db.hydrate", () => {
 
     await db.execute(firstTodo!.update({ title: "renamed" }));
 
-    const [reloaded] = await db.execute(
+    const [reloaded] = await db.execute<Todo>(
       Todo.from().where((ns) => ns.todos.id["="](firstTodo!.id)),
     );
     expect(reloaded!.title).toBe("renamed");

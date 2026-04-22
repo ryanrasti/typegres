@@ -41,6 +41,17 @@ export class Any<in out N extends number> extends Generated<N> {
     return types.Bool.from(sql`(${this.toSql()} IS NOT NULL)`) as types.Bool<1>;
   }
 
+  // CAST this expression to another pg type, preserving nullability. A
+  // non-null source (N=1) casts to the target's __nonNullable variant;
+  // anything else casts to __nullable.
+  cast<T extends typeof Any>(
+    cls: T,
+  ): [N] extends [1]
+    ? (InstanceType<T> extends { [meta]: { __nonNullable: infer U } } ? U : InstanceType<T>)
+    : (InstanceType<T> extends { [meta]: { __nullable: infer U } } ? U : InstanceType<T>) {
+    return cls.from(sql`CAST(${this.toSql()} AS ${cls.__typname})`) as any;
+  }
+
   // COALESCE(this, rhs) — returns first non-null. Chainable.
   // rhs must be same concrete type (via [meta].__any). If rhs is non-null, returns __nonNullable.
   coalesce<T extends Any<any>, R extends (T extends { [meta]: { __any: infer A } } ? A : Any<any>)>(
