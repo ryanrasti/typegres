@@ -33,7 +33,7 @@
   "scripts": {
     "build": "tsdown",
     "codegen": "node --experimental-strip-types src/types/generate.ts",
-    "codegen:check": "tmp=$(mktemp -d) && node --experimental-strip-types src/types/generate.ts --out-dir \"$tmp\" && diff -r \"$tmp\" src/types/generated && rm -rf \"$tmp\"",
+    "codegen:check": "tmp=$(mktemp -d) && node --experimental-strip-types src/types/generate.ts --out-dir \"$tmp\" && { diff -r \"$tmp\" src/types/generated || { echo 'src/types/generated is stale — run `npm run codegen` and commit.' >&2; rm -rf \"$tmp\"; exit 1; }; } && rm -rf \"$tmp\"",
     "lint": "eslint src",
     "typecheck": "tsgo --noEmit",
     "format": "prettier --write src",

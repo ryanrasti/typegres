@@ -14,6 +14,10 @@ export default defineConfig({
     },
   },
   test: {
+    // Bumped from the 5s default: pg-backed tests hit their limit under
+    // slow containers (act/docker on a single vCPU) even though they run
+    // in ~50ms locally.
+    testTimeout: 15000,
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
