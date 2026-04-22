@@ -64,15 +64,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - uses: actions/setup-node@v4
-        with:
-          registry-url: 'https://registry.npmjs.org'
       - run: |
           nix develop --command bash -c '
             set -euo pipefail
             npm ci
             npm run build
+            npm publish
           '
-      - run: npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          # npm reads this as a config key — avoids writing ~/.npmrc.
+          NPM_CONFIG_//registry.npmjs.org/:_authToken: ${{ secrets.NODE_AUTH_TOKEN }}
