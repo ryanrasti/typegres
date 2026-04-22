@@ -78,15 +78,4 @@ export class DeleteBuilder<Name extends string, T extends TableBase, R extends R
     return this;
   }
 
-  // Internal: expose raw callbacks for live-event wrapping. Caller mints
-  // its own Alias per CTE scope and evaluates the callbacks against a
-  // reAlias'd namespace.
-  liveIntrospect() {
-    return {
-      tableName: this.#tableName,
-      instance: this.#opts.instance,
-      where: this.#opts.where,
-      returning: this.#opts.returning,
-    };
-  }
 }

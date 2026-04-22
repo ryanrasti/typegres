@@ -445,10 +445,4 @@ export class QueryBuilder<
     return this;
   }
 
-  // Internal: expose structured opts for live-query extraction.
-  // Do not use for anything else — this is meant for the live-query extractor's
-  // AST walk, and may change shape as extraction evolves.
-  liveIntrospect(): Readonly<QueryBuilderOptions<N, O, GB>> {
-    return this.opts;
-  }
 }

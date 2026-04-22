@@ -33,8 +33,6 @@
     "src/builder/insert.test.ts",
     "src/builder/query.test.ts",
     "src/builder/update.test.ts",
-    "src/live/extractor.test.ts",
-    "src/live/live.test.ts",
     "src/table.test.ts",
     "src/types/index.test.ts"
   ]

@@ -8,13 +8,8 @@ import { Values } from "./builder/values";
 import { InsertBuilder } from "./builder/insert";
 import { UpdateBuilder } from "./builder/update";
 import { DeleteBuilder } from "./builder/delete";
-import type { LiveBus } from "./live/bus";
-import { SubscriptionClosedError } from "./live/bus";
-import { buildExtractor } from "./live/extractor";
-import { LiveQueryError } from "./live/types";
 
 export class Database {
-  #liveBus: LiveBus | undefined;
   #boundExecute?: ExecuteFn;
 
   // A pool-backed Database (`new Database(driver)`) routes each query
@@ -24,10 +19,6 @@ export class Database {
   constructor(private driver: Driver, boundExecute?: ExecuteFn) {
     if (boundExecute) { this.#boundExecute = boundExecute; }
   }
-
-  // Attach a LiveBus so db.live(query) can serve subscriptions.
-  // Called once at startup by an application wiring live queries.
-  enableLive(bus: LiveBus): void { this.#liveBus = bus; }
 
   #exec(query: Sql): Promise<QueryResult> {
     return (this.#boundExecute ?? this.driver.execute.bind(this.driver))(query);
@@ -103,7 +94,6 @@ export class Database {
     }
     return this.driver.runInSingleConnection(async (execute) => {
       const tx = new Database(this.driver, execute);
-      tx.#liveBus = this.#liveBus;
       await execute(sql`BEGIN`);
       try {
         const result = await fn(tx);
@@ -136,54 +126,6 @@ export class Database {
       tsAlias: "values",
       tables: [{ type: "from", source: vals }],
     });
-  }
-
-  // Subscribe to a query's live result set. Yields an array of rows on each
-  // iteration — initial state, then re-yields whenever the bus detects a
-  // mutation that could affect the result.
-  //
-  // Each iteration opens a REPEATABLE READ transaction that captures a
-  // snapshot cursor and runs both the predicate extractor and the main query
-  // against the same snapshot; events committed after that snapshot are
-  // compared against the extracted predicates to decide when to re-yield.
-  async *live<O extends RowType>(
-    query: QueryBuilder<any, O, any, any>,
-  ): AsyncGenerator<RowTypeToTsType<O>[]> {
-    if (!this.#liveBus) {
-      throw new LiveQueryError(
-        "db.live() requires a LiveBus — call db.enableLive(bus) during startup",
-      );
-    }
-    const extractor = buildExtractor(query);
-    const sub = this.#liveBus.subscribe();
-    try {
-      while (true) {
-        const { data, cursor, preds } = await this.transaction(async (tx) => {
-          // Pin the extractor and main query to the same snapshot so
-          // post-snapshot events compare against consistent predicates.
-          await tx.execute(sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`);
-          const cursorResult = await tx.execute(sql`SELECT pg_current_snapshot()::text AS s`);
-          const cursor = (cursorResult.rows as { s: string }[])[0]!.s;
-          const extractorRows = (await tx.execute(extractor.sql)).rows as {
-            tbl: string;
-            col: string;
-            value: string;
-          }[];
-          const preds = extractor.materialize(extractorRows);
-          const data = await tx.execute(query) as unknown as RowTypeToTsType<O>[];
-          return { data, cursor, preds };
-        });
-        yield data;
-        try {
-          await sub.waitNext(preds, cursor);
-        } catch (e) {
-          if (e instanceof SubscriptionClosedError) { return; }
-          throw e;
-        }
-      }
-    } finally {
-      sub.close();
-    }
   }
 
   public Table = Table;
