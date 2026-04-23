@@ -22,9 +22,10 @@ async function getEsbuild() {
   globalThis.__esbuildInitializePromise = (async () => {
     const esbuild = await import("esbuild-wasm");
 
-    // Initialize with the CDN URL (simpler than trying to serve from node_modules)
+    // Initialize with the CDN URL (simpler than serving from node_modules).
+    // Pin to the host's version so the host and WASM binary always match.
     await esbuild.initialize({
-      wasmURL: "https://unpkg.com/esbuild-wasm@0.25.5/esbuild.wasm",
+      wasmURL: `https://unpkg.com/esbuild-wasm@${esbuild.version}/esbuild.wasm`,
     });
 
     globalThis.__esbuildModule = esbuild;
