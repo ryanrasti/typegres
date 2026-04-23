@@ -35,7 +35,7 @@ export default function HomePage() {
   }
 }`,
       leftDiff: true,
-      rightCode: `// Compiles to the single SQL query you'd write manually.
+      rightCode: `// Compiles to the single SQL query you&apos;d write manually.
 const latest = await User.from()
   .orderBy(({ users }) => [users.createdAt(), "desc"])
   .limit(1)
@@ -562,7 +562,7 @@ export class Api extends RpcTarget {
                     Q: What about query performance?
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-3">
-                    Every query maps directly 1:1 to the single Postgres query you'd expect.
+                    Every query maps directly 1:1 to the single Postgres query you&apos;d expect.
                   </p>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                     Note that relations are expressed as correlated subqueries, not raw joins, which modern versions of
@@ -579,7 +579,7 @@ export class Api extends RpcTarget {
                       href="https://github.com/cloudflare/capnweb"
                       className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium transition-colors"
                     >
-                      Cap'n Web
+                      Cap&apos;n Web
                     </a>{" "}
                     project. It enables an RPC layer that naturally allows composing over a set of classes/methods
                     safely in a single RPC call.
@@ -587,7 +587,7 @@ export class Api extends RpcTarget {
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
-                    Q: What's the actual security model under the hood?
+                    Q: What&apos;s the actual security model under the hood?
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                     The model is <strong>capability-based</strong> security. Instead of reactive security (a blacklist)
@@ -604,7 +604,7 @@ export class Api extends RpcTarget {
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
-                    Q: What's the project status?
+                    Q: What&apos;s the project status?
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                     This is a research preview and not ready for production use. Try the{" "}

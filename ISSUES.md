@@ -12,13 +12,6 @@
    DTS generation. The emitted `.d.ts` has a conflicting `deserialize`
    return type.
 
-3. **Stock TypeScript stack-overflows on our hierarchy** — the recursive
-   class hierarchy trips stock `tsc`. Requires `tsgo`.
-
-4. **`column()` returns a descriptor, not an instance** — a plain object
-   `{ __column, __class, ...opts }` leaks through the builders instead of
-   being a real `Any` with an unbound sentinel.
-
 ## Non-critical
 
 5. **Operators always parenthesize** — tighter output possible via operator
@@ -40,15 +33,17 @@
 
 10. **CTE (`with`)** — next up.
 
-11. **Aggregates** — `count`, `sum`, `avg`, etc. need `prokind='a'` in
-    codegen.
-
-12. **Aggregate namespace transform after `groupBy`** — the namespace
-    should become aggregate-typed.
-
 13. **RPC layer + DoS protection** — planned to use `exoeval` (minimal JS
     subset for capability-based untrusted execution), with gas/memory
     limits on the evaluator and query-cost analysis before sending to pg.
+
+15. **Site: upgrade Next.js 14 → 16.** `npm audit` reports 4 high-severity
+    Next.js CVEs, all fix-gated on the 16.x major. They're server-side
+    vulnerabilities (image optimizer, RSC, rewrites, Server Components DoS)
+    that don't affect our static-export deployment to GitHub Pages — no Next
+    server runs in production. Migration is real work: Turbopack by default,
+    static-export opt-in changes, React 19 if we go that far, tailwind 4 if
+    we bundle it. Track separately.
 
 14. **`.live()` subscriptions** — previous implementation lived under
     `src/live/` and was removed as unreviewed. Design: tables+predicates
