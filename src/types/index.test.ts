@@ -455,3 +455,4 @@ test("Type.from() precise nullability", () => {
   expectTypeOf(Int4.from(sql`1`)).toEqualTypeOf<Int4<0 | 1>>();
   expectTypeOf(Text.from(sql`'hello'`)).toEqualTypeOf<Text<0 | 1>>();
 });
+

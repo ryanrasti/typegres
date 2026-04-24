@@ -41,14 +41,18 @@ export class Any<in out N extends number> extends Generated<N> {
     return types.Bool.from(sql`(${this.toSql()} IS NOT NULL)`) as types.Bool<1>;
   }
 
-  // CAST this expression to another pg type, preserving nullability. A
-  // non-null source (N=1) casts to the target's __nonNullable variant;
-  // anything else casts to __nullable.
+  // CAST this expression to another pg type, preserving nullability.
+  // Three cases, in order:
+  //   - N is `number` (aggregate context) → target's __aggregate variant
+  //   - N is exactly 1 (non-null) → target's __nonNullable variant
+  //   - otherwise (0, or 0|1) → target's __nullable variant
   cast<T extends typeof Any>(
     cls: T,
-  ): [N] extends [1]
-    ? (InstanceType<T> extends { [meta]: { __nonNullable: infer U } } ? U : InstanceType<T>)
-    : (InstanceType<T> extends { [meta]: { __nullable: infer U } } ? U : InstanceType<T>) {
+  ): [number] extends [N]
+    ? (InstanceType<T> extends { [meta]: { __aggregate: infer U } } ? U : InstanceType<T>)
+    : [N] extends [1]
+      ? (InstanceType<T> extends { [meta]: { __nonNullable: infer U } } ? U : InstanceType<T>)
+      : (InstanceType<T> extends { [meta]: { __nullable: infer U } } ? U : InstanceType<T>) {
     return cls.from(sql`CAST(${this.toSql()} AS ${cls.__typname})`) as any;
   }
 

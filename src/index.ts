@@ -21,8 +21,4 @@ export const typegres = async (
   return new Database(driver);
 };
 
-// Re-export the generated type catalog so callers can write
-// `import { Int8, Text } from "typegres"` instead of reaching into a
-// subpath (and so the playground's Monaco module declaration, which only
-// stubs `typegres`, resolves every type).
 export * from "./types";

@@ -52,12 +52,9 @@ const rows = await Users.from()
 
 - **Types codegen'd from the Postgres catalog.** 77 base types, full
   method/operator coverage, nullability tracked at the type level.
-- **Capability-based query API.** The BE author decides what clients can
-  reach by which methods they expose. Every builder is immutable;
-  `where`/`select`/`on`/etc. are closures evaluated against an ephemeral
-  scope minted by `bind()` — aliases never live on classes, so client code
-  can't fabricate references to tables or rows outside what it was handed.
-  The capability flow is visible in the types.
+- **Capability-based query API.** The BE author decides what clients can 
+  reach by which methods they expose -- including both immediate columns and
+  and relations.
 
 Deeper dive in [ARCHITECTURE.md](./ARCHITECTURE.md); code is annotated
 throughout.
@@ -69,16 +66,12 @@ throughout.
 - [x] Mutations (INSERT / UPDATE / DELETE / RETURNING)
 - [x] Subqueries, scalar/array aggregation
 - [x] Table codegen from live schema
-- [ ] Live queries — previously prototyped under `src/live/`; pulled out for a
-      design pass. See [ISSUES.md](./ISSUES.md).
 
 ## Planned
 
-- SQLite backend (sql-builder is dialect-aware; adapter is stubbed)
-- DDL (`CREATE TABLE` from a TS class definition)
-- ON CONFLICT
-- Migrations DSL (until then: bring [kysely](https://kysely.dev/))
-- Capability-exposed RPC endpoint (thin layer on top of the table classes)
+- [ ] Live queries.
+- [ ] SQLite backend (sql-builder is dialect-aware; adapter is stubbed)
+- [ ] Capability-exposed RPC endpoint (thin layer on top of the table classes)
 
 ## Quick start
 

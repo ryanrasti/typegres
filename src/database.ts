@@ -108,6 +108,8 @@ export class Database {
 
   // Entry point for non-Table Fromables (SRFs, Values, subqueries) —
   // Table classes have their own static `.from()`.
+  // TODO: get rid of this method. SRFs, etc. shoudl just return query builders
+  //    directly 
   public From<R extends RowType, A extends string>(
     from: Fromable<R, A>,
   ): QueryBuilder<{ [K in A]: R }, R, []> {

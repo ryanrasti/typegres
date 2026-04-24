@@ -69,6 +69,8 @@ export const hydrateRows = <R>(
   rows: { [key: string]: string }[],
   shape: { [key: string]: unknown },
 ): R[] => {
+  // TODO: we really should have a uniform way of creating an object/table
+  //   instance -- and setting columns in in. 
   const proto = Object.getPrototypeOf(shape);
   return rows.map((row) => {
     const instance = Object.create(proto);
