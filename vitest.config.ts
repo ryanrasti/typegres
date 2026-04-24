@@ -9,7 +9,6 @@ const src = fileURLToPath(new URL("./src", import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
-      "typegres/types": `${src}/types/index.ts`,
       typegres: `${src}/index.ts`,
     },
   },
