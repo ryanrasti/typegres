@@ -1,18 +1,20 @@
 # Typegres Architecture
 
-Typegres is a Postgres-first ORM that treats the database as the single source
-of truth. The type system is generated from pg's catalogs; the query API is a
-thin layer over composable SQL fragments; mutations, transactions, and row
+Typegres exposes SQL semantics to clients through a typed API: clients get
+the full query language; the underlying schema stays an internal detail.
+The type system is generated from pg's catalogs; the query API is a thin
+layer over composable SQL fragments; mutations, transactions, and row
 materialization all compose through the same abstractions.
 
 ## Vision
 
 Core tenets:
 
-1. Database as single source of truth.
-2. API exposed directly as an *abstract data type* on top of the database —
-   decoupled from the raw schema.
-3. Clients query the data type by composing methods.
+1. Expose SQL semantics directly to clients through a typed API — full query
+   power for clients, schema decoupled from the interface they see.
+2. The API is an *abstract data type* on top of the database: logic,
+   permissions, and state transitions live alongside the data.
+3. Clients query that data type by composing methods.
 
 Example:
 
@@ -134,8 +136,8 @@ and codegen connect without any per-developer setup.
 
 ## Target users
 
-1. Traditional app builders: single source of BE truth, full pg power,
-   minimal boilerplate. FE has the tools to compose queries directly.
+1. Traditional app builders: one BE layer, full pg power, minimal
+   boilerplate. FE has the tools to compose queries directly.
 2. "Vibe-coders": entire backend can be a single file; FE is decoupled.
 3. Future shapes:
    - Core system-of-record where clients integrate directly.

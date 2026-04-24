@@ -8,15 +8,14 @@ truth — and your application's public API is exposed directly on top of it.
 
 ## Tenets
 
-1. **Database as the single source of truth.**
-   Schema, logic, permissions, and state transitions all live in Postgres.
-   No duplication between app code and database.
+1. **Expose SQL semantics directly to clients through a typed API.**
+   Clients get the full query language; the underlying schema is yours to
+   refactor without breaking them.
 
 2. **Your API is an abstract data type on top of the database.**
    Wrap tables in TypeScript classes. Expose methods — plain SQL expressions,
-   aggregates, subqueries, whatever — as your public interface. Clients query
-   the interface, not the schema. You refactor tables freely without breaking
-   anyone.
+   aggregates, subqueries, whatever — as your public interface. Logic,
+   permissions, and state transitions live alongside the data, in one place.
 
 3. **Every Postgres capability, as a typed TS method.**
    All 77 pg base types, every operator, every function — codegen'd from the
