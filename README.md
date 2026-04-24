@@ -52,12 +52,12 @@ const rows = await Users.from()
 
 - **Types codegen'd from the Postgres catalog.** 77 base types, full
   method/operator coverage, nullability tracked at the type level.
-- **SQL builder** — a tiny core: five `BoundSql` atoms compiled by one
-  stack-based pass. Every builder (`QueryBuilder`, `Insert/Update/Delete`,
-  `Values`, `PgSrf`) is a macro that rewrites itself via `bind()`.
-- **Callback-based query construction.** `where`, `select`, `on`, etc. are
-  closures evaluated at `bind()` time against a fresh namespace — aliases are
-  ephemeral to compilation, never stored on classes.
+- **Capability-based query API.** The BE author decides what clients can
+  reach by which methods they expose. Every builder is immutable;
+  `where`/`select`/`on`/etc. are closures evaluated against an ephemeral
+  scope minted by `bind()` — aliases never live on classes, so client code
+  can't fabricate references to tables or rows outside what it was handed.
+  The capability flow is visible in the types.
 
 Deeper dive in [ARCHITECTURE.md](./ARCHITECTURE.md); code is annotated
 throughout.

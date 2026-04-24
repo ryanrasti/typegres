@@ -85,15 +85,25 @@ framework.
 
 ### Query builders and terminators
 
+The query API is object-capability shaped: clients can only reach what
+the BE author exposed, and the builder primitives enforce that at the
+type level.
+
 - `QueryBuilder`, `InsertBuilder`, `UpdateBuilder`, `DeleteBuilder` are
-  immutable. Every method returns a new instance.
+  immutable. Every method returns a new instance — no mutable state to
+  smuggle references through.
+- `where`, `select`, `on`, etc. are callbacks evaluated against a fresh
+  scope minted by `bind()`. Aliases are ephemeral to compilation, never
+  stored on classes, so client code can't fabricate references to tables
+  or rows outside the scope it was handed.
 - `.execute(db)`, `.hydrate(db)`, `.one(db)`, `.maybeOne(db)` are fluent
-  terminators that accept any `Database` (pool or tx).
-- `db.execute(...)` / `db.hydrate(...)` are the non-fluent equivalents.
+  terminators that accept any `Database` (pool or tx); `db.execute(...)` /
+  `db.hydrate(...)` are the non-fluent equivalents.
 
 `hydrate` materializes rows as class instances — each column field is an
 `Any` wrapping a `CAST(param)` of the value, so methods on the class
-(relations, derived columns, mutations) compose into follow-up queries.
+(relations, derived columns, mutations) compose into follow-up queries
+without breaking the capability chain.
 
 ## Type system
 
