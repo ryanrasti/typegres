@@ -25,20 +25,21 @@ export default function HomePage() {
       title: "1. Decouple Your Interface from Your Schema - With All of Postgres, Fully Typed",
       description:
         'Wrap your tables in a stable, public interface. You can refactor your "private" tables and columns without ever breaking clients.',
-      leftCode: `export class User extends Models.User {
+      leftCode: `class User extends Table("users") {
+  // ...
+
   // Your public interface stays stable as your schema evolves
-  createdAt() {
-    // -    return this.metadata['->>']('createdAt').cast(Timestamptz);
+  createdAt(): Timestamptz<1> {
+    // -    return this.metadata["->>"]("createdAt").cast(Timestamptz);
     // +    return this.created_at;
   }
 }`,
       leftDiff: true,
-      rightCode: `// Compiles to the single SQL query you'd write manually.
-const user = await User
-  .select()
-  .orderBy((u) => u.createdAt(), { desc: true })
+      rightCode: `// Compiles to the single SQL query you&apos;d write manually.
+const latest = await User.from()
+  .orderBy(({ users }) => [users.createdAt(), "desc"])
   .limit(1)
-  .one(tg);`,
+  .execute(db);`,
       leftLabel: "api.ts",
       rightLabel: "route.ts",
       leftLanguage: "typescript",
@@ -48,29 +49,32 @@ const user = await User
       title: "2. Your Interface Defines Your Data Boundaries",
       description:
         "Allowed operations are just methods on your interface, including relations and mutations. Everything fully composable and typed.",
-      leftCode: `export class User extends Models.User {
+      leftCode: `class User extends Table("users") {
+  // ...
+
   todos() {
-    return Todo.select().where((t) => t.user_id.eq(this.id));
+    return Todo.from().where(({ todos }) => todos.user_id.eq(this.id));
   }
 }
 
-export class Todo extends Models.Todos {
-  update({ completed }: { completed: boolean }) {
-    return update(Todo)
-      .set((t) => ({ completed }))
-      .where((t) => t.id.eq(this.id));
+class Todo extends Table("todos") {
+  // ...
+
+  update(fields: { completed?: boolean; title?: string }) {
+    return Todo.update()
+      .where(({ todos }) => todos.id.eq(this.id))
+      .set(() => fields);
   }
 }`,
-      rightCode: `
-const user = ...
+      rightCode: `const user = ...
 
 // The only way to get a todo is through a user:
 const todo = await user.todos()
-  .where((t) => t.id.eq(todoId))
-  .one(tg);
+  .where(({ todos }) => todos.id.eq(todoId))
+  .one(db);
 
-// The only way to update a todo is by getting it from a user:
-await todo.update({ completed: true }).execute(tg);`,
+// The only way to update a todo is via the hydrated instance:
+await todo.update({ completed: true }).execute(db);`,
       leftLabel: "api.ts",
       rightLabel: "route.ts",
       leftLanguage: "typescript",
@@ -80,18 +84,18 @@ await todo.update({ completed: true }).execute(tg);`,
       title: "3. Expose your API over RPC, Safely",
       description:
         "Give clients a composable query builder with your unescapable data boundaries. Compose queries in the client with every Postgres feature (joins, window functions, CTEs, etc.) and function as primitives.",
-      leftCode: `export class User extends Models.User {
+      leftCode: `class User extends Table("users") {
   // ...
 }
 
-export class Todo extends Models.Todos {
+class Todo extends Table("todos") {
   // ...
 }
 
 export class Api extends RpcTarget {
   getUserFromToken(token: string) {
-    return User.select((u) => new User(u))
-      .where((u) => u.token.eq(token));
+    return User.from()
+      .where(({ users }) => users.token.eq(token));
   }
 }
 
@@ -99,13 +103,12 @@ export class Api extends RpcTarget {
 // not flat results`,
       rightCode: `export function TodoList({ searchQuery }: { searchQuery: string }) {
   const todos = useTypegresQuery((user) => user.todos()
-    // Arbitrarily compose your base query...  
-    .select((t) => ({ id: t.id, title: t.title }))
+    // Arbitrarily compose your base query...
+    .select(({ todos }) => ({ id: todos.id, title: todos.title }))
     // ...using any Postgres function such as \`ilike\`:
-    .where((t) => t.title.ilike(\`%\${searchQuery}%\`))
-    .execute(tg)
+    .where(({ todos }) => todos.title.ilike(\`%\${searchQuery}%\`))
   );
-  
+
   return (
     <ul>
       {todos.map((todo) => (
@@ -559,7 +562,7 @@ export class Api extends RpcTarget {
                     Q: What about query performance?
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-3">
-                    Every query maps directly 1:1 to the single Postgres query you'd expect.
+                    Every query maps directly 1:1 to the single Postgres query you&apos;d expect.
                   </p>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                     Note that relations are expressed as correlated subqueries, not raw joins, which modern versions of
@@ -576,7 +579,7 @@ export class Api extends RpcTarget {
                       href="https://github.com/cloudflare/capnweb"
                       className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium transition-colors"
                     >
-                      Cap'n Web
+                      Cap&apos;n Web
                     </a>{" "}
                     project. It enables an RPC layer that naturally allows composing over a set of classes/methods
                     safely in a single RPC call.
@@ -584,7 +587,7 @@ export class Api extends RpcTarget {
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
-                    Q: What's the actual security model under the hood?
+                    Q: What&apos;s the actual security model under the hood?
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                     The model is <strong>capability-based</strong> security. Instead of reactive security (a blacklist)
@@ -601,7 +604,7 @@ export class Api extends RpcTarget {
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
-                    Q: What's the project status?
+                    Q: What&apos;s the project status?
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                     This is a research preview and not ready for production use. Try the{" "}

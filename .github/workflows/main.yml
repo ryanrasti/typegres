@@ -1,19 +1,37 @@
-name: "Build"
+name: CI
 on:
   pull_request:
   push:
     branches: ["main"]
+
 jobs:
-  tests:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v22
-      - run: nix build .#typegres .#site .#typegres-examples --no-link
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Start Postgres and run checks
+        run: |
+          set -e
+          # Real GHA runs as `runner`. `act` runs as root, which breaks
+          # initdb. Drop the whole step to an unprivileged user so both
+          # environments behave the same. `runuser` is used instead of
+          # `su` because some container images lack the PAM config `su`
+          # wants.
+          if [ "$(id -u)" = "0" ]; then
+            id pgrunner >/dev/null 2>&1 || useradd -m -s /bin/bash pgrunner
+            chown -R pgrunner:pgrunner "$PWD"
+            RUN=(runuser -u pgrunner -- bash -lc)
+          else
+            RUN=(bash -c)
+          fi
+          "${RUN[@]}" "cd '$PWD' && nix develop --command bash -c 'set -e; bin/startpg; npm ci; (cd examples/basic && npm ci); npm run codegen:check; npm run build; npm run check'"
+
   site:
-    runs-on: ubuntu-latest
-    needs: tests
+    needs: check
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       pages: write
@@ -22,31 +40,58 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v22
-      - name: Build site
-        run: nix build .#site
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: |
+          nix develop --command bash -c '
+            set -euo pipefail
+            npm ci
+            (cd site && npm ci && npm run build)
+          '
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
         with:
-          path: ./result
-      - name: Deploy to GitHub Pages
-        id: deployment
+          path: ./site/out
+      - id: deployment
         uses: actions/deploy-pages@v4
-  npm-publish:
-    runs-on: ubuntu-latest
-    needs: tests
+
+  publish:
+    needs: check
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write   # for pushing the tag
     steps:
-      - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v22
-      - name: Build with nix
-        run: nix build .#typegres --out-link nix-dist && tar -xzf ./nix-dist/typegres-*.tgz --strip-components=1
-      - name: Publish to NPM
-        run: npm publish
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Decide whether to release
+        id: v
+        run: |
+          LOCAL=$(node -p 'require("./package.json").version')
+          REMOTE=$(npm view typegres version 2>/dev/null || echo "")
+          echo "version=$LOCAL" >> "$GITHUB_OUTPUT"
+          if [ "$LOCAL" != "$REMOTE" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "package.json is $LOCAL, npm has '$REMOTE' — will release."
+          else
+            echo "package.json matches npm ($LOCAL) — skipping release."
+          fi
+      - name: Build and publish
+        if: steps.v.outputs.release == 'true'
+        run: |
+          nix develop --command bash -c '
+            set -euo pipefail
+            npm ci
+            npm run build
+            npm publish
+          '
         env:
+          # npm reads this as a config key — avoids writing ~/.npmrc.
           NPM_CONFIG_//registry.npmjs.org/:_authToken: ${{ secrets.NODE_AUTH_TOKEN }}
+      - name: Tag the release
+        if: steps.v.outputs.release == 'true'
+        run: |
+          git tag "v${{ steps.v.outputs.version }}"
+          git push --tags

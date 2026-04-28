@@ -1,4 +1,3 @@
 #!/usr/bin/env bash
-
 cd "$(dirname "$0")"
-exec npx tsx ../src/cli/main.ts "$@"
+exec node --experimental-strip-types ../src/cli.ts "$@"

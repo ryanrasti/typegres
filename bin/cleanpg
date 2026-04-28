@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Stop the per-repo dev Postgres (if running) and wipe its data + socket dir.
+# Use when the data dir gets wedged (e.g. after a hard kill leaves stale
+# relation files — symptom: tests fail with "could not open file base/N/...").
+# Re-run `bin/startpg` afterwards to provision a fresh cluster.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+HASH="$(printf '%s' "$ROOT" | sha256sum | cut -c1-12)"
+BASE="/tmp/typegres-pg-$HASH"
+
+if [ -f "$BASE/data/postmaster.pid" ]; then
+  echo "Stopping PostgreSQL at $BASE/data..."
+  pg_ctl -D "$BASE/data" stop -m immediate -w 2>/dev/null || true
+fi
+
+if [ -d "$BASE" ]; then
+  echo "Removing $BASE"
+  rm -rf "$BASE"
+else
+  echo "Nothing to clean ($BASE doesn't exist)"
+fi

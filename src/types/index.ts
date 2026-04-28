@@ -1,23 +1,80 @@
-// hierarchy:
-//  any
-//   anynonarray
-//     all types
-//   anyarray
-
-import { Int2, Int4, Int8, Float4, Float8, Numeric } from "../gen/types";
-
-//     all arrays
-export * from "../gen/types";
-export { default as Any } from "./any";
-export { default as Array } from "./array";
-export { default as Bool } from "./bool";
-export { default as Record } from "./record";
-export type { RowLike, RowLikeStrict } from "../query/values";
-export type { Table } from "../query/db";
-export type { Input } from "./serialization";
-export type { FromToSelectArgs, Joins, WithFromItem, AsFromItem, JoinTables } from "../query/from-item";
-export { FromItem } from "../query/from-item";
-
-export type NumericLike = Int4<0 | 1> | Int2<0 | 1> | Int8<0 | 1> | Float4<0 | 1> | Float8<0 | 1> | Numeric<0 | 1>;
-
-export type Repeated<T> = T | [T, ...T[]];
+// Auto-generated block — do not edit between markers
+// [generated-start]
+export { Aclitem } from "./generated/aclitem";
+export { Any } from "./overrides/any";
+export { Anyarray } from "./overrides/anyarray";
+export { Anycompatible } from "./generated/anycompatible";
+export { Anycompatiblearray } from "./overrides/anycompatiblearray";
+export { Anycompatiblemultirange } from "./generated/anycompatiblemultirange";
+export { Anycompatiblenonarray } from "./generated/anycompatiblenonarray";
+export { Anycompatiblerange } from "./generated/anycompatiblerange";
+export { Anyelement } from "./generated/anyelement";
+export { Anyenum } from "./generated/anyenum";
+export { Anymultirange } from "./generated/anymultirange";
+export { Anynonarray } from "./generated/anynonarray";
+export { Anyrange } from "./generated/anyrange";
+export { Bit } from "./generated/bit";
+export { Bool } from "./overrides/bool";
+export { Bpchar } from "./generated/bpchar";
+export { Bytea } from "./generated/bytea";
+export { Char } from "./generated/char";
+export { Cid } from "./generated/cid";
+export { Cidr } from "./generated/cidr";
+export { Circle } from "./generated/circle";
+export { Date } from "./generated/date";
+export { Float4 } from "./generated/float4";
+export { Float8 } from "./generated/float8";
+export { Gtsvector } from "./generated/gtsvector";
+export { Inet } from "./generated/inet";
+export { Int2 } from "./generated/int2";
+export { Int4 } from "./generated/int4";
+export { Int8 } from "./generated/int8";
+export { Interval } from "./generated/interval";
+export { Json } from "./generated/json";
+export { Jsonb } from "./generated/jsonb";
+export { Jsonpath } from "./generated/jsonpath";
+export { Macaddr } from "./generated/macaddr";
+export { Macaddr8 } from "./generated/macaddr8";
+export { Money } from "./generated/money";
+export { Numeric } from "./generated/numeric";
+export { Oid } from "./generated/oid";
+export { Path } from "./generated/path";
+export { PgBrinBloomSummary } from "./generated/pg_brin_bloom_summary";
+export { PgBrinMinmaxMultiSummary } from "./generated/pg_brin_minmax_multi_summary";
+export { PgDependencies } from "./generated/pg_dependencies";
+export { PgLsn } from "./generated/pg_lsn";
+export { PgMcvList } from "./generated/pg_mcv_list";
+export { PgNdistinct } from "./generated/pg_ndistinct";
+export { PgNodeTree } from "./generated/pg_node_tree";
+export { PgSnapshot } from "./generated/pg_snapshot";
+export { Polygon } from "./generated/polygon";
+export { Record } from "./overrides/record";
+export { Refcursor } from "./generated/refcursor";
+export { Regclass } from "./generated/regclass";
+export { Regcollation } from "./generated/regcollation";
+export { Regconfig } from "./generated/regconfig";
+export { Regdictionary } from "./generated/regdictionary";
+export { Regnamespace } from "./generated/regnamespace";
+export { Regoper } from "./generated/regoper";
+export { Regoperator } from "./generated/regoperator";
+export { Regproc } from "./generated/regproc";
+export { Regprocedure } from "./generated/regprocedure";
+export { Regrole } from "./generated/regrole";
+export { Regtype } from "./generated/regtype";
+export { Text } from "./generated/text";
+export { Tid } from "./generated/tid";
+export { Time } from "./generated/time";
+export { Timestamp } from "./generated/timestamp";
+export { Timestamptz } from "./generated/timestamptz";
+export { Timetz } from "./generated/timetz";
+export { Tsquery } from "./generated/tsquery";
+export { Tsvector } from "./generated/tsvector";
+export { TxidSnapshot } from "./generated/txid_snapshot";
+export { Unknown } from "./generated/unknown";
+export { Uuid } from "./generated/uuid";
+export { Varbit } from "./generated/varbit";
+export { Varchar } from "./generated/varchar";
+export { Xid } from "./generated/xid";
+export { Xid8 } from "./generated/xid8";
+export { Xml } from "./generated/xml";
+// [generated-end]

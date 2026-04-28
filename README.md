@@ -1,192 +1,105 @@
-# Typegres: SQL-over-RPC, Safely
+# Typegres
 
-[![CI](https://github.com/ryanrasti/typegres/actions/workflows/main.yml/badge.svg)](https://github.com/ryanrasti/typegres/actions/workflows/main.yml) [![npm version](https://img.shields.io/npm/v/typegres.svg)](https://www.npmjs.com/package/typegres) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+A Postgres-first TypeScript library where the database is the single source of
+truth — and your application's public API is exposed directly on top of it.
 
-A TypeScript API framework that lets clients compose any queries they need within boundaries you control.
+> **Status:** clean rewrite in progress. Core architecture is settled. See
+> [ARCHITECTURE.md](./ARCHITECTURE.md) for design notes.
 
-## Core Principles
+## Tenets
 
-### 1. Decouple Your Interface from Your Schema - With All of Postgres, Fully Typed
+1. **Expose SQL semantics directly to clients through a typed API.**
+   Clients get the full query language; the underlying schema is yours to
+   refactor without breaking them.
 
-Wrap your tables in a stable, public interface. You can refactor your "private" tables and columns without ever breaking clients.
+2. **Your API is an abstract data type on top of the database.**
+   Wrap tables in TypeScript classes. Expose methods — plain SQL expressions,
+   aggregates, subqueries, whatever — as your public interface. Logic,
+   permissions, and state transitions live alongside the data, in one place.
+
+3. **Every Postgres capability, as a typed TS method.**
+   All 77 pg base types, every operator, every function — codegen'd from the
+   catalog with full overload preservation and compile-time null tracking.
+   `Int4<1>["+"](Int4<0|1>)` returns `Int4<0|1>`; pg's strictness rules are
+   captured in the types.
+
+## Example
 
 ```typescript
-// api.ts
-export class User extends Models.User {
-  // Your public interface stays stable as your schema evolves
-  createdAt() {
-    // Before: accessing from JSONB metadata
-    // return this.metadata['->>']('createdAt').cast(Timestamptz);
+class Users extends db.Table("users") {
+  id = Int8<1>.column({ nonNull: true, generated: true });
+  first_name = Text<1>.column({ nonNull: true });
+  last_name = Text<1>.column({ nonNull: true });
+  created_at = Timestamptz<1>.column({ nonNull: true });
 
-    // After: direct column access (schema refactored)
-    return this.created_at;
+  // Derived column — part of the public interface, not in the schema.
+  fullName() {
+    return this.first_name["||"](sql` `)["||"](this.last_name);
   }
-}
-```
 
-```typescript
-// route.ts
-// Compiles to the single SQL query you'd write manually.
-const user = await User.select()
-  .orderBy((u) => u.createdAt(), { desc: true })
-  .limit(1)
-  .one(tg);
-```
-
-### 2. Your Interface Defines Your Data Boundaries
-
-Allowed operations are just methods on your interface, including relations and mutations. Everything fully composable and typed.
-
-```typescript
-// api.ts
-export class User extends Models.User {
+  // Related query — composable, chainable, typed end-to-end.
   todos() {
-    return Todo.select().where((t) => t.user_id.eq(this.id));
+    return Todos.from().where((t) => t.user_id["="](this.id));
   }
 }
 
-export class Todo extends Models.Todos {
-  update({ completed }: { completed: boolean }) {
-    return update(Todo)
-      .set((t) => ({ completed }))
-      .where((t) => t.id.eq(this.id));
-  }
-}
+const rows = await Users.from()
+  .orderBy(({ users }) => users.created_at)
+  .execute(db);
 ```
 
-```typescript
-// route.ts
-const user = ...
+## Architecture sketch
 
-// The only way to get a todo is through a user:
-const todo = await user.todos()
-  .where((t) => t.id.eq(todoId))
-  .one(tg);
+- **Types codegen'd from the Postgres catalog.** 77 base types, full
+  method/operator coverage, nullability tracked at the type level.
+- **Capability-based query API.** The BE author decides what clients can 
+  reach by which methods they expose -- including both immediate columns and
+  and relations.
 
-// The only way to update a todo is by getting it from a user:
-await todo.update({ completed: true }).execute(tg);
-```
+Deeper dive in [ARCHITECTURE.md](./ARCHITECTURE.md); code is annotated
+throughout.
 
-### 3. Expose your API over RPC, Safely (coming soon)
+## Status
 
-Give clients a composable query builder with your unescapable data boundaries. Compose queries in the client with every Postgres feature (joins, window functions, CTEs, etc.) and function as primitives.
+- [x] Full pg type system + operator/function codegen
+- [x] Query builder (SELECT + JOIN + WHERE + GROUP BY + HAVING + ORDER BY + LIMIT)
+- [x] Mutations (INSERT / UPDATE / DELETE / RETURNING)
+- [x] Subqueries, scalar/array aggregation
+- [x] Table codegen from live schema
 
-```typescript
-// api.ts
-export class User extends Models.User {
-  // ...
-}
+## Planned
 
-export class Todo extends Models.Todos {
-  // ...
-}
+- [ ] Live queries.
+- [ ] SQLite backend (sql-builder is dialect-aware; adapter is stubbed)
+- [ ] Capability-exposed RPC endpoint (thin layer on top of the table classes)
 
-export class Api extends RpcTarget {
-  getUserFromToken(token: string) {
-    return User.select((u) => new User(u)).where((u) => u.token.eq(token));
-  }
-}
-
-// Clients receive composable query builders
-// not flat results
-```
-
-```typescript
-// frontend.tsx
-export function TodoList({ searchQuery }: { searchQuery: string }) {
-  const todos = useTypegresQuery((user) => user.todos()
-    // Arbitrarily compose your base query...
-    .select((t) => ({ id: t.id, title: t.title }))
-    // ...using any Postgres function such as `ilike`:
-    .where((t) => t.title.ilike(`%${searchQuery}%`))
-    .execute(tg)
-  );
-
-  return (
-    <ul>
-      {todos.map((todo) => (
-        <li key={todo.id}>{todo.title}</li>
-      ))}
-    </ul>
-  );
-}
-```
-
-> [!WARNING]
-> **Developer Preview**: Typegres is experimental and not production-ready. The API is evolving rapidly. Try the [playground](https://typegres.com/play/) and star the repo to follow along!
-
-> [!NOTE]
-> This project is evolving quickly! The code examples in this README are correct, but the [playground](https://typegres.com/play/) contains the very latest, most ergonomic API I'm working on.
-
-## Quick Start
+## Quick start
 
 ```bash
-# Install Typegres
-npm install typegres
+npm install typegres pg
 ```
 
 ```typescript
-// Import the typegres library
-import { typegres, select } from "typegres";
-// Import your schema definition
-import db from "./schema";
+import { Database, PgDriver, sql } from "typegres";
 
-const tg = typegres({
-  /* Your db connection options */
-});
+const driver = await PgDriver.create(process.env.DATABASE_URL!);
+const db = new Database(driver);
 
-const activeUsers = await select(
-  (u) => ({
-    upper: u.name.upper(),
-    isAdult: u.age[">"](18),
-  }),
-  {
-    from: db.users,
-    where: (u) => u.isActive,
-  },
-).execute(tg);
-
-console.log(activeUsers);
-// Output: [{ upper: 'ALICE', isAdult: true }, { upper: 'CHARLIE', isAdult: false }]
+const rows = await db.execute(sql`SELECT 1 + 1 AS sum`);
 ```
 
-See the [examples](https://github.com/ryanrasti/typegres/tree/main/examples) directory for complete working examples.
-
-## Docs & Demo
-
-- **Try it live**: https://typegres.com/play/
-- **API Reference**: https://typegres.com/api/
-
-## Project Structure
-
-- `src/` - Main library source code
-- `src/gen/` - Auto-generated PostgreSQL types and functions
-- `site/` - Documentation website and interactive playground
+For a working scaffold with migrations + codegen, see
+[`examples/basic`](./examples/basic).
 
 ## Development
 
-Requirements:
-
-- `nix` package manager
-- (optional) `direnv` for automatic environment setup
-
-To contribute, clone the repository (run `nix develop` if you don't have `direnv` set up) and run:
-
 ```bash
-# Install dependencies
+./bin/startpg             # one-time dev Postgres socket
 npm install
-# Start custom PostgreSQL instance:
-./start_postgres.sh
-# Run the codegen script to generate types and functions
-npm run codegen
-# Run tests
-npm test
-# Type check the code
-npm run typecheck
-# Build the library
-npm run build
+npm run check             # lint + typecheck + tests
+./bin/tg generate         # table codegen (reads typegres.config.ts)
 ```
 
 ## License
 
-MIT © Ryan Rasti
+MIT — see [LICENSE](./LICENSE).
