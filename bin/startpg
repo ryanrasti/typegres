@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+HASH="$(printf '%s' "$ROOT" | sha256sum | cut -c1-12)"
+BASE="/tmp/typegres-pg-$HASH"
+PGDATA="$BASE/data"
+SOCKDIR="$BASE/socket"
+
+mkdir -p "$BASE" "$SOCKDIR"
+chmod 700 "$SOCKDIR"
+
+if [ ! -d "$PGDATA" ]; then
+  echo "Initializing pg data in $PGDATA..."
+  initdb -D "$PGDATA" --no-locale -E UTF8
+  cat >> "$PGDATA/postgresql.conf" <<EOF
+unix_socket_directories = '$SOCKDIR'
+listen_addresses = ''
+max_connections = 128
+EOF
+fi
+
+echo "Starting PostgreSQL"
+echo "  data:   $PGDATA"
+echo "  socket: $SOCKDIR"
+echo "Connect with: psql -h $SOCKDIR -d postgres"
+exec pg_ctl -D "$PGDATA" -l "$PGDATA/server.log" start -w && echo "PostgreSQL started"

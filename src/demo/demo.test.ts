@@ -1,78 +1,42 @@
 import { describe, expect, it, vi } from "vitest";
 
-type Examples = "Trending Posts:" | "Viral Posts with Stats:" | "Analytics:";
+type Label = "Alice's posts:" | "Likes by author:" | "Promoted:";
 
+// The demo.ts script IS the test: it runs end-to-end against pglite and
+// console.logs each example's result with a label. This test imports
+// demo.ts, captures the logs, and asserts the shape of each example.
+// If the playground snippet changes, update demo.ts and the expected
+// values here together.
 describe("demo.ts examples", async () => {
-  const calls: {
-    "Trending Posts:"?: unknown[];
-    "Viral Posts with Stats:"?: unknown[];
-    "Analytics:"?: unknown[];
-  } = {};
+  const calls = new Map<Label, unknown>();
 
-  const spyConsole = vi.spyOn(console, "log").mockImplementation((name: Examples, value: unknown[]) => {
-    calls[name] = value as any;
+  const spy = vi.spyOn(console, "log").mockImplementation((label: Label, value: unknown) => {
+    calls.set(label, value);
   });
-  await import("./demo.js");
-  spyConsole.mockRestore();
+  // Dynamic import so the console.log spy above is installed before
+  // demo.ts's top-level logs run.
+  // eslint-disable-next-line no-restricted-syntax
+  await import("./demo.ts");
+  spy.mockRestore();
 
-  const { "Trending Posts:": example1, "Viral Posts with Stats:": example2, "Analytics:": example3 } = calls;
-
-  it("example1: Trending posts with engagement metrics", async () => {
-    expect(example1).toEqual([
-      {
-        content: "PostgreSQL can do THAT?!",
-        engagement: 151,
-        trending: 151 / 7.5,
-        viral: true,
-      },
-      {
-        content: "Working on something new...",
-        engagement: 18,
-        trending: 18 / 3,
-        viral: false,
-      },
-      {
-        content: "Just shipped Typegres!",
-        engagement: 58,
-        trending: 58 / 36,
-        viral: false,
-      },
+  it("Alice's posts — select with a derived column", () => {
+    expect(calls.get("Alice's posts:")).toEqual([
+      { id: 1n, preview: "first post…" },
+      { id: 3n, preview: "another from alice…" },
     ]);
   });
 
-  it("example2: Viral posts with author and top comment", async () => {
-    expect(example2).toEqual([
-      {
-        content: "PostgreSQL can do THAT?!",
-        author: {
-          id: 2,
-          username: "bob",
-          verified: false,
-          followers: 450,
-        },
-        topComment: "Game changer!",
-        viral: true,
-      },
+  it("Likes by author — aggregate with group-by + order-by", () => {
+    expect(calls.get("Likes by author:")).toEqual([
+      { author: "bob", total: "12" },
+      { author: "alice", total: "8" },
     ]);
   });
 
-  it("example3: Analytics with window functions", async () => {
-    expect(example3).toEqual([
-      {
-        content: "Just shipped Typegres!",
-        engagementRank: 2n,
-        cumulativeLikes: 42n,
-      },
-      {
-        content: "PostgreSQL can do THAT?!",
-        engagementRank: 1n,
-        cumulativeLikes: 105n,
-      },
-      {
-        content: "Working on something new...",
-        engagementRank: 3n,
-        cumulativeLikes: 42n + 12n,
-      },
+  it("Promoted — update with RETURNING", () => {
+    expect(calls.get("Promoted:")).toEqual([
+      { id: 1n, likes: 999n },
+      { id: 3n, likes: 999n },
     ]);
   });
 });

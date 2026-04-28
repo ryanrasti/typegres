@@ -1,0 +1,21 @@
+{
+  "name": "typegres-example-basic",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate": "node --experimental-strip-types migrate.ts",
+    "generate": "tg generate",
+    "typecheck": "tsgo --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "pg": "^8.20.0",
+    "typegres": "file:../.."
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0",
+    "vitest": "^4.1.5"
+  }
+}

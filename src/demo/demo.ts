@@ -1,140 +1,80 @@
-import { Text, Int4, Timestamptz, Float8, values, typegres, datePart, caseWhen, now } from "typegres";
+import { typegres, sql, Int8, Text } from "typegres";
 
-const tg = await typegres({ type: "pglite" });
+const db = await typegres({ type: "pglite" });
 
 // ------------------------------------
-// Example 1: Methods compile to SQL
+// Set up a tiny schema + seed data.
 // ------------------------------------
-// "Business logic in TypeScript, execution in PostgreSQL"
 
-// Some sample data we'll use as an in-memory table:
-const postData = values(
-  {
-    id: Int4.new(1),
-    authorId: Int4.new(1),
-    content: "Just shipped Typegres!",
-    createdAt: Timestamptz.new("2025-08-14 10:00"),
-    likes: Int4.new(42),
-    comments: Int4.new(8),
-  },
-  { id: 2, authorId: 2, content: "PostgreSQL can do THAT?!", createdAt: "2025-08-15 14:30", likes: 105, comments: 23 },
-  { id: 3, authorId: 1, content: "Working on something new...", createdAt: "2025-08-15 19:00", likes: 12, comments: 3 },
-);
+await db.execute(sql`
+  CREATE TABLE posts (
+    id     int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    author text NOT NULL,
+    body   text NOT NULL,
+    likes  int8 NOT NULL DEFAULT 0
+  )
+`);
 
-// Define a model class that extends the in-memory data:
-class Post extends postData.asClass<Post>() {
-  // These compile to SQL expressions, not JavaScript!
-  engagement() {
-    // Comments worth 2x likes for engagement
-    return this.likes.plus(this.comments.multiply(Int4.new(2)));
-  }
+// ------------------------------------
+// Define the public interface.
+// ------------------------------------
+//
+// Tables are TS classes. Columns are field initializers — field name
+// doubles as the pg column name. Methods on the class compile to SQL.
 
-  ageInHours() {
-    // Using epoch difference for hours calculation
-    const epoch = datePart("epoch", this.now(true).minus(this.createdAt));
-    return epoch.divide(3600);
-  }
+class Posts extends db.Table("posts") {
+  id = (Int8<1>).column({ nonNull: true, generated: true });
+  author = (Text<1>).column({ nonNull: true });
+  body = (Text<1>).column({ nonNull: true });
+  likes = (Int8<1>).column({ nonNull: true, default: sql`0` });
 
-  trendingScore() {
-    // Higher engagement + recency = trending
-    return this.engagement().cast(Float8).divide(this.ageInHours().plus(2));
-  }
-
-  isViral() {
-    return this.engagement().gt(100);
-  }
-
-  now(stub: boolean = false) {
-    // stub out `now()` for hermetic testing
-    return stub ? Timestamptz.new("2025-08-15 20:00:00") : now();
+  // Derived column — not in the schema, part of the API.
+  preview() {
+    return this.body["||"](Text.from("…"));
   }
 }
 
-const example1 = await Post.select((p) => ({
-  content: p.content,
-  engagement: p.engagement(),
-  trending: p.trendingScore(),
-  viral: p.isViral(),
-}))
-  .orderBy((p) => p.trendingScore(), { desc: true })
-  .debug() // See the generated SQL!
-  .execute(tg);
-
-console.log("Trending Posts:", example1);
+await Posts.insert(
+  { author: "alice", body: "first post", likes: 5n },
+  { author: "bob", body: "hello from pglite", likes: 12n },
+  { author: "alice", body: "another from alice", likes: 3n },
+).execute(db);
 
 // ------------------------------------
-// Example 2: Complex Relations
+// Example 1: simple select with a derived column.
 // ------------------------------------
-// "Relations that compile to efficient SQL"
 
-const userData = values(
-  { id: Int4.new(1), username: "alice", verified: true, followers: 1200 },
-  { id: 2, username: "bob", verified: false, followers: 450 },
-  { id: 3, username: "charlie", verified: true, followers: 89000 },
-);
-
-const commentData = values(
-  { id: Int4.new(1), postId: Int4.new(2), authorId: Int4.new(1), content: "Yes!", likes: 5 },
-  { id: 2, postId: 2, authorId: 3, content: "Game changer!", likes: 12 },
-  { id: 3, postId: 1, authorId: 2, content: "Congrats!", likes: 2 },
-);
-
-class User extends userData.asClass<User>() {
-  displayName() {
-    // Using CASE for conditional logic
-    return this.username.concat(caseWhen({ when: this.verified, then: Text.new(" (verified)") }, Text.new("")));
-  }
-
-  isInfluencer() {
-    return this.followers.gt(10000).or(this.verified);
-  }
-}
-
-class PostWithStats extends Post.extend<PostWithStats>() {
-  topComment() {
-    return commentData
-      .select()
-      .where((c) => c.postId.eq(this.id))
-      .orderBy((c) => c.likes, { desc: true })
-      .limit(1);
-  }
-
-  author() {
-    return User.select().where((u) => u.id.eq(this.authorId));
-  }
-}
-
-const example2 = await PostWithStats.select((p) => ({
-  content: p.content,
-  topComment: p.topComment().selectScalar((c) => c.content), // Just the content
-  author: p.author().scalar(), // Select an **entire object** as a Postgres record
-  viral: p.isViral(),
-}))
-  .where((p) => p.isViral())
-  .debug() // All in a single query!
-  .execute(tg);
-
-console.log("Viral Posts with Stats:", example2);
-
-// ------------------------------------
-// Example 3: Analytics & Aggregations
-// ------------------------------------
-// "PostgreSQL's full power, fully typed"
-
-import { rank } from "typegres";
-
-const example3 = await Post.select((p) => ({
-  // Window functions for rankings
-  content: p.content,
-  engagementRank: rank().over({ orderBy: [p.engagement(), "desc"] }),
-  // Running totals
-  cumulativeLikes: p.likes.sum().over({ partitionBy: p.authorId, orderBy: p.createdAt }),
-}))
-  .orderBy((p) => p.createdAt)
+const alicePosts = await Posts.from()
+  .where(({ posts }) => posts.author.eq(Text.from("alice")))
+  .select(({ posts }) => ({ id: posts.id, preview: posts.preview() }))
+  .orderBy(({ posts }) => posts.id)
   .debug()
-  .execute(tg);
+  .execute(db);
+console.log("Alice's posts:", alicePosts);
 
-console.log("Analytics:", example3);
+// ------------------------------------
+// Example 2: aggregate — total likes per author.
+// ------------------------------------
 
-// Everything above compiles to SQL and runs in PostgreSQL!
-// Try modifying the methods and watch the SQL change.
+const likesByAuthor = await Posts.from()
+  .groupBy(({ posts }) => [posts.author])
+  .select(({ posts, 0: author }) => ({
+    author,
+    total: posts.likes.sum(),
+  }))
+  .orderBy(({ posts }) => [posts.likes.sum(), "desc"])
+  .debug()
+  .execute(db);
+console.log("Likes by author:", likesByAuthor);
+
+// ------------------------------------
+// Example 3: update with RETURNING.
+// ------------------------------------
+
+const promoted = await Posts.update()
+  .where(({ posts }) => posts.author.eq(Text.from("alice")))
+  .set(() => ({ likes: 999n }))
+  .returning(({ posts }) => ({ id: posts.id, likes: posts.likes }))
+  .debug()
+  .execute(db);
+console.log("Promoted:", promoted);

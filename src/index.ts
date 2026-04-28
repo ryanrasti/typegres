@@ -1,19 +1,24 @@
-/**
- * Typegres - Type-safe PostgreSQL queries for TypeScript
- *
- * @packageDocumentation
- */
+export { Database } from "./database";
+export { Table } from "./table";
+export { sql, Sql } from "./builder/sql";
+export { QueryBuilder } from "./builder/query";
+export { PgDriver, PgliteDriver } from "./driver";
+export type { Config } from "./config";
+export type { Driver } from "./driver";
 
-export * from "./expression";
-export * from "./query/db";
-export * from "./query/values";
-export * from "./sql-function";
-export * from "./sql-case";
+import { Database } from "./database";
+import { PgDriver, PgliteDriver } from "./driver";
+
+// Convenience factory for quick scripts and the playground. Real apps
+// should compose PgDriver.create(...) + new Database(driver) themselves
+// so they can hold onto the driver for lifecycle management.
+export const typegres = async (
+  opts: { type: "pglite" } | { type: "pg"; connectionString: string },
+): Promise<Database> => {
+  const driver = opts.type === "pglite"
+    ? await PgliteDriver.create()
+    : await PgDriver.create(opts.connectionString);
+  return new Database(driver);
+};
+
 export * from "./types";
-
-// Re-export generated types
-export * from "./gen/functions";
-export * from "./gen/tables";
-export { typegres } from "./db";
-export type { Typegres } from "./db";
-export { select, insert, update, delete_, merge, with_ } from "./grammar";
