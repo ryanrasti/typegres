@@ -590,8 +590,8 @@ test("count on values", async () => {
     .select((n) => ({ total: n.values.x.count() }))
     );
 
-  expectTypeOf(result).toEqualTypeOf<{ total: bigint }[]>();
-  expect(result).toEqual([{ total: 3n }]);
+  expectTypeOf(result).toEqualTypeOf<{ total: string }[]>();
+  expect(result).toEqual([{ total: "3" }]);
 });
 
 test("sum and avg", async () => {
@@ -601,8 +601,8 @@ test("sum and avg", async () => {
     .select((n) => ({ total: n.values.x.sum(), average: n.values.x.avg() }))
     );
 
-  expectTypeOf(result).toEqualTypeOf<{ total: bigint | null; average: string | null }[]>();
-  expect(result).toEqual([{ total: 60n, average: "20.0000000000000000" }]);
+  expectTypeOf(result).toEqualTypeOf<{ total: string | null; average: string | null }[]>();
+  expect(result).toEqual([{ total: "60", average: "20.0000000000000000" }]);
 });
 
 test("groupBy with count", async () => {
@@ -621,10 +621,10 @@ test("groupBy with count", async () => {
     .orderBy(({ 0: cat }) => cat)
     );
 
-  expectTypeOf(result).toEqualTypeOf<{ cat: string; count: bigint; total: bigint | null }[]>();
+  expectTypeOf(result).toEqualTypeOf<{ cat: string; count: string; total: string | null }[]>();
   expect(result).toEqual([
-    { cat: "a", count: 2n, total: 3n },
-    { cat: "b", count: 1n, total: 3n },
+    { cat: "a", count: "2", total: "3" },
+    { cat: "b", count: "1", total: "3" },
   ]);
 });
 
@@ -746,8 +746,8 @@ test("groupBy: multiple calls stack", async () => {
     );
 
   expect(result).toEqual([
-    { a: "x", b: "1", total: 30n },
-    { a: "x", b: "2", total: 30n },
+    { a: "x", b: "1", total: "30" },
+    { a: "x", b: "2", total: "30" },
   ]);
 });
 
@@ -760,10 +760,84 @@ test("having: multiple calls AND-combine", async () => {
       { cat: "c", val: 1 },
     )
     .groupBy((n) => [n.values.cat])
-    .having((n) => n.values.val.count()[">"](Int8.from(1n)))
-    .having((n) => n.values.val.sum()["<"](Int8.from(50n)))
+    .having((n) => n.values.val.count()[">"](Int8.from("1")))
+    .having((n) => n.values.val.sum()["<"](Int8.from("50")))
     .select(({ 0: cat, values }) => ({ cat, total: values.val.sum() }))
     );
 
-  expect(result).toEqual([{ cat: "a", total: 3n }]);
+  expect(result).toEqual([{ cat: "a", total: "3" }]);
+});
+
+// --- runtime arg validation (the @tool decorators on QueryBuilder) ---
+//
+// Two flavors here. Direct args (numbers, instances, strings) are validated
+// synchronously when the builder method is called and throw a TypeError
+// whose message starts with "Invalid value:" (from tool.ts's validateArgs).
+//
+// Callback returns (where/having/orderBy/select) are validated lazily — the
+// @tool wrapper replaces the user's cb with a transformed wrapper that calls
+// retSchema.parse() on the return; that throws a ZodError whose .message is
+// a JSON-shaped issue list. The cb isn't invoked until bind() runs (i.e., at
+// compile/execute time), so these errors only surface when the query is
+// actually built.
+//
+// Both helpers below pin error shape (TypeError vs ZodError-by-name) plus
+// case-specific content so an unrelated error wouldn't accidentally pass.
+
+const expectArgValidationError = (fn: () => unknown, contentRe: RegExp) => {
+  let err: unknown;
+  try { fn(); } catch (e) { err = e; }
+  expect(err).toBeInstanceOf(TypeError);
+  expect((err as TypeError).message).toMatch(/^Invalid value: /);
+  expect((err as TypeError).message).toMatch(contentRe);
+};
+
+const expectReturnValidationError = (fn: () => unknown, contentRe: RegExp) => {
+  let err: unknown;
+  try { fn(); } catch (e) { err = e; }
+  expect((err as Error)?.constructor?.name).toBe("ZodError");
+  expect((err as Error).message).toMatch(contentRe);
+};
+
+test("limit rejects negative numbers at call time", () => {
+  const q = db.values({ a: Int4.from(1) });
+  expectArgValidationError(() => q.limit(-1), /expected number to be >=0.*argument 0/);
+});
+
+test("cardinality rejects unknown literals at call time", () => {
+  const q = db.values({ a: Int4.from(1) });
+  expectArgValidationError(
+    // @ts-expect-error — runtime validator should reject
+    () => q.cardinality("sometimes"),
+    /argument 0/,
+  );
+});
+
+test("join rejects a non-Fromable first arg at call time", () => {
+  const q = db.values({ a: Int4.from(1) });
+  expectArgValidationError(
+    // @ts-expect-error — string is not a Fromable
+    () => q.join("not-a-table", () => Bool.from(true)),
+    /argument 0/,
+  );
+});
+
+test("where defers callback validation — bad return only throws at compile", () => {
+  // .where() itself accepts anything-callable; the cb's return is checked
+  // when bind() invokes it. So the constructor call below must NOT throw.
+  const q = db
+    .values({ a: Int4.from(1) })
+    // @ts-expect-error — callback must return Bool
+    .where(() => 42);
+  expectReturnValidationError(() => compile(q, "pg"), /expected Bool, received number/);
+});
+
+test("orderBy defers — empty array fails .min(1) at compile", () => {
+  const q = db.values({ a: Int4.from(1) }).orderBy(() => [] as never);
+  expectReturnValidationError(() => compile(q, "pg"), /expected array to have >=1 items/);
+});
+
+test("groupBy() with no args is allowed (optional callback)", () => {
+  const q = db.values({ a: Int4.from(1) }).groupBy();
+  expect(() => compile(q, "pg")).not.toThrow();
 });

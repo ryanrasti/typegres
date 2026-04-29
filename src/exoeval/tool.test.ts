@@ -112,9 +112,11 @@ describe('getter decorator', () => {
 			get map() { return this.data.map.bind(this.data) }
 		}
 		const instance = new WithValidatedMap()
-		expect(() => instance.map(() => 'not a number' as any)).toThrow(/Invalid value/)
+		// Callback-return failures throw zod's ZodError directly (the validator
+		// in fn.returns calls retSchema.parse without re-wrapping).
+		expect(() => instance.map(() => 'not a number' as any)).toThrow(/expected array, received string/)
 		const run = exoEval('(c) => c.map(() => "not a number")') as (c: WithValidatedMap) => unknown
-		expect(() => run(instance)).toThrow(/Invalid value/)
+		expect(() => run(instance)).toThrow(/expected array, received string/)
 		// Valid: callback return value is validated per element; return [x] satisfies z.array(z.number())
 		expect(instance.map((x: number) => [x])).toEqual([[1], [2], [3]])
 		expect((exoEval('(c) => c.map((x) => [x])') as (c: WithValidatedMap) => unknown)(instance)).toEqual([[1], [2], [3]])
@@ -282,6 +284,6 @@ describe('tool with function argument', () => {
 		const es = new EventSource()
 		exoEval('es.onEvent((x) => x + 1)', { es })
 		expect(es.callbacks.length).toBe(1)
-		expect(es.callbacks[0](5)).toBe(6)
+		expect(es.callbacks[0]!(5)).toBe(6)
 	})
 })

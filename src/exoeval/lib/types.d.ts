@@ -86,9 +86,9 @@ export type IExoDate = {
 	getSeconds: () => number
 	getMilliseconds: () => number
 	toISOString: () => string
-	toLocaleDateString: (locale?: string, options?: Record<string, string | boolean | undefined>) => string
-	toLocaleTimeString: (locale?: string, options?: Record<string, string | boolean | undefined>) => string
-	toLocaleString: (locale?: string, options?: Record<string, string | boolean | undefined>) => string
+	toLocaleDateString: (locale?: string, options?: { [key: string]: string | boolean | undefined }) => string
+	toLocaleTimeString: (locale?: string, options?: { [key: string]: string | boolean | undefined }) => string
+	toLocaleString: (locale?: string, options?: { [key: string]: string | boolean | undefined }) => string
 	valueOf: () => number
 	toString: () => string
 }
@@ -97,7 +97,7 @@ export type IExoObject = {
 	keys: (o: object) => string[]
 	values: (o: object) => unknown[]
 	entries: (o: object) => [string, unknown][]
-	fromEntries: (entries: [string, unknown][]) => Record<string, unknown>
+	fromEntries: (entries: [string, unknown][]) => { [key: string]: unknown }
 }
 
 export type IExoJSON = {

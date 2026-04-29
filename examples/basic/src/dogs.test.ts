@@ -52,9 +52,9 @@ test("select dogs", async () => {
     .select(({ dogs }) => ({ id: dogs.id, name: dogs.name, breed: dogs.breed }))
     .execute(db);
 
-  expectTypeOf(rows).toEqualTypeOf<{ id: bigint; name: string; breed: string | null }[]>();
+  expectTypeOf(rows).toEqualTypeOf<{ id: string; name: string; breed: string | null }[]>();
   expect(rows).toHaveLength(3);
-  expect(rows.find((r) => r.name === "Rex")).toEqual({ id: 1n, name: "Rex", breed: "Labrador" });
+  expect(rows.find((r) => r.name === "Rex")).toEqual({ id: "1", name: "Rex", breed: "Labrador" });
 });
 
 // --- Relation cardinality tests ---

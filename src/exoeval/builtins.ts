@@ -9,7 +9,6 @@ import { disallowedProperties } from './utils'
 @tool()
 export class ExoArray<T = unknown> implements IExoArray<T> {
 	constructor(...args: Parameters<typeof Array>) {
-		// eslint-disable-next-line unicorn/no-new-array
 		return new Array(...args) as unknown as ExoArray<T>
 	}
 
@@ -118,7 +117,6 @@ export class ExoArray<T = unknown> implements IExoArray<T> {
 @tool(z.union([z.string(), z.number(), z.instanceof(Date), z.boolean(), z.null(), z.undefined(), z.bigint()]))
 export class ExoString implements IExoString {
 	constructor(...args: Parameters<typeof String>) {
-		// eslint-disable-next-line unicorn/new-for-builtins, no-new-wrappers
 		return new String(...args) as unknown as ExoString
 	}
 
@@ -293,8 +291,8 @@ export class ExoObject {
 		)
 	}
 
-	@tool(z.array(z.tuple([z.intersection(z.string(), z.custom(k => !disallowedProperties.has(k as string), {
-		error: k => `${k.input} is not an allowed property name`,
+	@tool(z.array(z.tuple([z.intersection(z.string(), z.custom((k: unknown) => !disallowedProperties.has(k as string), {
+		error: (k: { input: unknown }) => `${k.input} is not an allowed property name`,
 	})), z.any()])))
 	static fromEntries(entries: [string, unknown][]) {
 		return Object.fromEntries(entries)
@@ -304,7 +302,6 @@ export class ExoObject {
 @tool(z.any())
 export class ExoBoolean implements IExoBoolean {
 	constructor(...args: Parameters<typeof Boolean>) {
-		// eslint-disable-next-line unicorn/new-for-builtins, no-new-wrappers
 		return new Boolean(...args)
 	}
 
@@ -383,7 +380,6 @@ export class ExoPromise {
 @tool(z.union([z.string(), z.number(), z.bigint()]))
 export class ExoNumber implements IExoNumber {
 	constructor(...args: Parameters<typeof Number>) {
-		// eslint-disable-next-line unicorn/new-for-builtins, no-new-wrappers
 		return new Number(...args)
 	}
 

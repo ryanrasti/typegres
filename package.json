@@ -54,19 +54,26 @@
     "check": "npm run lint && npm run typecheck && npm run test && npm --prefix examples/basic run check"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.4.4",
     "@eslint/js": "^10.0.1",
+    "@standard-schema/spec": "^1.1.0",
+    "@swc/core": "^1.15.32",
+    "@types/acorn": "^4.0.6",
     "@types/node": "^25.6.0",
     "@types/pg": "^8.20.0",
     "@typescript-eslint/eslint-plugin": "^8.59.0",
     "@typescript-eslint/parser": "^8.59.0",
     "@typescript/native-preview": "^7.0.0-dev.20260422.1",
-    "@electric-sql/pglite": "^0.4.4",
+    "acorn": "^8.16.0",
     "eslint": "^10.2.1",
     "pg": "^8.20.0",
     "prettier": "^3.8.3",
+    "secure-json-parse": "^4.1.0",
     "tsdown": "^0.21.10",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.5"
+    "unplugin-swc": "^1.5.9",
+    "vitest": "^4.1.5",
+    "zod": "^4.3.6"
   },
   "dependencies": {
     "camelcase": "^9.0.0"

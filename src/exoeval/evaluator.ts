@@ -9,7 +9,7 @@ import { disallowedProperties, Invariant } from './utils'
 const internal = Symbol('internal')
 type InternalFn<F = (...args: any[]) => any> = F & { [internal]: acorn.Node }
 const internalFn = <F extends (...args: any[]) => any>(fn: F, node: acorn.Node): InternalFn<F> => {
-	(fn as any)[internal] = node
+	Object.defineProperty(fn, internal, { value: node, configurable: true, writable: true })
 	return fn as InternalFn<F>
 }
 const isInternalFn = (fn: unknown): fn is InternalFn => {
@@ -51,6 +51,7 @@ export class Evaluator<Expr> {
 		return new Evaluator(this.ast, this.code, this.ctx, newScope ? new Scope(this.scope) : this.scope, this.builtinPrototypes)
 	}
 
+	// eslint-disable-next-line require-yield -- generator-protocol method; callers `yield*` it
 	* Identifier(node: acorn.Identifier): EvalResult<Expr> {
 		if (node.name === 'undefined') {
 			return this.ctx.of(undefined)
@@ -58,6 +59,7 @@ export class Evaluator<Expr> {
 		return this.scope.get(node, this)
 	}
 
+	// eslint-disable-next-line require-yield -- generator-protocol method; callers `yield*` it
 	* Literal(node: acorn.Literal): EvalResult<Expr> {
 		return this.ctx.of(node.value)
 	}
@@ -136,7 +138,7 @@ export class Evaluator<Expr> {
 		const sequenced = this.ctx.sequence(obj)
 
 		if (Array.isArray(sequenced) && typeof key === 'number') {
-			return sequenced[key]
+			return sequenced[key] as Expr
 		}
 		if (sequenced == null) {
 			this.inv.eval(optional, 'object is null or undefined', node, obj)
@@ -228,7 +230,7 @@ export class Evaluator<Expr> {
 
 	* evalStatements(statements: (acorn.Statement | acorn.ModuleDeclaration)[], { module = false } = {}): EvalResult<Expr> {
 		let result = this.ctx.of(undefined)
-		const exports: Record<string, Expr> = {}
+		const exports: { [key: string]: Expr } = {}
 		for (const statement of statements) {
 			if (statement.type === 'ImportDeclaration') {
 				this.inv.parse(false, 'imports are not allowed', statement)
@@ -260,7 +262,7 @@ export class Evaluator<Expr> {
 				arg = child.ctx.distribute(args.slice(i))
 			}
 			else {
-				arg = args[i]
+				arg = args[i] as Expr
 			}
 			yield* child.scope.bind(param, arg, child)
 		}
@@ -273,6 +275,7 @@ export class Evaluator<Expr> {
 		}
 	}
 
+	// eslint-disable-next-line require-yield -- generator-protocol method; callers `yield*` it
 	* ArrowFunctionExpression(node: acorn.ArrowFunctionExpression): EvalResult<Expr> {
 		let fn: (...args: Expr[]) => Expr | Promise<Expr>
 		if (node.async) {

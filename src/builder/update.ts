@@ -2,12 +2,15 @@ import { Sql, sql, Alias, compile } from "./sql";
 import type { BoundSql } from "./sql";
 import { Bool } from "../types";
 import type { SetRow } from "../types/runtime";
+import { isSetRow } from "../types/runtime";
 import { meta } from "../types/runtime";
 import type { RowType, RowTypeToTsType } from "./query";
-import { combinePredicates, compileSelectList, reAlias } from "./query";
+import { combinePredicates, compileSelectList, isRowType, reAlias } from "./query";
 import type { TableBase } from "../table";
-import type { Database } from "../database";
+import { Database } from "../database";
 import { getColumn } from "../types/overrides/any";
+import { fn, tool } from "../exoeval/tool";
+import z from "zod";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
 
@@ -31,6 +34,7 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
   }
 
   // Multiple where() calls are combined with AND. .where(true) matches all rows.
+  @tool(z.union([z.literal(true), fn.returns(z.lazy(() => z.instanceof(Bool)))]))
   where(fn: ((ns: Namespace<Name, T>) => Bool<any>) | true): UpdateBuilder<Name, T, R> {
     const wrapped: (ns: Namespace<Name, T>) => Bool<any> =
       fn === true ? () => Bool.from(sql`TRUE`) as Bool<any> : fn;
@@ -40,10 +44,12 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
     });
   }
 
+  @tool(fn.returns(z.custom<any>((v) => isSetRow(v))))
   set(fn: (ns: Namespace<Name, T>) => SetRow<T>): UpdateBuilder<Name, T, R> {
     return new UpdateBuilder({ ...this.#opts, set: fn });
   }
 
+  @tool(fn.returns(z.custom<any>((v) => isRowType(v))))
   returning<R2 extends RowType>(fn: (ns: Namespace<Name, T>) => R2): UpdateBuilder<Name, T, R2> {
     return new UpdateBuilder({ ...this.#opts, returning: fn });
   }
@@ -81,14 +87,17 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
     return sql.withScope([alias], inner);
   }
 
+  @tool(z.lazy(() => z.instanceof(Database)))
   override async execute(db: Database): Promise<RowTypeToTsType<R>[]> {
     return db.execute(this);
   }
 
+  @tool(z.lazy(() => z.instanceof(Database)))
   async hydrate(db: Database): Promise<R[]> {
     return db.hydrate<any, any, R>(this);
   }
 
+  @tool()
   debug(): this {
     const compiled = compile(this, "pg");
     console.log("Debugging query:", { sql: compiled.text, parameters: compiled.values });

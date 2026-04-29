@@ -41,8 +41,8 @@ test("delete returning", async () => {
         .returning(({ tags }) => ({ id: tags.id, name: tags.name })),
     );
 
-    expectTypeOf(rows).toEqualTypeOf<{ id: bigint; name: string }[]>();
-    expect(rows).toEqual([{ id: 2n, name: "b" }]);
+    expectTypeOf(rows).toEqualTypeOf<{ id: string; name: string }[]>();
+    expect(rows).toEqual([{ id: "2", name: "b" }]);
   });
 });
 
@@ -60,7 +60,7 @@ test("delete: multiple where calls AND-combine", async () => {
 
     await tx.execute(
       Items.delete()
-        .where(({ items }) => items.score["="](10n))
+        .where(({ items }) => items.score["="]("10"))
         .where(({ items }) => items.name["="]("a")),
     );
 

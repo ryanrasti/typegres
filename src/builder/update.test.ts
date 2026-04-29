@@ -94,7 +94,7 @@ test("update: multiple where calls AND-combine", async () => {
 
     await tx.execute(
       Products.update()
-        .where(({ products }) => products.price["="](10n))
+        .where(({ products }) => products.price["="]("10"))
         .where(({ products }) => products.name["="]("a"))
         .set(() => ({ active: "no" })),
     );

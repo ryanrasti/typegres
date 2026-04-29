@@ -344,34 +344,27 @@ describe('exoEval', () => {
 			expect(exoEval('`hello`')).toBe('hello')
 		})
 		it('expression as only element', () => {
-			// eslint-disable-next-line no-template-curly-in-string
 			expect(exoEval('const x = 1; `${x}`')).toBe('1')
 		})
 		it('expression first (no leading quasi)', () => {
-			// eslint-disable-next-line no-template-curly-in-string
 			expect(exoEval('const x = 2; `${x} world`')).toBe('2 world')
 		})
 		it('expression in middle', () => {
-			// eslint-disable-next-line no-template-curly-in-string
 			expect(exoEval('const x = 3; `a ${x} b`')).toBe('a 3 b')
 		})
 		it('multiple expressions', () => {
-			// eslint-disable-next-line no-template-curly-in-string
 			expect(exoEval('const a = 1; const b = 2; `${a}+${b}`')).toBe('1+2')
 		})
 		it('expression last', () => {
-			// eslint-disable-next-line no-template-curly-in-string
 			expect(exoEval('const x = 4; `end ${x}`')).toBe('end 4')
 		})
 		it('number and boolean coerced to string', () => {
-			// eslint-disable-next-line no-template-curly-in-string
 			expect(exoEval('`${42} ${true}`')).toBe('42 true')
 		})
 		it('empty template', () => {
 			expect(exoEval('``')).toBe('')
 		})
 		it('single expression only (no quasis either side)', () => {
-			// eslint-disable-next-line no-template-curly-in-string
 			expect(exoEval('const x = "X"; `${x}`')).toBe('X')
 		})
 	})
@@ -397,7 +390,6 @@ describe('exoEval', () => {
 			expect(exoEval('(1 === 1) || (2 === 3)')).toBe(true)
 		})
 		it('template with ternary', () => {
-			// eslint-disable-next-line no-template-curly-in-string
 			expect(exoEval('const ok = true; `result: ${ok ? "yes" : "no"}`')).toBe('result: yes')
 		})
 		it('optional chain with computed property', () => {
@@ -798,7 +790,7 @@ describe('exoEval', () => {
 		]
 		for (const [name, code] of blocked) {
 			it(`${name} is blocked`, () => {
-				expect(() => exoEval(code)).toThrow()
+				expect(() => exoEval(code!)).toThrow()
 			})
 		}
 	})
@@ -816,7 +808,7 @@ describe('exoEval', () => {
 		]
 		for (const [name, code] of blocked) {
 			it(`${name} is blocked`, () => {
-				expect(() => exoEval(code)).toThrow()
+				expect(() => exoEval(code!)).toThrow()
 			})
 		}
 	})

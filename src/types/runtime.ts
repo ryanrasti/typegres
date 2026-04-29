@@ -68,6 +68,16 @@ export type InsertRow<R> =
 
 // Update set row: partial of all columns (as TsTypeOf)
 export type SetRow<R> = Partial<{ [K in ColumnKeys<R>]: TsTypeOf<R[K]> }>;
+export const isSetRow = (row: unknown): row is SetRow<any> => {
+  if (typeof row !== "object" || row === null) { return false; }
+  return Object.values(row).every(v => {
+    if (typeof v === "object" && v !== null) {
+      const proto = Object.getPrototypeOf(v);
+      return proto === Object.prototype || proto === null;
+    }
+    return true;
+  });
+}
 
 // Runtime type resolution
 // pgType(expr) — returns the constructor via [meta].__class (set once in Any, narrowed by subclasses)

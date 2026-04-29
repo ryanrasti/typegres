@@ -47,10 +47,10 @@ test("insert returning", async () => {
         .returning(({ items }) => ({ id: items.id, label: items.label })),
     );
 
-    expectTypeOf(rows).toEqualTypeOf<{ id: bigint; label: string }[]>();
+    expectTypeOf(rows).toEqualTypeOf<{ id: string; label: string }[]>();
     expect(rows).toEqual([
-      { id: 1n, label: "A" },
-      { id: 2n, label: "B" },
+      { id: "1", label: "A" },
+      { id: "2", label: "B" },
     ]);
   });
 });

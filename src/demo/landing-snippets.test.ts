@@ -100,7 +100,7 @@ test("example 2: relations and mutations via hydrated instances", async () => {
   const user = (await db.hydrate(
     User.from().where(({ users }) => users.token.eq("t1")).limit(1),
   ))[0]!;
-  const todoId = 1n;
+  const todoId = "1";
 
   // The only way to get a todo is through a user:
   const todo = await user.todos()

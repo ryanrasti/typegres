@@ -8,7 +8,7 @@ import { Scope } from './scope'
 export { asToolFn } from './tool'
 export type { ToolFunction } from './tool'
 
-const builtins: Record<string, unknown> = {
+const builtins: { [key: string]: unknown } = {
 	Array: ExoArray,
 	String: ExoString,
 	Object: ExoObject,
@@ -20,6 +20,7 @@ const builtins: Record<string, unknown> = {
 	Promise: ExoPromise,
 }
 
+/* eslint-disable no-redeclare -- TS overload signatures */
 export function exoEval(code: string, bindings?: { [key: string]: unknown }): unknown
 export function exoEval<T>(code: string, ctx: ExpressionContext<T>): T
 export function exoEval(code: string, bindingsOrCtx?: { [key: string]: unknown } | ExpressionContext<unknown>): unknown {
@@ -55,7 +56,9 @@ export function exoEval(code: string, bindingsOrCtx?: { [key: string]: unknown }
 
 	return evaluator.Program(ast)
 }
+/* eslint-enable no-redeclare */
 
+/* eslint-disable no-redeclare -- TS overload signatures */
 export function exoImport(code: string): { [key: string]: unknown } | Promise<{ [key: string]: unknown }>
 export function exoImport<T>(code: string, ctx: ExpressionContext<T>): { [key: string]: unknown } | Promise<{ [key: string]: unknown }>
 export function exoImport(code: string, ctx = new IdentityContext()): { [key: string]: unknown } | Promise<{ [key: string]: unknown }> {
@@ -80,7 +83,8 @@ export function exoImport(code: string, ctx = new IdentityContext()): { [key: st
 	const result = evaluator.Program(ast, { module: true })
 	return result as { [key: string]: unknown } | Promise<{ [key: string]: unknown }>
 }
+/* eslint-enable no-redeclare */
 
-export function exoFn<T extends (...args: any[]) => unknown>(fn: T): T {
+export const exoFn = <T extends (...args: any[]) => unknown>(fn: T): T => {
 	return exoEval(fn.toString()) as T
 }

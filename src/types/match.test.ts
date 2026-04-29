@@ -46,7 +46,7 @@ test("match: multi-overload resolves correct return type", () => {
   expect(compile(r1.toSql(), "pg").text).toContain("*");
 
   // Int4 * Int8 → Int8 (different return type per overload)
-  const r2 = a["*"](Int8.from(3n));
+  const r2 = a["*"](Int8.from("3"));
   expect(compile(r2.toSql(), "pg").text).toContain("*");
 });
 
@@ -84,11 +84,11 @@ test("serialize: null throws", () => {
   expect(() => Int4.serialize(null)).toThrow();
 });
 
-test("serialize: bigint for Int8 passes", () => {
-  const result = Int8.serialize(42n);
+test("serialize: string for Int8 passes", () => {
+  const result = Int8.serialize("42");
   expect(result).toBeInstanceOf(Int8);
 });
 
 test("serialize: number for Int8 throws", () => {
-  expect(() => Int8.serialize(42)).toThrow("int8.serialize: expected a int8 instance or bigint primitive");
+  expect(() => Int8.serialize(42)).toThrow("int8.serialize: expected a int8 instance or string primitive");
 });
