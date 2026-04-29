@@ -36,6 +36,14 @@
 8. **`groupBy` non-aggregated-column enforcement is runtime-only** — pg
    catches it; types don't.
 
+9. **JSON wire format loses precision for some types.** RPC sends queries +
+   results as JSON. `int8` and `bytea` are deserialized as strings (not bigint /
+   Uint8Array) so they round-trip through JSON cleanly. Float NaN / Infinity
+   serialize as null through `JSON.stringify` and don't survive the wire. A
+   richer "tagged JSON" wire codec — bigint, bytes, dates, ±Infinity, NaN as
+   tagged sentinels (e.g. `["bigint","42"]`) — is the v0.2 fix; see Endo's
+   `pass-style` for prior art.
+
 ## Missing features
 
 9. **Subselects / correlated subqueries in `.select(...)`** — requires

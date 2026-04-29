@@ -1,5 +1,6 @@
 // Auto-generated — do not edit
 import * as runtime from "../runtime";
+import { tool } from "../../exoeval/tool";
 import { Anynonarray } from "../generated/anynonarray";
 import * as types from "../index";
 
@@ -16,8 +17,12 @@ export class PgSnapshot<in out N extends number> extends Anynonarray<N> {
   static __typname = runtime.sql`pg_snapshot`;
   static __typnameText = "pg_snapshot";
   declare deserialize: (raw: string) => string;
+  @tool.unchecked()
   pgSnapshotSend(): types.Bytea<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bytea]]); return runtime.PgFunc("pg_snapshot_send", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   pgSnapshotXmax(): types.Xid8<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Xid8]]); return runtime.PgFunc("pg_snapshot_xmax", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   pgSnapshotXmin(): types.Xid8<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Xid8]]); return runtime.PgFunc("pg_snapshot_xmin", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   pgSnapshotXip(): runtime.PgSrf<{ pg_snapshot_xip: types.Xid8<N> }, "pg_snapshot_xip"> { const [__rt, ...__rest] = runtime.match([], [[[], types.Xid8]]); return new runtime.PgSrf("pg_snapshot_xip", [this, ...__rest], [["pg_snapshot_xip", __rt]]) as any; }
 }

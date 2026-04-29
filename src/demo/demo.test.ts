@@ -21,8 +21,8 @@ describe("demo.ts examples", async () => {
 
   it("Alice's posts — select with a derived column", () => {
     expect(calls.get("Alice's posts:")).toEqual([
-      { id: 1n, preview: "first post…" },
-      { id: 3n, preview: "another from alice…" },
+      { id: "1", preview: "first post…" },
+      { id: "3", preview: "another from alice…" },
     ]);
   });
 
@@ -35,8 +35,8 @@ describe("demo.ts examples", async () => {
 
   it("Promoted — update with RETURNING", () => {
     expect(calls.get("Promoted:")).toEqual([
-      { id: 1n, likes: 999n },
-      { id: 3n, likes: 999n },
+      { id: "1", likes: "999" },
+      { id: "3", likes: "999" },
     ]);
   });
 });

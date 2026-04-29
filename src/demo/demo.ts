@@ -35,9 +35,9 @@ class Posts extends db.Table("posts") {
 }
 
 await Posts.insert(
-  { author: "alice", body: "first post", likes: 5n },
-  { author: "bob", body: "hello from pglite", likes: 12n },
-  { author: "alice", body: "another from alice", likes: 3n },
+  { author: "alice", body: "first post", likes: "5" },
+  { author: "bob", body: "hello from pglite", likes: "12" },
+  { author: "alice", body: "another from alice", likes: "3" },
 ).execute(db);
 
 // ------------------------------------
@@ -73,7 +73,7 @@ console.log("Likes by author:", likesByAuthor);
 
 const promoted = await Posts.update()
   .where(({ posts }) => posts.author.eq(Text.from("alice")))
-  .set(() => ({ likes: 999n }))
+  .set(() => ({ likes: "999" }))
   .returning(({ posts }) => ({ id: posts.id, likes: posts.likes }))
   .debug()
   .execute(db);

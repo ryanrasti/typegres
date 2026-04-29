@@ -47,7 +47,7 @@ test("TsTypeOf extracts TS primitive from pg types", () => {
   expectTypeOf<TsTypeOf<Text<1>>>().toEqualTypeOf<string>();
   expectTypeOf<TsTypeOf<Bool<1>>>().toEqualTypeOf<boolean>();
   expectTypeOf<TsTypeOf<Float8<1>>>().toEqualTypeOf<number>();
-  expectTypeOf<TsTypeOf<Int8<1>>>().toEqualTypeOf<bigint>();
+  expectTypeOf<TsTypeOf<Int8<1>>>().toEqualTypeOf<string>();
 });
 
 test("TsTypeOf on container types", () => {

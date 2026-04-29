@@ -21,10 +21,10 @@ test("Table.from().select()", async () => {
       .select(({ dogs }) => ({ id: dogs.id, name: dogs.name, breed: dogs.breed }))
       );
 
-    expectTypeOf(rows).toEqualTypeOf<{ id: bigint; name: string; breed: string | null }[]>();
+    expectTypeOf(rows).toEqualTypeOf<{ id: string; name: string; breed: string | null }[]>();
     expect(rows).toEqual([
-      { id: 1n, name: "Rex", breed: "Labrador" },
-      { id: 2n, name: "Fido", breed: null },
+      { id: "1", name: "Rex", breed: "Labrador" },
+      { id: "2", name: "Fido", breed: null },
     ]);
   });
 });
@@ -46,10 +46,10 @@ test("Table.as() alias", async () => {
       .select(({ d }) => ({ id: d.id, name: d.name, breed: d.breed }))
       );
 
-    expectTypeOf(rows).toEqualTypeOf<{ id: bigint; name: string; breed: string | null }[]>();
+    expectTypeOf(rows).toEqualTypeOf<{ id: string; name: string; breed: string | null }[]>();
     expect(rows).toEqual([
-      { id: 1n, name: "Rex", breed: "Labrador" },
-      { id: 2n, name: "Fido", breed: null },
+      { id: "1", name: "Rex", breed: "Labrador" },
+      { id: "2", name: "Fido", breed: null },
     ]);
   });
 });

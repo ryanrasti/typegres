@@ -1,5 +1,6 @@
 // Auto-generated — do not edit
 import * as runtime from "../runtime";
+import { tool } from "../../exoeval/tool";
 import { Anynonarray } from "../generated/anynonarray";
 import * as types from "../index";
 
@@ -16,6 +17,8 @@ export class Regclass<in out N extends number> extends Anynonarray<N> {
   static __typname = runtime.sql`regclass`;
   static __typnameText = "regclass";
   declare deserialize: (raw: string) => string;
+  @tool.unchecked()
   pgPartitionRoot(): types.Regclass<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Regclass]]); return runtime.PgFunc("pg_partition_root", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   regclasssend(): types.Bytea<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bytea]]); return runtime.PgFunc("regclasssend", [this, ...__rest], __rt) as any; }
 }

@@ -1,5 +1,6 @@
 // Auto-generated — do not edit
 import * as runtime from "../runtime";
+import { tool } from "../../exoeval/tool";
 import { Anynonarray } from "../generated/anynonarray";
 import * as types from "../index";
 
@@ -16,47 +17,86 @@ export class Bit<in out N extends number> extends Anynonarray<N> {
   static __typname = runtime.sql`bit`;
   static __typnameText = "bit";
   declare deserialize: (raw: string) => string;
+  @tool.unchecked()
   bit<M0 extends types.Int4<any> | number, M1 extends types.Bool<any> | boolean>(arg0: M0, arg1: M1): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>> { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }, { type: types.Bool, allowPrimitive: true }], types.Bit]]); return runtime.PgFunc("bit", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   bitCount(): types.Int8<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int8]]); return runtime.PgFunc("bit_count", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   bitLength(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.PgFunc("bit_length", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   bitSend(): types.Bytea<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bytea]]); return runtime.PgFunc("bit_send", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   bitand<M0 extends types.Bit<any> | string>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bit]]); return runtime.PgFunc("bitand", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   bitnot(): types.Bit<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bit]]); return runtime.PgFunc("bitnot", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   bitor<M0 extends types.Bit<any> | string>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bit]]); return runtime.PgFunc("bitor", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   bitshiftleft<M0 extends types.Int4<any> | number>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.PgFunc("bitshiftleft", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   bitshiftright<M0 extends types.Int4<any> | number>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.PgFunc("bitshiftright", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   bitxor<M0 extends types.Bit<any> | string>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bit]]); return runtime.PgFunc("bitxor", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   getBit<M0 extends types.Int4<any> | number>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Int4]]); return runtime.PgFunc("get_bit", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   int4(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.PgFunc("int4", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   int8(): types.Int8<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int8]]); return runtime.PgFunc("int8", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   length(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.PgFunc("length", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   octetLength(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.PgFunc("octet_length", [this, ...__rest], __rt) as any; }
   overlay<M0 extends types.Bit<any>, M1 extends types.Int4<any>, M2 extends types.Int4<any>>(arg0: M0, arg1: M1, arg2: M2): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
   overlay<M0 extends types.Bit<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  @tool.unchecked()
   overlay(arg0: unknown, arg1: unknown, arg2?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Bit, allowPrimitive: true }, { type: types.Int4 }, { type: types.Int4 }], types.Bit], [[{ type: types.Bit, allowPrimitive: true }, { type: types.Int4 }], types.Bit]]); return runtime.PgFunc("overlay", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   position<M0 extends types.Bit<any> | string>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Int4]]); return runtime.PgFunc("position", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   setBit<M0 extends types.Int4<any> | number, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>> { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.PgFunc("set_bit", [this, ...__rest], __rt) as any; }
   substring<M0 extends types.Int4<any>>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   substring<M0 extends types.Int4<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  @tool.unchecked()
   substring(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4 }], types.Bit], [[{ type: types.Int4 }, { type: types.Int4 }], types.Bit]]); return runtime.PgFunc("substring", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   bitAnd(): types.Bit<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bit]]); return runtime.PgFunc("bit_and", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   bitOr(): types.Bit<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bit]]); return runtime.PgFunc("bit_or", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   bitXor(): types.Bit<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bit]]); return runtime.PgFunc("bit_xor", [this, ...__rest], __rt) as any; }
+  @tool.unchecked()
   ['#']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bit]]); return runtime.PgOp(runtime.sql`#`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   ['&']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bit]]); return runtime.PgOp(runtime.sql`&`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   ['<']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   lt<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   ['<<']<M0 extends types.Int4<any> | number>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.PgOp(runtime.sql`<<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   ['<=']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   lte<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   ['<>']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   ne<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   ['=']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   eq<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   ['>']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   gt<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   ['>=']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   gte<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   ['>>']<M0 extends types.Int4<any> | number>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.PgOp(runtime.sql`>>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @tool.unchecked()
   ['|']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bit]]); return runtime.PgOp(runtime.sql`|`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
 }

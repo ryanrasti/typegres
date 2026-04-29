@@ -1,9 +1,13 @@
-import type { BoundSql} from "./sql";
+import type { BoundSql } from "./sql";
 import { sql, Sql, Alias, compile } from "./sql";
-import type { Database } from "../database";
-import type { Bool } from "../types";
+import { Database } from "../database";
+import {Bool } from "../types";
 import { Any, Anyarray, Record } from "../types";
 import { type TsTypeOf, type Nullable, type AggregateRow, meta } from "../types/runtime";
+import { fn, tool } from "../exoeval/tool";
+import { TableBase } from "../table";
+import z from "zod";
+import { Values } from "./values";
 
 // Extract only Any<> instances from a row type
 export const selectList = <T extends RowType>(output: T): T => {
@@ -20,16 +24,22 @@ export const compileSelectList = (output: { [key: string]: unknown }): Sql => {
 };
 
 export const reAlias = <R extends RowType>(row: R, alias: Alias): R => {
-  // Preserve the prototype so Table-subclass methods (derived columns,
-  // relation helpers) remain callable via `ns.<alias>.<method>()`.
+  // Preserve the prototype so Table-subclass methods, instanceof checks,
+  // and isRowType all behave the same as on the source. Copy every own
+  // descriptor — including symbol-keyed ones like toolFieldsSymbol —
+  // generically, replacing Any-typed columns with an alias-qualified
+  // reference along the way.
   const out = Object.create(Object.getPrototypeOf(row));
-  for (const [k, v] of Object.entries(row)) {
-    Object.defineProperty(out, k, {
-      value: v instanceof Any
-        ? v[meta].__class.from(sql.column(alias, sql.ident(k)))
-        : v,
-      enumerable: true,
-    });
+  for (const key of Reflect.ownKeys(row)) {
+    const desc = Object.getOwnPropertyDescriptor(row, key)!;
+    if (desc.value instanceof Any) {
+      Object.defineProperty(out, key, {
+        ...desc,
+        value: desc.value[meta].__class.from(sql.column(alias, sql.ident(key as string))),
+      });
+    } else {
+      Object.defineProperty(out, key, desc);
+    }
   }
   return out;
 };
@@ -79,9 +89,8 @@ export const hydrateRows = <R>(
       const col = shape[k];
       let value: unknown;
       if (col instanceof Any) {
-        const deserialized = raw === null || raw === undefined
-          ? null
-          : col.deserialize(String(raw));
+        const deserialized =
+          raw === null || raw === undefined ? null : col.deserialize(String(raw));
         value = col[meta].__class.from(deserialized);
       } else {
         value = raw;
@@ -94,6 +103,14 @@ export const hydrateRows = <R>(
 
 // Mapping of row name to type (class instance)
 export type RowType = object;
+export const isRowType = (obj: unknown): obj is RowType => {
+  if (obj === null || typeof obj !== "object") {
+    return false;
+  }
+  const proto = Object.getPrototypeOf(obj);
+  return obj instanceof TableBase || proto === Object.prototype || proto === null;
+};
+
 // All of the row types in the current namespace
 type Namespace = {
   [k: string]: RowType;
@@ -127,6 +144,17 @@ export type Fromable<R extends RowType = RowType, A extends string = string> = {
   emitColumnNamesWithAlias?: boolean; // default false; if true, emit column names in FROM clause (e.g. VALUES)
 };
 
+const isFromable = (obj: unknown): obj is Fromable => {
+  // We enumerate the actualy implemetors for validation purposes:
+  return (
+    obj instanceof Values ||
+    obj instanceof QueryBuilder ||
+    (typeof obj === "function" &&
+      "prototype" in obj &&
+      obj.prototype instanceof TableBase)
+  );
+};
+
 export const combinePredicates = <N extends Namespace>(
   left: ((ns: N) => Bool<any>) | undefined,
   right: (ns: N) => Bool<any>,
@@ -144,7 +172,15 @@ export const combineBoolPredicates = (left: Bool<any> | undefined, right: Bool<a
 
 type OrderDirection = "asc" | "desc";
 type OrderByEntry = Any<any> | [Any<any>, OrderDirection];
+const isOrderByEntry = (obj: unknown): obj is OrderByEntry =>
+  obj instanceof Any ||
+  (Array.isArray(obj) &&
+    obj.length === 2 &&
+    obj[0] instanceof Any &&
+    (obj[1] === "asc" || obj[1] === "desc"));
+
 type Cardinality = "one" | "maybe" | "many";
+const ZCardinality = z.union([z.literal("one"), z.literal("maybe"), z.literal("many")]);
 
 type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<any>[]> = {
   // Preferred name only. The QueryBuilder ctor creates its own fresh Alias
@@ -187,12 +223,14 @@ export class QueryBuilder<
     this.card = (card ?? "many") as Card;
   }
 
-  // Subsequent `select` calls replace the output type (columns must be redefined)
+  // Subsequent `select` calls replace the output type (columns must be redefined).
+  @tool(fn.returns(z.custom<any>(isRowType)))
   select<O2 extends RowType>(select: (n: N) => O2): QueryBuilder<N, O2, GB, Card> {
     return new QueryBuilder({ ...this.opts, select: select }, this.card);
   }
 
   // Multiple `where` calls are combined with AND
+  @tool(fn.returns(z.lazy(() => z.instanceof(Bool))))
   where(where: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
     return new QueryBuilder({
       ...this.opts,
@@ -225,6 +263,7 @@ export class QueryBuilder<
     from: Fromable<R, A>,
     on: (ns: N & { [k in A]: R }) => Bool<any>,
   ): QueryBuilder<N & { [k in A]: R }, O, GB>;
+  @tool(z.custom<any>(isFromable), fn.returns(z.lazy(() => z.instanceof(Bool))))
   join(from: Fromable, on: (ns: any) => Bool<any>): any {
     this.#assertNotInNamespace(from.tsAlias);
     return new QueryBuilder({
@@ -241,6 +280,7 @@ export class QueryBuilder<
     from: Fromable<R, A>,
     onFn: (ns: N & { [k in A]: RowTypeToNullable<R> }) => Bool<any>,
   ): QueryBuilder<N & { [k in A]: RowTypeToNullable<R> }, O, GB>;
+  @tool(z.custom<Fromable>(isFromable), fn.returns(z.lazy(() => z.instanceof(Bool))))
   leftJoin(from: Fromable, onFn: (ns: any) => Bool<any>): any {
     this.#assertNotInNamespace(from.tsAlias);
     return new QueryBuilder({
@@ -258,6 +298,7 @@ export class QueryBuilder<
   groupBy<G extends Any<any>[]>(
     groupBy: (n: N) => [...G],
   ): QueryBuilder<{ [K in keyof N]: AggregateRow<N[K]> } & G, {}, [...GB, ...G], Card>;
+  @tool(fn.returns(z.array(z.lazy(() => z.instanceof(Any)))).optional())
   groupBy(groupBy?: (n: N) => Any<any>[]): any {
     const { select: _, ...opts } = this.opts;
     if (!groupBy) {
@@ -273,6 +314,7 @@ export class QueryBuilder<
   }
 
   // Multiple `having` calls are combined with AND
+  @tool(fn.returns(z.lazy(() => z.instanceof(Bool))))
   having(having: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
     return new QueryBuilder({
       ...this.opts,
@@ -281,6 +323,11 @@ export class QueryBuilder<
   }
 
   // Multiple `orderBy` calls are concatenated (ORDER BY a, b, c).
+  @tool(
+    fn.returns(
+      z.union([z.custom<any>(isOrderByEntry), z.array(z.custom<any>(isOrderByEntry)).min(1)]),
+    ),
+  )
   orderBy(
     orderBy: (n: N) => OrderByEntry | [OrderByEntry, ...OrderByEntry[]],
   ): QueryBuilder<N, O, GB, Card> {
@@ -299,11 +346,13 @@ export class QueryBuilder<
   }
 
   // Multiple `limit` calls are combined with `MIN` (safest option)
+  @tool(z.int().gte(0))
   limit(n: number): QueryBuilder<N, O, GB> {
     return new QueryBuilder({ ...this.opts, limit: Math.min(this.opts.limit ?? Infinity, n) });
   }
 
   // Multiple `offset` calls are combined by summing offsets (safest option)
+  @tool(z.int().gte(0))
   offset(n: number): QueryBuilder<N, O, GB> {
     return new QueryBuilder({ ...this.opts, offset: (this.opts.offset ?? 0) + n });
   }
@@ -311,14 +360,17 @@ export class QueryBuilder<
   // Fluent terminators. Narrow the Sql.execute() return type from
   // QueryResult to a row array, and expose the hydrated / single-row
   // variants as chainable terminators too.
+  @tool(z.lazy(() => z.instanceof(Database)))
   override async execute(db: Database): Promise<RowTypeToTsType<O>[]> {
     return db.execute(this);
   }
 
+  @tool(z.lazy(() => z.instanceof(Database)))
   async hydrate(db: Database): Promise<O[]> {
     return db.hydrate<O, GB, Card>(this);
   }
 
+  @tool(z.lazy(() => z.instanceof(Database)))
   async one(db: Database): Promise<O> {
     const [row] = await db.hydrate(this.limit(1));
     if (!row) {
@@ -327,6 +379,7 @@ export class QueryBuilder<
     return row;
   }
 
+  @tool(z.lazy(() => z.instanceof(Database)))
   async maybeOne(db: Database): Promise<O | null> {
     const [row] = await db.hydrate(this.limit(1));
     return row ?? null;
@@ -342,6 +395,7 @@ export class QueryBuilder<
       ? Record<O, 0 | 1>
       : Anyarray<Record<O, 1>, 1>;
   /* eslint-enable @typescript-eslint/no-restricted-types */
+  @tool()
   scalar(): any {
     const staticCols = selectList(this.rowType());
     const RecordClass = Record.of(staticCols as any);
@@ -454,10 +508,12 @@ export class QueryBuilder<
     return sql`(${sql.withScope(aliases, body)})`;
   }
 
+  @tool(ZCardinality)
   cardinality<C extends Cardinality>(card: C): QueryBuilder<N, O, GB, C> {
     return new QueryBuilder(this.opts, card);
   }
 
+  @tool()
   debug(): this {
     const compiled = compile(this, "pg");
     console.log("Debugging query:", { sql: compiled.text, parameters: compiled.values });

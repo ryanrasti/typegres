@@ -61,7 +61,7 @@ describe("db.hydrate", () => {
 
   test("hydrated column is an Any wrapping the deserialized value", async () => {
     const [user] = await db.hydrate(
-      User.from().where((ns) => ns.users.id["="](1n)).limit(1),
+      User.from().where((ns) => ns.users.id["="]("1")).limit(1),
     );
     // id stays a typed Any after hydrate — that's what lets relation methods
     // ("this.id.eq(...)") compose into follow-up queries.
@@ -72,7 +72,7 @@ describe("db.hydrate", () => {
 
   test("relation method on a hydrated instance runs as a real query", async () => {
     const [alice] = await db.hydrate(
-      User.from().where((ns) => ns.users.id["="](1n)).limit(1),
+      User.from().where((ns) => ns.users.id["="]("1")).limit(1),
     );
     // Call the relation method on the materialized instance. The method
     // composes `this.id` (an Any wrapping the param) into a fresh
@@ -83,7 +83,7 @@ describe("db.hydrate", () => {
     // .title is `string`, not `Text<1>`. (RowTypeToTsType also threads
     // class methods through, so the row type is wider than just columns;
     // checking the column fields one by one keeps the assertion focused.)
-    expectTypeOf(aliceTodos[0]!.id).toEqualTypeOf<bigint>();
+    expectTypeOf(aliceTodos[0]!.id).toEqualTypeOf<string>();
     expectTypeOf(aliceTodos[0]!.title).toEqualTypeOf<string>();
     expectTypeOf(aliceTodos[0]!.completed).toEqualTypeOf<boolean>();
     expect(aliceTodos).toHaveLength(2);
@@ -108,7 +108,7 @@ describe("db.hydrate", () => {
 
   test("chained hydrate -> method -> hydrate -> method", async () => {
     const [alice] = await db.hydrate(
-      User.from().where((ns) => ns.users.id["="](1n)).limit(1),
+      User.from().where((ns) => ns.users.id["="]("1")).limit(1),
     );
     const [firstTodo] = await db.hydrate(
       alice!.todos().orderBy((ns) => ns.todos.id).limit(1),
