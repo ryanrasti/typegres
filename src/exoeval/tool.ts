@@ -76,7 +76,6 @@ export const registerToolField = (obj: unknown, key: string) => {
  * where construction is part of the API. For capability classes where you want to expose
  * only methods (not construction), don't decorate the class — just decorate the methods.
  */
-/* eslint-disable no-redeclare -- TS overload signatures + intentional namespace merge */
 export function tool<Schemas extends StandardSchemaV1[]>(
 	...argSchemas: Schemas
 ): {
@@ -187,7 +186,6 @@ const uncheckedImpl = () => {
 export namespace tool {
 	export const unchecked = uncheckedImpl
 }
-/* eslint-enable no-redeclare */
 ;(tool as any).unchecked = uncheckedImpl
 
 export const asToolFn = <Schemas extends StandardSchemaV1[], T extends (...args: SchemasToParams<Schemas>) => unknown>(fn: T, schemas: Schemas): T & ToolFunction => {

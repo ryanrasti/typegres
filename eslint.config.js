@@ -19,6 +19,7 @@ export default [
       eqeqeq: ["error", "always", { null: "ignore" }],
       curly: ["error", "all"],
       "no-undef": "off", // tsgo handles this
+      "no-redeclare": "off", // tsgo handles this; flags valid TS overload signatures
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": ["error", {
         argsIgnorePattern: "^_",

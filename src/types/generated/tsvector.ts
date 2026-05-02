@@ -27,14 +27,14 @@ export class Tsvector<in out N extends number> extends Anynonarray<N> {
   tsDelete<M0 extends types.Text<any> | string>(arg0: M0): types.Tsvector<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Tsvector]]); return runtime.PgFunc("ts_delete", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   tsMatchVq<M0 extends types.Tsquery<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Tsquery, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("ts_match_vq", [this, ...__rest], __rt) as any; }
-  tsRank<M0 extends types.Tsquery<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Float4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  tsRank<M0 extends types.Tsquery<any> | string, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Float4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   tsRank<M0 extends types.Tsquery<any> | string>(arg0: M0): types.Float4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  tsRank(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Tsquery, allowPrimitive: true }, { type: types.Int4 }], types.Float4], [[{ type: types.Tsquery, allowPrimitive: true }], types.Float4]]); return runtime.PgFunc("ts_rank", [this, ...__rest], __rt) as any; }
+  tsRank(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Tsquery, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Float4], [[{ type: types.Tsquery, allowPrimitive: true }], types.Float4]]); return runtime.PgFunc("ts_rank", [this, ...__rest], __rt) as any; }
   tsRankCd<M0 extends types.Tsquery<any> | string>(arg0: M0): types.Float4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  tsRankCd<M0 extends types.Tsquery<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Float4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  tsRankCd<M0 extends types.Tsquery<any> | string, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Float4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   @tool.unchecked()
-  tsRankCd(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Tsquery, allowPrimitive: true }], types.Float4], [[{ type: types.Tsquery, allowPrimitive: true }, { type: types.Int4 }], types.Float4]]); return runtime.PgFunc("ts_rank_cd", [this, ...__rest], __rt) as any; }
+  tsRankCd(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Tsquery, allowPrimitive: true }], types.Float4], [[{ type: types.Tsquery, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Float4]]); return runtime.PgFunc("ts_rank_cd", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   tsvectorConcat<M0 extends types.Tsvector<any> | string>(arg0: M0): types.Tsvector<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Tsvector, allowPrimitive: true }], types.Tsvector]]); return runtime.PgFunc("tsvector_concat", [this, ...__rest], __rt) as any; }
   @tool.unchecked()

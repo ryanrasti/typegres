@@ -1,11 +1,11 @@
 import type { BoundSql } from "./sql";
 import { sql, Sql, Alias, compile } from "./sql";
 import { Database } from "../database";
-import {Bool } from "../types";
+import { Bool } from "../types";
 import { Any, Anyarray, Record } from "../types";
 import { type TsTypeOf, type Nullable, type AggregateRow, meta } from "../types/runtime";
 import { fn, tool } from "../exoeval/tool";
-import { TableBase } from "../table";
+import { isTableClass, TableBase } from "../table";
 import z from "zod";
 import { Values } from "./values";
 
@@ -15,7 +15,7 @@ export const selectList = <T extends RowType>(output: T): T => {
 };
 
 // Compile a row type into a SQL select list: col AS "name", ...
-export const compileSelectList = (output: { [key: string]: unknown }): Sql => {
+export const compileSelectList = (output: RowType): Sql => {
   return sql.join(
     Object.entries(output).flatMap(([k, v]) =>
       v instanceof Any ? [sql`${v.toSql()} as ${sql.ident(k)}`] : [],
@@ -149,9 +149,7 @@ const isFromable = (obj: unknown): obj is Fromable => {
   return (
     obj instanceof Values ||
     obj instanceof QueryBuilder ||
-    (typeof obj === "function" &&
-      "prototype" in obj &&
-      obj.prototype instanceof TableBase)
+    isTableClass(obj)
   );
 };
 
@@ -170,6 +168,28 @@ export const combinePredicates = <N extends Namespace>(
 export const combineBoolPredicates = (left: Bool<any> | undefined, right: Bool<any>): Bool<any> =>
   left ? left.and(right) : right;
 
+// Compose two RETURNING callbacks into one that returns their merged
+// shape. Throws on key conflict — used by mutation builders' returningMerge
+// to safely add bookkeeping columns without silently shadowing the user's.
+export const mergeReturning = <N extends Namespace, A extends RowType, B extends RowType>(
+  prev: ((ns: N) => A) | undefined,
+  next: (ns: N) => B,
+): ((ns: N) => A & B) => {
+  if (!prev) { return next as (ns: N) => A & B; }
+  return (ns: N) => {
+    const a = prev(ns);
+    const b = next(ns);
+    for (const k of Object.keys(b)) {
+      if (k in a) {
+        throw new Error(
+          `returningMerge: key conflict on '${k}' — already present in prior RETURNING`,
+        );
+      }
+    }
+    return { ...a, ...b };
+  };
+};
+
 type OrderDirection = "asc" | "desc";
 type OrderByEntry = Any<any> | [Any<any>, OrderDirection];
 const isOrderByEntry = (obj: unknown): obj is OrderByEntry =>
@@ -182,7 +202,7 @@ const isOrderByEntry = (obj: unknown): obj is OrderByEntry =>
 type Cardinality = "one" | "maybe" | "many";
 const ZCardinality = z.union([z.literal("one"), z.literal("maybe"), z.literal("many")]);
 
-type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<any>[]> = {
+export type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<any>[]> = {
   // Preferred name only. The QueryBuilder ctor creates its own fresh Alias
   // identity from this string, so every builder instance in a chain — and
   // each reuse — registers independently.
@@ -210,7 +230,7 @@ export class QueryBuilder<
   GB extends Any<any>[],
   Card extends Cardinality = "many",
 > extends Sql {
-  private opts: QueryBuilderOptions<N, O, GB>;
+  public readonly opts: QueryBuilderOptions<N, O, GB>;
   private card: Card;
 
   get tsAlias(): string {
@@ -443,31 +463,23 @@ export class QueryBuilder<
     return this.#doSelect(ns as unknown as N);
   }
 
-  bind(): BoundSql {
+  finalize(): FinalizedQuery {
     const ns: N = {} as N;
-    const aliases: Alias[] = [];
-    const tableSql: Sql[] = [];
+    const finalizedTables: FinalizedQuery["opts"]["tables"] = [] as any;
 
     for (const t of this.opts.tables) {
       const alias = new Alias(t.source.tsAlias);
-      aliases.push(alias);
       Object.defineProperty(ns, t.source.tsAlias, {
         value: reAlias(t.source.rowType(), alias),
         enumerable: true,
       });
-      const sourceSql = t.source.bind();
-      const asClause = t.source.emitColumnNamesWithAlias
-        ? sql`AS ${alias}(${sql.join(Object.keys(t.source.rowType()).map((col) => sql.ident(col)))})`
-        : sql`AS ${alias}`;
-      if (t.type === "from") {
-        tableSql.push(sql`FROM ${sourceSql} ${asClause}`);
-      } else {
-        tableSql.push(
-          sql`  ${t.type === "leftJoin" ? sql`LEFT JOIN` : sql`JOIN`} ${sourceSql} ${asClause} ON ${t.on(ns).toSql()}`,
-        );
-      }
+      finalizedTables.push({
+        source: t.source,
+        on: (t.type === "from" ? undefined : t.on(ns)) as any,
+        type: t.type,
+        alias,
+      });
     }
-
     const groups = this.opts.groupBy && this.opts.groupBy(ns);
     for (const [i, g] of groups?.entries() ?? []) {
       if (i in ns) {
@@ -479,16 +491,106 @@ export class QueryBuilder<
       Object.defineProperty(ns, i, { value: g, enumerable: true });
     }
 
+    return new FinalizedQuery({
+      select: this.#doSelect(ns),
+      where: this.opts?.where?.(ns),
+      groupBy: groups,
+      having: this.opts?.having?.(ns),
+      orderBy: this.opts?.orderBy?.(ns),
+      tables: finalizedTables,
+      limit: this.opts.limit,
+      offset: this.opts.offset,
+    });
+  }
+
+  bind(): BoundSql {
+    return this.finalize().bind();
+  }
+
+  children() {
+    return [this.finalize()];
+  }
+
+  @tool(ZCardinality)
+  cardinality<C extends Cardinality>(card: C): QueryBuilder<N, O, GB, C> {
+    return new QueryBuilder(this.opts, card);
+  }
+
+  @tool()
+  debug(): this {
+    const compiled = compile(this, "pg");
+    console.log("Debugging query:", { sql: compiled.text, parameters: compiled.values });
+    return this;
+  }
+}
+
+type AppliedOpts = {
+  select: RowType;
+  where?: Bool<any> | undefined;
+  groupBy?: Any<any>[] | undefined;
+  having?: Bool<any> | undefined;
+  orderBy?: OrderByEntry[] | undefined;
+  tables: [
+    { type: "from"; source: Fromable; alias: Alias },
+    ...{
+      source: Fromable;
+      on: Bool<any>;
+      type: "join" | "leftJoin";
+      alias: Alias;
+    }[],
+  ];
+  limit?: number | undefined;
+  offset?: number | undefined;
+};
+
+export class FinalizedQuery extends Sql {
+  opts: AppliedOpts;
+
+  constructor(opts: AppliedOpts) {
+    super();
+    this.opts = opts;
+  }
+
+  children(): Sql[] {
+    return [
+      ...this.opts.tables.map((t) => t.source),
+      this.opts.where?.toSql(),
+      ...(this.opts.groupBy?.map((g) => g.toSql()) ?? []),
+      this.opts.having?.toSql(),
+      ...(this.opts.orderBy?.flatMap((entry) =>
+        entry instanceof Any ? [entry.toSql()] : [entry[0].toSql()],
+      ) ?? []),
+    ].filter((x) => x instanceof Sql);
+  }
+
+  bind(): BoundSql {
+    const tableSql: Sql[] = [];
+
+    for (const t of this.opts.tables) {
+      const alias = t.alias;
+      const sourceSql = t.source.bind();
+      const asClause = t.source.emitColumnNamesWithAlias
+        ? sql`AS ${alias}(${sql.join(Object.keys(t.source.rowType()).map((col) => sql.ident(col)))})`
+        : sql`AS ${alias}`;
+      if (t.type === "from") {
+        tableSql.push(sql`FROM ${sourceSql} ${asClause}`);
+      } else {
+        tableSql.push(
+          sql`  ${t.type === "leftJoin" ? sql`LEFT JOIN` : sql`JOIN`} ${sourceSql} ${asClause} ON ${t.on.toSql()}`,
+        );
+      }
+    }
+
     const body = sql.join(
       [
-        sql`SELECT ${compileSelectList(this.#doSelect(ns) as { [key: string]: unknown })}`,
+        sql`SELECT ${compileSelectList(this.opts.select)}`,
         ...tableSql,
-        this.opts.where && sql`WHERE ${this.opts.where(ns).toSql()}`,
-        groups && groups.length > 0 && sql`GROUP BY ${sql.join(groups.map((g) => g.toSql()))}`,
-        this.opts.having && sql`HAVING ${this.opts.having(ns).toSql()}`,
+        this.opts.where && sql`WHERE ${this.opts.where.toSql()}`,
+        this.opts.groupBy && sql`GROUP BY ${sql.join(this.opts.groupBy.map((g) => g.toSql()))}`,
+        this.opts.having && sql`HAVING ${this.opts.having.toSql()}`,
         this.opts.orderBy &&
           sql`ORDER BY ${sql.join(
-            this.opts.orderBy(ns).map((entry) => {
+            this.opts.orderBy.map((entry) => {
               if (entry instanceof Any) {
                 return entry.toSql();
               }
@@ -505,18 +607,7 @@ export class QueryBuilder<
       sql`\n`,
     );
 
+    const aliases = this.opts.tables.map((t) => t.alias);
     return sql`(${sql.withScope(aliases, body)})`;
-  }
-
-  @tool(ZCardinality)
-  cardinality<C extends Cardinality>(card: C): QueryBuilder<N, O, GB, C> {
-    return new QueryBuilder(this.opts, card);
-  }
-
-  @tool()
-  debug(): this {
-    const compiled = compile(this, "pg");
-    console.log("Debugging query:", { sql: compiled.text, parameters: compiled.values });
-    return this;
   }
 }

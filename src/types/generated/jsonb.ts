@@ -81,22 +81,22 @@ export class Jsonb<in out N extends number> extends Anynonarray<N> {
   jsonbObjectKeys(): runtime.PgSrf<{ jsonb_object_keys: types.Text<N> }, "jsonb_object_keys"> { const [__rt, ...__rest] = runtime.match([], [[[], types.Text]]); return new runtime.PgSrf("jsonb_object_keys", [this, ...__rest], [["jsonb_object_keys", __rt]]) as any; }
   @tool.unchecked()
   jsonbPathQuery<M0 extends types.Jsonpath<any> | string, M1 extends types.Jsonb<any> | string, M2 extends types.Bool<any> | boolean>(arg0: M0, arg1: M1, arg2: M2): runtime.PgSrf<{ jsonb_path_query: types.Jsonb<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>> }, "jsonb_path_query"> { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Jsonpath, allowPrimitive: true }, { type: types.Jsonb, allowPrimitive: true }, { type: types.Bool, allowPrimitive: true }], types.Jsonb]]); return new runtime.PgSrf("jsonb_path_query", [this, ...__rest], [["jsonb_path_query", __rt]]) as any; }
-  ['-']<M0 extends types.Int4<any>>(arg0: M0): types.Jsonb<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['-']<M0 extends types.Int4<any> | number>(arg0: M0): types.Jsonb<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['-']<M0 extends types.Text<any> | string>(arg0: M0): types.Jsonb<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  ['-'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4 }], types.Jsonb], [[{ type: types.Text, allowPrimitive: true }], types.Jsonb]]); return runtime.PgOp(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  minus<M0 extends types.Int4<any>>(arg0: M0): types.Jsonb<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['-'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Jsonb], [[{ type: types.Text, allowPrimitive: true }], types.Jsonb]]); return runtime.PgOp(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  minus<M0 extends types.Int4<any> | number>(arg0: M0): types.Jsonb<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   minus<M0 extends types.Text<any> | string>(arg0: M0): types.Jsonb<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  minus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4 }], types.Jsonb], [[{ type: types.Text, allowPrimitive: true }], types.Jsonb]]); return runtime.PgOp(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  ['->']<M0 extends types.Int4<any>>(arg0: M0): types.Jsonb<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
+  minus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Jsonb], [[{ type: types.Text, allowPrimitive: true }], types.Jsonb]]); return runtime.PgOp(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['->']<M0 extends types.Int4<any> | number>(arg0: M0): types.Jsonb<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
   ['->']<M0 extends types.Text<any> | string>(arg0: M0): types.Jsonb<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  ['->'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4 }], types.Jsonb], [[{ type: types.Text, allowPrimitive: true }], types.Jsonb]]); return runtime.PgOp(runtime.sql`->`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['->'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Jsonb], [[{ type: types.Text, allowPrimitive: true }], types.Jsonb]]); return runtime.PgOp(runtime.sql`->`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['->>']<M0 extends types.Text<any> | string>(arg0: M0): types.Text<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
-  ['->>']<M0 extends types.Int4<any>>(arg0: M0): types.Text<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
+  ['->>']<M0 extends types.Int4<any> | number>(arg0: M0): types.Text<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  ['->>'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Text], [[{ type: types.Int4 }], types.Text]]); return runtime.PgOp(runtime.sql`->>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['->>'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Text], [[{ type: types.Int4, allowPrimitive: true }], types.Text]]); return runtime.PgOp(runtime.sql`->>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()
   ['<']<M0 extends types.Jsonb<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Jsonb, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()

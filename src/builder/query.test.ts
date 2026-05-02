@@ -1,7 +1,8 @@
 import { test, expect, expectTypeOf } from "vitest";
 import { Int4, Int8, Text, Bool, Jsonb } from "../types";
 import { sql, compile } from "./sql";
-import { db } from "./test-helper";
+import { setupDb, db } from "../test-helpers";
+setupDb();
 
 // --- values() ---
 

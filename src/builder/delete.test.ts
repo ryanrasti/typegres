@@ -1,7 +1,8 @@
 import { test, expect, expectTypeOf } from "vitest";
 import { Int8, Text } from "../types";
 import { sql } from "./sql";
-import { db, withinTransaction } from "./test-helper";
+import { setupDb, db, withinTransaction } from "../test-helpers";
+setupDb();
 
 test("delete with where", async () => {
   await withinTransaction(async (tx) => {

@@ -3,7 +3,8 @@ import { sql, Table, Int8, Text } from "typegres";
 import type { Database } from "typegres";
 import { tool } from "./exoeval/tool";
 import { RpcClient, inMemoryChannel } from "./exoeval/rpc";
-import { withinTransaction } from "./builder/test-helper";
+import { setupDb, withinTransaction } from "./test-helpers";
+setupDb();
 
 // End-to-end: typegres queries authored client-side, shipped over the
 // exoeval RPC wire as plain JS source, evaluated server-side under a

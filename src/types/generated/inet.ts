@@ -71,14 +71,14 @@ export class Inet<in out N extends number> extends Anynonarray<N> {
   ['+']<M0 extends types.Int8<any> | string>(arg0: M0): types.Inet<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Inet]]); return runtime.PgOp(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()
   plus<M0 extends types.Int8<any> | string>(arg0: M0): types.Inet<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Inet]]); return runtime.PgOp(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  ['-']<M0 extends types.Int8<any> | string>(arg0: M0): types.Inet<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['-']<M0 extends types.Int8<any>>(arg0: M0): types.Inet<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['-']<M0 extends types.Inet<any> | string>(arg0: M0): types.Int8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  ['-'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Inet], [[{ type: types.Inet, allowPrimitive: true }], types.Int8]]); return runtime.PgOp(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  minus<M0 extends types.Int8<any> | string>(arg0: M0): types.Inet<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['-'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8 }], types.Inet], [[{ type: types.Inet, allowPrimitive: true }], types.Int8]]); return runtime.PgOp(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  minus<M0 extends types.Int8<any>>(arg0: M0): types.Inet<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   minus<M0 extends types.Inet<any> | string>(arg0: M0): types.Int8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  minus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Inet], [[{ type: types.Inet, allowPrimitive: true }], types.Int8]]); return runtime.PgOp(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  minus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8 }], types.Inet], [[{ type: types.Inet, allowPrimitive: true }], types.Int8]]); return runtime.PgOp(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()
   ['<']<M0 extends types.Inet<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Inet, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()

@@ -51,10 +51,10 @@ export class Bytea<in out N extends number> extends Anynonarray<N> {
   notlike<M0 extends types.Bytea<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bytea, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("notlike", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   octetLength(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.PgFunc("octet_length", [this, ...__rest], __rt) as any; }
-  overlay<M0 extends types.Bytea<any>, M1 extends types.Int4<any>, M2 extends types.Int4<any>>(arg0: M0, arg1: M1, arg2: M2): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
-  overlay<M0 extends types.Bytea<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  overlay<M0 extends types.Bytea<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
+  overlay<M0 extends types.Bytea<any> | string, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   @tool.unchecked()
-  overlay(arg0: unknown, arg1: unknown, arg2?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Bytea, allowPrimitive: true }, { type: types.Int4 }, { type: types.Int4 }], types.Bytea], [[{ type: types.Bytea, allowPrimitive: true }, { type: types.Int4 }], types.Bytea]]); return runtime.PgFunc("overlay", [this, ...__rest], __rt) as any; }
+  overlay(arg0: unknown, arg1: unknown, arg2?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Bytea, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bytea], [[{ type: types.Bytea, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bytea]]); return runtime.PgFunc("overlay", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   position<M0 extends types.Bytea<any> | string>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bytea, allowPrimitive: true }], types.Int4]]); return runtime.PgFunc("position", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
@@ -71,14 +71,14 @@ export class Bytea<in out N extends number> extends Anynonarray<N> {
   sha384(): types.Bytea<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bytea]]); return runtime.PgFunc("sha384", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   sha512(): types.Bytea<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bytea]]); return runtime.PgFunc("sha512", [this, ...__rest], __rt) as any; }
-  substr<M0 extends types.Int4<any>>(arg0: M0): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  substr<M0 extends types.Int4<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  substr<M0 extends types.Int4<any> | number>(arg0: M0): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  substr<M0 extends types.Int4<any> | number, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   @tool.unchecked()
-  substr(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4 }], types.Bytea], [[{ type: types.Int4 }, { type: types.Int4 }], types.Bytea]]); return runtime.PgFunc("substr", [this, ...__rest], __rt) as any; }
-  substring<M0 extends types.Int4<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
-  substring<M0 extends types.Int4<any>>(arg0: M0): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  substr(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }], types.Bytea], [[{ type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bytea]]); return runtime.PgFunc("substr", [this, ...__rest], __rt) as any; }
+  substring<M0 extends types.Int4<any> | number, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  substring<M0 extends types.Int4<any> | number>(arg0: M0): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  substring(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4 }, { type: types.Int4 }], types.Bytea], [[{ type: types.Int4 }], types.Bytea]]); return runtime.PgFunc("substring", [this, ...__rest], __rt) as any; }
+  substring(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bytea], [[{ type: types.Int4, allowPrimitive: true }], types.Bytea]]); return runtime.PgFunc("substring", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   stringAgg<M0 extends types.Bytea<any> | string>(arg0: M0): types.Bytea<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bytea, allowPrimitive: true }], types.Bytea]]); return runtime.PgFunc("string_agg", [this, ...__rest], __rt) as any; }
   @tool.unchecked()

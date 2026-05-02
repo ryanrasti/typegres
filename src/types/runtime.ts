@@ -1,6 +1,6 @@
 export type { Sql } from "../builder/sql";
 export { sql } from "../builder/sql";
-import type { BoundSql} from "../builder/sql";
+import type { BoundSql, Raw } from "../builder/sql";
 import { Func, Op, Sql, sql } from "../builder/sql";
 import * as types from "./index";
 import type { Any } from "./index";
@@ -126,7 +126,7 @@ export const PgFunc = (name: string, args: unknown[], type: typeof Any) => {
   return type.from(new Func(name, args.map(argToSql)));
 };
 
-export const PgOp = (op: Sql, args: [unknown, unknown], type: typeof Any) => {
+export const PgOp = (op: Raw, args: [unknown, unknown], type: typeof Any) => {
   return type.from(new Op(op, argToSql(args[0]), argToSql(args[1])));
 };
 

@@ -1,11 +1,13 @@
 import { test, expect, beforeAll, afterAll } from "vitest";
 import { Int8, Text } from "./types";
 import { sql } from "./builder/sql";
-import { db } from "./builder/test-helper";
+import { setupDb, db } from "./test-helpers";
 import { PgDriver } from "./driver";
 import type { Driver } from "./driver";
 import { requireDatabaseUrl } from "./pg";
 import { Database } from "./database";
+
+setupDb();
 
 let poolDriver: Driver;
 let poolDb: Database;
@@ -83,5 +85,46 @@ test("nested transactions flatten", async () => {
       const pid2 = await tx2.execute(sql`SELECT pg_backend_pid() AS pid`);
       expect(pid2.rows[0]?.["pid"]).toBe(pid1.rows[0]?.["pid"]);
     });
+  });
+});
+
+test("nested transaction rejects stronger isolation than active", async () => {
+  await expect(
+    poolDb.transaction({ isolation: "read committed" }, async (tx) => {
+      await tx.transaction({ isolation: "serializable" }, async () => {});
+    }),
+  ).rejects.toThrow(/Cannot nest a 'serializable' transaction inside a 'read committed'/);
+
+  await expect(
+    poolDb.transaction({ isolation: "repeatable read" }, async (tx) => {
+      await tx.transaction({ isolation: "serializable" }, async () => {});
+    }),
+  ).rejects.toThrow(/Cannot nest a 'serializable' transaction inside a 'repeatable read'/);
+});
+
+test("nested transaction accepts weaker-or-equal isolation", async () => {
+  // Outer 'serializable' satisfies any inner request.
+  await poolDb.transaction({ isolation: "serializable" }, async (tx) => {
+    await tx.transaction({ isolation: "read committed" }, async () => {});
+    await tx.transaction({ isolation: "repeatable read" }, async () => {});
+    await tx.transaction({ isolation: "serializable" }, async () => {});
+    await tx.transaction(async () => {}); // no opts: opt-out, just flatten
+  });
+});
+
+test("nested transaction rejects any explicit level inside an ambient outer", async () => {
+  // Outer was opened without an isolation option → BEGIN deferred to
+  // session default, which we can't introspect. Any explicit nested
+  // request would silently bind to whatever session config produced.
+  for (const level of ["read committed", "repeatable read", "serializable"] as const) {
+    await expect(
+      poolDb.transaction(async (tx) => {
+        await tx.transaction({ isolation: level }, async () => {});
+      }),
+    ).rejects.toThrow(/inside an ambient/);
+  }
+  // Ambient inside ambient: fine — caller deferred to session both times.
+  await poolDb.transaction(async (tx) => {
+    await tx.transaction(async () => {});
   });
 });

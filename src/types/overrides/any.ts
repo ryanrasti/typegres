@@ -2,7 +2,7 @@ import { Any as Generated } from "../generated/any";
 import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
 import type { NullOf } from "../runtime";
-import { sql, Sql, Unbound } from "../../builder/sql";
+import { Column, Param, sql, Sql, TypedParam, Unbound } from "../../builder/sql";
 import * as types from "../index";
 
 type ColumnOpts = { nonNull?: boolean; default?: Sql; generated?: boolean };
@@ -75,7 +75,7 @@ export class Any<in out N extends number> extends Generated<N> {
     const instance = new this();
     const __raw = v instanceof Sql
       ? v
-      : sql`CAST(${sql.param(v)} AS ${this.__typname})`;
+      : new TypedParam(new Param(v), this.__typname);
     // Set [meta] at runtime — subclasses' `declare [meta]` narrows the type only
     Object.defineProperty(instance, meta, {
       value: { __class: this, __raw },
@@ -147,7 +147,11 @@ export const getColumn = (
       `Declare it as a field: \`${name} = Type.column(...)\`.`,
     );
   }
-  if (!(col[meta].__raw instanceof Unbound)) {
+  // A column declaration's SQL is either Unbound (un-aliased rowType) or a
+  // Column ref (after reAlias by a builder's finalize). Compound shapes
+  // (Op, Func, ...) mean the field was assigned an expression, not declared.
+  const raw = col[meta].__raw;
+  if (!(raw instanceof Unbound) && !(raw instanceof Column)) {
     throw new Error(
       `Field '${name}' on table '${tableName}' is an expression, not a column. ` +
       `Only fields declared via \`Type.column(...)\` can be targeted by mutations.`,

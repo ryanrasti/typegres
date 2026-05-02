@@ -44,11 +44,11 @@ export class Json<in out N extends number> extends Anynonarray<N> {
   @tool.unchecked()
   jsonObjectKeys(): runtime.PgSrf<{ json_object_keys: types.Text<N> }, "json_object_keys"> { const [__rt, ...__rest] = runtime.match([], [[[], types.Text]]); return new runtime.PgSrf("json_object_keys", [this, ...__rest], [["json_object_keys", __rt]]) as any; }
   ['->']<M0 extends types.Text<any> | string>(arg0: M0): types.Json<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
-  ['->']<M0 extends types.Int4<any>>(arg0: M0): types.Json<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
+  ['->']<M0 extends types.Int4<any> | number>(arg0: M0): types.Json<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  ['->'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Json], [[{ type: types.Int4 }], types.Json]]); return runtime.PgOp(runtime.sql`->`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  ['->>']<M0 extends types.Int4<any>>(arg0: M0): types.Text<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
+  ['->'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Json], [[{ type: types.Int4, allowPrimitive: true }], types.Json]]); return runtime.PgOp(runtime.sql`->`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['->>']<M0 extends types.Int4<any> | number>(arg0: M0): types.Text<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
   ['->>']<M0 extends types.Text<any> | string>(arg0: M0): types.Text<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  ['->>'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4 }], types.Text], [[{ type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgOp(runtime.sql`->>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['->>'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgOp(runtime.sql`->>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
 }

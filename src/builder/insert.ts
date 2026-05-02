@@ -1,7 +1,7 @@
 import { Sql, sql, Alias, compile } from "./sql";
 import type { BoundSql } from "./sql";
 import type { RowType, RowTypeToTsType } from "./query";
-import { compileSelectList, isRowType, reAlias } from "./query";
+import { compileSelectList, isRowType, mergeReturning, reAlias } from "./query";
 import type { TableBase } from "../table";
 import { Database } from "../database";
 import { getColumn } from "../types/overrides/any";
@@ -18,6 +18,43 @@ type InsertOpts<Name extends string, T extends TableBase, R extends RowType> = {
   returning?: (ns: Namespace<Name, T>) => R;
 };
 
+type FinalizedInsertOpts<Name extends string, T extends TableBase, R extends RowType> = {
+  tableName: Name;
+  alias: Alias;
+  instance: T;
+  columnNames: string[];
+  rows: [{ [key: string]: unknown }, ...{ [key: string]: unknown }[]];
+  returning?: R;
+};
+
+export class FinalizedInsert<Name extends string, T extends TableBase, R extends RowType = {}> extends Sql {
+  readonly opts: FinalizedInsertOpts<Name, T, R>;
+
+  constructor(opts: FinalizedInsertOpts<Name, T, R>) {
+    super();
+    this.opts = opts;
+  }
+
+  bind(): BoundSql {
+    const { tableName, alias, columnNames, rows, returning, instance } = this.opts;
+    const columns = columnNames.map((k) => sql.ident(k));
+    const rowSqls = rows.map((row) => {
+      const vals = columnNames.map((k) => {
+        const v = row[k];
+        if (v === undefined) { return sql`DEFAULT`; }
+        const col = getColumn(instance, k);
+        return col[meta].__class.from(v).toSql();
+      });
+      return sql`(${sql.join(vals)})`;
+    });
+    const inner = sql.join([
+      sql`INSERT INTO ${sql.ident(tableName)} AS ${alias} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`,
+      returning && sql`RETURNING ${compileSelectList(returning)}`,
+    ], sql` `);
+    return sql.withScope([alias], inner);
+  }
+}
+
 export class InsertBuilder<Name extends string, T extends TableBase, R extends RowType = {}> extends Sql {
   #opts: InsertOpts<Name, T, R>;
 
@@ -26,7 +63,7 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
     this.#opts = opts;
   }
 
-  get #tableName(): Name {
+  get tableName(): Name {
     return this.#opts.instance.constructor.tableName as Name;
   }
 
@@ -35,36 +72,47 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
     return new InsertBuilder({ ...this.#opts, returning: fn });
   }
 
+  // Like .returning() but merges with whatever was already there. Throws
+  // on key conflict.
+  returningMerge<R2 extends RowType>(
+    fn: (ns: Namespace<Name, T>) => R2,
+  ): InsertBuilder<Name, T, R & R2> {
+    return new InsertBuilder({
+      ...this.#opts,
+      returning: mergeReturning(this.#opts.returning, fn),
+    }) as InsertBuilder<Name, T, R & R2>;
+  }
+
   // Shape of RETURNING rows, for deserialization. The Any instances in
   // the output carry sql.unbound() as their SQL — harmless since rowType
   // is never compiled, only its [meta].__class is read for deserialize.
   rowType(): R | undefined {
-    return this.#opts.returning?.({ [this.#tableName]: this.#opts.instance } as Namespace<Name, T>);
+    return this.#opts.returning?.({ [this.tableName]: this.#opts.instance } as Namespace<Name, T>);
   }
 
-  bind(): BoundSql {
-    const tableName = this.#tableName;
+  finalize(): FinalizedInsert<Name, T, R> {
+    const tableName = this.tableName;
     const alias = new Alias(tableName);
     const instance = reAlias(this.#opts.instance as RowType, alias) as T;
     const ns = { [tableName]: instance } as Namespace<Name, T>;
-
-    const columns = this.#opts.columnNames.map((k) => sql.ident(k));
-    const rowSqls = this.#opts.rows.map((row) => {
-      const vals = this.#opts.columnNames.map((k) => {
-        const v = row[k];
-        if (v === undefined) { return sql`DEFAULT`; }
-        const col = getColumn(this.#opts.instance, k);
-        return col[meta].__class.from(v).toSql();
-      });
-      return sql`(${sql.join(vals)})`;
-    });
-
     const returning = this.#opts.returning?.(ns);
-    const inner = sql.join([
-      sql`INSERT INTO ${sql.ident(tableName)} AS ${alias} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`,
-      returning && sql`RETURNING ${compileSelectList(returning as { [key: string]: unknown })}`,
-    ], sql` `);
-    return sql.withScope([alias], inner);
+    return new FinalizedInsert<Name, T, R>({
+      tableName,
+      alias,
+      instance,
+      columnNames: this.#opts.columnNames,
+      rows: this.#opts.rows,
+      ...(returning !== undefined ? { returning } : {}),
+    });
+  }
+
+  bind(): BoundSql {
+    const t = this.#opts.instance.constructor.transformer?.insert;
+    return (t ? t(this) : this.finalize()).bind();
+  }
+
+  override children() {
+    return [this.finalize()];
   }
 
   @tool(z.lazy(() => z.instanceof(Database)))
