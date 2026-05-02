@@ -1,4 +1,5 @@
 export { Database } from "./database";
+export type { TransactionIsolation, TransactionOptions } from "./database";
 export { Table } from "./table";
 export { sql, Sql } from "./builder/sql";
 export { QueryBuilder } from "./builder/query";

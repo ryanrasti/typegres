@@ -135,9 +135,9 @@ export type BoundSql = Raw | Ident | Param | Alias | Join | WithScope;
 // --- Composite Sql nodes ---
 
 export class Column extends Sql {
-  constructor(readonly table: Alias, readonly name: Sql) { super(); }
-  bind(): BoundSql { return sql`${this.table}.${this.name}`; }
-  override children(): readonly Sql[] { return [this.table, this.name]; }
+  constructor(readonly tableAlias: Alias, readonly name: Ident) { super(); }
+  bind(): BoundSql { return sql`${this.tableAlias}.${this.name}`; }
+  override children(): readonly Sql[] { return [this.tableAlias, this.name]; }
 }
 
 export class Func extends Sql {
@@ -147,7 +147,7 @@ export class Func extends Sql {
 }
 
 export class Op extends Sql {
-  constructor(readonly op: Sql, readonly lhs: Sql, readonly rhs: Sql) { super(); }
+  constructor(readonly op: Raw, readonly lhs: Sql, readonly rhs: Sql) { super(); }
   bind(): BoundSql { return sql`(${this.lhs} ${this.op} ${this.rhs})`; }
   override children(): readonly Sql[] { return [this.op, this.lhs, this.rhs]; }
 }
@@ -156,6 +156,13 @@ export class UnaryOp extends Sql {
   constructor(readonly op: Sql, readonly expr: Sql) { super(); }
   bind(): BoundSql { return sql`(${this.op} ${this.expr})`; }
   override children(): readonly Sql[] { return [this.op, this.expr]; }
+}
+
+// `CAST($n AS T)` for a TS primitive flowing into a typed pg expression.
+export class TypedParam extends Sql {
+  constructor(readonly value: Param, readonly typname: Sql) { super(); }
+  bind(): BoundSql { return sql`CAST(${this.value} AS ${this.typname})`; }
+  override children(): readonly Sql[] { return [this.value, this.typname]; }
 }
 
 // Sentinel for SQL that must be replaced before compile. Used by rowType()
@@ -227,7 +234,10 @@ export const compile = (root: Sql, style: "pg" | "sqlite" = "pg"): CompiledSql =
 
 // --- Tagged template + static helpers ---
 
-const _sql = (strings: TemplateStringsArray, ...exprs: unknown[]): BoundSql => {
+function _sql(strings: TemplateStringsArray): Raw;
+function _sql(strings: TemplateStringsArray, ...exprs: unknown[]): BoundSql;
+function _sql(strings: TemplateStringsArray, ...exprs: unknown[]): BoundSql {
+  if (exprs.length === 0) { return new Raw(strings[0]!); }
   const parts: Sql[] = [];
   for (const [i, s] of strings.entries()) {
     if (s) { parts.push(new Raw(s)); }
@@ -237,13 +247,13 @@ const _sql = (strings: TemplateStringsArray, ...exprs: unknown[]): BoundSql => {
     }
   }
   return new Join(parts);
-};
+}
 
 _sql.param = (value: unknown): BoundSql => new Param(value);
 // Provided for clients, not to be used internally (internal code should use literal templates instead of `raw`.)
 _sql.raw = (s: string): BoundSql => new Raw(s);
-_sql.ident = (name: string): BoundSql => new Ident(name);
-_sql.column = (table: Alias, name: Sql): Sql => new Column(table, name);
+_sql.ident = (name: string): Ident => new Ident(name);
+_sql.column = (table: Alias, name: Ident): Sql => new Column(table, name);
 _sql.unbound = (): Sql => new Unbound();
 _sql.withScope = (aliases: readonly Alias[], child: Sql): BoundSql => new WithScope(aliases, child);
 

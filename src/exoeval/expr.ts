@@ -3,13 +3,12 @@ import { toolFieldsSymbol } from './tool'
 const control = Symbol('control')
 export type Control<V extends { value: unknown } = { value: unknown }> = { [control]: V }
 
-/* eslint-disable no-redeclare -- TS overload signatures */
 export function getControl<C extends Control>(cntrl: C): C[typeof control]
 export function getControl(value: object): { value: unknown } | undefined
 export function getControl(value: object): { value: unknown } | undefined {
 	return (value as Control)[control] as { value: unknown } | undefined
 }
-/* eslint-enable no-redeclare */
+
 export const isControl = (value: unknown): value is Control => {
 	return value != null && (getControl(value) != null)
 }

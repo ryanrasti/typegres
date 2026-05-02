@@ -282,8 +282,6 @@ const generateTypeFile = (
     // any* hierarchy type — inherits [meta] from parent, no re-declaration needed
   }
 
-  const ownerTsPrimitive = tsPrimitiveFor(pgType.typname);
-
   // --- Method codegen helpers ---
 
   // Build generic param + TS type for a single arg
@@ -340,27 +338,64 @@ const generateTypeFile = (
   };
 
   // Build a match case string: [[{type, allowPrimitive?}, ...], retType]
-  const buildMatchCase = (f: PgFunc, restrictPrimitive: boolean): string => {
+  const buildMatchCase = (f: PgFunc, allowPrimitive: boolean): string => {
     const matchers = f.argTypes.slice(1).map((oid) => {
       const t = typeMap.get(oid);
       if (!t) { return `{ type: types.Any }`; }
-      const ap = restrictPrimitive
-        ? tsPrimitiveFor(t.typname) === ownerTsPrimitive
-        : true;
-      return ap ? `{ type: types.${t.className}, allowPrimitive: true }` : `{ type: types.${t.className} }`;
+      return allowPrimitive
+        ? `{ type: types.${t.className}, allowPrimitive: true }`
+        : `{ type: types.${t.className} }`;
     });
     return `[[${matchers.join(", ")}], ${runtimeRetType(f)}]`;
   };
 
-  // Whether an overload's arg types all share the owner's TS primitive, used
-  // to decide if primitive inputs (e.g. `5`, `"foo"`) are accepted without
-  // ambiguity. Applied per-overload for signatures; globally (any overload
-  // restricts) for the match-impl body.
-  const argsMatchOwnerPrimitive = (f: PgFunc): boolean =>
+  // Whether an overload's args are all the owner's own pg type.
+  const argsMatchOwner = (f: PgFunc): boolean =>
     f.argTypes.slice(1).every((oid) => {
       const t = typeMap.get(oid);
-      return t !== undefined && tsPrimitiveFor(t.typname) === ownerTsPrimitive;
+      return t !== undefined && t.typname === pgType.typname;
     });
+
+  // Decide allowPrimitive per overload within a group. Two pg types can
+  // share a TS primitive (e.g. int8 and inet are both `string` in JS), so
+  // letting both overloads accept that primitive lets TS pick the wrong
+  // one — `int8.plus("100")` would resolve to the inet overload. Rule:
+  //
+  //   - Group overloads by their TS-primitive signature across args.
+  //   - If a primitive-sig group has the owner-typed overload, only it
+  //     accepts primitives (others require explicit casts).
+  //   - If a primitive-sig group has multiple non-owner overloads, none
+  //     accept primitives — caller must cast.
+  //   - Singleton primitive sig: the overload accepts primitives.
+  const computeAllowPrimitive = (group: PgFunc[]): Map<PgFunc, boolean> => {
+    const primSig = (f: PgFunc): string =>
+      f.argTypes.slice(1)
+        .map((oid) => {
+          const t = typeMap.get(oid);
+          return t ? tsPrimitiveFor(t.typname) : "";
+        })
+        .join("|");
+
+    const byPrimSig = new Map<string, PgFunc[]>();
+    for (const f of group) {
+      const k = primSig(f);
+      if (!byPrimSig.has(k)) { byPrimSig.set(k, []); }
+      byPrimSig.get(k)!.push(f);
+    }
+
+    const out = new Map<PgFunc, boolean>();
+    for (const overloads of byPrimSig.values()) {
+      if (overloads.length === 1) {
+        out.set(overloads[0]!, true);
+      } else {
+        const ownerOverload = overloads.find((o) => argsMatchOwner(o));
+        for (const o of overloads) {
+          out.set(o, o === ownerOverload);
+        }
+      }
+    }
+    return out;
+  };
 
   // Method name(s) as emitted. Operators get the bracketed form plus a
   // readable alias if one is defined (eq/lt/plus/…); pg's catalog
@@ -387,11 +422,11 @@ const generateTypeFile = (
   // n-arg, functions, operators, and single-column SRFs — the only thing
   // that changes is which runtime entry point wraps __rt. `...__rest` spread
   // tolerates overloads of differing arity within the same group.
-  const buildBody = (funcs: PgFunc[], restrictPrimitive: boolean): string => {
+  const buildBody = (funcs: PgFunc[], allowMap: Map<PgFunc, boolean>): string => {
     const f0 = funcs[0]!;
     const maxArity = Math.max(...funcs.map((f) => f.argTypes.length - 1));
     const inputArgs = Array.from({ length: maxArity }, (_, i) => `arg${i}`);
-    const cases = funcs.map((fn) => buildMatchCase(fn, restrictPrimitive));
+    const cases = funcs.map((fn) => buildMatchCase(fn, allowMap.get(fn) ?? false));
     const matchCall = `runtime.match([${inputArgs.join(", ")}], [${cases.join(", ")}])`;
     const caller = f0.isSrf
       ? `new runtime.PgSrf("${f0.name}", [this, ...__rest], [["${f0.name}", __rt]])`
@@ -438,19 +473,20 @@ const generateTypeFile = (
     const alias = rawAlias && !funcGroups.has(rawAlias) ? rawAlias : null;
 
     const emit = (nameOverride?: string): void => {
+      const allowMap = computeAllowPrimitive(group);
       if (group.length === 1) {
-        const sig = buildSig(f0, true, nameOverride);
+        const sig = buildSig(f0, allowMap.get(f0) ?? true, nameOverride);
         const retType = wrapRet(f0, buildRetType(f0));
         lines.push(`  @tool.unchecked()`);
-        lines.push(`  ${sig}: ${retType} { ${buildBody(group, false)} }`);
+        lines.push(`  ${sig}: ${retType} { ${buildBody(group, allowMap)} }`);
         return;
       }
       // Multiple overloads: emit TS overload signatures, then one typed-as-any
-      // implementation dispatching via match with restrictPrimitive on. The
-      // decorator goes on the implementation only — TS forbids decorators on
-      // overload signatures.
+      // implementation dispatching via match with the same per-overload
+      // primitive flags. The decorator goes on the implementation only — TS
+      // forbids decorators on overload signatures.
       for (const overload of group) {
-        const sig = buildSig(overload, argsMatchOwnerPrimitive(overload), nameOverride);
+        const sig = buildSig(overload, allowMap.get(overload) ?? false, nameOverride);
         const retType = wrapRet(overload, buildRetType(overload));
         lines.push(`  ${sig}: ${retType};`);
       }
@@ -462,7 +498,7 @@ const generateTypeFile = (
         `arg${i}${i >= minArity ? "?" : ""}: unknown`,
       ).join(", ");
       lines.push(`  @tool.unchecked()`);
-      lines.push(`  ${nameOverride ?? methodName(f0)}(${implParams}): any { ${buildBody(group, true)} }`);
+      lines.push(`  ${nameOverride ?? methodName(f0)}(${implParams}): any { ${buildBody(group, allowMap)} }`);
     };
 
     emit();

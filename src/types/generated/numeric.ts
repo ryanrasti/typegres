@@ -89,10 +89,10 @@ export class Numeric<in out N extends number> extends Anynonarray<N> {
   pow<M0 extends types.Numeric<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Numeric, allowPrimitive: true }], types.Numeric]]); return runtime.PgFunc("pow", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   power<M0 extends types.Numeric<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Numeric, allowPrimitive: true }], types.Numeric]]); return runtime.PgFunc("power", [this, ...__rest], __rt) as any; }
-  round<M0 extends types.Int4<any>>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  round<M0 extends types.Int4<any> | number>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   round(): types.Numeric<N>;
   @tool.unchecked()
-  round(arg0?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4 }], types.Numeric], [[], types.Numeric]]); return runtime.PgFunc("round", [this, ...__rest], __rt) as any; }
+  round(arg0?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Numeric], [[], types.Numeric]]); return runtime.PgFunc("round", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   scale(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.PgFunc("scale", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
@@ -102,9 +102,9 @@ export class Numeric<in out N extends number> extends Anynonarray<N> {
   @tool.unchecked()
   trimScale(): types.Numeric<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Numeric]]); return runtime.PgFunc("trim_scale", [this, ...__rest], __rt) as any; }
   trunc(): types.Numeric<N>;
-  trunc<M0 extends types.Int4<any>>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  trunc<M0 extends types.Int4<any> | number>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  trunc(arg0?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[], types.Numeric], [[{ type: types.Int4 }], types.Numeric]]); return runtime.PgFunc("trunc", [this, ...__rest], __rt) as any; }
+  trunc(arg0?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[], types.Numeric], [[{ type: types.Int4, allowPrimitive: true }], types.Numeric]]); return runtime.PgFunc("trunc", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   widthBucket<M0 extends types.Numeric<any> | string, M1 extends types.Numeric<any> | string, M2 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>> { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Numeric, allowPrimitive: true }, { type: types.Numeric, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Int4]]); return runtime.PgFunc("width_bucket", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
@@ -138,13 +138,13 @@ export class Numeric<in out N extends number> extends Anynonarray<N> {
   @tool.unchecked()
   times<M0 extends types.Numeric<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Numeric, allowPrimitive: true }], types.Numeric]]); return runtime.PgOp(runtime.sql`*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['+']<M0 extends types.Numeric<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['+']<M0 extends types.PgLsn<any> | string>(arg0: M0): types.PgLsn<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['+']<M0 extends types.PgLsn<any>>(arg0: M0): types.PgLsn<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  ['+'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Numeric, allowPrimitive: true }], types.Numeric], [[{ type: types.PgLsn, allowPrimitive: true }], types.PgLsn]]); return runtime.PgOp(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['+'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Numeric, allowPrimitive: true }], types.Numeric], [[{ type: types.PgLsn }], types.PgLsn]]); return runtime.PgOp(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   plus<M0 extends types.Numeric<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  plus<M0 extends types.PgLsn<any> | string>(arg0: M0): types.PgLsn<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  plus<M0 extends types.PgLsn<any>>(arg0: M0): types.PgLsn<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  plus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Numeric, allowPrimitive: true }], types.Numeric], [[{ type: types.PgLsn, allowPrimitive: true }], types.PgLsn]]); return runtime.PgOp(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  plus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Numeric, allowPrimitive: true }], types.Numeric], [[{ type: types.PgLsn }], types.PgLsn]]); return runtime.PgOp(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()
   ['-']<M0 extends types.Numeric<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Numeric, allowPrimitive: true }], types.Numeric]]); return runtime.PgOp(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()

@@ -5,7 +5,7 @@ import type { SetRow } from "../types/runtime";
 import { isSetRow } from "../types/runtime";
 import { meta } from "../types/runtime";
 import type { RowType, RowTypeToTsType } from "./query";
-import { combinePredicates, compileSelectList, isRowType, reAlias } from "./query";
+import { combinePredicates, compileSelectList, isRowType, mergeReturning, reAlias } from "./query";
 import type { TableBase } from "../table";
 import { Database } from "../database";
 import { getColumn } from "../types/overrides/any";
@@ -21,6 +21,47 @@ type UpdateOpts<Name extends string, T extends TableBase, R extends RowType> = {
   returning?: (ns: Namespace<Name, T>) => R;
 };
 
+type FinalizedUpdateOpts<Name extends string, T extends TableBase, R extends RowType> = {
+  tableName: Name;
+  alias: Alias;
+  // Re-aliased instance — used to evaluate where/set/returning callbacks
+  // and for getColumn() lookups when coercing SET values.
+  instance: T;
+  where: Bool<any>;
+  setRow: SetRow<T>;
+  returning?: R;
+};
+
+export class FinalizedUpdate<Name extends string, T extends TableBase, R extends RowType = {}> extends Sql {
+  readonly opts: FinalizedUpdateOpts<Name, T, R>;
+
+  constructor(opts: FinalizedUpdateOpts<Name, T, R>) {
+    super();
+    this.opts = opts;
+  }
+
+  bind(): BoundSql {
+    const { tableName, alias, where, setRow, returning, instance } = this.opts;
+    const inner = sql.join([
+      sql`UPDATE ${sql.ident(tableName)} AS ${alias} SET ${sql.join(compileSetClauses(instance, setRow))}`,
+      sql`WHERE ${where.toSql()}`,
+      returning && sql`RETURNING ${compileSelectList(returning)}`,
+    ], sql` `);
+    return sql.withScope([alias], inner);
+  }
+}
+
+// Compile a SET row into `col = value, …` SQL fragments by coercing each
+// value through the column's typegres class.
+export const compileSetClauses = <T extends TableBase>(
+  instance: T,
+  setRow: SetRow<T>,
+): Sql[] =>
+  Object.entries(setRow as { [key: string]: unknown }).map(([k, v]) => {
+    const col = getColumn(instance, k);
+    return sql`${sql.ident(k)} = ${col[meta].__class.from(v).toSql()}`;
+  });
+
 export class UpdateBuilder<Name extends string, T extends TableBase, R extends RowType = {}> extends Sql {
   #opts: UpdateOpts<Name, T, R>;
 
@@ -29,7 +70,7 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
     this.#opts = opts;
   }
 
-  get #tableName(): Name {
+  get tableName(): Name {
     return this.#opts.instance.constructor.tableName as Name;
   }
 
@@ -54,37 +95,53 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
     return new UpdateBuilder({ ...this.#opts, returning: fn });
   }
 
-  rowType(): R | undefined {
-    return this.#opts.returning?.({ [this.#tableName]: this.#opts.instance } as Namespace<Name, T>);
+  // Merge with whatever was already returned. Throws on key conflict.
+  // Used by mutation transformers to add bookkeeping columns without
+  // silently shadowing user columns.
+  returningMerge<R2 extends RowType>(
+    fn: (ns: Namespace<Name, T>) => R2,
+  ): UpdateBuilder<Name, T, R & R2> {
+    return new UpdateBuilder({
+      ...this.#opts,
+      returning: mergeReturning(this.#opts.returning, fn),
+    }) as UpdateBuilder<Name, T, R & R2>;
   }
 
-  bind(): BoundSql {
+  rowType(): R | undefined {
+    return this.#opts.returning?.({ [this.tableName]: this.#opts.instance } as Namespace<Name, T>);
+  }
+
+  finalize(): FinalizedUpdate<Name, T, R> {
     if (!this.#opts.where) {
       throw new Error("update() requires .where() — use .where(true) to update all rows");
     }
     if (!this.#opts.set) {
       throw new Error("update() requires .set()");
     }
-
-    const tableName = this.#tableName;
+    const tableName = this.tableName;
     const alias = new Alias(tableName);
     const instance = reAlias(this.#opts.instance as RowType, alias) as T;
     const ns = { [tableName]: instance } as Namespace<Name, T>;
-
     const setRow = this.#opts.set(ns);
-    const setClauses = Object.entries(setRow as { [key: string]: unknown }).map(([k, v]) => {
-      const col = getColumn(this.#opts.instance, k);
-      return sql`${sql.ident(k)} = ${col[meta].__class.from(v).toSql()}`;
-    });
-
     const where = this.#opts.where(ns);
     const returning = this.#opts.returning?.(ns);
-    const inner = sql.join([
-      sql`UPDATE ${sql.ident(tableName)} AS ${alias} SET ${sql.join(setClauses)}`,
-      sql`WHERE ${where.toSql()}`,
-      returning && sql`RETURNING ${compileSelectList(returning as { [key: string]: unknown })}`,
-    ], sql` `);
-    return sql.withScope([alias], inner);
+    return new FinalizedUpdate<Name, T, R>({
+      tableName,
+      alias,
+      instance,
+      where,
+      setRow,
+      ...(returning !== undefined ? { returning } : {}),
+    });
+  }
+
+  bind(): BoundSql {
+    const t = this.#opts.instance.constructor.transformer?.update;
+    return (t ? t(this) : this.finalize()).bind();
+  }
+
+  override children() {
+    return [this.finalize()];
   }
 
   @tool(z.lazy(() => z.instanceof(Database)))

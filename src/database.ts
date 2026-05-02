@@ -8,16 +8,46 @@ import { Values } from "./builder/values";
 import { InsertBuilder } from "./builder/insert";
 import { UpdateBuilder } from "./builder/update";
 import { DeleteBuilder } from "./builder/delete";
+import { Bus, type Subscription, type BusOptions } from "./live/bus";
+import { runLiveIteration } from "./live/extractor";
+import { parseSnapshot } from "./live/snapshot";
+
+export type TransactionIsolation = "read committed" | "repeatable read" | "serializable";
+export type TransactionOptions = {
+  isolation?: TransactionIsolation;
+};
+
+// Postgres isolation levels are totally ordered. A nested call asking for
+// weaker-or-equal isolation than the active txn flattens harmlessly (caller
+// gets at least what they asked for); a stronger request can't be honored
+// (pg can't promote isolation after the first query) and must throw.
+//
+// `undefined` means "ambient" — caller passed no explicit level, so the
+// outer BEGIN defers to the session/db/role default (configurable via
+// `default_transaction_isolation`). We can't prove what level we got, so
+// any *explicit* nested request inside an ambient txn must throw — the
+// alternative would silently downgrade the caller's expectation.
+const ISOLATION: { [K in TransactionIsolation]: { rank: number; begin: Sql } } = {
+  "read committed": { rank: 0, begin: sql`BEGIN ISOLATION LEVEL READ COMMITTED` },
+  "repeatable read": { rank: 1, begin: sql`BEGIN ISOLATION LEVEL REPEATABLE READ` },
+  "serializable":    { rank: 2, begin: sql`BEGIN ISOLATION LEVEL SERIALIZABLE` },
+};
 
 export class Database {
   #boundExecute?: ExecuteFn;
+  // Active isolation on a txn-bound Database. `undefined` means either
+  // pool-backed (no active txn) or ambient (txn opened without an
+  // explicit level — we deferred to pg's session default, which we
+  // can't introspect cheaply, so we don't claim a specific level).
+  #isolation?: TransactionIsolation;
 
   // A pool-backed Database (`new Database(driver)`) routes each query
   // through the driver's pool. A transaction-bound Database (constructed
   // internally via .transaction()) carries a single-connection ExecuteFn
   // so every query inside the txn callback lands on the same connection.
-  constructor(private driver: Driver, boundExecute?: ExecuteFn) {
+  constructor(private driver: Driver, boundExecute?: ExecuteFn, isolation?: TransactionIsolation) {
     if (boundExecute) { this.#boundExecute = boundExecute; }
+    if (isolation) { this.#isolation = isolation; }
   }
 
   #exec(query: Sql): Promise<QueryResult> {
@@ -91,18 +121,48 @@ export class Database {
     return hydrateRows(result.rows as { [key: string]: string }[], shape);
   }
 
-  // Run `fn` inside a transaction (pg default isolation). The `tx` Database
-  // passed to fn is bound to a single connection; every execute/hydrate on it
-  // goes through that connection. Nested calls flatten: `tx.transaction(fn)`
-  // just invokes fn(tx) without opening a new BEGIN/COMMIT.
-  async transaction<T>(fn: (tx: Database) => Promise<T>): Promise<T> {
+  // Run `fn` inside a transaction. The `tx` Database passed to fn is bound
+  // to a single connection; every execute/hydrate on it goes through that
+  // connection. Nested calls flatten: `tx.transaction(...)` just invokes the
+  // callback without opening a new BEGIN/COMMIT.
+  async transaction<T>(fn: (tx: Database) => Promise<T>): Promise<T>;
+  async transaction<T>(opts: TransactionOptions, fn: (tx: Database) => Promise<T>): Promise<T>;
+  async transaction<T>(
+    optsOrFn: TransactionOptions | ((tx: Database) => Promise<T>),
+    maybeFn?: (tx: Database) => Promise<T>,
+  ): Promise<T> {
+    const opts = typeof optsOrFn === "function" ? undefined : optsOrFn;
+    const fn = typeof optsOrFn === "function" ? optsOrFn : maybeFn;
+    if (!fn) {
+      throw new Error("transaction() requires a callback");
+    }
     if (this.#boundExecute) {
-      // Already in a txn — flatten.
+      // Already in a txn — flatten, but reject silent isolation downgrades.
+      // Pg can't promote isolation after the first query, so an inner call
+      // requesting more than the active txn provides is a bug.
+      if (opts?.isolation) {
+        const active = this.#isolation;
+        if (active === undefined) {
+          // Outer is ambient (deferred to session default) — we don't
+          // know its actual level, so we can't safely promise the inner
+          // is satisfied. Bail rather than silently flatten.
+          throw new Error(
+            `Cannot nest a '${opts.isolation}' transaction inside an ambient (no-isolation-specified) transaction — ` +
+              `the outer's level depends on session config and can't be verified. Open the outer transaction at '${opts.isolation}' or stronger.`,
+          );
+        }
+        if (ISOLATION[opts.isolation].rank > ISOLATION[active].rank) {
+          throw new Error(
+            `Cannot nest a '${opts.isolation}' transaction inside a '${active}' transaction — ` +
+              `pg cannot promote isolation after the first query. Open the outer transaction at '${opts.isolation}' or stronger.`,
+          );
+        }
+      }
       return fn(this);
     }
     return this.driver.runInSingleConnection(async (execute) => {
-      const tx = new Database(this.driver, execute);
-      await execute(sql`BEGIN`);
+      const tx = new Database(this.driver, execute, opts?.isolation);
+      await execute(opts?.isolation ? ISOLATION[opts.isolation].begin : sql`BEGIN`);
       try {
         const result = await fn(tx);
         await execute(sql`COMMIT`);
@@ -144,4 +204,65 @@ export class Database {
   }
 
   public Table = Table;
+
+  // --- Live queries ---
+  // Bus is per-Driver (per-pool); a tx-bound Database delegates to its
+  // parent's bus. Lifecycle is explicit — startLive() must be called
+  // before any live(). Live queries by definition cross commit boundaries
+  // so calling .live() inside a transaction is rejected.
+  #bus: Bus | undefined;
+
+  async startLive(opts: BusOptions = {}): Promise<void> {
+    if (this.#boundExecute) {
+      throw new Error("startLive() must be called on a pool-backed Database, not inside a transaction");
+    }
+    if (this.#bus) { throw new Error("Live bus already started"); }
+    this.#bus = new Bus(this.driver, opts);
+    await this.#bus.start();
+  }
+
+  async stopLive(): Promise<void> {
+    const bus = this.#bus;
+    this.#bus = undefined;
+    await bus?.stop();
+  }
+
+  // Async iterable: yields the current row set, then re-yields whenever a
+  // committed mutation might have changed that result. Each iteration
+  // opens a REPEATABLE READ txn (via runLiveIteration), captures its
+  // cursor, materializes a closed PredicateSet, and registers a
+  // subscription with the bus. Wakes when the bus signals a match.
+  async *live<Q extends QueryBuilder<any, any, any, any>>(
+    query: Q,
+  ): AsyncIterable<
+    Q extends QueryBuilder<any, infer O extends RowType, any, any>
+      ? RowTypeToTsType<O>[]
+      : never
+  > {
+    if (this.#boundExecute) {
+      throw new Error("live() can't be called inside a transaction");
+    }
+    const bus = this.#bus;
+    if (!bus) { throw new Error("Live bus not started — call db.startLive() first"); }
+
+    let currentSub: Subscription | undefined;
+    try {
+      while (true) {
+        const { rows, cursor, predicateSet } = await runLiveIteration(this, query);
+        // undefined → backfill already shows a mutation the cursor
+        // missed; rerun immediately. Otherwise sub.wait resolves on the
+        // next matching poll (signal auto-unsubscribes).
+        currentSub = bus.subscribe(parseSnapshot(cursor), predicateSet);
+        yield rows as any;
+        if (currentSub) {
+          await currentSub.wait;
+          currentSub = undefined;
+        }
+      }
+    } finally {
+      // Consumer broke mid-wait — sub still indexed; clean up explicitly.
+      // Idempotent if signal already auto-unsubscribed.
+      currentSub?.unsubscribe();
+    }
+  }
 }

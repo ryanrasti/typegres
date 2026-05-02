@@ -35,10 +35,10 @@ export class Tsquery<in out N extends number> extends Anynonarray<N> {
   tsqueryNot(): types.Tsquery<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Tsquery]]); return runtime.PgFunc("tsquery_not", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   tsqueryOr<M0 extends types.Tsquery<any> | string>(arg0: M0): types.Tsquery<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Tsquery, allowPrimitive: true }], types.Tsquery]]); return runtime.PgFunc("tsquery_or", [this, ...__rest], __rt) as any; }
-  tsqueryPhrase<M0 extends types.Tsquery<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Tsquery<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  tsqueryPhrase<M0 extends types.Tsquery<any> | string, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Tsquery<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   tsqueryPhrase<M0 extends types.Tsquery<any> | string>(arg0: M0): types.Tsquery<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  tsqueryPhrase(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Tsquery, allowPrimitive: true }, { type: types.Int4 }], types.Tsquery], [[{ type: types.Tsquery, allowPrimitive: true }], types.Tsquery]]); return runtime.PgFunc("tsquery_phrase", [this, ...__rest], __rt) as any; }
+  tsqueryPhrase(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Tsquery, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Tsquery], [[{ type: types.Tsquery, allowPrimitive: true }], types.Tsquery]]); return runtime.PgFunc("tsquery_phrase", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   tsquerysend(): types.Bytea<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bytea]]); return runtime.PgFunc("tsquerysend", [this, ...__rest], __rt) as any; }
   @tool.unchecked()

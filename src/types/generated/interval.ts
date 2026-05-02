@@ -17,10 +17,10 @@ export class Interval<in out N extends number> extends Anynonarray<N> {
   static __typname = runtime.sql`interval`;
   static __typnameText = "interval";
   declare deserialize: (raw: string) => string;
-  dateBin<M0 extends types.Timestamp<any> | string, M1 extends types.Timestamp<any> | string>(arg0: M0, arg1: M1): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
-  dateBin<M0 extends types.Timestamptz<any> | string, M1 extends types.Timestamptz<any> | string>(arg0: M0, arg1: M1): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  dateBin<M0 extends types.Timestamp<any>, M1 extends types.Timestamp<any>>(arg0: M0, arg1: M1): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  dateBin<M0 extends types.Timestamptz<any>, M1 extends types.Timestamptz<any>>(arg0: M0, arg1: M1): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   @tool.unchecked()
-  dateBin(arg0: unknown, arg1: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Timestamp, allowPrimitive: true }, { type: types.Timestamp, allowPrimitive: true }], types.Timestamp], [[{ type: types.Timestamptz, allowPrimitive: true }, { type: types.Timestamptz, allowPrimitive: true }], types.Timestamptz]]); return runtime.PgFunc("date_bin", [this, ...__rest], __rt) as any; }
+  dateBin(arg0: unknown, arg1: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Timestamp }, { type: types.Timestamp }], types.Timestamp], [[{ type: types.Timestamptz }, { type: types.Timestamptz }], types.Timestamptz]]); return runtime.PgFunc("date_bin", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   interval<M0 extends types.Int4<any> | number>(arg0: M0): types.Interval<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Interval]]); return runtime.PgFunc("interval", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
@@ -39,11 +39,11 @@ export class Interval<in out N extends number> extends Anynonarray<N> {
   justifyInterval(): types.Interval<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Interval]]); return runtime.PgFunc("justify_interval", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   time(): types.Time<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Time]]); return runtime.PgFunc("time", [this, ...__rest], __rt) as any; }
-  timezone<M0 extends types.Timestamptz<any> | string>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  timezone<M0 extends types.Timestamp<any> | string>(arg0: M0): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  timezone<M0 extends types.Timetz<any> | string>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  timezone<M0 extends types.Timestamptz<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  timezone<M0 extends types.Timestamp<any>>(arg0: M0): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  timezone<M0 extends types.Timetz<any>>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  timezone(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Timestamptz, allowPrimitive: true }], types.Timestamp], [[{ type: types.Timestamp, allowPrimitive: true }], types.Timestamptz], [[{ type: types.Timetz, allowPrimitive: true }], types.Timetz]]); return runtime.PgFunc("timezone", [this, ...__rest], __rt) as any; }
+  timezone(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Timestamptz }], types.Timestamp], [[{ type: types.Timestamp }], types.Timestamptz], [[{ type: types.Timetz }], types.Timetz]]); return runtime.PgFunc("timezone", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   avg(): types.Interval<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Interval]]); return runtime.PgFunc("avg", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
@@ -56,22 +56,22 @@ export class Interval<in out N extends number> extends Anynonarray<N> {
   ['*']<M0 extends types.Float8<any> | number>(arg0: M0): types.Interval<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Float8, allowPrimitive: true }], types.Interval]]); return runtime.PgOp(runtime.sql`*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()
   times<M0 extends types.Float8<any> | number>(arg0: M0): types.Interval<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Float8, allowPrimitive: true }], types.Interval]]); return runtime.PgOp(runtime.sql`*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  ['+']<M0 extends types.Date<any> | string>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['+']<M0 extends types.Timetz<any> | string>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['+']<M0 extends types.Timestamp<any> | string>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['+']<M0 extends types.Timestamptz<any> | string>(arg0: M0): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['+']<M0 extends types.Time<any> | string>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['+']<M0 extends types.Date<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['+']<M0 extends types.Timetz<any>>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['+']<M0 extends types.Timestamp<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['+']<M0 extends types.Timestamptz<any>>(arg0: M0): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['+']<M0 extends types.Time<any>>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['+']<M0 extends types.Interval<any> | string>(arg0: M0): types.Interval<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  ['+'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Date, allowPrimitive: true }], types.Timestamp], [[{ type: types.Timetz, allowPrimitive: true }], types.Timetz], [[{ type: types.Timestamp, allowPrimitive: true }], types.Timestamp], [[{ type: types.Timestamptz, allowPrimitive: true }], types.Timestamptz], [[{ type: types.Time, allowPrimitive: true }], types.Time], [[{ type: types.Interval, allowPrimitive: true }], types.Interval]]); return runtime.PgOp(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  plus<M0 extends types.Date<any> | string>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  plus<M0 extends types.Timetz<any> | string>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  plus<M0 extends types.Timestamp<any> | string>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  plus<M0 extends types.Timestamptz<any> | string>(arg0: M0): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  plus<M0 extends types.Time<any> | string>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['+'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Date }], types.Timestamp], [[{ type: types.Timetz }], types.Timetz], [[{ type: types.Timestamp }], types.Timestamp], [[{ type: types.Timestamptz }], types.Timestamptz], [[{ type: types.Time }], types.Time], [[{ type: types.Interval, allowPrimitive: true }], types.Interval]]); return runtime.PgOp(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  plus<M0 extends types.Date<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  plus<M0 extends types.Timetz<any>>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  plus<M0 extends types.Timestamp<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  plus<M0 extends types.Timestamptz<any>>(arg0: M0): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  plus<M0 extends types.Time<any>>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   plus<M0 extends types.Interval<any> | string>(arg0: M0): types.Interval<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  plus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Date, allowPrimitive: true }], types.Timestamp], [[{ type: types.Timetz, allowPrimitive: true }], types.Timetz], [[{ type: types.Timestamp, allowPrimitive: true }], types.Timestamp], [[{ type: types.Timestamptz, allowPrimitive: true }], types.Timestamptz], [[{ type: types.Time, allowPrimitive: true }], types.Time], [[{ type: types.Interval, allowPrimitive: true }], types.Interval]]); return runtime.PgOp(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  plus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Date }], types.Timestamp], [[{ type: types.Timetz }], types.Timetz], [[{ type: types.Timestamp }], types.Timestamp], [[{ type: types.Timestamptz }], types.Timestamptz], [[{ type: types.Time }], types.Time], [[{ type: types.Interval, allowPrimitive: true }], types.Interval]]); return runtime.PgOp(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()
   ['-']<M0 extends types.Interval<any> | string>(arg0: M0): types.Interval<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Interval, allowPrimitive: true }], types.Interval]]); return runtime.PgOp(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()

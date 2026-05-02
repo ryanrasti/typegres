@@ -1,5 +1,5 @@
 import { sql } from "./builder/sql";
-import type { BoundSql } from "./builder/sql";
+import type { BoundSql, Sql } from "./builder/sql";
 import type { Fromable} from "./builder/query";
 import { QueryBuilder } from "./builder/query";
 import { DeleteBuilder } from "./builder/delete";
@@ -7,6 +7,20 @@ import { UpdateBuilder } from "./builder/update";
 import { InsertBuilder } from "./builder/insert";
 import { isColumn } from "./types/overrides/any";
 import type { InsertRow } from "./types/runtime";
+
+// A per-op SQL rewrite hook. Tables opt in via the `transformer` option;
+// each mutation builder runs its own slot at bind() time, replacing its
+// default-finalized SQL with whatever the hook returns. Used by the live
+// system to wrap mutations in event-emitting CTE chains.
+export type QueryTransformer = {
+  insert?: (builder: InsertBuilder<string, any>) => Sql;
+  update?: (builder: UpdateBuilder<string, any>) => Sql;
+  delete?: (builder: DeleteBuilder<string, any>) => Sql;
+};
+
+export type TableOptions = {
+  transformer?: QueryTransformer;
+};
 
 // Concrete tables extend `Table(name)` and declare columns as field
 // initializers:
@@ -26,6 +40,9 @@ import type { InsertRow } from "./types/runtime";
 export abstract class TableBase {
   static readonly tableName: string;
   static readonly tsAlias: string;
+  // Mutation builders on this table run this at bind() time and on each
+  // raw result row before deserialization. Default none.
+  static readonly transformer: QueryTransformer | undefined = undefined;
 
   // Narrow `instance.constructor` so `instance.constructor.tableName` /
   // `.tsAlias` resolve without casts (TS defaults it to `Function`).
@@ -97,14 +114,20 @@ export const columnFieldNames = (instance: TableBase): string[] => {
 //   Users.from().join(Dogs, ...)
 TableBase satisfies Fromable;
 
-export const Table = <Name extends string>(name: Name) => {
+export const Table = <Name extends string>(name: Name, opts: TableOptions = {}) => {
   // Named class via computed-key shim — shows up as `name` in stack traces.
   const obj = {
     [name]: class extends TableBase {
       static override readonly tableName = name;
       static override readonly tsAlias = name;
+      static override readonly transformer: QueryTransformer | undefined =
+        opts.transformer;
     },
   };
   type Obj = typeof obj;
   return obj[name] as NonNullable<Obj[Name]>;
+};
+
+export const isTableClass = (x: unknown): x is typeof TableBase => {
+  return typeof x === "function" && x.prototype instanceof TableBase;
 };

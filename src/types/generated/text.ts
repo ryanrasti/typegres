@@ -31,27 +31,27 @@ export class Text<in out N extends number> extends Anynonarray<N> {
   charLength(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.PgFunc("char_length", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   characterLength(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.PgFunc("character_length", [this, ...__rest], __rt) as any; }
-  datePart<M0 extends types.Timestamp<any> | string>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  datePart<M0 extends types.Date<any> | string>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  datePart<M0 extends types.Time<any> | string>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  datePart<M0 extends types.Timetz<any> | string>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  datePart<M0 extends types.Interval<any> | string>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  datePart<M0 extends types.Timestamp<any>>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  datePart<M0 extends types.Date<any>>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  datePart<M0 extends types.Time<any>>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  datePart<M0 extends types.Timetz<any>>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  datePart<M0 extends types.Interval<any>>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  datePart(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Timestamp, allowPrimitive: true }], types.Float8], [[{ type: types.Date, allowPrimitive: true }], types.Float8], [[{ type: types.Time, allowPrimitive: true }], types.Float8], [[{ type: types.Timetz, allowPrimitive: true }], types.Float8], [[{ type: types.Interval, allowPrimitive: true }], types.Float8]]); return runtime.PgFunc("date_part", [this, ...__rest], __rt) as any; }
-  dateTrunc<M0 extends types.Interval<any> | string>(arg0: M0): types.Interval<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  datePart(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Timestamp }], types.Float8], [[{ type: types.Date }], types.Float8], [[{ type: types.Time }], types.Float8], [[{ type: types.Timetz }], types.Float8], [[{ type: types.Interval }], types.Float8]]); return runtime.PgFunc("date_part", [this, ...__rest], __rt) as any; }
+  dateTrunc<M0 extends types.Interval<any>>(arg0: M0): types.Interval<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   dateTrunc<M0 extends types.Timestamptz<any> | string, M1 extends types.Text<any> | string>(arg0: M0, arg1: M1): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
-  dateTrunc<M0 extends types.Timestamp<any> | string>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  dateTrunc<M0 extends types.Timestamp<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  dateTrunc(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Interval, allowPrimitive: true }], types.Interval], [[{ type: types.Timestamptz, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Timestamptz], [[{ type: types.Timestamp, allowPrimitive: true }], types.Timestamp]]); return runtime.PgFunc("date_trunc", [this, ...__rest], __rt) as any; }
+  dateTrunc(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Interval }], types.Interval], [[{ type: types.Timestamptz, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Timestamptz], [[{ type: types.Timestamp }], types.Timestamp]]); return runtime.PgFunc("date_trunc", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   decode<M0 extends types.Text<any> | string>(arg0: M0): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bytea]]); return runtime.PgFunc("decode", [this, ...__rest], __rt) as any; }
-  extract<M0 extends types.Interval<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  extract<M0 extends types.Timestamp<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  extract<M0 extends types.Timetz<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  extract<M0 extends types.Time<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  extract<M0 extends types.Date<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  extract<M0 extends types.Interval<any>>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  extract<M0 extends types.Timestamp<any>>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  extract<M0 extends types.Timetz<any>>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  extract<M0 extends types.Time<any>>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  extract<M0 extends types.Date<any>>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  extract(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Interval, allowPrimitive: true }], types.Numeric], [[{ type: types.Timestamp, allowPrimitive: true }], types.Numeric], [[{ type: types.Timetz, allowPrimitive: true }], types.Numeric], [[{ type: types.Time, allowPrimitive: true }], types.Numeric], [[{ type: types.Date, allowPrimitive: true }], types.Numeric]]); return runtime.PgFunc("extract", [this, ...__rest], __rt) as any; }
+  extract(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Interval }], types.Numeric], [[{ type: types.Timestamp }], types.Numeric], [[{ type: types.Timetz }], types.Numeric], [[{ type: types.Time }], types.Numeric], [[{ type: types.Date }], types.Numeric]]); return runtime.PgFunc("extract", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   initcap(): types.Text<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Text]]); return runtime.PgFunc("initcap", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
@@ -66,10 +66,10 @@ export class Text<in out N extends number> extends Anynonarray<N> {
   likeEscape<M0 extends types.Text<any> | string>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("like_escape", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   lower(): types.Text<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Text]]); return runtime.PgFunc("lower", [this, ...__rest], __rt) as any; }
-  lpad<M0 extends types.Int4<any>>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  lpad<M0 extends types.Int4<any>, M1 extends types.Text<any>>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  lpad<M0 extends types.Int4<any> | number>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  lpad<M0 extends types.Int4<any> | number, M1 extends types.Text<any> | string>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   @tool.unchecked()
-  lpad(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4 }], types.Text], [[{ type: types.Int4 }, { type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("lpad", [this, ...__rest], __rt) as any; }
+  lpad(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }], types.Text], [[{ type: types.Int4, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("lpad", [this, ...__rest], __rt) as any; }
   ltrim<M0 extends types.Text<any> | string>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ltrim(): types.Text<N>;
   @tool.unchecked()
@@ -82,10 +82,10 @@ export class Text<in out N extends number> extends Anynonarray<N> {
   notlike<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("notlike", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   octetLength(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.PgFunc("octet_length", [this, ...__rest], __rt) as any; }
-  overlay<M0 extends types.Text<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
-  overlay<M0 extends types.Text<any>, M1 extends types.Int4<any>, M2 extends types.Int4<any>>(arg0: M0, arg1: M1, arg2: M2): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
+  overlay<M0 extends types.Text<any> | string, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  overlay<M0 extends types.Text<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
   @tool.unchecked()
-  overlay(arg0: unknown, arg1: unknown, arg2?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Int4 }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4 }, { type: types.Int4 }], types.Text]]); return runtime.PgFunc("overlay", [this, ...__rest], __rt) as any; }
+  overlay(arg0: unknown, arg1: unknown, arg2?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("overlay", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   pgSizeBytes(): types.Int8<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int8]]); return runtime.PgFunc("pg_size_bytes", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
@@ -97,36 +97,36 @@ export class Text<in out N extends number> extends Anynonarray<N> {
   @tool.unchecked()
   quoteNullable(): types.Text<1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Text]]); return runtime.PgFunc("quote_nullable", [this, ...__rest], __rt) as any; }
   regexpCount<M0 extends types.Text<any> | string>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  regexpCount<M0 extends types.Text<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
-  regexpCount<M0 extends types.Text<any>, M1 extends types.Int4<any>, M2 extends types.Text<any>>(arg0: M0, arg1: M1, arg2: M2): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
+  regexpCount<M0 extends types.Text<any> | string, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  regexpCount<M0 extends types.Text<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Text<any> | string>(arg0: M0, arg1: M1, arg2: M2): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
   @tool.unchecked()
-  regexpCount(arg0: unknown, arg1?: unknown, arg2?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Text, allowPrimitive: true }], types.Int4], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4 }], types.Int4], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4 }, { type: types.Text, allowPrimitive: true }], types.Int4]]); return runtime.PgFunc("regexp_count", [this, ...__rest], __rt) as any; }
-  regexpInstr<M0 extends types.Text<any>, M1 extends types.Int4<any>, M2 extends types.Int4<any>>(arg0: M0, arg1: M1, arg2: M2): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
-  regexpInstr<M0 extends types.Text<any>, M1 extends types.Int4<any>, M2 extends types.Int4<any>, M3 extends types.Int4<any>, M4 extends types.Text<any>, M5 extends types.Int4<any>>(arg0: M0, arg1: M1, arg2: M2, arg3: M3, arg4: M4, arg5: M5): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3> | runtime.NullOf<M4> | runtime.NullOf<M5>>>;
-  regexpInstr<M0 extends types.Text<any>, M1 extends types.Int4<any>, M2 extends types.Int4<any>, M3 extends types.Int4<any>, M4 extends types.Text<any>>(arg0: M0, arg1: M1, arg2: M2, arg3: M3, arg4: M4): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3> | runtime.NullOf<M4>>>;
-  regexpInstr<M0 extends types.Text<any>, M1 extends types.Int4<any>, M2 extends types.Int4<any>, M3 extends types.Int4<any>>(arg0: M0, arg1: M1, arg2: M2, arg3: M3): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3>>>;
-  regexpInstr<M0 extends types.Text<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  regexpCount(arg0: unknown, arg1?: unknown, arg2?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Text, allowPrimitive: true }], types.Int4], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Int4], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Int4]]); return runtime.PgFunc("regexp_count", [this, ...__rest], __rt) as any; }
+  regexpInstr<M0 extends types.Text<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
+  regexpInstr<M0 extends types.Text<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number, M3 extends types.Int4<any> | number, M4 extends types.Text<any> | string, M5 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2, arg3: M3, arg4: M4, arg5: M5): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3> | runtime.NullOf<M4> | runtime.NullOf<M5>>>;
+  regexpInstr<M0 extends types.Text<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number, M3 extends types.Int4<any> | number, M4 extends types.Text<any> | string>(arg0: M0, arg1: M1, arg2: M2, arg3: M3, arg4: M4): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3> | runtime.NullOf<M4>>>;
+  regexpInstr<M0 extends types.Text<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number, M3 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2, arg3: M3): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3>>>;
+  regexpInstr<M0 extends types.Text<any> | string, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   regexpInstr<M0 extends types.Text<any> | string>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  regexpInstr(arg0: unknown, arg1?: unknown, arg2?: unknown, arg3?: unknown, arg4?: unknown, arg5?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2, arg3, arg4, arg5], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Int4 }, { type: types.Int4 }], types.Int4], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4 }, { type: types.Int4 }, { type: types.Int4 }, { type: types.Text, allowPrimitive: true }, { type: types.Int4 }], types.Int4], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4 }, { type: types.Int4 }, { type: types.Int4 }, { type: types.Text, allowPrimitive: true }], types.Int4], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4 }, { type: types.Int4 }, { type: types.Int4 }], types.Int4], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4 }], types.Int4], [[{ type: types.Text, allowPrimitive: true }], types.Int4]]); return runtime.PgFunc("regexp_instr", [this, ...__rest], __rt) as any; }
+  regexpInstr(arg0: unknown, arg1?: unknown, arg2?: unknown, arg3?: unknown, arg4?: unknown, arg5?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2, arg3, arg4, arg5], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Int4], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Int4], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Int4], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Int4], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Int4], [[{ type: types.Text, allowPrimitive: true }], types.Int4]]); return runtime.PgFunc("regexp_instr", [this, ...__rest], __rt) as any; }
   regexpLike<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   regexpLike<M0 extends types.Text<any> | string, M1 extends types.Text<any> | string>(arg0: M0, arg1: M1): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   @tool.unchecked()
   regexpLike(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Text, allowPrimitive: true }], types.Bool], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("regexp_like", [this, ...__rest], __rt) as any; }
-  regexpReplace<M0 extends types.Text<any>, M1 extends types.Text<any>, M2 extends types.Int4<any>, M3 extends types.Int4<any>>(arg0: M0, arg1: M1, arg2: M2, arg3: M3): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3>>>;
-  regexpReplace<M0 extends types.Text<any>, M1 extends types.Text<any>, M2 extends types.Int4<any>>(arg0: M0, arg1: M1, arg2: M2): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
+  regexpReplace<M0 extends types.Text<any> | string, M1 extends types.Text<any> | string, M2 extends types.Int4<any> | number, M3 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2, arg3: M3): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3>>>;
+  regexpReplace<M0 extends types.Text<any> | string, M1 extends types.Text<any> | string, M2 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
   regexpReplace<M0 extends types.Text<any> | string, M1 extends types.Text<any> | string>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   regexpReplace<M0 extends types.Text<any> | string, M1 extends types.Text<any> | string, M2 extends types.Text<any> | string>(arg0: M0, arg1: M1, arg2: M2): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
-  regexpReplace<M0 extends types.Text<any>, M1 extends types.Text<any>, M2 extends types.Int4<any>, M3 extends types.Int4<any>, M4 extends types.Text<any>>(arg0: M0, arg1: M1, arg2: M2, arg3: M3, arg4: M4): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3> | runtime.NullOf<M4>>>;
+  regexpReplace<M0 extends types.Text<any> | string, M1 extends types.Text<any> | string, M2 extends types.Int4<any> | number, M3 extends types.Int4<any> | number, M4 extends types.Text<any> | string>(arg0: M0, arg1: M1, arg2: M2, arg3: M3, arg4: M4): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3> | runtime.NullOf<M4>>>;
   @tool.unchecked()
-  regexpReplace(arg0: unknown, arg1: unknown, arg2?: unknown, arg3?: unknown, arg4?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2, arg3, arg4], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }, { type: types.Int4 }, { type: types.Int4 }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }, { type: types.Int4 }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }, { type: types.Int4 }, { type: types.Int4 }, { type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("regexp_replace", [this, ...__rest], __rt) as any; }
-  regexpSubstr<M0 extends types.Text<any>, M1 extends types.Int4<any>, M2 extends types.Int4<any>, M3 extends types.Text<any>, M4 extends types.Int4<any>>(arg0: M0, arg1: M1, arg2: M2, arg3: M3, arg4: M4): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3> | runtime.NullOf<M4>>>;
-  regexpSubstr<M0 extends types.Text<any>, M1 extends types.Int4<any>, M2 extends types.Int4<any>>(arg0: M0, arg1: M1, arg2: M2): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
-  regexpSubstr<M0 extends types.Text<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
-  regexpSubstr<M0 extends types.Text<any>, M1 extends types.Int4<any>, M2 extends types.Int4<any>, M3 extends types.Text<any>>(arg0: M0, arg1: M1, arg2: M2, arg3: M3): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3>>>;
+  regexpReplace(arg0: unknown, arg1: unknown, arg2?: unknown, arg3?: unknown, arg4?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2, arg3, arg4], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("regexp_replace", [this, ...__rest], __rt) as any; }
+  regexpSubstr<M0 extends types.Text<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number, M3 extends types.Text<any> | string, M4 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2, arg3: M3, arg4: M4): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3> | runtime.NullOf<M4>>>;
+  regexpSubstr<M0 extends types.Text<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
+  regexpSubstr<M0 extends types.Text<any> | string, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  regexpSubstr<M0 extends types.Text<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number, M3 extends types.Text<any> | string>(arg0: M0, arg1: M1, arg2: M2, arg3: M3): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2> | runtime.NullOf<M3>>>;
   regexpSubstr<M0 extends types.Text<any> | string>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  regexpSubstr(arg0: unknown, arg1?: unknown, arg2?: unknown, arg3?: unknown, arg4?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2, arg3, arg4], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Int4 }, { type: types.Int4 }, { type: types.Text, allowPrimitive: true }, { type: types.Int4 }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4 }, { type: types.Int4 }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4 }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4 }, { type: types.Int4 }, { type: types.Text, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("regexp_substr", [this, ...__rest], __rt) as any; }
+  regexpSubstr(arg0: unknown, arg1?: unknown, arg2?: unknown, arg3?: unknown, arg4?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2, arg3, arg4], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("regexp_substr", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   repeat<M0 extends types.Int4<any> | number>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("repeat", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
@@ -135,10 +135,10 @@ export class Text<in out N extends number> extends Anynonarray<N> {
   reverse(): types.Text<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Text]]); return runtime.PgFunc("reverse", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   right<M0 extends types.Int4<any> | number>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("right", [this, ...__rest], __rt) as any; }
-  rpad<M0 extends types.Int4<any>>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  rpad<M0 extends types.Int4<any>, M1 extends types.Text<any>>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  rpad<M0 extends types.Int4<any> | number>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  rpad<M0 extends types.Int4<any> | number, M1 extends types.Text<any> | string>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   @tool.unchecked()
-  rpad(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4 }], types.Text], [[{ type: types.Int4 }, { type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("rpad", [this, ...__rest], __rt) as any; }
+  rpad(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }], types.Text], [[{ type: types.Int4, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("rpad", [this, ...__rest], __rt) as any; }
   rtrim<M0 extends types.Text<any> | string>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   rtrim(): types.Text<N>;
   @tool.unchecked()
@@ -155,16 +155,16 @@ export class Text<in out N extends number> extends Anynonarray<N> {
   startsWith<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("starts_with", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   strpos<M0 extends types.Text<any> | string>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Int4]]); return runtime.PgFunc("strpos", [this, ...__rest], __rt) as any; }
-  substr<M0 extends types.Int4<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
-  substr<M0 extends types.Int4<any>>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  substr<M0 extends types.Int4<any> | number, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  substr<M0 extends types.Int4<any> | number>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  substr(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4 }, { type: types.Int4 }], types.Text], [[{ type: types.Int4 }], types.Text]]); return runtime.PgFunc("substr", [this, ...__rest], __rt) as any; }
+  substr(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Text], [[{ type: types.Int4, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("substr", [this, ...__rest], __rt) as any; }
   substring<M0 extends types.Text<any> | string>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   substring<M0 extends types.Text<any> | string, M1 extends types.Text<any> | string>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
-  substring<M0 extends types.Int4<any>, M1 extends types.Int4<any>>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
-  substring<M0 extends types.Int4<any>>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  substring<M0 extends types.Int4<any> | number, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  substring<M0 extends types.Int4<any> | number>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  substring(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Text, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Text], [[{ type: types.Int4 }, { type: types.Int4 }], types.Text], [[{ type: types.Int4 }], types.Text]]); return runtime.PgFunc("substring", [this, ...__rest], __rt) as any; }
+  substring(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Text, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Text], [[{ type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Text], [[{ type: types.Int4, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("substring", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   textLarger<M0 extends types.Text<any> | string>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("text_larger", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
@@ -197,14 +197,14 @@ export class Text<in out N extends number> extends Anynonarray<N> {
   textregexeq<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("textregexeq", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   textregexne<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("textregexne", [this, ...__rest], __rt) as any; }
-  timezone<M0 extends types.Timestamp<any> | string>(arg0: M0): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  timezone<M0 extends types.Timestamptz<any> | string>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  timezone<M0 extends types.Timestamp<any>>(arg0: M0): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  timezone<M0 extends types.Timestamptz<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  timezone(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Timestamp, allowPrimitive: true }], types.Timestamptz], [[{ type: types.Timestamptz, allowPrimitive: true }], types.Timestamp]]); return runtime.PgFunc("timezone", [this, ...__rest], __rt) as any; }
-  toAscii<M0 extends types.Int4<any>>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  timezone(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Timestamp }], types.Timestamptz], [[{ type: types.Timestamptz }], types.Timestamp]]); return runtime.PgFunc("timezone", [this, ...__rest], __rt) as any; }
+  toAscii<M0 extends types.Int4<any> | number>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   toAscii(): types.Text<N>;
   @tool.unchecked()
-  toAscii(arg0?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4 }], types.Text], [[], types.Text]]); return runtime.PgFunc("to_ascii", [this, ...__rest], __rt) as any; }
+  toAscii(arg0?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Text], [[], types.Text]]); return runtime.PgFunc("to_ascii", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
   translate<M0 extends types.Text<any> | string, M1 extends types.Text<any> | string>(arg0: M0, arg1: M1): types.Text<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>> { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgFunc("translate", [this, ...__rest], __rt) as any; }
   @tool.unchecked()
@@ -271,16 +271,16 @@ export class Text<in out N extends number> extends Anynonarray<N> {
   ['>=']<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()
   gte<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  ['@@']<M0 extends types.Tsquery<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['@@']<M0 extends types.Tsquery<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['@@']<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  ['@@'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Tsquery, allowPrimitive: true }], types.Bool], [[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`@@`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['@@'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Tsquery }], types.Bool], [[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`@@`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()
   ['^@']<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`^@`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['||']<M0 extends types.Anynonarray<any>>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['||']<M0 extends types.Text<any> | string>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @tool.unchecked()
-  ['||'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anynonarray, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgOp(runtime.sql`||`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['||'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anynonarray }], types.Text], [[{ type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.PgOp(runtime.sql`||`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()
   ['~']<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`~`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @tool.unchecked()

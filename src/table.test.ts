@@ -1,8 +1,10 @@
 import { test, expect, expectTypeOf } from "vitest";
 import { Int8, Text } from "./types";
 import { sql } from "./builder/sql";
-import { db, withinTransaction } from "./builder/test-helper";
+import { setupDb, db, withinTransaction } from "./test-helpers";
 import type { Fromable } from "./builder/query";
+
+setupDb();
 
 test("Table.from().select()", async () => {
   await withinTransaction(async (tx) => {
