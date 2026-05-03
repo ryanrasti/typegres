@@ -5,7 +5,8 @@
     "moduleResolution": "bundler",
     "strict": true,
     "noEmit": true,
-    "experimentalDecorators": false
+    "experimentalDecorators": false,
+    "skipLibCheck": true
   },
   "include": ["src", "*.ts"]
 }

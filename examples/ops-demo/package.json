@@ -4,16 +4,26 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "migrate": "node --experimental-strip-types migrate.ts",
+    "migrate": "tsx migrate.ts",
+    "seed": "tsx src/seed.ts",
+    "dev": "tsx watch src/server/index.ts",
+    "start": "tsx src/server/index.ts",
     "generate": "tg generate",
     "typecheck": "tsgo --noEmit",
-    "check": "npm run typecheck"
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run test"
   },
   "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "hono": "^4.6.0",
     "pg": "^8.20.0",
     "typegres": "file:../.."
   },
   "devDependencies": {
-    "@types/pg": "^8.20.0"
+    "@swc/core": "^1.15.0",
+    "@types/pg": "^8.20.0",
+    "tsx": "^4.20.0",
+    "unplugin-swc": "^1.5.0",
+    "vitest": "^4.1.5"
   }
 }
