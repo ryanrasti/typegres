@@ -2,6 +2,7 @@ import { db } from "../db";
 import { Int8, Text } from "typegres/types";
 import { tool } from "typegres/exoeval";
 import { Locations } from "./locations";
+import { Organizations } from "./organizations";
 import { OrderLines } from "./order_lines";
 import { sql } from "typegres/sql-builder";
 
@@ -12,8 +13,10 @@ export class InventoryPositions extends db.Table("inventory_positions") {
   @tool() location_id = (Int8<1>).column({ nonNull: true });
   @tool() on_hand = (Int8<1>).column({ nonNull: true, default: sql`0` });
   @tool() reserved = (Int8<1>).column({ nonNull: true, default: sql`0` });
+  @tool() organization_id = (Int8<1>).column({ nonNull: true });
   // relations
   @tool() location() { return Locations.from().where(({ locations }) => locations.id["="](this.location_id)).cardinality("one"); }
+  @tool() organization() { return Organizations.from().where(({ organizations }) => organizations.id["="](this.organization_id)).cardinality("one"); }
   @tool() order_lines() { return OrderLines.from().where(({ order_lines }) => order_lines.inventory_position_id["="](this.id)).cardinality("many"); }
   // @generated-end
 }

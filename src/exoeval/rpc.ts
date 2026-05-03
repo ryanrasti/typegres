@@ -24,24 +24,20 @@ export class RpcClient<A> {
         this.channel = channel;
     }
 
-    async run<R>(fn: (api: A) => R, captures: object = {}) {
+    async run<R, C extends object = {}>(fn: (api: A, captures: C) => R, captures: C = {} as C) {
         const fnString = fn.toString();
-        const captureAssignments = []
-        for (const [key, value] of Object.entries(captures)) {
-            if (key === 'api') {
-                throw new Error("Capture keys cannot be named 'api'");
-            }
-            // `captures` should always be a literal object
-            //  of the form { a, b, c } so all keys should be
-            //  valid identifiers. safeStringify rather than JSON.stringify
-            //  so a class-instance capture fails loud rather than leaking
-            //  its instance fields into the wire.
-            captureAssignments.push(`const ${key} = ${safeStringify(value)};\n`);
-        }
-        // Wire is just the code string — captures are inlined as `const x = ...;`
-        // declarations above the IIFE, so there's nothing else to send. The
-        // server's job is to evaluate this string with `api` bound in scope.
-        const asString = `${captureAssignments.join('')}\n(${fnString})(api)`;
+        // Captures are passed as the IIFE's second argument so callers can
+        // destructure (`(api, { minId }) => ...`). Inlining as `const`s
+        // earlier broke under bundlers that rename outer-scope bindings:
+        // SWC renames a function-parameter `token` to `token1` if a closure
+        // captures it lexically, but the wire still ships the *captures
+        // map* keyed by the original name — closure references resolve to
+        // a `token1` that doesn't exist. Passing captures explicitly
+        // sidesteps that: the closure's parameter name is whatever the
+        // function declaration says, and bundlers don't rename it.
+        // safeStringify rather than JSON.stringify so a class-instance
+        // capture fails loud rather than leaking instance fields.
+        const asString = `(${fnString})(api, ${safeStringify(captures)})`;
         const response = await this.channel(asString);
         return JSON.parse(response);
     }
