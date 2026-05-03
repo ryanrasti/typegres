@@ -29,7 +29,7 @@ const pgTypeToClass = pgNameToClassName;
 
 // --- Introspect ---
 
-interface ColumnInfo {
+export interface ColumnInfo {
   column_name: string;
   udt_name: string;
   is_nullable: string;
@@ -95,9 +95,9 @@ const introspectFks = async (client: pg.Client): Promise<FkInfo[]> => {
   return rows;
 };
 
-type Cardinality = "one" | "maybe" | "many";
+export type Cardinality = "one" | "maybe" | "many";
 
-interface Relation {
+export interface Relation {
   name: string;
   targetTable: string;
   cardinality: Cardinality;
@@ -155,7 +155,7 @@ const deriveRelations = (tableName: string, allFks: FkInfo[]): Relation[] => {
 
 // --- Generate ---
 
-const generateColumnLine = (col: ColumnInfo): string => {
+const generateColumnLine = (col: ColumnInfo, withTool: boolean): string => {
   const cls = pgTypeToClass(col.udt_name);
   const nullable = col.is_nullable === "YES" ? "0 | 1" : "1";
   const opts: string[] = [];
@@ -169,15 +169,70 @@ const generateColumnLine = (col: ColumnInfo): string => {
     opts.push("generated: true");
   }
   const optsArg = opts.length > 0 ? `{ ${opts.join(", ")} }` : "";
-  return `  ${col.column_name} = (${cls}<${nullable}>).column(${optsArg});`;
+  const prefix = withTool ? "@tool() " : "";
+  return `  ${prefix}${col.column_name} = (${cls}<${nullable}>).column(${optsArg});`;
 };
 
-const generateRelationLine = (rel: Relation): string => {
+const generateRelationLine = (rel: Relation, withTool: boolean): string => {
   const targetClass = pgNameToClassName(rel.targetTable);
-  return `  ${rel.name}() { return ${targetClass}.from().where(({ ${rel.targetTable} }) => ${rel.targetTable}.${rel.toColumn}["="](this.${rel.fromColumn})).cardinality("${rel.cardinality}"); }`;
+  const prefix = withTool ? "@tool() " : "";
+  return `  ${prefix}${rel.name}() { return ${targetClass}.from().where(({ ${rel.targetTable} }) => ${rel.targetTable}.${rel.toColumn}["="](this.${rel.fromColumn})).cardinality("${rel.cardinality}"); }`;
 };
 
-const generateTableFile = (tableName: string, columns: ColumnInfo[], relations: Relation[], config: Config): string => {
+// Scan the existing @generated block to learn which columns/relations the
+// user opted out of `@tool()` decoration on. Default for new entries is
+// decorated; existing entries keep whatever decoration state they had so
+// hand-removed `@tool()`s aren't re-added on regenerate (same spirit as
+// `// @generated-start` preserving the file's surrounding code).
+const parseExistingDecorations = (
+  block: string,
+): { cols: Map<string, boolean>; rels: Map<string, boolean> } => {
+  const cols = new Map<string, boolean>();
+  const rels = new Map<string, boolean>();
+  let pendingTool = false;
+  for (const raw of block.split("\n")) {
+    const line = raw.trim();
+    if (line === "" || line.startsWith("//")) {
+      continue;
+    }
+    if (/^@tool\(\)\s*$/.test(line)) {
+      pendingTool = true;
+      continue;
+    }
+    const inline = /^(@tool\(\)\s+)?(\w+)\s*(=|\()/.exec(line);
+    if (!inline) {
+      pendingTool = false;
+      continue;
+    }
+    const hasTool = !!inline[1] || pendingTool;
+    const name = inline[2]!;
+    const isCol = inline[3] === "=";
+    (isCol ? cols : rels).set(name, hasTool);
+    pendingTool = false;
+  }
+  return { cols, rels };
+};
+
+const START_MARKER = "// @generated-start";
+const END_MARKER = "// @generated-end";
+
+// Pure generation entry point — no DB, no fs. `existing` (if provided)
+// must contain @generated-start/@generated-end markers; only content
+// between them is replaced, and per-entry `@tool()` state is preserved.
+// Without `existing`, returns a brand-new full file.
+export const generateTable = (
+  tableName: string,
+  columns: ColumnInfo[],
+  relations: Relation[],
+  opts: { dbImport: string; existing?: string },
+): string => {
+  if (opts.existing !== undefined) {
+    return updateBlock(opts.existing, columns, relations);
+  }
+  return newFile(tableName, columns, relations, opts.dbImport);
+};
+
+const newFile = (tableName: string, columns: ColumnInfo[], relations: Relation[], dbImport: string): string => {
   // Collect unique type imports
   const typeClasses = [...new Set(columns.map((c) => pgTypeToClass(c.udt_name)))];
   const hasDefault = columns.some((c) => c.column_default !== null);
@@ -189,16 +244,19 @@ const generateTableFile = (tableName: string, columns: ColumnInfo[], relations: 
     .map((t) => `import { ${pgNameToClassName(t)} } from "./${t}";`);
 
   const imports = [
-    `import { db } from "${config.dbImport}";`,
+    `import { db } from "${dbImport}";`,
     `import { ${typeClasses.join(", ")} } from "typegres/types";`,
+    `import { tool } from "typegres/exoeval";`,
     ...relImports,
   ];
   if (hasDefault) {
     imports.push(`import { sql } from "typegres/sql-builder";`);
   }
 
-  const colLines = columns.map(generateColumnLine);
-  const relLines = relations.map(generateRelationLine);
+  // New file: every column/relation gets `@tool()` by default. Users can
+  // strip individual decorators in-place; updateBlock will respect that.
+  const colLines = columns.map((c) => generateColumnLine(c, true));
+  const relLines = relations.map((r) => generateRelationLine(r, true));
   const allLines = relLines.length > 0
     ? [...colLines, "  // relations", ...relLines]
     : colLines;
@@ -206,29 +264,33 @@ const generateTableFile = (tableName: string, columns: ColumnInfo[], relations: 
   return `${imports.join("\n")}
 
 export class ${pgNameToClassName(tableName)} extends db.Table("${tableName}") {
-  // @generated-start
+  ${START_MARKER}
 ${allLines.join("\n")}
-  // @generated-end
+  ${END_MARKER}
 }
 `;
 };
 
-const updateTableFile = (existing: string, columns: ColumnInfo[], relations: Relation[]): string => {
-  const startMarker = "// @generated-start";
-  const endMarker = "// @generated-end";
-  const startIdx = existing.indexOf(startMarker);
-  const endIdx = existing.indexOf(endMarker);
+const updateBlock = (existing: string, columns: ColumnInfo[], relations: Relation[]): string => {
+  const startIdx = existing.indexOf(START_MARKER);
+  const endIdx = existing.indexOf(END_MARKER);
 
   if (startIdx === -1 || endIdx === -1) {
     throw new Error("Missing @generated-start or @generated-end markers");
   }
 
-  const colLines = columns.map(generateColumnLine);
-  const relLines = relations.map(generateRelationLine);
+  // Preserve per-entry decoration state from the existing block. New
+  // entries (introduced by a schema migration) default to `@tool()`;
+  // entries the user has stripped stay stripped.
+  const blockContent = existing.slice(startIdx + START_MARKER.length, endIdx);
+  const prior = parseExistingDecorations(blockContent);
+
+  const colLines = columns.map((c) => generateColumnLine(c, prior.cols.get(c.column_name) ?? true));
+  const relLines = relations.map((r) => generateRelationLine(r, prior.rels.get(r.name) ?? true));
   const allLines = relLines.length > 0
     ? [...colLines, "  // relations", ...relLines]
     : colLines;
-  const before = existing.slice(0, startIdx + startMarker.length);
+  const before = existing.slice(0, startIdx + START_MARKER.length);
   const after = existing.slice(endIdx);
 
   return `${before}\n${allLines.join("\n")}\n  ${after}`;
@@ -256,20 +318,17 @@ export const main = async () => {
       const relations = deriveRelations(tableName, allFks);
       const filePath = path.join(config.tables, `${tableName}.ts`);
 
-      if (fs.existsSync(filePath)) {
-        const existing = fs.readFileSync(filePath, "utf-8");
-        if (existing.includes("@generated-start")) {
-          const updated = updateTableFile(existing, columns, relations);
-          fs.writeFileSync(filePath, updated);
-          console.log(`Updated ${filePath}`);
-        } else {
-          console.log(`Skipped ${filePath} (no @generated markers)`);
-        }
-      } else {
-        const content = generateTableFile(tableName, columns, relations, config);
-        fs.writeFileSync(filePath, content);
-        console.log(`Created ${filePath}`);
+      const existing = fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf-8") : undefined;
+      if (existing !== undefined && !existing.includes(START_MARKER)) {
+        console.log(`Skipped ${filePath} (no @generated markers)`);
+        continue;
       }
+      const content = generateTable(tableName, columns, relations, {
+        dbImport: config.dbImport,
+        existing,
+      });
+      fs.writeFileSync(filePath, content);
+      console.log(`${existing ? "Updated" : "Created"} ${filePath}`);
     }
   } finally {
     await client.end();

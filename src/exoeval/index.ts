@@ -5,8 +5,10 @@ import { Evaluator } from './evaluator'
 import { ExpressionContext, IdentityContext } from './expr'
 import { Scope } from './scope'
 
-export { asToolFn } from './tool'
+export { asToolFn, tool } from './tool'
 export type { ToolFunction } from './tool'
+export { RpcClient, inMemoryChannel, safeStringify } from './rpc'
+export type { RawChannel } from './rpc'
 
 const builtins: { [key: string]: unknown } = {
 	Array: ExoArray,

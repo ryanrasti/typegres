@@ -1,0 +1,19 @@
+{
+  "name": "typegres-example-ops-demo",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate": "node --experimental-strip-types migrate.ts",
+    "generate": "tg generate",
+    "typecheck": "tsgo --noEmit",
+    "check": "npm run typecheck"
+  },
+  "dependencies": {
+    "pg": "^8.20.0",
+    "typegres": "file:../.."
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0"
+  }
+}

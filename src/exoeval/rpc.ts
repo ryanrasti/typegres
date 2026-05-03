@@ -58,7 +58,7 @@ export class RpcClient<A> {
  * `safeStringify` throws on any class instance — only plain objects, arrays,
  * and primitives reach the wire.
  */
-const safeStringify = (value: unknown): string =>
+export const safeStringify = (value: unknown): string =>
   JSON.stringify(value, (_key, val) => {
     if (val !== null && typeof val === "object") {
       const proto = Object.getPrototypeOf(val);
