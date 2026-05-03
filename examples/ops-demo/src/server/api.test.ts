@@ -1,11 +1,15 @@
 // End-to-end RPC tests against the seeded ops_demo DB.
 //
-// Wire shape: every call is `api.withOperator(token, (op) => <expr>)`.
-// `withOperator` is the single auth gate; it resolves the token to an
-// `OperatorRoot` server-side and hands it to the caller's closure.
-// The closure cannot reach an unscoped table query — every method on
-// OperatorRoot is pre-`where`'d to the operator's org_id, and there
-// is no method that returns an unscoped table.
+// Wire shape: every call is
+//   async (api, { token }) => {
+//     const op = await api.operator(token);
+//     ...use op (scoped reads, then chain row-level actions)...
+//   }
+// The principal travels with every row hydrated from `op.<table>()` —
+// `Orders.contextOf(row)` returns the operator without re-threading.
+// Tenancy is enforced by construction: there is no path on the wire
+// that returns an unscoped row, so cross-tenant escape isn't a check
+// — it's structurally impossible.
 
 import { describe, test, expect, beforeAll } from "vitest";
 import { RpcClient, inMemoryChannel } from "typegres/exoeval";
@@ -23,12 +27,13 @@ beforeAll(() => {
   rpc = new RpcClient<Api>(inMemoryChannel(new Api(db)));
 });
 
-describe("withOperator", () => {
-  test("valid token resolves an OperatorRoot scoped to the operator", async () => {
+describe("api.operator(token)", () => {
+  test("valid token resolves an OperatorRoot", async () => {
     const me = await rpc.run(
-      (api, { token }) => api.withOperator(token, (op) => ({
-        name: op.name, role: op.role, orgId: op.organizationId,
-      })),
+      async (api, { token }) => {
+        const op = await api.operator(token);
+        return { name: op.name, role: op.role, orgId: op.organizationId };
+      },
       { token: ALICE },
     );
     expect(me).toEqual({ name: "Alice", role: "ops_lead", orgId: "1" });
@@ -36,18 +41,19 @@ describe("withOperator", () => {
 
   test("invalid token throws", async () => {
     await expect(
-      rpc.run((api, { token }) => api.withOperator(token, (op) => op.name), { token: "nope" }),
+      rpc.run(async (api, { token }) => api.operator(token), { token: "nope" }),
     ).rejects.toThrow(/invalid token/);
   });
 });
 
 describe("tenancy: same query, different operators, disjoint data", () => {
-  const fetchOrderIds = (token: string) =>
+  const fetchOrderIds = (forToken: string) =>
     rpc.run(
-      (api, { token }) => api.withOperator(token, (op) =>
-        op.orders().select(({ orders }) => ({ id: orders.id })).execute(op.db),
-      ),
-      { token },
+      async (api, { token }) => {
+        const op = await api.operator(token);
+        return op.orders().select(({ orders }) => ({ id: orders.id })).execute(api.db);
+      },
+      { token: forToken },
     );
 
   test("BrightShip operator sees only BrightShip orders (35)", async () => {
@@ -67,24 +73,29 @@ describe("tenancy: same query, different operators, disjoint data", () => {
   });
 
   test("inventory and customers are also tenant-scoped", async () => {
-    const customerCount = (token: string) =>
+    const customerCount = (forToken: string) =>
       rpc.run(
-        (api, { token }) => api.withOperator(token, (op) =>
-          op.customers().select(({ customers }) => ({ id: customers.id })).execute(op.db),
-        ),
-        { token },
+        async (api, { token }) => {
+          const op = await api.operator(token);
+          return op.customers().select(({ customers }) => ({ id: customers.id })).execute(api.db);
+        },
+        { token: forToken },
       ).then((rows: { id: string }[]) => rows.length);
     expect(await customerCount(ALICE)).toBe(6);
     expect(await customerCount(DAVE)).toBe(4);
   });
 });
 
-describe("role gates", () => {
-  test("ops_lead can advance an order", async () => {
+describe("row-level actions: principal flows via scope tag", () => {
+  test("ops_lead can advance an order via order.advance(api.db)", async () => {
     await db.transaction(async (tx) => {
       const txRpc = new RpcClient<Api>(inMemoryChannel(new Api(tx)));
       const updated = await txRpc.run(
-        (api, { token }) => api.withOperator(token, (op) => op.advanceOrder("1")),
+        async (api, { token }) => {
+          const op = await api.operator(token);
+          const [order] = await op.orders().where(({ orders }) => orders.id["="]("1")).hydrate(api.db);
+          return order.advance(api.db);
+        },
         { token: ALICE },
       );
       expect(updated).toEqual({ id: "1", status: "confirmed" });
@@ -95,7 +106,11 @@ describe("role gates", () => {
   test("inventory_control cannot advance orders", async () => {
     await expect(
       rpc.run(
-        (api, { token }) => api.withOperator(token, (op) => op.advanceOrder("1")),
+        async (api, { token }) => {
+          const op = await api.operator(token);
+          const [order] = await op.orders().where(({ orders }) => orders.id["="]("1")).hydrate(api.db);
+          return order.advance(api.db);
+        },
         { token: BOB },
       ),
     ).rejects.toThrow(/cannot advance orders/);
@@ -104,17 +119,25 @@ describe("role gates", () => {
   test("account_manager cannot advance orders", async () => {
     await expect(
       rpc.run(
-        (api, { token }) => api.withOperator(token, (op) => op.advanceOrder("1")),
+        async (api, { token }) => {
+          const op = await api.operator(token);
+          const [order] = await op.orders().where(({ orders }) => orders.id["="]("1")).hydrate(api.db);
+          return order.advance(api.db);
+        },
         { token: CAROL },
       ),
     ).rejects.toThrow(/cannot advance orders/);
   });
 
-  test("inventory_control can adjust inventory", async () => {
+  test("inventory_control can adjust inventory via position.adjust(delta)", async () => {
     await db.transaction(async (tx) => {
       const txRpc = new RpcClient<Api>(inMemoryChannel(new Api(tx)));
       const updated = await txRpc.run(
-        (api, { token, delta }) => api.withOperator(token, (op) => op.adjustInventory("1", delta)),
+        async (api, { token, delta }) => {
+          const op = await api.operator(token);
+          const [pos] = await op.inventory().where(({ inventory_positions: p }) => p.id["="]("1")).hydrate(api.db);
+          return pos.adjust(api.db, delta);
+        },
         { token: BOB, delta: 5 },
       );
       expect(updated.id).toBe("1");
@@ -126,29 +149,42 @@ describe("role gates", () => {
   test("ops_lead cannot adjust inventory", async () => {
     await expect(
       rpc.run(
-        (api, { token, delta }) => api.withOperator(token, (op) => op.adjustInventory("1", delta)),
+        async (api, { token, delta }) => {
+          const op = await api.operator(token);
+          const [pos] = await op.inventory().where(({ inventory_positions: p }) => p.id["="]("1")).hydrate(api.db);
+          return pos.adjust(api.db, delta);
+        },
         { token: ALICE, delta: 5 },
       ),
     ).rejects.toThrow(/cannot adjust inventory/);
   });
 });
 
-describe("tenant isolation: cross-tenant escape attempts", () => {
-  test("Atlas ops_lead cannot advance a BrightShip order", async () => {
-    await expect(
-      rpc.run(
-        (api, { token }) => api.withOperator(token, (op) => op.advanceOrder("1")),
-        { token: DAVE },
-      ),
-    ).rejects.toThrow(/not found in your organization/);
+describe("tenant isolation: cross-tenant access is structurally impossible", () => {
+  // BrightShip owns orders 1..35; Atlas owns 36..50. There's no need
+  // to test "Atlas op rejects an attempt to advance order 1" — Atlas's
+  // op.orders() is pre-scoped to org 2, so the where(id=1) finds 0
+  // rows and `[order]` is undefined. The wire chain blows up at the
+  // hydrate step with a clear "cannot read .advance() of undefined."
+  test("Atlas op cannot fetch a BrightShip order at all", async () => {
+    const rows = await rpc.run(
+      async (api, { token }) => {
+        const op = await api.operator(token);
+        return op.orders().where(({ orders }) => orders.id["="]("1")).select(({ orders }) => ({ id: orders.id })).execute(api.db);
+      },
+      { token: DAVE },
+    );
+    expect(rows).toEqual([]);
   });
 
-  test("BrightShip ops_lead cannot advance an Atlas order", async () => {
-    await expect(
-      rpc.run(
-        (api, { token }) => api.withOperator(token, (op) => op.advanceOrder("50")),
-        { token: ALICE },
-      ),
-    ).rejects.toThrow(/not found in your organization/);
+  test("BrightShip op cannot fetch an Atlas order at all", async () => {
+    const rows = await rpc.run(
+      async (api, { token }) => {
+        const op = await api.operator(token);
+        return op.orders().where(({ orders }) => orders.id["="]("50")).select(({ orders }) => ({ id: orders.id })).execute(api.db);
+      },
+      { token: ALICE },
+    );
+    expect(rows).toEqual([]);
   });
 });

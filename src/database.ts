@@ -3,7 +3,7 @@ import type { Fromable, RowType, RowTypeToTsType } from "./builder/query";
 import { QueryBuilder, deserializeRows, hydrateRows } from "./builder/query";
 import type { Sql } from "./builder/sql";
 import { sql } from "./builder/sql";
-import { Table, type TableBase } from "./table";
+import { Table, type TableBase, type TableOptions } from "./table";
 import { Values } from "./builder/values";
 import { InsertBuilder } from "./builder/insert";
 import { UpdateBuilder } from "./builder/update";
@@ -33,7 +33,11 @@ const ISOLATION: { [K in TransactionIsolation]: { rank: number; begin: Sql } } =
   "serializable":    { rank: 2, begin: sql`BEGIN ISOLATION LEVEL SERIALIZABLE` },
 };
 
-export class Database {
+// `C` is the per-app context (principal) type. Forwarded to every
+// `db.Table(name)` so every codegen-emitted class picks up the same C
+// without changing the generator. Default `undefined` matches the
+// pre-context behavior.
+export class Database<C = undefined> {
   #boundExecute?: ExecuteFn;
   // Active isolation on a txn-bound Database. `undefined` means either
   // pool-backed (no active txn) or ambient (txn opened without an
@@ -125,11 +129,11 @@ export class Database {
   // to a single connection; every execute/hydrate on it goes through that
   // connection. Nested calls flatten: `tx.transaction(...)` just invokes the
   // callback without opening a new BEGIN/COMMIT.
-  async transaction<T>(fn: (tx: Database) => Promise<T>): Promise<T>;
-  async transaction<T>(opts: TransactionOptions, fn: (tx: Database) => Promise<T>): Promise<T>;
+  async transaction<T>(fn: (tx: Database<C>) => Promise<T>): Promise<T>;
+  async transaction<T>(opts: TransactionOptions, fn: (tx: Database<C>) => Promise<T>): Promise<T>;
   async transaction<T>(
-    optsOrFn: TransactionOptions | ((tx: Database) => Promise<T>),
-    maybeFn?: (tx: Database) => Promise<T>,
+    optsOrFn: TransactionOptions | ((tx: Database<C>) => Promise<T>),
+    maybeFn?: (tx: Database<C>) => Promise<T>,
   ): Promise<T> {
     const opts = typeof optsOrFn === "function" ? undefined : optsOrFn;
     const fn = typeof optsOrFn === "function" ? optsOrFn : maybeFn;
@@ -161,7 +165,7 @@ export class Database {
       return fn(this);
     }
     return this.driver.runInSingleConnection(async (execute) => {
-      const tx = new Database(this.driver, execute, opts?.isolation);
+      const tx = new Database<C>(this.driver, execute, opts?.isolation);
       await execute(opts?.isolation ? ISOLATION[opts.isolation].begin : sql`BEGIN`);
       try {
         const result = await fn(tx);
@@ -203,7 +207,12 @@ export class Database {
     });
   }
 
-  public Table = Table;
+  // Forward the app-wide context type to every `db.Table(name)` so
+  // codegen-emitted classes inherit it without changes to the
+  // generator. `Table<Name, C>` constrains `scope()` to accept only
+  // values assignable to C, and pins `contextOf()`'s return type.
+  public Table = <Name extends string>(name: Name, opts: TableOptions = {}) =>
+    Table<Name, C>(name, opts);
 
   // --- Live queries ---
   // Bus is per-Driver (per-pool); a tx-bound Database delegates to its

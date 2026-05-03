@@ -53,6 +53,20 @@ describe("generateTable — new file", () => {
     expect(out).toContain(`// @generated-end`);
   });
 
+  test("relation method propagates scope: Target.scope(Current.contextOf(this))", () => {
+    const out = generateTable(
+      "dogs",
+      [col("id", "int8", { identity_generation: "ALWAYS" })],
+      [rel("teams", "teams", { cardinality: "one", fromColumn: "team_id", toColumn: "id" })],
+      { dbImport: "../db" },
+    );
+    // The relation must use scope+contextOf, not from(). This is what
+    // makes scope flow n joins deep — every traversal re-asserts the
+    // tag from the current row's class.
+    expect(out).toContain(`Teams.scope(Dogs.contextOf(this)).where`);
+    expect(out).not.toMatch(/Teams\.from\(\)/);
+  });
+
   test("column options: nullable, default, generated", () => {
     const out = generateTable(
       "dogs",

@@ -12,7 +12,7 @@ export class OrderLines extends db.Table("order_lines") {
   @tool() quantity = (Int8<1>).column({ nonNull: true });
   @tool() inventory_position_id = (Int8<0 | 1>).column();
   // relations
-  @tool() inventory_position() { return InventoryPositions.from().where(({ inventory_positions }) => inventory_positions.id["="](this.inventory_position_id)).cardinality("maybe"); }
-  @tool() order() { return Orders.from().where(({ orders }) => orders.id["="](this.order_id)).cardinality("one"); }
+  @tool() inventory_position() { return InventoryPositions.scope(OrderLines.contextOf(this)).where(({ inventory_positions }) => inventory_positions.id["="](this.inventory_position_id)).cardinality("maybe"); }
+  @tool() order() { return Orders.scope(OrderLines.contextOf(this)).where(({ orders }) => orders.id["="](this.order_id)).cardinality("one"); }
   // @generated-end
 }

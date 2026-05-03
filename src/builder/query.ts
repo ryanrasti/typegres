@@ -381,17 +381,17 @@ export class QueryBuilder<
   // QueryResult to a row array, and expose the hydrated / single-row
   // variants as chainable terminators too.
   @tool(z.lazy(() => z.instanceof(Database)))
-  override async execute(db: Database): Promise<RowTypeToTsType<O>[]> {
+  override async execute(db: Database<any>): Promise<RowTypeToTsType<O>[]> {
     return db.execute(this);
   }
 
   @tool(z.lazy(() => z.instanceof(Database)))
-  async hydrate(db: Database): Promise<O[]> {
+  async hydrate(db: Database<any>): Promise<O[]> {
     return db.hydrate<O, GB, Card>(this);
   }
 
   @tool(z.lazy(() => z.instanceof(Database)))
-  async one(db: Database): Promise<O> {
+  async one(db: Database<any>): Promise<O> {
     const [row] = await db.hydrate(this.limit(1));
     if (!row) {
       throw new Error("QueryBuilder.one(): query returned no rows");
@@ -400,7 +400,7 @@ export class QueryBuilder<
   }
 
   @tool(z.lazy(() => z.instanceof(Database)))
-  async maybeOne(db: Database): Promise<O | null> {
+  async maybeOne(db: Database<any>): Promise<O | null> {
     const [row] = await db.hydrate(this.limit(1));
     return row ?? null;
   }

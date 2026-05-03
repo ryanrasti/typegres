@@ -15,7 +15,7 @@ export class Shipments extends db.Table("shipments") {
   @tool() status = (Text<1>).column({ nonNull: true, default: sql`'pending'::text` });
   @tool() organization_id = (Int8<1>).column({ nonNull: true });
   // relations
-  @tool() order() { return Orders.from().where(({ orders }) => orders.id["="](this.order_id)).cardinality("one"); }
-  @tool() organization() { return Organizations.from().where(({ organizations }) => organizations.id["="](this.organization_id)).cardinality("one"); }
+  @tool() order() { return Orders.scope(Shipments.contextOf(this)).where(({ orders }) => orders.id["="](this.order_id)).cardinality("one"); }
+  @tool() organization() { return Organizations.scope(Shipments.contextOf(this)).where(({ organizations }) => organizations.id["="](this.organization_id)).cardinality("one"); }
   // @generated-end
 }

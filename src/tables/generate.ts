@@ -173,10 +173,15 @@ const generateColumnLine = (col: ColumnInfo, withTool: boolean): string => {
   return `  ${prefix}${col.column_name} = (${cls}<${nullable}>).column(${optsArg});`;
 };
 
-const generateRelationLine = (rel: Relation, withTool: boolean): string => {
+const generateRelationLine = (rel: Relation, currentTable: string, withTool: boolean): string => {
   const targetClass = pgNameToClassName(rel.targetTable);
+  const currentClass = pgNameToClassName(currentTable);
   const prefix = withTool ? "@tool() " : "";
-  return `  ${prefix}${rel.name}() { return ${targetClass}.from().where(({ ${rel.targetTable} }) => ${rel.targetTable}.${rel.toColumn}["="](this.${rel.fromColumn})).cardinality("${rel.cardinality}"); }`;
+  // `Target.scope(Current.contextOf(this))` propagates the row's
+  // scope tag through every relation traversal — joins n-deep stay
+  // bound to the same principal. For unscoped rows, contextOf
+  // returns undefined and scope(undefined) behaves like from().
+  return `  ${prefix}${rel.name}() { return ${targetClass}.scope(${currentClass}.contextOf(this)).where(({ ${rel.targetTable} }) => ${rel.targetTable}.${rel.toColumn}["="](this.${rel.fromColumn})).cardinality("${rel.cardinality}"); }`;
 };
 
 // Scan the existing @generated block to learn which columns/relations the
@@ -227,7 +232,7 @@ export const generateTable = (
   opts: { dbImport: string; existing?: string },
 ): string => {
   if (opts.existing !== undefined) {
-    return updateBlock(opts.existing, columns, relations);
+    return updateBlock(opts.existing, tableName, columns, relations);
   }
   return newFile(tableName, columns, relations, opts.dbImport);
 };
@@ -256,7 +261,7 @@ const newFile = (tableName: string, columns: ColumnInfo[], relations: Relation[]
   // New file: every column/relation gets `@tool()` by default. Users can
   // strip individual decorators in-place; updateBlock will respect that.
   const colLines = columns.map((c) => generateColumnLine(c, true));
-  const relLines = relations.map((r) => generateRelationLine(r, true));
+  const relLines = relations.map((r) => generateRelationLine(r, tableName, true));
   const allLines = relLines.length > 0
     ? [...colLines, "  // relations", ...relLines]
     : colLines;
@@ -271,7 +276,7 @@ ${allLines.join("\n")}
 `;
 };
 
-const updateBlock = (existing: string, columns: ColumnInfo[], relations: Relation[]): string => {
+const updateBlock = (existing: string, tableName: string, columns: ColumnInfo[], relations: Relation[]): string => {
   const startIdx = existing.indexOf(START_MARKER);
   const endIdx = existing.indexOf(END_MARKER);
 
@@ -286,7 +291,7 @@ const updateBlock = (existing: string, columns: ColumnInfo[], relations: Relatio
   const prior = parseExistingDecorations(blockContent);
 
   const colLines = columns.map((c) => generateColumnLine(c, prior.cols.get(c.column_name) ?? true));
-  const relLines = relations.map((r) => generateRelationLine(r, prior.rels.get(r.name) ?? true));
+  const relLines = relations.map((r) => generateRelationLine(r, tableName, prior.rels.get(r.name) ?? true));
   const allLines = relLines.length > 0
     ? [...colLines, "  // relations", ...relLines]
     : colLines;
@@ -323,10 +328,11 @@ export const main = async () => {
         console.log(`Skipped ${filePath} (no @generated markers)`);
         continue;
       }
-      const content = generateTable(tableName, columns, relations, {
-        dbImport: config.dbImport,
-        existing,
-      });
+      const content = generateTable(tableName, columns, relations,
+        existing === undefined
+          ? { dbImport: config.dbImport }
+          : { dbImport: config.dbImport, existing },
+      );
       fs.writeFileSync(filePath, content);
       console.log(`${existing ? "Updated" : "Created"} ${filePath}`);
     }

@@ -13,13 +13,13 @@ import { PgDriver, PgliteDriver } from "./driver";
 // Convenience factory for quick scripts and the playground. Real apps
 // should compose PgDriver.create(...) + new Database(driver) themselves
 // so they can hold onto the driver for lifecycle management.
-export const typegres = async (
+export const typegres = async <C = undefined>(
   opts: { type: "pglite" } | { type: "pg"; connectionString: string },
-): Promise<Database> => {
+): Promise<Database<C>> => {
   const driver = opts.type === "pglite"
     ? await PgliteDriver.create()
     : await PgDriver.create(opts.connectionString);
-  return new Database(driver);
+  return new Database<C>(driver);
 };
 
 export * from "./types";

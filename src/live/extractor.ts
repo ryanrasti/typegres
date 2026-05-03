@@ -322,7 +322,7 @@ export type LiveIterationResult<O extends RowType> = {
 // cursor, run the extractor, run the user query, commit. Caller handles the
 // outer "yield + wait for matching event + repeat" loop.
 export const runLiveIteration = async <Q extends QueryBuilder<any, any, any, any>>(
-  db: Database,
+  db: Database<any>,
   query: Q,
 ): Promise<
   Q extends QueryBuilder<any, infer O extends RowType, any, any>

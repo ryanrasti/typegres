@@ -13,7 +13,7 @@ export class Customers extends db.Table("customers") {
   @tool() created_at = (Timestamptz<1>).column({ nonNull: true, default: sql`now()` });
   @tool() organization_id = (Int8<1>).column({ nonNull: true });
   // relations
-  @tool() organization() { return Organizations.from().where(({ organizations }) => organizations.id["="](this.organization_id)).cardinality("one"); }
-  @tool() orders() { return Orders.from().where(({ orders }) => orders.customer_id["="](this.id)).cardinality("many"); }
+  @tool() organization() { return Organizations.scope(Customers.contextOf(this)).where(({ organizations }) => organizations.id["="](this.organization_id)).cardinality("one"); }
+  @tool() orders() { return Orders.scope(Customers.contextOf(this)).where(({ orders }) => orders.customer_id["="](this.id)).cardinality("many"); }
   // @generated-end
 }

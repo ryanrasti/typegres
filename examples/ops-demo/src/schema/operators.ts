@@ -14,6 +14,6 @@ export class Operators extends db.Table("operators") {
   @tool() token = (Text<1>).column({ nonNull: true });
   @tool() created_at = (Timestamptz<1>).column({ nonNull: true, default: sql`now()` });
   // relations
-  @tool() organization() { return Organizations.from().where(({ organizations }) => organizations.id["="](this.organization_id)).cardinality("one"); }
+  @tool() organization() { return Organizations.scope(Operators.contextOf(this)).where(({ organizations }) => organizations.id["="](this.organization_id)).cardinality("one"); }
   // @generated-end
 }
