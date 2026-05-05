@@ -490,6 +490,57 @@ test("Any.from: rejects Date instances", () => {
   expect(() => Text.from(new Date())).toThrow(/cannot wrap Date instance/);
 });
 
+test("Any.in: empty vararg → FALSE", () => {
+  const expr = Text.from("a").in();
+  const compiled = compile(sql`SELECT ${expr.toSql()}`, "pg");
+  expect(compiled.text).toContain("$1");
+});
+
+test("Any.in: single value → equality (no IN list)", () => {
+  const expr = Text.from("a").in(Text.from("b"));
+  const compiled = compile(sql`SELECT ${expr.toSql()}`, "pg");
+  expect(compiled.text).toMatch(/=/);
+  expect(compiled.text).not.toContain("IN");
+});
+
+test("Any.in: multiple values → IN list", () => {
+  const expr = Text.from("a").in(Text.from("b"), Text.from("c"), Text.from("d"));
+  const compiled = compile(sql`SELECT ${expr.toSql()}`, "pg");
+  expect(compiled.text).toContain(" IN (");
+  expect(compiled.text.match(/\$\d+/g)?.length).toBe(4); // lhs + 3 rhs
+});
+
+test("e2e: Any.in matches a value in the list", async () => {
+  const expr = Text.from("packed").in(Text.from("draft"), Text.from("packed"), Text.from("shipped"));
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("hit")}`);
+  expect(result.rows[0]?.["hit"]).toBe("t");
+});
+
+test("Any.in: accepts primitives directly", () => {
+  const expr = Text.from("a").in("b", "c", "d");
+  const compiled = compile(sql`SELECT ${expr.toSql()}`, "pg");
+  expect(compiled.text).toContain(" IN (");
+});
+
+test("e2e: Any.in matches a primitive value", async () => {
+  const expr = Text.from("packed").in("draft", "packed", "shipped");
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("hit")}`);
+  expect(result.rows[0]?.["hit"]).toBe("t");
+});
+
+test("e2e: Any.in misses when value not in list", async () => {
+  const expr = Text.from("missing").in(Text.from("a"), Text.from("b"));
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("hit")}`);
+  expect(result.rows[0]?.["hit"]).toBe("f");
+});
+
+test("Any.in: accepts varied nullabilities of same type", () => {
+  const nullable = Text.from(sql`'maybe'`); // Text<0|1>
+  const nonNull = Text.from("def");           // Text<1>
+  const expr = Text.from("abc").in(nullable, nonNull);
+  expectTypeOf(expr).toMatchTypeOf<Bool<1>>();
+});
+
 test("Any.from: accepts primitives, null, plain objects, arrays", () => {
   expect(() => Int4.from(5)).not.toThrow();
   expect(() => Text.from("hi")).not.toThrow();

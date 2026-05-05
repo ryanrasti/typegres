@@ -1,8 +1,9 @@
 import { Any as Generated } from "../generated/any";
 import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
-import type { NullOf } from "../runtime";
+import type { NullOf, TsTypeOf } from "../runtime";
 import { Column, Param, sql, Sql, TypedParam, Unbound } from "../../builder/sql";
+import { tool } from "../../exoeval/tool";
 import * as types from "../index";
 
 type ColumnOpts = { nonNull?: boolean; default?: Sql; generated?: boolean };
@@ -54,6 +55,31 @@ export class Any<in out N extends number> extends Generated<N> {
       ? (InstanceType<T> extends { [meta]: { __nonNullable: infer U } } ? U : InstanceType<T>)
       : (InstanceType<T> extends { [meta]: { __nullable: infer U } } ? U : InstanceType<T>) {
     return cls.from(sql`CAST(${this.toSql()} AS ${cls.__typname})`) as any;
+  }
+
+  // Type-safe IN. Accepts a vararg of "this type at any nullability"
+  // — including primitive values that the type knows how to serialize.
+  // For `Text`, that means `.in("a", "b", textVal)` all work. Compiles to:
+  //   - empty list  → `FALSE` (SQL forbids `IN ()`, and `x IN ∅` is logically false)
+  //   - one value   → `(this = v)` (lets pg pick a normal `=` plan)
+  //   - many values → `(this IN (v1, v2, ...))`
+  // Returns Bool<1> conservatively.
+  @tool.unchecked()
+  in<T extends Any<any>>(
+    this: T,
+    ...vals: (
+      | (T extends { [meta]: { __any: infer A } } ? A : Any<any>)
+      | TsTypeOf<T>
+    )[]
+  ): types.Bool<1> {
+    if (vals.length === 0) return types.Bool.from(false) as types.Bool<1>;
+    const cls = (this as Any<any>)[meta].__class as typeof Any;
+    const wrapped = vals.map((v) => (v instanceof Any ? v : cls.serialize(v)));
+    if (wrapped.length === 1) {
+      return types.Bool.from(sql`(${this.toSql()} = ${wrapped[0]!.toSql()})`) as types.Bool<1>;
+    }
+    const list = sql.join(wrapped.map((v) => v.toSql()));
+    return types.Bool.from(sql`(${this.toSql()} IN (${list}))`) as types.Bool<1>;
   }
 
   // COALESCE(this, rhs) — returns first non-null. Chainable.
