@@ -21,7 +21,8 @@ import ordersSrc from "@/demo/schema/orders.ts?raw";
 import orderLinesSrc from "@/demo/schema/order_lines.ts?raw";
 import shipmentsSrc from "@/demo/schema/shipments.ts?raw";
 import apiSrc from "@/demo/server/api.ts?raw";
-import widgetSrc from "@/demo/widgets/main.ts?raw";
+import ordersWidgetSrc from "@/demo/widgets/orders.ts?raw";
+import inventoryWidgetSrc from "@/demo/widgets/inventory.ts?raw";
 
 // Runtime modules — give the eval'd widget code something real to run
 // against. Importing rpc.ts pulls in db + Api transitively (and runs
@@ -31,6 +32,14 @@ import { client, setCurrentUserToken } from "@/demo/server/api";
 const rpc = client.run.bind(client);
 
 import { transformCodeWithEsbuild } from "@/lib/monaco-typegres-integration";
+import {
+  ORDERS_PATH as ORDERS_PATH_W,
+  INVENTORY_PATH as INVENTORY_PATH_W,
+  OrdersWidget,
+  InventoryWidget,
+  UserPicker,
+  type UserToken,
+} from "./_PlayWidgets";
 
 declare global {
   interface Window {
@@ -55,8 +64,14 @@ type FileNode = {
   editable: boolean;
 };
 
+// Re-export widget paths for FILES list. Single source of truth lives
+// in _PlayWidgets so the widget components and the page agree.
+const ORDERS_PATH = ORDERS_PATH_W;
+const INVENTORY_PATH = INVENTORY_PATH_W;
+
 const FILES: FileNode[] = [
-  { path: "widgets/main.ts",              content: widgetSrc,             editable: true,  uri: monaco.Uri.parse("file:///widgets/main.ts") },
+  { path: ORDERS_PATH,                    content: ordersWidgetSrc,       editable: true,  uri: monaco.Uri.parse("file:///widgets/orders.ts") },
+  { path: INVENTORY_PATH,                 content: inventoryWidgetSrc,    editable: true,  uri: monaco.Uri.parse("file:///widgets/inventory.ts") },
   { path: "runtime.ts",                   content: runtimeSrc,            editable: false, uri: monaco.Uri.parse("file:///runtime.ts") },
   { path: "seed.ts",                      content: seedSrc,               editable: false, uri: monaco.Uri.parse("file:///seed.ts") },
   { path: "schema/organizations.ts",      content: organizationsSrc,      editable: false, uri: monaco.Uri.parse("file:///schema/organizations.ts") },
@@ -76,49 +91,45 @@ const FILES: FileNode[] = [
 export default function PlayPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const [activePath, setActivePath] = useState<string>("widgets/main.ts");
+  const [activePath, setActivePath] = useState<string>(ORDERS_PATH);
+  // Which editable widget the controls + run path should target. The
+  // visitor can click into a read-only schema file to inspect it; we
+  // keep targeting the most-recently-active widget so the running
+  // query and controls don't disappear under them.
+  const [activeWidget, setActiveWidget] = useState<string>(ORDERS_PATH);
   const [output, setOutput] = useState<unknown>(undefined);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string>("");
   const [userToken, setUserToken] = useState<UserToken>("user_brightship_alice");
-  const [statusFilter, setStatusFilter] = useState<readonly Status[]>([]);
-  const [groupBy, setGroupBy] = useState<GroupByCol>("status");
-  const [orderBy, setOrderBy] = useState<OrderByCol>("status");
-  const [orderDir, setOrderDir] = useState<OrderDir>("asc");
+  // `live` is a shared toggle: each widget's controls strip surfaces
+  // it but they all read/write the same value, so the running query
+  // observes a single live state.
   const [live, setLive] = useState(true);
-  // Auto-cycle toggles. Default on so a visitor lands on a moving
-  // table without having to touch anything; clicking either toggle
-  // pauses that side of the cycle.
-  const [autoInsert, setAutoInsert] = useState(true);
-  const [autoAdvance, setAutoAdvance] = useState(true);
   const [showFiles, setShowFiles] = useState(false);
   const iterRef = useRef<AsyncIterator<unknown> | null>(null);
   const autoRanRef = useRef(false);
   const [modelsReady, setModelsReady] = useState(false);
 
   const activeFile = useMemo(() => FILES.find((f) => f.path === activePath)!, [activePath]);
+  const activeWidgetFile = useMemo(() => FILES.find((f) => f.path === activeWidget)!, [activeWidget]);
   const isWide = useIsWide();
 
-  // Whenever a control changes (and models exist), regenerate the
-  // widget body. Per the design: the controls are a code generator;
-  // the entire `rpc(...)` block is rewritten on each change. If a
-  // query is currently running (live or otherwise), restart it so
-  // the new code takes effect immediately — no Stop / Watch dance.
+  // When a user clicks into an editable widget file, that becomes
+  // the active widget. Browsing schemas / runtime / api leaves the
+  // last-active widget alone.
   useEffect(() => {
-    if (!modelsReady) return;
-    const widgetModel = monaco.editor.getModel(FILES[0]!.uri);
-    if (!widgetModel) return;
-    const next = stampWidget(widgetModel.getValue(), { userToken, statusFilter, groupBy, orderBy, orderDir, live });
-    if (next === widgetModel.getValue()) return;
-    widgetModel.setValue(next);
-    if (running) {
-      void (async () => {
-        await stop();
-        await run();
-      })();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userToken, statusFilter, groupBy, orderBy, orderDir, live, modelsReady]);
+    if (activeFile.editable) setActiveWidget(activeFile.path);
+  }, [activeFile]);
+
+  // Each widget owns its own stamping; PlayPage just exposes a
+  // restart hook so widgets can flush their changes when something
+  // is currently running.
+  const restart = () => {
+    void (async () => {
+      await stop();
+      await run();
+    })();
+  };
 
   // One-time Monaco setup: TS compiler options, typegres types, models.
   useEffect(() => {
@@ -228,70 +239,24 @@ declare function output(value: unknown): void;
     await iterRef.current?.return?.();
   };
 
-  // One-off mutations that fire through the same rpc wire. Side
-  // effects propagate to any active live iterator (which then yields
-  // a new snapshot and the table re-renders with row flashes).
-  const insertOrder = async () => {
-    try {
-      await rpc(async (api) => (await api.currentUser()).insertDraftOrder(api.db));
-    } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
-    }
-  };
-  const advanceRandom = async () => {
-    try {
-      await rpc(async (api) => (await api.currentUser()).advanceRandom(api.db));
-    } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
-    }
-  };
-
   // Mirror the dropdown into the api's ambient current-user token so
   // `api.currentUser()` calls inside widget closures resolve to it.
   useEffect(() => {
     setCurrentUserToken(userToken);
   }, [userToken]);
 
-  // Two independent self-rescheduling timers. Each picks a random
-  // delay in [7.5s, 22.5s] so the cycle feels organic instead of
-  // metronomic, with staggered initial offsets so the two don't
-  // bunch up on the first tick. Toggling the gate restarts the loop
-  // with the new value visible.
+  // Switching widgets while a query is running needs a restart —
+  // otherwise the old iter keeps consuming the old widget's model
+  // and pushing stale rows to the output table.
   useEffect(() => {
-    if (!autoInsert) return;
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const tick = async () => {
-      if (stopped) return;
-      await insertOrder();
-      if (stopped) return;
-      timer = setTimeout(tick, 7500 + Math.random() * 15000);
-    };
-    timer = setTimeout(tick, 3000 + Math.random() * 4000);
-    return () => {
-      stopped = true;
-      if (timer) clearTimeout(timer);
-    };
+    if (!running) return;
+    void (async () => {
+      await stop();
+      setOutput(undefined);
+      await run();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoInsert, userToken]);
-
-  useEffect(() => {
-    if (!autoAdvance) return;
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const tick = async () => {
-      if (stopped) return;
-      await advanceRandom();
-      if (stopped) return;
-      timer = setTimeout(tick, 7500 + Math.random() * 15000);
-    };
-    timer = setTimeout(tick, 7000 + Math.random() * 4000);
-    return () => {
-      stopped = true;
-      if (timer) clearTimeout(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoAdvance, userToken]);
+  }, [activeWidget]);
 
   // Auto-start on first load — `live` is on by default, so users land
   // on a streaming table without having to hit Watch.
@@ -307,7 +272,9 @@ declare function output(value: unknown): void;
     setOutput(undefined);
     setRunning(true);
     try {
-      const widgetModel = monaco.editor.getModel(FILES[0]!.uri)!;
+      // Run uses the active widget's model — schemas/runtime are
+      // read-only and never become the run target.
+      const widgetModel = monaco.editor.getModel(activeWidgetFile.uri)!;
       const userSrc = widgetModel.getValue();
 
       // The widget is a TS module with `import` lines (for Monaco's
@@ -452,18 +419,30 @@ declare function output(value: unknown): void;
 
             <Panel id="output" defaultSize="50%" minSize="15%">
               <div className="h-full w-full flex flex-col bg-gray-900">
-                <WidgetControls
-                  userToken={userToken}
-                  statusFilter={statusFilter}
-                  groupBy={groupBy}
-                  orderBy={orderBy}
-                  orderDir={orderDir}
+                {/* Page-level identity. The dropdown writes the
+                    ambient currentUser token; api.currentUser() in
+                    every widget closure resolves to it. */}
+                <div className="border-b border-gray-800 bg-gray-900/60 px-3 py-2 flex items-center gap-3 shrink-0">
+                  <UserPicker userToken={userToken} onUserToken={setUserToken} />
+                </div>
+                {/* Per-widget controls. Both widgets always mount —
+                    they keep their state alive while the visitor
+                    navigates files — but only the active widget's
+                    strip renders. */}
+                <OrdersWidget
+                  visible={activeWidget === ORDERS_PATH}
+                  modelsReady={modelsReady}
+                  running={running}
+                  restart={restart}
                   live={live}
-                  onUserToken={setUserToken}
-                  onStatusFilter={setStatusFilter}
-                  onGroupBy={setGroupBy}
-                  onOrderBy={setOrderBy}
-                  onOrderDir={setOrderDir}
+                  onLive={setLive}
+                />
+                <InventoryWidget
+                  visible={activeWidget === INVENTORY_PATH}
+                  modelsReady={modelsReady}
+                  running={running}
+                  restart={restart}
+                  live={live}
                   onLive={setLive}
                 />
                 <div className="px-4 py-2 border-b border-gray-800 text-xs font-medium text-gray-400 uppercase tracking-wide shrink-0 flex items-center gap-3">
@@ -474,22 +453,6 @@ declare function output(value: unknown): void;
                       live
                     </span>
                   )}
-                  <div className="ml-auto flex items-center gap-2">
-                    <ToggleButton
-                      active={autoInsert}
-                      onClick={() => setAutoInsert((v) => !v)}
-                      title="Auto-insert a draft order every few seconds. Click to pause."
-                    >
-                      + auto-insert
-                    </ToggleButton>
-                    <ToggleButton
-                      active={autoAdvance}
-                      onClick={() => setAutoAdvance((v) => !v)}
-                      title="Auto-advance a random non-delivered order every few seconds. Click to pause."
-                    >
-                      ↻ auto-advance
-                    </ToggleButton>
-                  </div>
                 </div>
                 <div className="flex-1 min-h-0 overflow-auto">
                   {error ? (
@@ -698,268 +661,12 @@ const Cell = ({ value }: { value: unknown }) => {
   );
 };
 
-// --- Widget code generator ---
-//
-// The controls drive the contents of the `rpc(async (api) => { ... });`
-// block in widgets/main.ts. Every control change regenerates that
-// block wholesale — user edits inside it don't survive the next
-// click. Anything outside the block (imports, comments) is left
-// untouched.
+// (Widget code generators + controls live in `_PlayWidgets.tsx` —
+// each widget owns its own filter state, generator, stamp regex.)
 
-const USER_TOKENS = [
-  { value: "user_brightship_alice", label: "Alice — Brightship (ops_lead)" },
-  { value: "user_brightship_bob",   label: "Bob — Brightship (inventory_control)" },
-  { value: "user_atlas_dave",       label: "Dave — Atlas (ops_lead)" },
-] as const;
-type UserToken = (typeof USER_TOKENS)[number]["value"];
+// (ToggleButton, Field, LiveToggle, generators all live in
+// _PlayWidgets.tsx alongside the widget components themselves.)
 
-const STATUSES = ["draft", "confirmed", "picking", "packed", "shipped", "delivered"] as const;
-type Status = (typeof STATUSES)[number];
-
-const GROUP_BY_COLS = ["none", "status", "priority"] as const;
-type GroupByCol = (typeof GROUP_BY_COLS)[number];
-
-const ORDER_BY_COLS = ["none", "id", "status", "priority", "created_at"] as const;
-type OrderByCol = (typeof ORDER_BY_COLS)[number];
-
-const ORDER_DIRS = ["asc", "desc"] as const;
-type OrderDir = (typeof ORDER_DIRS)[number];
-
-function generateRpcBlock({
-  userToken,
-  statusFilter,
-  groupBy,
-  orderBy,
-  orderDir,
-  live,
-}: {
-  userToken: UserToken;
-  statusFilter: readonly Status[];
-  groupBy: GroupByCol;
-  orderBy: OrderByCol;
-  orderDir: OrderDir;
-  live: boolean;
-}): string {
-  // Status filter compiles to `.in(...)` regardless of arity. Empty
-  // list short-circuits the filter (we just omit it) — Any.in itself
-  // would emit FALSE which would make the query return nothing.
-  const statusLine =
-    statusFilter.length === 0
-      ? ""
-      : `\n    .where(({ orders }) => orders.status.in(${statusFilter
-          .map((s) => JSON.stringify(s))
-          .join(", ")}))`;
-
-  const selectBody =
-    groupBy === "none"
-      ? `{
-      id: orders.id,
-      status: orders.status,
-      customer: orders.customer().select(({ customers }) => ({ name: customers.name })).scalar(),
-    }`
-      : `{
-      ${groupBy}: orders.${groupBy},
-      count: orders.id.count(),
-    }`;
-
-  const groupByLine =
-    groupBy === "none" ? "" : `\n    .groupBy(({ orders }) => [orders.${groupBy}])`;
-
-  // orderBy by either an ungrouped column (most cases) or — when group
-  // by is set — by the grouped column to keep things sortable.
-  const orderByEntry =
-    orderBy === "none"
-      ? null
-      : groupBy !== "none" && orderBy !== groupBy
-        ? null
-        : orderDir === "asc"
-          ? `orders.${orderBy}`
-          : `[orders.${orderBy}, "desc"]`;
-  const orderByLine = orderByEntry ? `\n    .orderBy(({ orders }) => ${orderByEntry})` : "";
-
-  const terminator = live ? "live" : "execute";
-
-  return `const result = client.run(async (api) => {
-  // This code is serialized and then (safely) run over RPC.
-
-  // \`user\` is whoever's selected in the dropdown on the right.
-  //  it scopes all operations to the current user.
-  const user = await api.currentUser();
-  //  ... e.g. user.orders() automatically has a
-  //          \`where organization_id = ?\` inserted into it
-  //           so it is scoped to the current user.
-  return user.orders()${statusLine}${groupByLine}${orderByLine}
-    .select(({ orders }) => (${selectBody}))
-    .${terminator}(api.db);
-});
-
-// Render the result in the table on the right:
-output(result);`;
-}
-
-// Replace the existing `rpc(async (api) => { ... });` call with a
-// freshly stamped one. If no match is found we just return src
-// unchanged — controls go inert rather than corrupting the file.
-function stampWidget(
-  src: string,
-  opts: { userToken: UserToken; statusFilter: readonly Status[]; groupBy: GroupByCol; orderBy: OrderByCol; orderDir: OrderDir; live: boolean },
-): string {
-  const next = generateRpcBlock(opts);
-  // Match `const result = client.run(async (api) => …);\noutput(result);`
-  // anchored at column 0.
-  const re = /^const result = client\.run\(async \(api\)[\s\S]*?^output\(result\);?/m;
-  if (!re.test(src)) return src;
-  return src.replace(re, next);
-}
-
-// --- Widget controls ---
-
-const WidgetControls = ({
-  userToken,
-  statusFilter,
-  groupBy,
-  orderBy,
-  orderDir,
-  live,
-  onUserToken,
-  onStatusFilter,
-  onGroupBy,
-  onOrderBy,
-  onOrderDir,
-  onLive,
-}: {
-  userToken: UserToken;
-  statusFilter: readonly Status[];
-  groupBy: GroupByCol;
-  orderBy: OrderByCol;
-  orderDir: OrderDir;
-  live: boolean;
-  onUserToken: (v: UserToken) => void;
-  onStatusFilter: (v: readonly Status[]) => void;
-  onGroupBy: (v: GroupByCol) => void;
-  onOrderBy: (v: OrderByCol) => void;
-  onOrderDir: (v: OrderDir) => void;
-  onLive: (v: boolean) => void;
-}) => {
-  const toggleStatus = (s: Status) => {
-    onStatusFilter(statusFilter.includes(s) ? statusFilter.filter((x) => x !== s) : [...statusFilter, s]);
-  };
-  return (
-    <div className="border-b border-gray-800 bg-gray-900/60 px-3 py-2 flex flex-wrap items-center gap-x-4 gap-y-2 shrink-0">
-      <Field label="user">
-        <select
-          value={userToken}
-          onChange={(e) => onUserToken(e.target.value as UserToken)}
-          className="bg-gray-800 text-gray-200 text-xs rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-blue-500"
-        >
-          {USER_TOKENS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-      </Field>
-      <Field label="status in">
-        <div className="flex flex-wrap gap-1">
-          {STATUSES.map((s) => {
-            const active = statusFilter.includes(s);
-            return (
-              <button
-                key={s}
-                type="button"
-                onClick={() => toggleStatus(s)}
-                className={`text-[11px] px-1.5 py-0.5 rounded border transition-colors ${
-                  active
-                    ? "bg-blue-600 border-blue-500 text-white"
-                    : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600"
-                }`}
-              >
-                {s}
-              </button>
-            );
-          })}
-        </div>
-      </Field>
-      <Field label="group by">
-        <select
-          value={groupBy}
-          onChange={(e) => onGroupBy(e.target.value as GroupByCol)}
-          className="bg-gray-800 text-gray-200 text-xs rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-blue-500"
-        >
-          {GROUP_BY_COLS.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-      </Field>
-      <Field label="order by">
-        <select
-          value={orderBy}
-          onChange={(e) => onOrderBy(e.target.value as OrderByCol)}
-          className="bg-gray-800 text-gray-200 text-xs rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-blue-500"
-        >
-          {ORDER_BY_COLS.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-        <select
-          value={orderDir}
-          onChange={(e) => onOrderDir(e.target.value as OrderDir)}
-          disabled={orderBy === "none"}
-          className="bg-gray-800 text-gray-200 text-xs rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-blue-500 disabled:opacity-40"
-        >
-          {ORDER_DIRS.map((d) => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
-      </Field>
-      <Field label="live">
-        <button
-          type="button"
-          onClick={() => onLive(!live)}
-          className={`text-[11px] px-2 py-0.5 rounded border transition-colors ${
-            live
-              ? "bg-green-600 border-green-500 text-white"
-              : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600"
-          }`}
-        >
-          {live ? "● on" : "○ off"}
-        </button>
-      </Field>
-      <span className="text-[10px] text-gray-500 ml-auto">
-        controls regenerate the rpc(...) block
-      </span>
-    </div>
-  );
-};
-
-const ToggleButton = ({
-  active,
-  onClick,
-  title,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  title?: string;
-  children: ReactNode;
-}) => (
-  <button
-    onClick={onClick}
-    title={title}
-    className={`text-[11px] normal-case px-2 py-0.5 rounded border transition-colors ${
-      active
-        ? "border-blue-500 bg-blue-600/30 text-white"
-        : "border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-300"
-    }`}
-  >
-    {children}
-  </button>
-);
-
-const Field = ({ label, children }: { label: string; children: ReactNode }) => (
-  <label className="flex items-center gap-2 text-[11px] text-gray-400 uppercase tracking-wide">
-    <span>{label}</span>
-    {children}
-  </label>
-);
 
 // --- File tree ---
 
