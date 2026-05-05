@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as monaco from "monaco-editor";
+import { Group, Panel, Separator } from "react-resizable-panels";
 
 // Vite worker setup — required for Monaco's TS language service
 // (autocomplete, diagnostics, jump-to-def). `@monaco-editor/react`
@@ -20,20 +21,13 @@ import ordersSrc from "@/demo/schema/orders.ts?raw";
 import orderLinesSrc from "@/demo/schema/order_lines.ts?raw";
 import shipmentsSrc from "@/demo/schema/shipments.ts?raw";
 import apiSrc from "@/demo/server/api.ts?raw";
+import rpcSrc from "@/demo/rpc.ts?raw";
 import widgetSrc from "@/demo/widgets/main.ts?raw";
 
-// Runtime modules — give the eval'd widget code something real to run against.
-import { sql } from "typegres";
-import { db } from "@/demo/runtime";
-import { Organizations } from "@/demo/schema/organizations";
-import { Operators } from "@/demo/schema/operators";
-import { Locations } from "@/demo/schema/locations";
-import { Customers } from "@/demo/schema/customers";
-import { InventoryPositions } from "@/demo/schema/inventory_positions";
-import { Orders } from "@/demo/schema/orders";
-import { OrderLines } from "@/demo/schema/order_lines";
-import { Shipments } from "@/demo/schema/shipments";
-import { operatorFromToken } from "@/demo/server/api";
+// Runtime modules — give the eval'd widget code something real to run
+// against. Importing rpc.ts pulls in db + Api transitively (and runs
+// migrations + seed via runtime.ts's top-level await).
+import { rpc, _consumePendingRpc } from "@/demo/rpc";
 
 import { transformCodeWithEsbuild } from "@/lib/monaco-typegres-integration";
 
@@ -73,6 +67,7 @@ const FILES: FileNode[] = [
   { path: "schema/order_lines.ts",        content: orderLinesSrc,         editable: false, uri: monaco.Uri.parse("file:///schema/order_lines.ts") },
   { path: "schema/shipments.ts",          content: shipmentsSrc,          editable: false, uri: monaco.Uri.parse("file:///schema/shipments.ts") },
   { path: "server/api.ts",                content: apiSrc,                editable: false, uri: monaco.Uri.parse("file:///server/api.ts") },
+  { path: "rpc.ts",                       content: rpcSrc,                editable: false, uri: monaco.Uri.parse("file:///rpc.ts") },
 ];
 
 // No ambient declarations needed — the widget is a real TS module
@@ -87,6 +82,7 @@ export default function PlayPage() {
   const [error, setError] = useState<string>("");
 
   const activeFile = useMemo(() => FILES.find((f) => f.path === activePath)!, [activePath]);
+  const isWide = useIsWide();
 
   // One-time Monaco setup: TS compiler options, typegres types, models.
   useEffect(() => {
@@ -180,34 +176,27 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
       const widgetModel = monaco.editor.getModel(FILES[0]!.uri)!;
       const userSrc = widgetModel.getValue();
 
-      // The widget is a TS module with `import` lines (for type
-      // resolution in Monaco) and `export default async function
-      // widget() { ... }`. To execute it we:
-      //   1. strip the imports (the body references names we'll
-      //      provide via closure, not via real module loading)
-      //   2. drop the `export default` keyword so it becomes a plain
-      //      function declaration
-      //   3. esbuild-transform any TS-isms to JS
-      //   4. wrap in `new Function` with the demo runtime as scope,
-      //      and invoke `widget()` to get the result
+      // The widget is a TS module with `import` lines (for Monaco's
+      // type resolver) and a top-level `doRpc(async (api) => {...})`
+      // call. To execute it we:
+      //   1. strip the imports (we provide `doRpc` via closure)
+      //   2. esbuild-transform TS-isms to JS
+      //   3. wrap in `new Function` and run — the doRpc call enqueues
+      //      its promise; we await whichever promise was registered
       const noImports = userSrc.replace(/^\s*import .*?;?\s*$/gm, "");
-      const noExport = noImports.replace(/^\s*export\s+default\s+/m, "");
-      const transformed = await transformCodeWithEsbuild(noExport);
+      const transformed = await transformCodeWithEsbuild(noImports);
 
       const fn = new (Function as any)(
         "ctx",
-        `const { db, sql, Organizations, Operators, Locations, Customers,
-                InventoryPositions, Orders, OrderLines, Shipments,
-                operatorFromToken } = ctx;
-         ${transformed}
-         return widget();`,
+        `const { rpc } = ctx;
+         ${transformed}`,
       );
-      const result = await fn({
-        db, sql,
-        Organizations, Operators, Locations, Customers,
-        InventoryPositions, Orders, OrderLines, Shipments,
-        operatorFromToken,
-      });
+      fn({ rpc });
+      const pending = _consumePendingRpc();
+      if (!pending) {
+        throw new Error("Widget did not call rpc(...)");
+      }
+      const result = await pending;
       setOutput(JSON.stringify(result, null, 2));
     } catch (e) {
       setError(String(e instanceof Error ? e.message + "\n" + e.stack : e));
@@ -243,36 +232,74 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
           <FileTree files={FILES} active={activePath} onPick={setActivePath} />
         </aside>
 
-        {/* Editor + result */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="border-b border-gray-800 bg-gray-900 px-3 py-1.5 text-xs text-gray-400 flex items-center gap-3">
-            <span>{activeFile.path}</span>
-            {!activeFile.editable && (
-              <span className="px-1.5 py-0.5 rounded bg-gray-800 text-gray-500 text-[10px]">
-                read-only
-              </span>
-            )}
-          </div>
-          <div ref={containerRef} className="flex-1" />
+        {/* Editor + result. Horizontal split on md+, vertical on
+            small screens. react-resizable-panels reads `direction`
+            once at mount, so we key on the breakpoint to remount when
+            it changes. */}
+        <div className="flex-1 overflow-hidden">
+          <Group
+            key={isWide ? "h" : "v"}
+            orientation={isWide ? "horizontal" : "vertical"}
+            className="h-full w-full flex"
+            style={{ flexDirection: isWide ? "row" : "column" }}
+          >
+            <Panel id="editor" defaultSize="62%" minSize="25%">
+              <div className="h-full w-full flex flex-col">
+                <div className="border-b border-gray-800 bg-gray-900 px-3 py-1.5 text-xs text-gray-400 flex items-center gap-3 shrink-0">
+                  <span>{activeFile.path}</span>
+                  {!activeFile.editable && (
+                    <span className="px-1.5 py-0.5 rounded bg-gray-800 text-gray-500 text-[10px]">
+                      read-only
+                    </span>
+                  )}
+                </div>
+                <div ref={containerRef} className="flex-1 min-h-0" />
+              </div>
+            </Panel>
 
-          <div className="border-t border-gray-800 bg-gray-900 max-h-[40%] overflow-y-auto">
-            <div className="px-4 py-2 border-b border-gray-800 text-xs font-medium text-gray-400 uppercase tracking-wide">
-              Output
-            </div>
-            <pre className="px-4 py-3 text-xs font-mono whitespace-pre-wrap">
-              {error ? (
-                <span className="text-red-400">{error}</span>
-              ) : output ? (
-                <span className="text-gray-200">{output}</span>
-              ) : (
-                <span className="text-gray-500">Click Run to execute the widget.</span>
-              )}
-            </pre>
-          </div>
+            <Separator
+              className={
+                isWide
+                  ? "w-1 bg-gray-800 hover:bg-blue-600 transition-colors cursor-col-resize"
+                  : "h-1 bg-gray-800 hover:bg-blue-600 transition-colors cursor-row-resize"
+              }
+            />
+
+            <Panel id="output" defaultSize="38%" minSize="15%">
+              <div className="h-full w-full flex flex-col bg-gray-900">
+                <div className="px-4 py-2 border-b border-gray-800 text-xs font-medium text-gray-400 uppercase tracking-wide shrink-0">
+                  Output
+                </div>
+                <pre className="flex-1 min-h-0 overflow-auto px-4 py-3 text-xs font-mono whitespace-pre-wrap">
+                  {error ? (
+                    <span className="text-red-400">{error}</span>
+                  ) : output ? (
+                    <span className="text-gray-200">{output}</span>
+                  ) : (
+                    <span className="text-gray-500">Click Run to execute the widget.</span>
+                  )}
+                </pre>
+              </div>
+            </Panel>
+          </Group>
         </div>
       </div>
     </main>
   );
+}
+
+// Tracks viewport width for the resizable-panel direction switch.
+function useIsWide(breakpointPx = 768): boolean {
+  const [wide, setWide] = useState(
+    typeof window === "undefined" ? true : window.innerWidth >= breakpointPx,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(min-width: ${breakpointPx}px)`);
+    const onChange = () => setWide(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [breakpointPx]);
+  return wide;
 }
 
 // --- File tree ---

@@ -15,7 +15,6 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
-    "typegres": "file:..",
     "@electric-sql/pglite": "^0.4.4",
     "@monaco-editor/react": "^4.7.0",
     "lucide-react": "^0.515.0",
@@ -25,7 +24,9 @@
     "prism-react-renderer": "^2.4.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "sql-formatter": "^15.6.6"
+    "react-resizable-panels": "^4.11.0",
+    "sql-formatter": "^15.6.6",
+    "typegres": "file:.."
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.4",
