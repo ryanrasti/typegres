@@ -8,8 +8,7 @@
 // downstream methods on the row can reach the principal via
 // `Orders.contextOf(this)` without re-threading.
 
-import { tool, type Database, type Int8 } from "typegres";
-import { RpcClient, inMemoryChannel } from "typegres/exoeval";
+import { RpcClient, inMemoryChannel, tool, type Database, type Int8 } from "typegres";
 import { db } from "../runtime";
 import { Operators } from "../schema/operators";
 import { Customers } from "../schema/customers";

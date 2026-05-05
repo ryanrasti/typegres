@@ -12,7 +12,7 @@
 // — it's structurally impossible.
 
 import { describe, test, expect, beforeAll } from "vitest";
-import { RpcClient, inMemoryChannel } from "typegres/exoeval";
+import { RpcClient, inMemoryChannel } from "typegres";
 import { db } from "../db";
 import { Api } from "./api";
 
