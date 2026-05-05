@@ -120,7 +120,6 @@ export class Api extends RpcTarget {
       rightLabel: "frontend.tsx",
       leftLanguage: "typescript",
       rightLanguage: "tsx",
-      badge: "Coming Soon",
     },
   ];
 
@@ -560,15 +559,23 @@ export class Api extends RpcTarget {
                     Q: How does the RPC layer actually work?
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                    Using the amazing{" "}
+                    A highly constrained interpreter that evaluates untrusted code (the same shape as
+                    {" "}codemode for AI agents), inspired by{" "}
                     <a
                       href="https://github.com/cloudflare/capnweb"
                       className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium transition-colors"
                     >
                       Cap&apos;n Web
+                    </a>
+                    . The client serializes a closure that composes over a set of classes/methods, and the
+                    server evaluates it in a single RPC call. There&apos;s also a{" "}
+                    <a
+                      href="https://github.com/cloudflare/capnweb/pull/162"
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium transition-colors"
+                    >
+                      PR
                     </a>{" "}
-                    project. It enables an RPC layer that naturally allows composing over a set of classes/methods
-                    safely in a single RPC call.
+                    in flight to make Cap&apos;n Web itself work as a transport for Typegres.
                   </p>
                 </div>
                 <div>
