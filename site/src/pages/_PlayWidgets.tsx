@@ -12,8 +12,11 @@ import { client } from "@/demo/server/api";
 
 const rpc = client.run.bind(client);
 
-export const ORDERS_PATH = "widgets/orders.ts";
-export const INVENTORY_PATH = "widgets/inventory.ts";
+// Re-export from _PlayPaths so existing widget consumers don't
+// break; the constants themselves live there to keep them out of
+// the PGlite-bound dep chain.
+export { ORDERS_PATH, INVENTORY_PATH } from "./_PlayPaths";
+import { ORDERS_PATH, INVENTORY_PATH } from "./_PlayPaths";
 
 const ORDERS_URI = monaco.Uri.parse(`file:///${ORDERS_PATH}`);
 const INVENTORY_URI = monaco.Uri.parse(`file:///${INVENTORY_PATH}`);

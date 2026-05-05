@@ -10,9 +10,8 @@ import * as monaco from "monaco-editor";
 import { client, setCurrentUserToken } from "@/demo/server/api";
 import { transformCodeWithEsbuild } from "@/lib/monaco-typegres-integration";
 import { SyntaxHighlight } from "@/components/SyntaxHighlight";
+import { ORDERS_PATH, INVENTORY_PATH } from "./_PlayPaths";
 import {
-  ORDERS_PATH,
-  INVENTORY_PATH,
   OrdersWidget,
   InventoryWidget,
   UserPicker,

@@ -9,6 +9,7 @@ import { InsertBuilder } from "./builder/insert";
 import { UpdateBuilder } from "./builder/update";
 import { DeleteBuilder } from "./builder/delete";
 import { Bus, type Subscription, type BusOptions } from "./live/bus";
+import { eventsTableSqlStatements } from "./live/events-ddl";
 import { runLiveIteration } from "./live/extractor";
 import { parseSnapshot } from "./live/snapshot";
 
@@ -229,8 +230,11 @@ export class Database<C = undefined> {
     // Idempotent: ensures `_typegres_live_events` exists before the bus
     // starts polling it. Tables that opt into events via the live
     // transformer write here on every mutation.
-    const { TypegresLiveEvents } = await import("./live/events");
-    for (const stmt of TypegresLiveEvents.createTableSqlStatements()) {
+    //
+    // Static import via the standalone DDL module — `events.ts` itself
+    // sits in a cycle with `database.ts` through Table → insert
+    // builders, which manifests as a TDZ in chunked prod bundles.
+    for (const stmt of eventsTableSqlStatements()) {
       await this.driver.execute(stmt);
     }
     this.#bus = new Bus(this.driver, opts);

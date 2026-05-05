@@ -33,7 +33,7 @@ import apiSrc from "@/demo/server/api.ts?raw";
 import ordersWidgetSrc from "@/demo/widgets/orders.ts?raw";
 import inventoryWidgetSrc from "@/demo/widgets/inventory.ts?raw";
 
-import { ORDERS_PATH, INVENTORY_PATH } from "./_PlayWidgets";
+import { ORDERS_PATH, INVENTORY_PATH } from "./_PlayPaths";
 
 // Lazy: imports `client` (which transitively awaits PGlite). Until
 // resolved, the parent Suspense shows a "booting" message.

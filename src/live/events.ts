@@ -6,12 +6,13 @@ import type { DeleteBuilder } from "../builder/delete";
 import type { UpdateBuilder} from "../builder/update";
 import { compileSetClauses } from "../builder/update";
 import { compileSelectList, type RowType } from "../builder/query";
+import { EVENTS_TABLE_NAME, eventsTableSqlStatements } from "./events-ddl";
 
 // Shadow table that captures every mutation against a "live"-enabled table.
 // `makeTransformer` returns the per-op hook other tables opt in to:
 //   class Foos extends Table("foos", { transformer: TypegresLiveEvents.makeTransformer() })
 // The events class itself carries no transformer (would recurse).
-export class TypegresLiveEvents extends Table("_typegres_live_events") {
+export class TypegresLiveEvents extends Table(EVENTS_TABLE_NAME) {
   private id = (Int8<1>).column({ nonNull: true, generated: true });
   private xid = (Xid8<1>).column({ nonNull: true });
   private table = (Text<1>).column({ nonNull: true });
@@ -19,36 +20,15 @@ export class TypegresLiveEvents extends Table("_typegres_live_events") {
   private after = (Jsonb<0 | 1>).column();
   private inserted_at = (Timestamptz<1>).column({ nonNull: true });
 
-  // Single-statement form. Some drivers (notably PGlite, which uses
-  // prepared statements) reject multi-statement DDL, so the table and
-  // its index are returned as separate sql nodes — callers iterate.
+  // The DDL itself lives in `./events-ddl.ts` so it can be imported
+  // without dragging the full Table → builder cycle through. Re-
+  // exported here for backwards compatibility with consumers that
+  // already call `TypegresLiveEvents.createTableSql{,Statements}`.
   static createTableSql(): Sql {
-    return sql.join(this.createTableSqlStatements(), sql`; `);
+    return sql.join(eventsTableSqlStatements(), sql`; `);
   }
-
   static createTableSqlStatements(): Sql[] {
-    return [
-      sql`
-        CREATE TABLE IF NOT EXISTS ${sql.ident(this.tableName)} (
-          id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-          xid xid8 NOT NULL,
-          -- before/after are jsonb objects keyed by column name with
-          -- values rendered as text — same canonicalization the
-          -- extractor uses, so the bus matcher doesn't need per-type
-          -- coercion.
-          "table" text NOT NULL,
-          before jsonb,
-          after jsonb,
-          -- Wall-clock stamp; not load-bearing for correctness
-          -- (matching is xid-based) — used for retention policies and
-          -- human-readable ordering when debugging.
-          inserted_at timestamptz NOT NULL DEFAULT clock_timestamp()
-        )
-      `,
-      // Supports the bus range scan on xid >= cursor.xmin, bounding
-      // visibility-filter work to recent / concurrent xids.
-      sql`CREATE INDEX IF NOT EXISTS ${sql.ident(`${this.tableName}_xid_idx`)} ON ${sql.ident(this.tableName)} (xid)`,
-    ];
+    return eventsTableSqlStatements();
   }
 
   static makeTransformer(): QueryTransformer {

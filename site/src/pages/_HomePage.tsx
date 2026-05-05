@@ -128,25 +128,9 @@ export class Api extends RpcTarget {
     <>
       <DarkModeToggle />
 
-      {/* Experimental Banner */}
-      <div className="fixed top-0 left-0 right-0 z-[100] bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          <p className="text-sm text-yellow-800 dark:text-yellow-300 text-center">
-            🧪 Experimental | The RPC layer is under active development. Not ready for production use.{" "}
-            <a
-              href="https://github.com/ryanrasti/typegres"
-              className="font-medium underline hover:text-yellow-900 dark:hover:text-yellow-200 transition-colors"
-            >
-              Star on GitHub for updates →
-            </a>
-          </p>
-        </div>
-      </div>
-
       {/* Fixed Header */}
       <header
         className="fixed top-0 left-0 right-0 z-[90] backdrop-blur-md bg-white/80 dark:bg-gray-950/80 border-b border-gray-200 dark:border-gray-800"
-        style={{ top: "2.5rem" }}
       >
         <nav className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 h-14">
           <a href="/" className="flex items-center gap-2 group">
@@ -182,7 +166,7 @@ export class Api extends RpcTarget {
       </header>
 
       {/* Main Content */}
-      <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 pt-24">
+      <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 pt-16">
         {/* Hero Section */}
         <section className="relative overflow-hidden">
           <div className="absolute inset-0 bg-grid-gray-100 dark:bg-grid-gray-800 [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]" />
