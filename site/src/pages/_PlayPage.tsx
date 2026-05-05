@@ -13,7 +13,7 @@ import TsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker"
 import runtimeSrc from "@/demo/runtime.ts?raw";
 import seedSrc from "@/demo/seed.ts?raw";
 import organizationsSrc from "@/demo/schema/organizations.ts?raw";
-import operatorsSrc from "@/demo/schema/operators.ts?raw";
+import usersSrc from "@/demo/schema/users.ts?raw";
 import locationsSrc from "@/demo/schema/locations.ts?raw";
 import customersSrc from "@/demo/schema/customers.ts?raw";
 import inventoryPositionsSrc from "@/demo/schema/inventory_positions.ts?raw";
@@ -26,7 +26,7 @@ import widgetSrc from "@/demo/widgets/main.ts?raw";
 // Runtime modules — give the eval'd widget code something real to run
 // against. Importing rpc.ts pulls in db + Api transitively (and runs
 // migrations + seed via runtime.ts's top-level await).
-import { client } from "@/demo/server/api";
+import { client, setCurrentUserToken } from "@/demo/server/api";
 
 const rpc = client.run.bind(client);
 
@@ -60,7 +60,7 @@ const FILES: FileNode[] = [
   { path: "runtime.ts",                   content: runtimeSrc,            editable: false, uri: monaco.Uri.parse("file:///runtime.ts") },
   { path: "seed.ts",                      content: seedSrc,               editable: false, uri: monaco.Uri.parse("file:///seed.ts") },
   { path: "schema/organizations.ts",      content: organizationsSrc,      editable: false, uri: monaco.Uri.parse("file:///schema/organizations.ts") },
-  { path: "schema/operators.ts",          content: operatorsSrc,          editable: false, uri: monaco.Uri.parse("file:///schema/operators.ts") },
+  { path: "schema/users.ts",              content: usersSrc,              editable: false, uri: monaco.Uri.parse("file:///schema/users.ts") },
   { path: "schema/locations.ts",          content: locationsSrc,          editable: false, uri: monaco.Uri.parse("file:///schema/locations.ts") },
   { path: "schema/customers.ts",          content: customersSrc,          editable: false, uri: monaco.Uri.parse("file:///schema/customers.ts") },
   { path: "schema/inventory_positions.ts",content: inventoryPositionsSrc, editable: false, uri: monaco.Uri.parse("file:///schema/inventory_positions.ts") },
@@ -80,14 +80,18 @@ export default function PlayPage() {
   const [output, setOutput] = useState<unknown>(undefined);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string>("");
-  const [opToken, setOpToken] = useState<OpToken>("op_brightship_alice");
+  const [userToken, setUserToken] = useState<UserToken>("user_brightship_alice");
   const [statusFilter, setStatusFilter] = useState<readonly Status[]>([]);
   const [groupBy, setGroupBy] = useState<GroupByCol>("status");
   const [orderBy, setOrderBy] = useState<OrderByCol>("status");
   const [orderDir, setOrderDir] = useState<OrderDir>("asc");
   const [live, setLive] = useState(true);
-  const [insertedOnce, setInsertedOnce] = useState(false);
-  const [advancedOnce, setAdvancedOnce] = useState(false);
+  // Auto-cycle toggles. Default on so a visitor lands on a moving
+  // table without having to touch anything; clicking either toggle
+  // pauses that side of the cycle.
+  const [autoInsert, setAutoInsert] = useState(true);
+  const [autoAdvance, setAutoAdvance] = useState(true);
+  const [showFiles, setShowFiles] = useState(false);
   const iterRef = useRef<AsyncIterator<unknown> | null>(null);
   const autoRanRef = useRef(false);
   const [modelsReady, setModelsReady] = useState(false);
@@ -104,7 +108,7 @@ export default function PlayPage() {
     if (!modelsReady) return;
     const widgetModel = monaco.editor.getModel(FILES[0]!.uri);
     if (!widgetModel) return;
-    const next = stampWidget(widgetModel.getValue(), { opToken, statusFilter, groupBy, orderBy, orderDir, live });
+    const next = stampWidget(widgetModel.getValue(), { userToken, statusFilter, groupBy, orderBy, orderDir, live });
     if (next === widgetModel.getValue()) return;
     widgetModel.setValue(next);
     if (running) {
@@ -114,7 +118,7 @@ export default function PlayPage() {
       })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opToken, statusFilter, groupBy, orderBy, orderDir, live, modelsReady]);
+  }, [userToken, statusFilter, groupBy, orderBy, orderDir, live, modelsReady]);
 
   // One-time Monaco setup: TS compiler options, typegres types, models.
   useEffect(() => {
@@ -185,7 +189,8 @@ declare function output(value: unknown): void;
         theme: "vs-dark",
         automaticLayout: true,
         minimap: { enabled: false },
-        fontSize: 13,
+        fontSize: 15,
+        lineHeight: 22,
         readOnly: !activeFile.editable,
         scrollBeyondLastLine: false,
       });
@@ -227,27 +232,66 @@ declare function output(value: unknown): void;
   // effects propagate to any active live iterator (which then yields
   // a new snapshot and the table re-renders with row flashes).
   const insertOrder = async () => {
-    setInsertedOnce(true);
     try {
-      await rpc(async (api, { token }: { token: string }) => {
-        const op = await api.operator(token);
-        return op.insertDraftOrder(api.db);
-      }, { token: opToken });
+      await rpc(async (api) => (await api.currentUser()).insertDraftOrder(api.db));
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
     }
   };
   const advanceRandom = async () => {
-    setAdvancedOnce(true);
     try {
-      await rpc(async (api, { token }: { token: string }) => {
-        const op = await api.operator(token);
-        return op.advanceRandom(api.db);
-      }, { token: opToken });
+      await rpc(async (api) => (await api.currentUser()).advanceRandom(api.db));
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
     }
   };
+
+  // Mirror the dropdown into the api's ambient current-user token so
+  // `api.currentUser()` calls inside widget closures resolve to it.
+  useEffect(() => {
+    setCurrentUserToken(userToken);
+  }, [userToken]);
+
+  // Two independent self-rescheduling timers. Each picks a random
+  // delay in [7.5s, 22.5s] so the cycle feels organic instead of
+  // metronomic, with staggered initial offsets so the two don't
+  // bunch up on the first tick. Toggling the gate restarts the loop
+  // with the new value visible.
+  useEffect(() => {
+    if (!autoInsert) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const tick = async () => {
+      if (stopped) return;
+      await insertOrder();
+      if (stopped) return;
+      timer = setTimeout(tick, 7500 + Math.random() * 15000);
+    };
+    timer = setTimeout(tick, 3000 + Math.random() * 4000);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoInsert, userToken]);
+
+  useEffect(() => {
+    if (!autoAdvance) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const tick = async () => {
+      if (stopped) return;
+      await advanceRandom();
+      if (stopped) return;
+      timer = setTimeout(tick, 7500 + Math.random() * 15000);
+    };
+    timer = setTimeout(tick, 7000 + Math.random() * 4000);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAdvance, userToken]);
 
   // Auto-start on first load — `live` is on by default, so users land
   // on a streaming table without having to hit Watch.
@@ -356,10 +400,14 @@ declare function output(value: unknown): void;
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* File tree */}
-        <aside className="w-60 border-r border-gray-800 bg-gray-900 overflow-y-auto p-2 text-sm">
-          <FileTree files={FILES} active={activePath} onPick={setActivePath} />
-        </aside>
+        {/* File tree — collapsed by default. The visitor's first
+            impression should be code + output; the rest of the
+            backend is one click away. */}
+        {showFiles && (
+          <aside className="w-60 border-r border-gray-800 bg-gray-900 overflow-y-auto p-2 text-sm">
+            <FileTree files={FILES} active={activePath} onPick={setActivePath} />
+          </aside>
+        )}
 
         {/* Editor + result. Horizontal split on md+, vertical on
             small screens. react-resizable-panels reads `direction`
@@ -372,9 +420,17 @@ declare function output(value: unknown): void;
             className="h-full w-full flex"
             style={{ flexDirection: isWide ? "row" : "column" }}
           >
-            <Panel id="editor" defaultSize="62%" minSize="25%">
+            <Panel id="editor" defaultSize="50%" minSize="25%">
               <div className="h-full w-full flex flex-col">
-                <div className="border-b border-gray-800 bg-gray-900 px-3 py-1.5 text-xs text-gray-400 flex items-center gap-3 shrink-0">
+                <div className="border-b border-gray-800 bg-gray-900 px-3 py-1.5 text-xs text-gray-400 flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setShowFiles((v) => !v)}
+                    className="text-gray-500 hover:text-gray-200 px-1 -ml-1"
+                    title={showFiles ? "Hide backend files" : "Show backend files (schemas, server, runtime)"}
+                    aria-label={showFiles ? "Hide files" : "Show files"}
+                  >
+                    {showFiles ? "▾" : "▸"}
+                  </button>
                   <span>{activeFile.path}</span>
                   {!activeFile.editable && (
                     <span className="px-1.5 py-0.5 rounded bg-gray-800 text-gray-500 text-[10px]">
@@ -382,22 +438,6 @@ declare function output(value: unknown): void;
                     </span>
                   )}
                 </div>
-                {activeFile.editable && (
-                  <WidgetControls
-                    opToken={opToken}
-                    statusFilter={statusFilter}
-                    groupBy={groupBy}
-                    orderBy={orderBy}
-                    orderDir={orderDir}
-                    live={live}
-                    onOpToken={setOpToken}
-                    onStatusFilter={setStatusFilter}
-                    onGroupBy={setGroupBy}
-                    onOrderBy={setOrderBy}
-                    onOrderDir={setOrderDir}
-                    onLive={setLive}
-                  />
-                )}
                 <div ref={containerRef} className="flex-1 min-h-0" />
               </div>
             </Panel>
@@ -410,8 +450,22 @@ declare function output(value: unknown): void;
               }
             />
 
-            <Panel id="output" defaultSize="38%" minSize="15%">
+            <Panel id="output" defaultSize="50%" minSize="15%">
               <div className="h-full w-full flex flex-col bg-gray-900">
+                <WidgetControls
+                  userToken={userToken}
+                  statusFilter={statusFilter}
+                  groupBy={groupBy}
+                  orderBy={orderBy}
+                  orderDir={orderDir}
+                  live={live}
+                  onUserToken={setUserToken}
+                  onStatusFilter={setStatusFilter}
+                  onGroupBy={setGroupBy}
+                  onOrderBy={setOrderBy}
+                  onOrderDir={setOrderDir}
+                  onLive={setLive}
+                />
                 <div className="px-4 py-2 border-b border-gray-800 text-xs font-medium text-gray-400 uppercase tracking-wide shrink-0 flex items-center gap-3">
                   <span>Output</span>
                   {running && live && (
@@ -421,28 +475,20 @@ declare function output(value: unknown): void;
                     </span>
                   )}
                   <div className="ml-auto flex items-center gap-2">
-                    <button
-                      onClick={insertOrder}
-                      className={`text-[11px] normal-case px-2 py-0.5 rounded border transition-colors ${
-                        insertedOnce
-                          ? "border-gray-700 hover:border-blue-500 text-gray-300 hover:text-white"
-                          : "border-blue-500 bg-blue-600/30 text-white animate-pulse-slow ring-2 ring-blue-500/40"
-                      }`}
-                      title="Inserts a draft order in the current operator's tenant"
+                    <ToggleButton
+                      active={autoInsert}
+                      onClick={() => setAutoInsert((v) => !v)}
+                      title="Auto-insert a draft order every few seconds. Click to pause."
                     >
-                      + Insert order
-                    </button>
-                    <button
-                      onClick={advanceRandom}
-                      className={`text-[11px] normal-case px-2 py-0.5 rounded border transition-colors ${
-                        advancedOnce
-                          ? "border-gray-700 hover:border-blue-500 text-gray-300 hover:text-white"
-                          : "border-blue-500 bg-blue-600/30 text-white animate-pulse-slow ring-2 ring-blue-500/40"
-                      }`}
-                      title="Picks a non-delivered order and advances its lifecycle one step"
+                      + auto-insert
+                    </ToggleButton>
+                    <ToggleButton
+                      active={autoAdvance}
+                      onClick={() => setAutoAdvance((v) => !v)}
+                      title="Auto-advance a random non-delivered order every few seconds. Click to pause."
                     >
-                      ↻ Advance random
-                    </button>
+                      ↻ auto-advance
+                    </ToggleButton>
                   </div>
                 </div>
                 <div className="flex-1 min-h-0 overflow-auto">
@@ -660,12 +706,12 @@ const Cell = ({ value }: { value: unknown }) => {
 // click. Anything outside the block (imports, comments) is left
 // untouched.
 
-const OP_TOKENS = [
-  { value: "op_brightship_alice", label: "Alice — Brightship (ops_lead)" },
-  { value: "op_brightship_bob",   label: "Bob — Brightship (inventory_control)" },
-  { value: "op_atlas_dave",       label: "Dave — Atlas (ops_lead)" },
+const USER_TOKENS = [
+  { value: "user_brightship_alice", label: "Alice — Brightship (ops_lead)" },
+  { value: "user_brightship_bob",   label: "Bob — Brightship (inventory_control)" },
+  { value: "user_atlas_dave",       label: "Dave — Atlas (ops_lead)" },
 ] as const;
-type OpToken = (typeof OP_TOKENS)[number]["value"];
+type UserToken = (typeof USER_TOKENS)[number]["value"];
 
 const STATUSES = ["draft", "confirmed", "picking", "packed", "shipped", "delivered"] as const;
 type Status = (typeof STATUSES)[number];
@@ -680,14 +726,14 @@ const ORDER_DIRS = ["asc", "desc"] as const;
 type OrderDir = (typeof ORDER_DIRS)[number];
 
 function generateRpcBlock({
-  opToken,
+  userToken,
   statusFilter,
   groupBy,
   orderBy,
   orderDir,
   live,
 }: {
-  opToken: OpToken;
+  userToken: UserToken;
   statusFilter: readonly Status[];
   groupBy: GroupByCol;
   orderBy: OrderByCol;
@@ -734,18 +780,20 @@ function generateRpcBlock({
   const terminator = live ? "live" : "execute";
 
   return `const result = client.run(async (api) => {
-  const op = await api.operator(${JSON.stringify(opToken)});
+  // This code is serialized and then (safely) run over RPC.
 
-  // \`op.orders()\` is pre-\`where\`'d to op's organization. Switch the
-  // operator above — same query, different scope, different data.
-  return op.orders()${statusLine}${groupByLine}${orderByLine}
+  // \`user\` is whoever's selected in the dropdown on the right.
+  //  it scopes all operations to the current user.
+  const user = await api.currentUser();
+  //  ... e.g. user.orders() automatically has a
+  //          \`where organization_id = ?\` inserted into it
+  //           so it is scoped to the current user.
+  return user.orders()${statusLine}${groupByLine}${orderByLine}
     .select(({ orders }) => (${selectBody}))
     .${terminator}(api.db);
 });
 
-// Hand the result to the play page's output panel. Promises render
-// as a one-shot table; AsyncIterables (\`.live(api.db)\` above) keep
-// streaming until you click Stop.
+// Render the result in the table on the right:
 output(result);`;
 }
 
@@ -754,12 +802,11 @@ output(result);`;
 // unchanged — controls go inert rather than corrupting the file.
 function stampWidget(
   src: string,
-  opts: { opToken: OpToken; statusFilter: readonly Status[]; groupBy: GroupByCol; orderBy: OrderByCol; orderDir: OrderDir; live: boolean },
+  opts: { userToken: UserToken; statusFilter: readonly Status[]; groupBy: GroupByCol; orderBy: OrderByCol; orderDir: OrderDir; live: boolean },
 ): string {
   const next = generateRpcBlock(opts);
   // Match `const result = client.run(async (api) => …);\noutput(result);`
-  // anchored at column 0 (avoids the backticked occurrences in the
-  // doc comment).
+  // anchored at column 0.
   const re = /^const result = client\.run\(async \(api\)[\s\S]*?^output\(result\);?/m;
   if (!re.test(src)) return src;
   return src.replace(re, next);
@@ -768,26 +815,26 @@ function stampWidget(
 // --- Widget controls ---
 
 const WidgetControls = ({
-  opToken,
+  userToken,
   statusFilter,
   groupBy,
   orderBy,
   orderDir,
   live,
-  onOpToken,
+  onUserToken,
   onStatusFilter,
   onGroupBy,
   onOrderBy,
   onOrderDir,
   onLive,
 }: {
-  opToken: OpToken;
+  userToken: UserToken;
   statusFilter: readonly Status[];
   groupBy: GroupByCol;
   orderBy: OrderByCol;
   orderDir: OrderDir;
   live: boolean;
-  onOpToken: (v: OpToken) => void;
+  onUserToken: (v: UserToken) => void;
   onStatusFilter: (v: readonly Status[]) => void;
   onGroupBy: (v: GroupByCol) => void;
   onOrderBy: (v: OrderByCol) => void;
@@ -799,13 +846,13 @@ const WidgetControls = ({
   };
   return (
     <div className="border-b border-gray-800 bg-gray-900/60 px-3 py-2 flex flex-wrap items-center gap-x-4 gap-y-2 shrink-0">
-      <Field label="operator">
+      <Field label="user">
         <select
-          value={opToken}
-          onChange={(e) => onOpToken(e.target.value as OpToken)}
+          value={userToken}
+          onChange={(e) => onUserToken(e.target.value as UserToken)}
           className="bg-gray-800 text-gray-200 text-xs rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-blue-500"
         >
-          {OP_TOKENS.map((o) => (
+          {USER_TOKENS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
@@ -882,6 +929,30 @@ const WidgetControls = ({
     </div>
   );
 };
+
+const ToggleButton = ({
+  active,
+  onClick,
+  title,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title?: string;
+  children: ReactNode;
+}) => (
+  <button
+    onClick={onClick}
+    title={title}
+    className={`text-[11px] normal-case px-2 py-0.5 rounded border transition-colors ${
+      active
+        ? "border-blue-500 bg-blue-600/30 text-white"
+        : "border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-300"
+    }`}
+  >
+    {children}
+  </button>
+);
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <label className="flex items-center gap-2 text-[11px] text-gray-400 uppercase tracking-wide">

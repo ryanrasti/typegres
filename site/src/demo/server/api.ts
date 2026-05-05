@@ -1,16 +1,16 @@
 // Capability-rooted API.
 //
-// Wire root: `Api`. Its only method is `operator(token)` — caller
-// awaits to get an `OperatorRoot`, then composes scoped reads
-// (`op.orders().where(...)`) and chains row-level actions
-// (`order.advance()`). Every row hydrated from `op.orders()` carries
-// `op` as its context (via `Orders.scope(op)` at query time), so
+// Wire root: `Api`. Its only method is `user(token)` — caller awaits
+// to get a `UserRoot`, then composes scoped reads
+// (`u.orders().where(...)`) and chains row-level actions
+// (`order.advance()`). Every row hydrated from `u.orders()` carries
+// `u` as its context (via `Orders.scope(u)` at query time), so
 // downstream methods on the row can reach the principal via
 // `Orders.contextOf(this)` without re-threading.
 
 import { RpcClient, inMemoryChannel, tool, type Database, type Int8 } from "typegres";
 import { db } from "../runtime";
-import { Operators } from "../schema/operators";
+import { Users } from "../schema/users";
 import { Customers } from "../schema/customers";
 import { Orders } from "../schema/orders";
 import { OrderLines } from "../schema/order_lines";
@@ -21,24 +21,24 @@ import { Locations } from "../schema/locations";
 export type Role = "ops_lead" | "inventory_control" | "account_manager";
 
 // The principal type. Pure identity — no infrastructure handles. Every
-// scoped query carries an OperatorRoot as its context tag; every row
+// scoped query carries a UserRoot as its context tag; every row
 // hydrated from such a query exposes it via `<Table>.contextOf(row)`.
 // Row action methods (`Orders.advance(db)` etc.) take a `db` argument
 // explicitly — the executor is the caller's responsibility, not the
 // principal's.
-export class OperatorRoot {
-  @tool() operatorId: string;
+export class UserRoot {
+  @tool() userId: string;
   @tool() organizationId: string;
   @tool() role: Role;
   @tool() name: string;
 
   constructor(opts: {
-    operatorId: string;
+    userId: string;
     organizationId: string;
     role: Role;
     name: string;
   }) {
-    this.operatorId = opts.operatorId;
+    this.userId = opts.userId;
     this.organizationId = opts.organizationId;
     this.role = opts.role;
     this.name = opts.name;
@@ -46,7 +46,7 @@ export class OperatorRoot {
 
   // Scoped reads. Each returns a QueryBuilder pre-`where`'d to this
   // org and tagged with `this` as its context. Hydrated rows carry
-  // the operator forward through every relation traversal.
+  // the user forward through every relation traversal.
   @tool() customers() {
     return Customers.scope(this).where(({ customers }) => customers.organization_id["="](this.organizationId));
   }
@@ -70,11 +70,11 @@ export class OperatorRoot {
       );
   }
 
-  // Demo mutation. Picks a non-terminal order in op's tenant and runs
-  // its `.advance()` lifecycle step. Returns null if there's nothing
-  // advanceable. Role gate happens inside Orders.advance().
+  // Demo mutation. Picks a non-terminal order in this user's tenant
+  // and runs its `.advance()` lifecycle step. Returns null if there's
+  // nothing advanceable. Role gate happens inside Orders.advance().
   @tool.unchecked()
-  async advanceRandom(db: Database<OperatorRoot>): Promise<{ id: string; status: string } | null> {
+  async advanceRandom(db: Database<UserRoot>): Promise<{ id: string; status: string } | null> {
     const [row] = await this.orders()
       .where(({ orders }) => orders.status["<>"]("delivered"))
       .limit(1)
@@ -83,16 +83,17 @@ export class OperatorRoot {
     return row.advance(db);
   }
 
-  // Demo mutation. Inserts a fresh `draft` order for one of op's
-  // customers. Role-gated like the other writes; tenant comes from
-  // the principal — no free-form `organization_id` from the wire.
+  // Demo mutation. Inserts a fresh `draft` order for one of this
+  // user's customers. Role-gated like the other writes; tenant comes
+  // from the principal — no free-form `organization_id` from the wire.
   @tool.unchecked()
-  async insertDraftOrder(db: Database<OperatorRoot>): Promise<{ id: string }> {
+  async insertDraftOrder(db: Database<UserRoot>): Promise<{ id: string }> {
     if (this.role !== "ops_lead") {
       throw new Error(`role '${this.role}' cannot insert orders (ops_lead required)`);
     }
-    // Pick any customer in op's tenant — we don't expose `customer_id`
-    // selection to the wire to keep this a one-click demo action.
+    // Pick any customer in the user's tenant — we don't expose
+    // `customer_id` selection to the wire to keep this a one-click
+    // demo action.
     const [cust] = await this.customers()
       .select(({ customers }) => ({ id: customers.id }))
       .execute(db);
@@ -110,10 +111,20 @@ export class OperatorRoot {
 }
 
 export class Api {
-  @tool() db: Database<OperatorRoot>;
+  @tool() db: Database<UserRoot>;
 
-  constructor(db: Database<OperatorRoot>) {
+  // Server-side ambient: who's "logged in" for this RPC. In the
+  // playground the right-pane operator dropdown writes here; in a
+  // real deployment this would be set per-request from the auth
+  // cookie / bearer token. Widgets read it via `api.currentUser()`.
+  #currentUserToken: string | null = null;
+
+  constructor(db: Database<UserRoot>) {
     this.db = db;
+  }
+
+  setCurrentUserToken(token: string | null): void {
+    this.#currentUserToken = token;
   }
 
   // Demo stop-button hook. `db.stopLive()` cancels every active
@@ -128,28 +139,38 @@ export class Api {
     await this.db.startLive();
   }
 
-  // Single auth gate. Caller awaits to materialize an OperatorRoot,
-  // then chains scoped reads / row actions inside the same async wire
-  // closure. Throws on unknown token.
+  // The principal for this RPC, resolved from the ambient
+  // current-user token. Same shape as `user(token)`; the widget
+  // doesn't need to know any tokens — they're chosen by the page UI.
   @tool.unchecked()
-  async operator(token: string): Promise<OperatorRoot> {
-    const [op] = await Operators.from()
-      .where(({ operators }) => operators.token["="](token))
-      .select(({ operators }) => ({
-        id: operators.id,
-        organization_id: operators.organization_id,
-        name: operators.name,
-        role: operators.role,
+  async currentUser(): Promise<UserRoot> {
+    const token = this.#currentUserToken;
+    if (!token) throw new Error("no current user — page UI hasn't set one");
+    return this.user(token);
+  }
+
+  // Explicit auth gate by token. Kept alongside `currentUser()` for
+  // server-internal use (e.g. resolving a user from a wire-supplied
+  // bearer token); the demo widget uses `currentUser()`.
+  @tool.unchecked()
+  async user(token: string): Promise<UserRoot> {
+    const [u] = await Users.from()
+      .where(({ users }) => users.token["="](token))
+      .select(({ users }) => ({
+        id: users.id,
+        organization_id: users.organization_id,
+        name: users.name,
+        role: users.role,
       }))
       .execute(this.db);
-    if (!op) {
+    if (!u) {
       throw new Error("invalid token");
     }
-    return new OperatorRoot({
-      operatorId: op.id,
-      organizationId: op.organization_id,
-      role: op.role as Role,
-      name: op.name,
+    return new UserRoot({
+      userId: u.id,
+      organizationId: u.organization_id,
+      role: u.role as Role,
+      name: u.name,
     });
   }
 }
@@ -164,4 +185,11 @@ export class Api {
 // on the server end with `api` bound to a fresh `Api(db)`, and the
 // JSON-serialized result(s) come back as AsyncIterable<string>.
 // Real deployments swap inMemoryChannel for a wire transport.
-export const client: RpcClient<Api> = new RpcClient<Api>(inMemoryChannel(new Api(db)));
+const apiInstance = new Api(db);
+export const client: RpcClient<Api> = new RpcClient<Api>(inMemoryChannel(apiInstance));
+
+// Page-side hook: dropdown change → ambient current-user token. The
+// widget's `api.currentUser()` calls then resolve to whichever user
+// is selected on the right pane.
+export const setCurrentUserToken = (token: string | null): void =>
+  apiInstance.setCurrentUserToken(token);

@@ -1,16 +1,15 @@
-// `client.run(async (api) => ...)` is the wire boundary. The closure
-// is serialized, sent through the channel, evaluated by exoeval with
-// `api` bound to the cap root, and the result comes back as JSON.
-// Pass the result to `output()` and it renders in the panel on the
-// right — Promises render once; AsyncIterables (e.g. `.live(api.db)`)
-// keep streaming until you click Stop.
-
 import { client } from "../server/api";
 
 const result = client.run(async (api) => {
-  const op = await api.operator("op_brightship_alice");
+  // This code is serialized and then (safely) run over RPC.
 
-  return op.orders()
+  // `user` is whoever's selected in the dropdown on the right.
+  //  it scopes all operations to the current user.
+  const user = await api.currentUser();
+  //  ... e.g. user.orders() automatically has a
+  //          `where organization_id = ?` inserted into it
+  //           so it is scoped to the current user.
+  return user.orders()
     .groupBy(({ orders }) => [orders.status])
     .orderBy(({ orders }) => orders.status)
     .select(({ orders }) => ({
@@ -20,4 +19,5 @@ const result = client.run(async (api) => {
     .live(api.db);
 });
 
+// Render the result in the table on the right:
 output(result);

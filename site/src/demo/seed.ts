@@ -4,16 +4,16 @@
 
 import { sql } from "typegres";
 import type { Database } from "typegres";
-import type { OperatorRoot } from "./server/api";
+import type { UserRoot } from "./server/api";
 
-export const runMigrations = async (db: Database<OperatorRoot>) => {
+export const runMigrations = async (db: Database<UserRoot>) => {
   const ddl = [
     sql`CREATE TABLE organizations (
       id   int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       name text NOT NULL,
       slug text NOT NULL UNIQUE
     )`,
-    sql`CREATE TABLE operators (
+    sql`CREATE TABLE users (
       id              int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       organization_id int8 NOT NULL REFERENCES organizations(id),
       name            text NOT NULL,
@@ -72,15 +72,15 @@ export const runMigrations = async (db: Database<OperatorRoot>) => {
   }
 };
 
-export const runSeed = async (db: Database<OperatorRoot>) => {
+export const runSeed = async (db: Database<UserRoot>) => {
   const seeds = [
     sql`INSERT INTO organizations (name, slug) VALUES
       ('BrightShip Logistics', 'brightship'),
       ('Atlas Goods', 'atlas')`,
-    sql`INSERT INTO operators (organization_id, name, email, role, token) VALUES
-      (1, 'Alice', 'alice@brightship.test', 'ops_lead',          'op_brightship_alice'),
-      (1, 'Bob',   'bob@brightship.test',   'inventory_control', 'op_brightship_bob'),
-      (2, 'Dave',  'dave@atlas.test',       'ops_lead',          'op_atlas_dave')`,
+    sql`INSERT INTO users (organization_id, name, email, role, token) VALUES
+      (1, 'Alice', 'alice@brightship.test', 'ops_lead',          'user_brightship_alice'),
+      (1, 'Bob',   'bob@brightship.test',   'inventory_control', 'user_brightship_bob'),
+      (2, 'Dave',  'dave@atlas.test',       'ops_lead',          'user_atlas_dave')`,
     sql`INSERT INTO locations (organization_id, code, name) VALUES
       (1, 'BS-NYC', 'Brightship New York'),
       (1, 'BS-LAX', 'Brightship Los Angeles'),

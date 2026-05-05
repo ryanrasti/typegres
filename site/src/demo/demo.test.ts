@@ -13,7 +13,7 @@ const rpc = client.run.bind(client);
 describe("playground demo: cap-rooted API over exoeval RPC", () => {
   test("scoped read returns only the operator's tenant rows", async () => {
     const alice = await rpc(async (api) => {
-      const op = await api.operator("op_brightship_alice");
+      const op = await api.user("user_brightship_alice");
       return op.orders()
         .select(({ orders }) => ({ id: orders.id, org: orders.organization_id }))
         .execute(api.db);
@@ -22,7 +22,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
     expect(new Set(alice.map((r) => r.org))).toEqual(new Set(["1"]));
 
     const dave = await rpc(async (api) => {
-      const op = await api.operator("op_atlas_dave");
+      const op = await api.user("user_atlas_dave");
       return op.orders()
         .select(({ orders }) => ({ id: orders.id, org: orders.organization_id }))
         .execute(api.db);
@@ -33,7 +33,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
 
   test("status filter via Any.in compiles and matches", async () => {
     const result = await rpc(async (api) => {
-      const op = await api.operator("op_brightship_alice");
+      const op = await api.user("user_brightship_alice");
       return op.orders()
         .where(({ orders }) => orders.status.in("packed", "shipped"))
         .select(({ orders }) => ({ id: orders.id, status: orders.status }))
@@ -46,7 +46,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
 
   test("relation traversal carries scope tag (orders → customer)", async () => {
     const result = await rpc(async (api) => {
-      const op = await api.operator("op_brightship_alice");
+      const op = await api.user("user_brightship_alice");
       return op.orders()
         .select(({ orders }) => ({
           id: orders.id,
@@ -62,7 +62,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
 
   test("groupBy + count aggregates", async () => {
     const result = await rpc(async (api) => {
-      const op = await api.operator("op_brightship_alice");
+      const op = await api.user("user_brightship_alice");
       return op.orders()
         .groupBy(({ orders }) => [orders.status])
         .select(({ orders }) => ({
@@ -79,9 +79,9 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
   });
 
   test("live query re-yields after a mutation against the watched table", async () => {
-    // Start watching orders for op_brightship_alice (org=1).
+    // Start watching orders for user_brightship_alice (org=1).
     const iter = rpc(async (api) => {
-      const op = await api.operator("op_brightship_alice");
+      const op = await api.user("user_brightship_alice");
       return op.orders()
         .where(({ orders }) => orders.status["="]("draft"))
         .select(({ orders }) => ({ id: orders.id }))
@@ -99,7 +99,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
     // wakes the subscription; the iterator yields again with the new
     // row included.
     const inserted = await rpc(async (api) => {
-      const op = await api.operator("op_brightship_alice");
+      const op = await api.user("user_brightship_alice");
       return (await op.insertDraftOrder(api.db)).id;
     });
 
@@ -113,7 +113,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
 
   test("db.live(qb) streams the current rowset over the rpc wire", async () => {
     const iter = rpc(async (api) => {
-      const op = await api.operator("op_brightship_alice");
+      const op = await api.user("user_brightship_alice");
       return op.orders()
         .select(({ orders }) => ({ id: orders.id, status: orders.status }))
         .live(api.db);
@@ -130,7 +130,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
 
   test("stop: cancelling resetLive + iter.return ends the live stream", async () => {
     const iter = rpc(async (api) => {
-      const op = await api.operator("op_brightship_alice");
+      const op = await api.user("user_brightship_alice");
       return op.orders()
         .select(({ orders }) => ({ id: orders.id }))
         .live(api.db);
@@ -161,7 +161,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
   test("invalid token rejects", async () => {
     await expect(
       rpc(async (api) => {
-        const op = await api.operator("op_does_not_exist");
+        const op = await api.user("op_does_not_exist");
         return op.organizationId;
       }),
     ).rejects.toThrow(/invalid token/);

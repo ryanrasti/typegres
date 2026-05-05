@@ -1,8 +1,6 @@
-// Boots PGlite + typegres in the browser, runs migrations + seed,
-// and exposes the exoeval RPC client the widget calls into.
+// Boots PGlite + typegres in the browser, runs migrations + seed.
 // Uses top-level await so schema files can import a ready `db` and
-// define tables at module-eval time — same pattern as
-// `examples/ops-demo/src/db.ts`.
+// define tables at module-eval time.
 
 import { typegres } from "typegres";
 import { runMigrations, runSeed } from "./seed";
