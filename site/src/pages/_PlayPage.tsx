@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as monaco from "monaco-editor";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
@@ -80,9 +80,26 @@ export default function PlayPage() {
   const [output, setOutput] = useState<string>("");
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string>("");
+  const [opToken, setOpToken] = useState<OpToken>("op_brightship_alice");
+  const [statusFilter, setStatusFilter] = useState<readonly Status[]>(["packed"]);
+  const [groupBy, setGroupBy] = useState<GroupByCol>("none");
+  const [modelsReady, setModelsReady] = useState(false);
 
   const activeFile = useMemo(() => FILES.find((f) => f.path === activePath)!, [activePath]);
   const isWide = useIsWide();
+
+  // Whenever a control changes (and models exist), regenerate the
+  // widget body. Per the design: the controls are a code generator;
+  // the entire `rpc(...)` block is rewritten on each change.
+  useEffect(() => {
+    if (!modelsReady) return;
+    const widgetModel = monaco.editor.getModel(FILES[0]!.uri);
+    if (!widgetModel) return;
+    const next = stampWidget(widgetModel.getValue(), { opToken, statusFilter, groupBy });
+    if (next !== widgetModel.getValue()) {
+      widgetModel.setValue(next);
+    }
+  }, [opToken, statusFilter, groupBy, modelsReady]);
 
   // One-time Monaco setup: TS compiler options, typegres types, models.
   useEffect(() => {
@@ -131,12 +148,19 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
 
       if (cancelled) return;
 
-      // Create one model per file (idempotent across HMR).
+      // Create one model per file. If a model already exists from a
+      // previous mount (HMR / strict-mode double-effect), reset its
+      // content to the on-disk source so a stale corrupted value
+      // doesn't survive across reloads.
       for (const f of FILES) {
-        if (!monaco.editor.getModel(f.uri)) {
+        const existing = monaco.editor.getModel(f.uri);
+        if (existing) {
+          if (existing.getValue() !== f.content) existing.setValue(f.content);
+        } else {
           monaco.editor.createModel(f.content, "typescript", f.uri);
         }
       }
+      setModelsReady(true);
 
       const editor = monaco.editor.create(containerRef.current!, {
         model: monaco.editor.getModel(activeFile.uri),
@@ -253,6 +277,16 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
                     </span>
                   )}
                 </div>
+                {activeFile.editable && (
+                  <WidgetControls
+                    opToken={opToken}
+                    statusFilter={statusFilter}
+                    groupBy={groupBy}
+                    onOpToken={setOpToken}
+                    onStatusFilter={setStatusFilter}
+                    onGroupBy={setGroupBy}
+                  />
+                )}
                 <div ref={containerRef} className="flex-1 min-h-0" />
               </div>
             </Panel>
@@ -301,6 +335,170 @@ function useIsWide(breakpointPx = 768): boolean {
   }, [breakpointPx]);
   return wide;
 }
+
+// --- Widget code generator ---
+//
+// The controls drive the contents of the `rpc(async (api) => { ... });`
+// block in widgets/main.ts. Every control change regenerates that
+// block wholesale — user edits inside it don't survive the next
+// click. Anything outside the block (imports, comments) is left
+// untouched.
+
+const OP_TOKENS = [
+  { value: "op_brightship_alice", label: "Alice — Brightship (ops_lead)" },
+  { value: "op_brightship_bob",   label: "Bob — Brightship (inventory_control)" },
+  { value: "op_atlas_dave",       label: "Dave — Atlas (ops_lead)" },
+] as const;
+type OpToken = (typeof OP_TOKENS)[number]["value"];
+
+const STATUSES = ["draft", "confirmed", "picking", "packed", "shipped", "delivered"] as const;
+type Status = (typeof STATUSES)[number];
+
+const GROUP_BY_COLS = ["none", "status", "priority"] as const;
+type GroupByCol = (typeof GROUP_BY_COLS)[number];
+
+function generateRpcBlock({
+  opToken,
+  statusFilter,
+  groupBy,
+}: {
+  opToken: OpToken;
+  statusFilter: readonly Status[];
+  groupBy: GroupByCol;
+}): string {
+  // Status filter compiles to:
+  //   0 selected → omitted
+  //   1 selected → simple equality
+  //   N selected → chained `.or` (typegres has no native IN)
+  let statusLine = "";
+  if (statusFilter.length === 1) {
+    statusLine = `\n    .where(({ orders }) => orders.status["="]("${statusFilter[0]}"))`;
+  } else if (statusFilter.length > 1) {
+    const inner = statusFilter
+      .map((s) => `orders.status["="]("${s}")`)
+      .reduce((acc, expr) => (acc ? `${acc}.or(${expr})` : expr));
+    statusLine = `\n    .where(({ orders }) => ${inner})`;
+  }
+
+  const selectBody =
+    groupBy === "none"
+      ? `{
+      id: orders.id,
+      status: orders.status,
+      customer: orders.customer().select(({ customers }) => customers.name).scalar(),
+    }`
+      : `{
+      ${groupBy}: orders.${groupBy},
+      count: orders.id.count(),
+    }`;
+
+  const groupByLine =
+    groupBy === "none" ? "" : `\n    .groupBy(({ orders }) => [orders.${groupBy}])`;
+
+  return `rpc(async (api) => {
+  const op = await api.operator(${JSON.stringify(opToken)});
+
+  // \`op.orders()\` is pre-\`where\`'d to op's organization. Switch the
+  // operator above — same query, different scope, different data.
+  return op.orders()${statusLine}${groupByLine}
+    .select(({ orders }) => (${selectBody}))
+    .execute(api.db);
+});`;
+}
+
+// Replace the existing `rpc(async (api) => { ... });` call with a
+// freshly stamped one. If no match is found we just return src
+// unchanged — controls go inert rather than corrupting the file.
+function stampWidget(
+  src: string,
+  opts: { opToken: OpToken; statusFilter: readonly Status[]; groupBy: GroupByCol },
+): string {
+  const next = generateRpcBlock(opts);
+  // Anchor at column 0 so the literal `rpc(async (api)` inside the
+  // leading doc comment doesn't get matched.
+  const re = /^rpc\(async \(api\)[\s\S]*?^\}\);?/m;
+  if (!re.test(src)) return src;
+  return src.replace(re, next);
+}
+
+// --- Widget controls ---
+
+const WidgetControls = ({
+  opToken,
+  statusFilter,
+  groupBy,
+  onOpToken,
+  onStatusFilter,
+  onGroupBy,
+}: {
+  opToken: OpToken;
+  statusFilter: readonly Status[];
+  groupBy: GroupByCol;
+  onOpToken: (v: OpToken) => void;
+  onStatusFilter: (v: readonly Status[]) => void;
+  onGroupBy: (v: GroupByCol) => void;
+}) => {
+  const toggleStatus = (s: Status) => {
+    onStatusFilter(statusFilter.includes(s) ? statusFilter.filter((x) => x !== s) : [...statusFilter, s]);
+  };
+  return (
+    <div className="border-b border-gray-800 bg-gray-900/60 px-3 py-2 flex flex-wrap items-center gap-x-4 gap-y-2 shrink-0">
+      <Field label="operator">
+        <select
+          value={opToken}
+          onChange={(e) => onOpToken(e.target.value as OpToken)}
+          className="bg-gray-800 text-gray-200 text-xs rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-blue-500"
+        >
+          {OP_TOKENS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="status in">
+        <div className="flex flex-wrap gap-1">
+          {STATUSES.map((s) => {
+            const active = statusFilter.includes(s);
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => toggleStatus(s)}
+                className={`text-[11px] px-1.5 py-0.5 rounded border transition-colors ${
+                  active
+                    ? "bg-blue-600 border-blue-500 text-white"
+                    : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600"
+                }`}
+              >
+                {s}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+      <Field label="group by">
+        <select
+          value={groupBy}
+          onChange={(e) => onGroupBy(e.target.value as GroupByCol)}
+          className="bg-gray-800 text-gray-200 text-xs rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-blue-500"
+        >
+          {GROUP_BY_COLS.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      </Field>
+      <span className="text-[10px] text-gray-500 ml-auto">
+        controls regenerate the rpc(...) block
+      </span>
+    </div>
+  );
+};
+
+const Field = ({ label, children }: { label: string; children: ReactNode }) => (
+  <label className="flex items-center gap-2 text-[11px] text-gray-400 uppercase tracking-wide">
+    <span>{label}</span>
+    {children}
+  </label>
+);
 
 // --- File tree ---
 
