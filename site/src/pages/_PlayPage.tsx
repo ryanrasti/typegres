@@ -77,7 +77,7 @@ export default function PlayPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const [activePath, setActivePath] = useState<string>("widgets/main.ts");
-  const [output, setOutput] = useState<string>("");
+  const [output, setOutput] = useState<unknown>(undefined);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string>("");
   const [opToken, setOpToken] = useState<OpToken>("op_brightship_alice");
@@ -196,7 +196,7 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
 
   const run = async () => {
     setError("");
-    setOutput("");
+    setOutput(undefined);
     setRunning(true);
     try {
       const widgetModel = monaco.editor.getModel(FILES[0]!.uri)!;
@@ -228,7 +228,7 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
       let any = false;
       for await (const value of pending) {
         any = true;
-        setOutput(JSON.stringify(value, null, 2));
+        setOutput(value);
       }
       if (!any) throw new Error("rpc(...) produced no values");
     } catch (e) {
@@ -317,15 +317,15 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
                 <div className="px-4 py-2 border-b border-gray-800 text-xs font-medium text-gray-400 uppercase tracking-wide shrink-0">
                   Output
                 </div>
-                <pre className="flex-1 min-h-0 overflow-auto px-4 py-3 text-xs font-mono whitespace-pre-wrap">
+                <div className="flex-1 min-h-0 overflow-auto">
                   {error ? (
-                    <span className="text-red-400">{error}</span>
-                  ) : output ? (
-                    <span className="text-gray-200">{output}</span>
+                    <pre className="px-4 py-3 text-xs font-mono whitespace-pre-wrap text-red-400">{error}</pre>
+                  ) : output === undefined ? (
+                    <div className="px-4 py-3 text-xs text-gray-500">Click Run to execute the widget.</div>
                   ) : (
-                    <span className="text-gray-500">Click Run to execute the widget.</span>
+                    <OutputView value={output} />
                   )}
-                </pre>
+                </div>
               </div>
             </Panel>
           </Group>
@@ -348,6 +348,85 @@ function useIsWide(breakpointPx = 768): boolean {
   }, [breakpointPx]);
   return wide;
 }
+
+// --- Output rendering ---
+//
+// Most rpc results are rows[] (array of plain objects). Render as a
+// table; the keys of the first row become columns. Per-cell rule:
+//   - primitive (string/number/bool/null) → render the value directly
+//   - 1-key object              → unwrap to its single value
+//                                 (e.g. `{ name: "Alice" }` → "Alice")
+//   - multi-key object / array  → small inline JSON
+// Anything else (a scalar result, a non-array, an empty list) falls
+// back to a JSON `<pre>`.
+
+const isPlainObject = (v: unknown): v is Record<string, unknown> => {
+  if (v === null || typeof v !== "object" || Array.isArray(v)) return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+};
+
+const isRowsArray = (v: unknown): v is Record<string, unknown>[] =>
+  Array.isArray(v) && v.length > 0 && v.every(isPlainObject);
+
+const OutputView = ({ value }: { value: unknown }) => {
+  if (!isRowsArray(value)) {
+    return (
+      <pre className="px-4 py-3 text-xs font-mono whitespace-pre-wrap text-gray-200">
+        {JSON.stringify(value, null, 2)}
+      </pre>
+    );
+  }
+  // Column union across all rows — preserves first-row order, then
+  // appends any new keys later rows introduce.
+  const cols: string[] = [];
+  for (const row of value) {
+    for (const k of Object.keys(row)) {
+      if (!cols.includes(k)) cols.push(k);
+    }
+  }
+  return (
+    <table className="w-full text-xs font-mono border-collapse">
+      <thead className="bg-gray-900/80 sticky top-0">
+        <tr>
+          {cols.map((c) => (
+            <th key={c} className="text-left font-medium text-gray-400 px-3 py-1.5 border-b border-gray-800">
+              {c}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {value.map((row, i) => (
+          <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-900/40">
+            {cols.map((c) => (
+              <td key={c} className="px-3 py-1 align-top text-gray-200">
+                <Cell value={row[c]} />
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
+const Cell = ({ value }: { value: unknown }) => {
+  if (value === null) return <span className="text-gray-500 italic">null</span>;
+  if (value === undefined) return <span className="text-gray-500 italic">—</span>;
+  if (typeof value === "string") return <>{value}</>;
+  if (typeof value === "number" || typeof value === "bigint") return <>{String(value)}</>;
+  if (typeof value === "boolean") return <span className="text-blue-300">{String(value)}</span>;
+  // 1-key object → unwrap (handles the `customer: { name: "Alice" }` case
+  // produced by `relation().select(...).scalar()`)
+  if (isPlainObject(value)) {
+    const keys = Object.keys(value);
+    if (keys.length === 1) return <Cell value={value[keys[0]!]} />;
+  }
+  return (
+    <span className="text-gray-400 text-[11px]">{JSON.stringify(value)}</span>
+  );
+};
 
 // --- Widget code generator ---
 //
