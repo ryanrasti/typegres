@@ -366,26 +366,22 @@ function generateRpcBlock({
   statusFilter: readonly Status[];
   groupBy: GroupByCol;
 }): string {
-  // Status filter compiles to:
-  //   0 selected → omitted
-  //   1 selected → simple equality
-  //   N selected → chained `.or` (typegres has no native IN)
-  let statusLine = "";
-  if (statusFilter.length === 1) {
-    statusLine = `\n    .where(({ orders }) => orders.status["="]("${statusFilter[0]}"))`;
-  } else if (statusFilter.length > 1) {
-    const inner = statusFilter
-      .map((s) => `orders.status["="]("${s}")`)
-      .reduce((acc, expr) => (acc ? `${acc}.or(${expr})` : expr));
-    statusLine = `\n    .where(({ orders }) => ${inner})`;
-  }
+  // Status filter compiles to `.in(...)` regardless of arity. Empty
+  // list short-circuits the filter (we just omit it) — Any.in itself
+  // would emit FALSE which would make the query return nothing.
+  const statusLine =
+    statusFilter.length === 0
+      ? ""
+      : `\n    .where(({ orders }) => orders.status.in(${statusFilter
+          .map((s) => JSON.stringify(s))
+          .join(", ")}))`;
 
   const selectBody =
     groupBy === "none"
       ? `{
       id: orders.id,
       status: orders.status,
-      customer: orders.customer().select(({ customers }) => customers.name).scalar(),
+      customer: orders.customer().select(({ customers }) => ({ name: customers.name })).scalar(),
     }`
       : `{
       ${groupBy}: orders.${groupBy},

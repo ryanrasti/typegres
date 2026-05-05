@@ -17,7 +17,7 @@ rpc(async (api) => {
     .select(({ orders }) => ({
       id: orders.id,
       status: orders.status,
-      customer: orders.customer().select(({ customers }) => customers.name).scalar(),
+      customer: orders.customer().select(({ customers }) => ({ name: customers.name })).scalar(),
     }))
     .execute(api.db);
 });
