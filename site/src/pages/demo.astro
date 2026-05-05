@@ -1,0 +1,8 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import DemoPage from "./_DemoPage";
+---
+
+<BaseLayout title="Typegres Demo">
+  <DemoPage client:only="react" />
+</BaseLayout>

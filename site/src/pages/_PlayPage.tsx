@@ -1,10 +1,9 @@
-"use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { CodeEditor, CodeEditorWithOutput } from "@/components/CodeEditor";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { Github, Code, Terminal, Database, Share2, Check } from "lucide-react";
-import dynamic from "next/dynamic";
+// `next/dynamic` removed; React.lazy is the equivalent under Astro.
 import inspect from "object-inspect";
 import { format } from "sql-formatter";
 import { SyntaxHighlight } from "@/components/SyntaxHighlight";
@@ -18,9 +17,7 @@ import {
   copyShareURL,
 } from "@/lib/share-utils";
 
-const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
-  ssr: false,
-});
+const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 
 declare global {
   interface Window {

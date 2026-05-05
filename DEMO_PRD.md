@@ -1,281 +1,85 @@
-# SMB Ops Demo PRD
+# Demo PRD (v0)
 
 ## Goal
 
-Build a small, credible SMB operations app that demonstrates Typegres's core value:
+A small, in-browser demo that makes typegres's pitch *viscerally* legible: **the backend doesn't change as the frontend invents new query shapes**. Visitors see a query reshape under their cursor, see the typegres expression mutate live, and see a static "BE: 105 LOC" counter that doesn't move.
 
-- clients compose new query shapes on demand
-- those queries stay capability-bounded
-- odd aggregates / layout-specific views don't require bespoke backend endpoints
-- the same custom shapes can become live when needed
-- optional: a widget can be vibe-coded from a prompt
+## Where it lives
 
-This is **not** a full WMS. It is a thin "ops cockpit" for a fulfillment-style SMB.
+`site/app/demo/page.tsx` — new route on the existing typegres site. Reuses the site's PGlite, Tailwind, dark mode, and syntax-highlighting infrastructure. Linked from the landing page CTA ("See it in action →").
 
-## Product framing
+## What it is NOT
 
-**Pitch:** SMB software dies by a thousand custom screens, reports, and exception queues. Typegres keeps a shared system of record while letting clients compose the weird, screen-specific views they need directly.
+- Not a separate deployed server (no Hono, no Fly, no Neon)
+- Not a Widget Builder (was wrong shape — "BI tool form")
+- Not a Prompt-to-Widget bonus (AI angle is overstated for OLTP)
+- Not a multi-page dashboard (Orders / Inventory / Shipments tabs cut)
+- Not live queries (punted; needs events table + per-table transformer)
+- Not a saved-layouts / drilldown / sidebar app
+- Not a SQL editor (capability-bounded; expressions only)
 
-## Scope
+## What it is
 
-### In
-- Orders / inventory / shipments flavored domain
-- Multiple operator dashboards
-- Configurable widgets with nontrivial query shapes
-- One or two live operational queues
-- One prompt-to-widget flow as a bonus demo
+**Two pages, two widgets, one visceral moment.**
 
-### Out
-- Full warehouse workflows
-- Real integrations
-- Billing / tenancy / permissions depth
-- Full low-code builder
-- Theme / site editing
+### Page 1: Login
 
-## Core data model
+- Operator picker (dropdown or three buttons)
+  - Alice — BrightShip ops_lead
+  - Bob — BrightShip inventory_control
+  - Dave — Atlas ops_lead
+- Switching operators is a visible action — emphasizes the scope boundary.
+- "Backend: 105 LOC" badge always visible.
 
-Keep it small and legible.
+### Page 2: Dashboard
 
-- `customers`
-- `orders`
-- `order_lines`
-- `inventory_positions`
-- `shipments`
-- `locations`
+Two widgets, each with controls and a live expression panel.
 
-Optional if needed:
-- `inventory_adjustments`
-- `tasks` or `exceptions`
+#### Widget A: Orders at risk
 
-## User roles in demo
+Non-trivial query: orders + customer relation traversal + ship_by filter + group/aggregate.
 
-Only use these as page/view framing; don't overbuild auth.
+- **Controls:** status filter, group by (none/carrier/customer), late-only toggle
+- **Result:** rows or aggregate counts depending on groupBy
+- **Expression panel:** the typegres expression that just ran, syntax-highlighted, updates live as controls change.
 
-- Ops lead
-- Inventory control
-- Account manager
+#### Widget B: Inventory pressure
 
-## Pages
+Non-trivial query: inventory_positions + correlated subquery against order_lines + threshold filter.
 
-## 1. Landing page
+- **Controls:** location filter, on-hand threshold slider
+- **Result:** SKUs at/below threshold with open-order counts
+- **Expression panel:** live typegres expression including the cross-table correlation
 
-### Purpose
-Explain the problem and show why the app exists.
+### The visceral moments
 
-### Functionality
-- Headline: shared system of record + custom operational views
-- Short before/after explanation:
-  - normal stack: new widget => backend ticket
-  - Typegres: client composes the shape it needs
-- Static screenshot or short animation of dashboard widgets changing
-- CTA into the demo app
-
-### Typegres-specific points
-- Must clearly say **"clients compose the query shape they need"**
-- Must contrast against bespoke endpoints / resolvers
-- Mention live queries briefly, but as a supporting point
-
-## 2. Overview dashboard
-
-### Purpose
-Primary demo screen. Show several operational widgets at once.
-
-### Functionality
-- Top KPIs:
-  - orders due today
-  - unallocated orders
-  - shipments missed cutoff
-- Widget grid with 3-4 configurable widgets
-- Widget controls:
-  - scope
-  - filter
-  - group by
-  - metric
-  - sort
-  - live on/off
-- Save widget layout locally for demo polish
-
-### Example widgets
-- Orders at risk by customer
-- Orders by carrier cutoff window
-- Inventory pressure by location
-- Unshipped high-priority orders with low stock
-
-### Typegres-specific points
-- This page is the main proof that **layout drives query shape**
-- At least one widget should use:
-  - relation traversal
-  - aggregate
-  - filter based on another table
-- Controls should visibly alter the query shape, not just cosmetics
-
-## 3. Orders page
-
-### Purpose
-Show that regular app screens also need odd, dynamic read shapes.
-
-### Functionality
-- Table of orders with filters:
-  - customer
-  - status
-  - ship-by window
-  - risk state
-- Layout toggle:
-  - plain table
-  - grouped summary
-  - exception-focused view
-- Right sidebar widget area tied to current filter context
-- Order detail drawer
-
-### Example sidebar widgets
-- Open orders at risk for current customer set
-- Orders missing inventory by ship date bucket
-- Orders with split inventory across locations
-
-### Typegres-specific points
-- Show a screen where a late product ask would normally require a new endpoint
-- Layout toggle should produce visibly different selected/aggregated shapes
-- Order detail drawer should include a context widget derived from current order
-
-## 4. Inventory page
-
-### Purpose
-Show more relational / aggregate-heavy operational views.
-
-### Functionality
-- Inventory table with filters:
-  - low stock
-  - location
-  - recent movement / recent adjustment
-- Summary widgets above the table
-- Hotspot list for SKUs likely to impact open orders
-- Drill into one SKU/location combo
-
-### Example widgets
-- Low stock SKUs affecting open orders
-- Inventory imbalance by location
-- Recent adjustments on high-demand SKUs
-
-### Typegres-specific points
-- Good place for ugly but convincing queries:
-  - inventory constrained **and** tied to open orders
-  - grouped by location/customer/SKU
-- This page should make it obvious that client-composed ops queries are more than CRUD
-
-## 5. Shipments / cutoffs page
-
-### Purpose
-Best page for live operational views.
-
-### Functionality
-- Queue of shipments approaching carrier cutoff
-- Group by carrier / warehouse / cutoff bucket
-- Live toggle for one queue or widget
-- Alert-style list of orders likely to miss ship SLAs
-
-### Example live widgets
-- Orders nearing cutoff with no shipment created
-- Shipments by carrier cutoff bucket
-- Live queue of delayed orders with all inventory allocated
-
-### Typegres-specific points
-- This is where **"random live query because the layout needs it"** lands
-- Use one clearly custom live query, not a generic feed
-- Show that live is applied to the same kind of custom shape used elsewhere
-
-## 6. Widget builder page
-
-### Purpose
-Make the composition story explicit.
-
-### Functionality
-- Simple form to create a widget:
-  - entity/scope
-  - filter set
-  - group by
-  - metric
-  - sort
-  - live
-- Preview panel rendering the widget
-- Save to dashboard button
-
-### Typegres-specific points
-- This page should scream:
-  - no backend endpoint was added
-  - frontend invented a new view shape
-- Keep the builder constrained and app-native, not BI-generic
-- Avoid exposing raw SQL or schema internals
-
-## 7. Prompt-to-widget page (bonus)
-
-### Purpose
-Show vibe-coding as a consequence of the composable query surface.
-
-### Functionality
-- Prompt box: "Show me high-risk orders grouped by customer"
-- Generate a widget config + render result
-- Let user edit generated controls after creation
-
-### Typegres-specific points
-- Must be framed as **bonus**, not the core story
-- The interesting thing is not AI-generated UI; it's that the generated widget can ask for a novel query shape safely
-- Reuse the same widget model as the manual builder page
-
-## Demo flow
-
-Keep the live demo short.
-
-1. Landing page: explain the problem
-2. Overview dashboard: show configurable widgets
-3. Orders page: show a layout-specific weird query
-4. Shipments page: toggle a custom widget to live
-5. Widget builder: create a new operational widget on demand
-6. Optional: prompt-to-widget as the closing wow moment
-
-## Typegres-specific requirements
-
-These are the non-negotiables.
-
-### 1. Client-composed query shapes
-Must be visible in the product, not just described.
-
-### 2. Capability-bounded access
-The app should feel app-native, not like arbitrary SQL over raw tables.
-
-### 3. Layout-driven aggregates
-At least 2-3 widgets should obviously exist because the screen wants them.
-
-### 4. One clearly custom live query
-Not a generic activity feed.
-
-### 5. Reusable widget model
-Manual builder and prompt builder should map to the same query-composition layer.
-
-## Success criteria
-
-The demo works if a viewer walks away thinking:
-
-- "Those widgets are too custom for bespoke endpoints."
-- "The client is clearly inventing query shapes on demand."
-- "Live applies to custom queries, not just canned feeds."
-- "This would be useful anywhere software gets crushed by customer-specific ops views."
-
-## Anti-goals
-
-Avoid making the demo feel like:
-
-- a generic BI tool
-- a low-code website builder
-- a full WMS replacement
-- an AI UI gimmick
-- a CRUD admin app with charts on top
+1. **Click a control → expression mutates → data updates → BE LOC stays at 105.** Direct proof of "FE composes shape, BE doesn't change."
+2. **Switch operator from Alice (BrightShip) to Dave (Atlas) → same expression, different data.** Capability-bounded scope is structural.
 
 ## Architecture
 
-The app itself should be two main parts:
-- Backend:
-  * Typegres classes (tables), including:
-    * relations
-    * state transitions/mutations
-- Frontend:
-  * Simple React SPA (vite)
+- **Frontend**: React + Tailwind, part of the existing Next site. Static.
+- **Backend**: there isn't one. The "API" runs in the visitor's browser via PGlite + `inMemoryChannel`. Same code path the test suite uses.
+- **Data**: `examples/ops-demo`'s schema + seed run on first page load. Each visitor gets their own state; reload = reset.
+- **Source of truth**: `examples/ops-demo` is canonical. Site's `/demo` imports `Api`, `OperatorRoot`, schema classes from there.
+
+## Out of scope (v0)
+
+- Live queries — needs events table + per-table transformer + bus
+- Mutations from the UI — read story is the message
+- A third widget — diminishing returns
+- Saved configurations, layout toggle, drilldowns — polish, not pitch
+
+## Success criteria
+
+A visitor lands at `/demo`, picks an operator, plays with controls, switches operators, and walks away thinking *"the backend would be the same code regardless of what I clicked."*
+
+## Implementation order
+
+1. **Scaffold**: `/demo` route boots PGlite, seeds it, exposes RPC client. `npm run dev` → visit `/demo` → see "ready".
+2. **Login page**: operator picker, stores token, routes to dashboard.
+3. **Widget A** end-to-end: controls + result + expression panel.
+4. **Widget B**: same shape, different query.
+5. **Polish**: layout, BE LOC badge, copy, dark mode.
+
+Stop at any step that lands the visceral moment.

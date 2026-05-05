@@ -1,4 +1,3 @@
-"use client";
 
 import { Github, ArrowUpRight, Check, X, AlertTriangle } from "lucide-react";
 import { DarkModeToggle } from "@/components/DarkModeToggle";

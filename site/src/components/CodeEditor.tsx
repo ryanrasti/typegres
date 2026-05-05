@@ -1,7 +1,4 @@
-"use client";
-
-import { useState, useEffect, useRef, useCallback } from "react";
-import dynamic from "next/dynamic";
+import { useState, useEffect, useRef, useCallback, lazy } from "react";
 import inspect from "object-inspect";
 import { format } from "sql-formatter";
 import { Database, FileCode, Terminal, Play, Copy, Check } from "lucide-react";
@@ -20,9 +17,7 @@ declare global {
   }
 }
 
-const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
-  ssr: false,
-});
+const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 
 export interface CodeEditorProps {
   initialCode?: string;
