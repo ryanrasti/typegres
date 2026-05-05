@@ -80,7 +80,10 @@ export default function PlayPageInner() {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const [activePath, setActivePath] = useState<string>(ORDERS_PATH);
   const [activeWidget, setActiveWidget] = useState<string>(ORDERS_PATH);
-  const [showFiles, setShowFiles] = useState(true);
+  // Default to expanded on desktop, collapsed on mobile (the file
+  // tree eats valuable screen space on small viewports).
+  const initialIsWide = typeof window === "undefined" || window.innerWidth >= 768;
+  const [showFiles, setShowFiles] = useState(initialIsWide);
   const [modelsReady, setModelsReady] = useState(false);
 
   const activeFile = useMemo(() => FILES.find((f) => f.path === activePath)!, [activePath]);
@@ -93,7 +96,11 @@ export default function PlayPageInner() {
     if (activeFile.editable) setActiveWidget(activeFile.path);
   }, [activeFile]);
 
-  // One-time Monaco setup: TS compiler options, typegres types, models.
+  // Monaco setup. The TS-defaults + .d.ts wiring is one-time; the
+  // editor instance has to be re-created when the container DOM
+  // node changes (e.g. when the resizable Group remounts on a
+  // viewport breakpoint flip). Re-running this effect on `isWide`
+  // disposes the old editor and binds to the fresh container.
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -154,8 +161,15 @@ declare function output(value: unknown): void;
         theme: "vs-dark",
         automaticLayout: true,
         minimap: { enabled: false },
-        fontSize: 15,
-        lineHeight: 22,
+        // Tighter on mobile: smaller font, drop the gutter so code
+        // gets more horizontal room.
+        fontSize: isWide ? 15 : 12,
+        lineHeight: isWide ? 22 : 18,
+        lineNumbers: isWide ? "on" : "off",
+        folding: isWide,
+        glyphMargin: false,
+        lineDecorationsWidth: isWide ? 10 : 0,
+        lineNumbersMinChars: isWide ? 5 : 0,
         readOnly: !activeFile.editable,
         scrollBeyondLastLine: false,
       });
@@ -168,7 +182,7 @@ declare function output(value: unknown): void;
       editorRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isWide]);
 
   // Switch model when active tab changes.
   useEffect(() => {
