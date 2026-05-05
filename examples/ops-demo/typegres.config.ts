@@ -1,4 +1,4 @@
-import type { Config } from "typegres/config";
+import type { Config } from "typegres";
 
 export default {
   db: process.env["DATABASE_URL"] ?? "postgres://localhost/ops_demo",

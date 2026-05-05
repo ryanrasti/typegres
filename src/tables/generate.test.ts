@@ -43,7 +43,9 @@ describe("generateTable — new file", () => {
 
   test("includes the tool import in a fresh file", () => {
     const out = generateTable("dogs", [col("id", "int8")], [], { dbImport: "../db" });
-    expect(out).toContain(`import { tool } from "typegres/exoeval";`);
+    // `tool` rides along on the consolidated `from "typegres"` line —
+    // we just want to know it's imported somewhere in there.
+    expect(out).toMatch(/^import \{[^}]*\btool\b[^}]*\} from "typegres";/m);
   });
 
   test("emits markers and class declaration", () => {
@@ -90,7 +92,7 @@ describe("generateTable — update mode preserves @tool() state", () => {
 
   test("entries the user stripped stay stripped on regen", () => {
     const existing = `import { db } from "../db";
-import { Int8, Text } from "typegres/types";
+import { Int8, Text } from "typegres";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
@@ -107,8 +109,8 @@ export class Dogs extends db.Table("dogs") {
 
   test("entries the user decorated stay decorated on regen", () => {
     const existing = `import { db } from "../db";
-import { Int8, Text } from "typegres/types";
-import { tool } from "typegres/exoeval";
+import { Int8, Text } from "typegres";
+import { tool } from "typegres";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
@@ -145,7 +147,7 @@ export class Dogs extends db.Table("dogs") {
 
   test("decorator on previous line is recognized", () => {
     const existing = `import { db } from "../db";
-import { tool } from "typegres/exoeval";
+import { tool } from "typegres";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
@@ -185,7 +187,7 @@ export class Dogs extends db.Table("dogs") {
 
   test("update mode does not touch imports", () => {
     const existing = `import { db } from "../db";
-import { Int8 } from "typegres/types";
+import { Int8 } from "typegres";
 // my custom comment
 
 export class Dogs extends db.Table("dogs") {

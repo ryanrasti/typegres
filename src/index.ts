@@ -5,6 +5,8 @@ export { sql, Sql } from "./builder/sql";
 export { QueryBuilder } from "./builder/query";
 export { PgDriver, PgliteDriver } from "./driver";
 export { TypegresLiveEvents } from "./live/events";
+export { tool } from "./exoeval/tool";
+export type { ToolFunction } from "./exoeval/tool";
 export type { Config } from "./config";
 export type { Driver } from "./driver";
 

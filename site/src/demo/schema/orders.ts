@@ -1,9 +1,5 @@
+import { Int8, Text, Timestamptz, TypegresLiveEvents, sql, tool, type Database } from "typegres";
 import { db } from "../runtime";
-import type { Database } from "typegres";
-import { Int8, Text, Timestamptz } from "typegres/types";
-import { TypegresLiveEvents } from "typegres";
-import { tool } from "typegres/exoeval";
-import { sql } from "typegres/sql-builder";
 import type { OperatorRoot } from "../server/api";
 import { Customers } from "./customers";
 import { OrderLines } from "./order_lines";

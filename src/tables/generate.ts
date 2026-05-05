@@ -248,15 +248,14 @@ const newFile = (tableName: string, columns: ColumnInfo[], relations: Relation[]
     .filter((t) => t !== tableName)
     .map((t) => `import { ${pgNameToClassName(t)} } from "./${t}";`);
 
+  // Single consolidated `from "typegres"` line — symbols are sorted
+  // for stable output and easier diffs across regenerations.
+  const typegresSyms = [...typeClasses, "tool", ...(hasDefault ? ["sql"] : [])].sort();
   const imports = [
     `import { db } from "${dbImport}";`,
-    `import { ${typeClasses.join(", ")} } from "typegres/types";`,
-    `import { tool } from "typegres/exoeval";`,
+    `import { ${typegresSyms.join(", ")} } from "typegres";`,
     ...relImports,
   ];
-  if (hasDefault) {
-    imports.push(`import { sql } from "typegres/sql-builder";`);
-  }
 
   // New file: every column/relation gets `@tool()` by default. Users can
   // strip individual decorators in-place; updateBlock will respect that.

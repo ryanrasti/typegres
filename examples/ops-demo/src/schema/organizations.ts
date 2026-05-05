@@ -1,14 +1,11 @@
+import { Int8, Text, Timestamptz, sql, tool } from "typegres";
 import { db } from "../db";
-import { Int8, Text, Timestamptz } from "typegres/types";
-import { tool } from "typegres/exoeval";
 import { Customers } from "./customers";
 import { InventoryPositions } from "./inventory_positions";
 import { Locations } from "./locations";
 import { Operators } from "./operators";
 import { Orders } from "./orders";
 import { Shipments } from "./shipments";
-import { sql } from "typegres/sql-builder";
-
 export class Organizations extends db.Table("organizations") {
   // @generated-start
   @tool() id = (Int8<1>).column({ nonNull: true, generated: true });

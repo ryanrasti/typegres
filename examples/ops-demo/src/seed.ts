@@ -13,7 +13,7 @@
 //   locations: 1..3 BrightShip, 4..5 Atlas
 //   inventory_positions, orders, etc. follow.
 
-import { sql } from "typegres/sql-builder";
+import { sql } from "typegres";
 import { db } from "./db";
 import { Organizations } from "./schema/organizations";
 import { Operators } from "./schema/operators";

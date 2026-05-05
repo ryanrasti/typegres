@@ -1,6 +1,5 @@
+import { Int8, Text, tool } from "typegres";
 import { db } from "../db";
-import { Int8, Text } from "typegres/types";
-import { tool } from "typegres/exoeval";
 import { InventoryPositions } from "./inventory_positions";
 import { Orders } from "./orders";
 

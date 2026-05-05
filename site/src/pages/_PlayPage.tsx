@@ -148,10 +148,10 @@ export default function PlayPage() {
 declare module "typegres" {
 ${raw}
 }
-declare module "typegres/types"       { export * from "typegres"; }
-declare module "typegres/sql-builder" { export * from "typegres"; }
-declare module "typegres/config"      { export * from "typegres"; }
-declare module "typegres/exoeval"     { export * from "typegres"; }
+// The bundle already appends \`declare module "typegres/exoeval" {...}\`
+// with the real RpcClient / inMemoryChannel / tool declarations.
+// Schemas import from the root \`typegres\` directly — the subpath
+// shims we used to keep here are no longer needed.
 declare function output(value: unknown): void;
         `;
         monaco.languages.typescript.typescriptDefaults.addExtraLib(

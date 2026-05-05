@@ -1,9 +1,6 @@
+import { Int8, Text, Timestamptz, sql, tool } from "typegres";
 import { db } from "../db";
-import { Int8, Text, Timestamptz } from "typegres/types";
-import { tool } from "typegres/exoeval";
 import { Organizations } from "./organizations";
-import { sql } from "typegres/sql-builder";
-
 export class Operators extends db.Table("operators") {
   // @generated-start
   @tool() id = (Int8<1>).column({ nonNull: true, generated: true });

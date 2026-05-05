@@ -1,13 +1,9 @@
+import { Int8, Text, sql, tool, type Database } from "typegres";
 import { db } from "../db";
-import type { Database } from "typegres";
-import { Int8, Text } from "typegres/types";
-import { tool } from "typegres/exoeval";
 import type { OperatorRoot } from "../server/api";
 import { Locations } from "./locations";
 import { Organizations } from "./organizations";
 import { OrderLines } from "./order_lines";
-import { sql } from "typegres/sql-builder";
-
 export class InventoryPositions extends db.Table("inventory_positions") {
   // @generated-start
   @tool() id = (Int8<1>).column({ nonNull: true, generated: true });

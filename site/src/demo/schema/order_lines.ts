@@ -1,7 +1,5 @@
+import { Int8, Text, TypegresLiveEvents, tool } from "typegres";
 import { db } from "../runtime";
-import { Int8, Text } from "typegres/types";
-import { TypegresLiveEvents } from "typegres";
-import { tool } from "typegres/exoeval";
 import { InventoryPositions } from "./inventory_positions";
 import { Orders } from "./orders";
 
