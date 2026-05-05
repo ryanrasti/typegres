@@ -98,7 +98,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
     // row included.
     const inserted = await rpc(async (api) => {
       const op = await api.operator("op_brightship_alice");
-      return (await op.insertDraftOrder(api.db, "1")).id;
+      return (await op.insertDraftOrder(api.db)).id;
     });
 
     const second = await it.next();
@@ -124,6 +124,36 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
     expect(first.value!.length).toBeGreaterThan(0);
     // Caller terminates the stream cleanly.
     await it.return?.();
+  });
+
+  test("stop: cancelling resetLive + iter.return ends the live stream", async () => {
+    const iter = rpc(async (api) => {
+      const op = await api.operator("op_brightship_alice");
+      return op.orders()
+        .select(({ orders }) => ({ id: orders.id }))
+        .live(api.db);
+    });
+    const it = (iter as AsyncIterable<{ id: string }[]>)[Symbol.asyncIterator]();
+
+    // First snapshot lands fine.
+    const first = await it.next();
+    expect(first.done).toBe(false);
+
+    // Now we're parked on `await currentSub.wait` server-side. The
+    // UI's stop sequence: ask the server to cancel + drain locally.
+    await rpc(async (api) => api.resetLive());
+
+    // The pending next() should now resolve with done — within a
+    // reasonable timeout. If this hangs, stop is broken (the issue
+    // we're guarding against).
+    const settled = await Promise.race([
+      it.next(),
+      new Promise<{ done: true; value: undefined; timeout: true }>((r) =>
+        setTimeout(() => r({ done: true, value: undefined, timeout: true }), 1500),
+      ),
+    ]);
+    expect((settled as { timeout?: true }).timeout).toBeUndefined();
+    expect(settled.done).toBe(true);
   });
 
   test("invalid token rejects", async () => {

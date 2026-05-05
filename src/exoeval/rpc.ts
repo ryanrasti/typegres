@@ -89,8 +89,12 @@ export class RpcClient<A> {
  * `safeStringify` throws on any class instance — only plain objects, arrays,
  * and primitives reach the wire.
  */
-export const safeStringify = (value: unknown): string =>
-  JSON.stringify(value, (_key, val) => {
+export const safeStringify = (value: unknown): string => {
+  // JSON.stringify(undefined) returns `undefined` (not "null") which
+  // would later break JSON.parse on the receiving end. Closures that
+  // return void should round-trip as `null`.
+  if (value === undefined) return "null";
+  return JSON.stringify(value, (_key, val) => {
     if (val !== null && typeof val === "object") {
       const proto = Object.getPrototypeOf(val);
       if (proto !== Object.prototype && proto !== Array.prototype && proto !== null) {
@@ -101,7 +105,8 @@ export const safeStringify = (value: unknown): string =>
       }
     }
     return val;
-  });
+  }) ?? "null";
+};
 
 /**
  * Build a `RawChannel` that handles RPC calls in-process: parse the code,

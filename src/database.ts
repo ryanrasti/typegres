@@ -271,13 +271,22 @@ export class Database<C = undefined> {
         currentSub = bus.subscribe(parseSnapshot(cursor), predicateSet);
         yield rows as any;
         if (currentSub) {
-          await currentSub.wait;
+          try {
+            await currentSub.wait;
+          } catch (e) {
+            // `await sub.wait` is a non-yield point; .return() on the
+            // iterator can't interrupt it directly. The bus rejects
+            // wait via sub.cancel() (e.g. on shutdown) so we wake up
+            // here and exit cleanly through finally.
+            if (e instanceof DOMException && e.name === "AbortError") return;
+            throw e;
+          }
           currentSub = undefined;
         }
       }
     } finally {
       // Consumer broke mid-wait — sub still indexed; clean up explicitly.
-      // Idempotent if signal already auto-unsubscribed.
+      // Idempotent if signal/cancel already unsubscribed.
       currentSub?.unsubscribe();
     }
   }

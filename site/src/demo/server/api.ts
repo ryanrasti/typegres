@@ -71,17 +71,36 @@ export class OperatorRoot {
       );
   }
 
+  // Demo mutation. Picks a non-terminal order in op's tenant and runs
+  // its `.advance()` lifecycle step. Returns null if there's nothing
+  // advanceable. Role gate happens inside Orders.advance().
+  @tool.unchecked()
+  async advanceRandom(db: Database<OperatorRoot>): Promise<{ id: string; status: string } | null> {
+    const [row] = await this.orders()
+      .where(({ orders }) => orders.status["<>"]("delivered"))
+      .limit(1)
+      .hydrate(db);
+    if (!row) return null;
+    return row.advance(db);
+  }
+
   // Demo mutation. Inserts a fresh `draft` order for one of op's
   // customers. Role-gated like the other writes; tenant comes from
   // the principal — no free-form `organization_id` from the wire.
   @tool.unchecked()
-  async insertDraftOrder(db: Database<OperatorRoot>, customerId: string): Promise<{ id: string }> {
+  async insertDraftOrder(db: Database<OperatorRoot>): Promise<{ id: string }> {
     if (this.role !== "ops_lead") {
       throw new Error(`role '${this.role}' cannot insert orders (ops_lead required)`);
     }
+    // Pick any customer in op's tenant — we don't expose `customer_id`
+    // selection to the wire to keep this a one-click demo action.
+    const [cust] = await this.customers()
+      .select(({ customers }) => ({ id: customers.id }))
+      .execute(db);
+    if (!cust) throw new Error("no customers in this tenant");
     const [row] = await Orders.insert({
       organization_id: this.organizationId as unknown as Int8<1>,
-      customer_id: customerId as unknown as Int8<1>,
+      customer_id: cust.id as unknown as Int8<1>,
       status: "draft",
       priority: "0" as unknown as Int8<1>,
     })
@@ -96,6 +115,18 @@ export class Api {
 
   constructor(db: Database<OperatorRoot>) {
     this.db = db;
+  }
+
+  // Demo stop-button hook. `db.stopLive()` cancels every active
+  // subscription (parked consumers wake with AbortError and exit
+  // cleanly), then we re-start the bus so the next watch can
+  // subscribe immediately. In a real deployment the wire would have
+  // a per-iter abort channel; here we tear down the whole bus
+  // because the demo only ever has one iter at a time.
+  @tool.unchecked()
+  async resetLive(): Promise<void> {
+    await this.db.stopLive();
+    await this.db.startLive();
   }
 
   // Single auth gate. Caller awaits to materialize an OperatorRoot,

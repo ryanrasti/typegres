@@ -18,15 +18,20 @@ import { Api } from "./server/api";
 
 const client = new RpcClient<Api>(inMemoryChannel(new Api(db)));
 
-// Queue of results awaiting consumption by the playground UI. The UI
-// always iterates — one-shot calls yield once, live calls keep yielding
-// until the closure's source terminates.
+// Direct, non-queued. Used by page-internal helpers (mutation
+// buttons, stop) that already hold the result and don't want the
+// playground's "pick up the next call" mechanism to grab it.
+export const rpc: RpcClient<Api>["run"] = client.run.bind(client);
+
+// Queued variant for the playground UI. The widget's closure runs in
+// `new Function(...)` scope; we inject `rpcQueued` as `rpc` so each
+// call deposits its result in the queue, and the page consumes one
+// per Run click. The queue is plural so back-to-back stamps don't
+// race, but in practice there's only ever one pending entry.
 const queue: AsyncIterable<unknown>[] = [];
 
-export const rpc: RpcClient<Api>["run"] = ((fn: any, captures: any) => {
+export const rpcQueued: RpcClient<Api>["run"] = ((fn: any, captures: any) => {
   const result = client.run(fn, captures);
-  // The hybrid is both Promise and AsyncIterable at runtime; iterate
-  // as the universal consumer.
   queue.push(result as AsyncIterable<unknown>);
   return result;
 }) as any;

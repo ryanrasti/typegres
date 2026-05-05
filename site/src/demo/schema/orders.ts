@@ -66,9 +66,12 @@ export class Orders extends db.Table("orders", { transformer: TypegresLiveEvents
 // Order lifecycle as a typegres-wrapped CASE expression — keeps the
 // transition rules in one place and lets the UPDATE happen in a
 // single round-trip. `Text.from(sql\`...\`)` wraps raw SQL as a
-// Text-typed Any so set() accepts it.
+// Text-typed Any so set() accepts it. `orders.status` is qualified
+// because the live transformer wraps the UPDATE in a CTE that also
+// pulls in `__typegres_before.status`, making the bare column
+// reference ambiguous.
 const nextStatusExpr = Text.from(sql`
-  CASE status
+  CASE orders.status
     WHEN 'draft'     THEN 'confirmed'
     WHEN 'confirmed' THEN 'picking'
     WHEN 'picking'   THEN 'packed'

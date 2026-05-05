@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { Api } from "@/demo/server/api";
 import * as monaco from "monaco-editor";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
@@ -27,7 +28,7 @@ import widgetSrc from "@/demo/widgets/main.ts?raw";
 // Runtime modules — give the eval'd widget code something real to run
 // against. Importing rpc.ts pulls in db + Api transitively (and runs
 // migrations + seed via runtime.ts's top-level await).
-import { rpc, _consumePendingRpc } from "@/demo/rpc";
+import { rpc, rpcQueued, _consumePendingRpc } from "@/demo/rpc";
 
 import { transformCodeWithEsbuild } from "@/lib/monaco-typegres-integration";
 
@@ -85,6 +86,8 @@ export default function PlayPage() {
   const [groupBy, setGroupBy] = useState<GroupByCol>("none");
   const [orderBy, setOrderBy] = useState<OrderByCol>("id");
   const [orderDir, setOrderDir] = useState<OrderDir>("desc");
+  const [live, setLive] = useState(false);
+  const iterRef = useRef<AsyncIterator<unknown> | null>(null);
   const [modelsReady, setModelsReady] = useState(false);
 
   const activeFile = useMemo(() => FILES.find((f) => f.path === activePath)!, [activePath]);
@@ -97,11 +100,11 @@ export default function PlayPage() {
     if (!modelsReady) return;
     const widgetModel = monaco.editor.getModel(FILES[0]!.uri);
     if (!widgetModel) return;
-    const next = stampWidget(widgetModel.getValue(), { opToken, statusFilter, groupBy, orderBy, orderDir });
+    const next = stampWidget(widgetModel.getValue(), { opToken, statusFilter, groupBy, orderBy, orderDir, live });
     if (next !== widgetModel.getValue()) {
       widgetModel.setValue(next);
     }
-  }, [opToken, statusFilter, groupBy, orderBy, orderDir, modelsReady]);
+  }, [opToken, statusFilter, groupBy, orderBy, orderDir, live, modelsReady]);
 
   // One-time Monaco setup: TS compiler options, typegres types, models.
   useEffect(() => {
@@ -194,6 +197,43 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
     }
   }, [activeFile]);
 
+  const stop = async () => {
+    // Two-phase: ask the server to cancel the live subscription
+    // (rejects the wait promise so the parked closure can exit
+    // through finally), then call .return() on our local iterator
+    // to drain the channel.
+    try {
+      await rpc(async (api: Api) => api.resetLive());
+    } catch {
+      /* ignore — best-effort */
+    }
+    await iterRef.current?.return?.();
+  };
+
+  // One-off mutations that fire through the same rpc wire. Side
+  // effects propagate to any active live iterator (which then yields
+  // a new snapshot and the table re-renders with row flashes).
+  const insertOrder = async () => {
+    try {
+      await rpc(async (api: Api, { token }: { token: string }) => {
+        const op = await api.operator(token);
+        return op.insertDraftOrder(api.db);
+      }, { token: opToken });
+    } catch (e) {
+      setError(String(e instanceof Error ? e.message : e));
+    }
+  };
+  const advanceRandom = async () => {
+    try {
+      await rpc(async (api: Api, { token }: { token: string }) => {
+        const op = await api.operator(token);
+        return op.advanceRandom(api.db);
+      }, { token: opToken });
+    } catch (e) {
+      setError(String(e instanceof Error ? e.message : e));
+    }
+  };
+
   const run = async () => {
     setError("");
     setOutput(undefined);
@@ -212,12 +252,16 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
       const noImports = userSrc.replace(/^\s*import .*?;?\s*$/gm, "");
       const transformed = await transformCodeWithEsbuild(noImports);
 
+      // The widget calls `rpc(...)` against the QUEUED variant, which
+      // deposits its result in the queue for us to pick up below.
+      // Internal page code (stop / insertOrder / advanceRandom) uses
+      // the non-queued `rpc` instead so it doesn't pollute the queue.
       const fn = new (Function as any)(
         "ctx",
         `const { rpc } = ctx;
          ${transformed}`,
       );
-      fn({ rpc });
+      fn({ rpc: rpcQueued });
       const pending = _consumePendingRpc();
       if (!pending) {
         throw new Error("Widget did not call rpc(...)");
@@ -225,10 +269,20 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
       // Always iterate. One-shot closures yield exactly once; live
       // closures (e.g. `db.live(qb)`) keep yielding until the source
       // ends. The output panel updates on each yield.
+      // Iterate explicitly so we can hold the iterator handle for
+      // a Stop button (live mode never terminates on its own).
+      const it = (pending as AsyncIterable<unknown>)[Symbol.asyncIterator]();
+      iterRef.current = it;
       let any = false;
-      for await (const value of pending) {
-        any = true;
-        setOutput(value);
+      try {
+        while (true) {
+          const r = await it.next();
+          if (r.done) break;
+          any = true;
+          setOutput(r.value);
+        }
+      } finally {
+        iterRef.current = null;
       }
       if (!any) throw new Error("rpc(...) produced no values");
     } catch (e) {
@@ -249,13 +303,21 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
           <span className="text-xs text-gray-500">playground</span>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={run}
-            disabled={running}
-            className="px-3 py-1 text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-50"
-          >
-            {running ? "Running..." : "Run ▶"}
-          </button>
+          {running ? (
+            <button
+              onClick={stop}
+              className="px-3 py-1 text-sm font-medium bg-red-600 hover:bg-red-500 text-white rounded"
+            >
+              Stop ■
+            </button>
+          ) : (
+            <button
+              onClick={run}
+              className="px-3 py-1 text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white rounded"
+            >
+              {live ? "Watch ▶" : "Run ▶"}
+            </button>
+          )}
         </div>
       </header>
 
@@ -293,11 +355,13 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
                     groupBy={groupBy}
                     orderBy={orderBy}
                     orderDir={orderDir}
+                    live={live}
                     onOpToken={setOpToken}
                     onStatusFilter={setStatusFilter}
                     onGroupBy={setGroupBy}
                     onOrderBy={setOrderBy}
                     onOrderDir={setOrderDir}
+                    onLive={setLive}
                   />
                 )}
                 <div ref={containerRef} className="flex-1 min-h-0" />
@@ -314,8 +378,30 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
 
             <Panel id="output" defaultSize="38%" minSize="15%">
               <div className="h-full w-full flex flex-col bg-gray-900">
-                <div className="px-4 py-2 border-b border-gray-800 text-xs font-medium text-gray-400 uppercase tracking-wide shrink-0">
-                  Output
+                <div className="px-4 py-2 border-b border-gray-800 text-xs font-medium text-gray-400 uppercase tracking-wide shrink-0 flex items-center gap-3">
+                  <span>Output</span>
+                  {running && live && (
+                    <span className="flex items-center gap-1 text-green-400 normal-case font-normal text-[11px]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                      live
+                    </span>
+                  )}
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      onClick={insertOrder}
+                      className="text-[11px] normal-case px-2 py-0.5 rounded border border-gray-700 hover:border-blue-500 text-gray-300 hover:text-white"
+                      title="Inserts a draft order in the current operator's tenant"
+                    >
+                      + Insert order
+                    </button>
+                    <button
+                      onClick={advanceRandom}
+                      className="text-[11px] normal-case px-2 py-0.5 rounded border border-gray-700 hover:border-blue-500 text-gray-300 hover:text-white"
+                      title="Picks a non-delivered order and advances its lifecycle one step"
+                    >
+                      ↻ Advance random
+                    </button>
+                  </div>
                 </div>
                 <div className="flex-1 min-h-0 overflow-auto">
                   {error ? (
@@ -370,6 +456,54 @@ const isRowsArray = (v: unknown): v is Record<string, unknown>[] =>
   Array.isArray(v) && v.length > 0 && v.every(isPlainObject);
 
 const OutputView = ({ value }: { value: unknown }) => {
+  // Diff against the previous yielded value to drive flash animations
+  // on a live stream. Two cases:
+  //   - row whose `id` is new since last yield → row-wide green flash
+  //   - row whose `id` is the same but a cell value changed → that
+  //     cell gets a yellow flash
+  // Rows without an `id` never flash (we have no stable identity).
+  const prevByIdRef = useRef<Map<string, Record<string, unknown>>>(new Map());
+  const [freshRows, setFreshRows] = useState<Set<string>>(new Set());
+  const [freshCells, setFreshCells] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!isRowsArray(value)) {
+      prevByIdRef.current = new Map();
+      return;
+    }
+    const fresh = new Set<string>();
+    const cells = new Set<string>();
+    const nextById = new Map<string, Record<string, unknown>>();
+    for (const r of value) {
+      const id = r.id;
+      if (typeof id !== "string" && typeof id !== "number") continue;
+      const key = String(id);
+      nextById.set(key, r);
+      const prev = prevByIdRef.current.get(key);
+      if (!prev) {
+        fresh.add(key);
+        continue;
+      }
+      // Existing row — compare cells. JSON.stringify gives a cheap
+      // structural compare for nested values like `customer: {...}`.
+      for (const col of Object.keys(r)) {
+        if (col === "id") continue;
+        if (JSON.stringify(prev[col]) !== JSON.stringify(r[col])) {
+          cells.add(`${key}.${col}`);
+        }
+      }
+    }
+    prevByIdRef.current = nextById;
+    if (fresh.size === 0 && cells.size === 0) return;
+    setFreshRows(fresh);
+    setFreshCells(cells);
+    const t = setTimeout(() => {
+      setFreshRows(new Set());
+      setFreshCells(new Set());
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [value]);
+
   if (!isRowsArray(value)) {
     return (
       <pre className="px-4 py-3 text-xs font-mono whitespace-pre-wrap text-gray-200">
@@ -397,15 +531,35 @@ const OutputView = ({ value }: { value: unknown }) => {
         </tr>
       </thead>
       <tbody>
-        {value.map((row, i) => (
-          <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-900/40">
-            {cols.map((c) => (
-              <td key={c} className="px-3 py-1 align-top text-gray-200">
-                <Cell value={row[c]} />
-              </td>
-            ))}
-          </tr>
-        ))}
+        {value.map((row, i) => {
+          const id = row.id;
+          const stableKey = typeof id === "string" || typeof id === "number" ? String(id) : null;
+          const key = stableKey ?? i;
+          const rowFlash = stableKey !== null && freshRows.has(stableKey);
+          return (
+            <tr
+              key={key}
+              className={`border-b border-gray-800/60 hover:bg-gray-900/40 ${
+                rowFlash ? "animate-row-flash" : ""
+              }`}
+            >
+              {cols.map((c) => {
+                const cellFlash =
+                  stableKey !== null && freshCells.has(`${stableKey}.${c}`);
+                return (
+                  <td
+                    key={c}
+                    className={`px-3 py-1 align-top text-gray-200 ${
+                      cellFlash ? "animate-cell-flash" : ""
+                    }`}
+                  >
+                    <Cell value={row[c]} />
+                  </td>
+                );
+              })}
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
@@ -461,12 +615,14 @@ function generateRpcBlock({
   groupBy,
   orderBy,
   orderDir,
+  live,
 }: {
   opToken: OpToken;
   statusFilter: readonly Status[];
   groupBy: GroupByCol;
   orderBy: OrderByCol;
   orderDir: OrderDir;
+  live: boolean;
 }): string {
   // Status filter compiles to `.in(...)` regardless of arity. Empty
   // list short-circuits the filter (we just omit it) — Any.in itself
@@ -505,6 +661,8 @@ function generateRpcBlock({
           : `[orders.${orderBy}, "desc"]`;
   const orderByLine = orderByEntry ? `\n    .orderBy(({ orders }) => ${orderByEntry})` : "";
 
+  const terminator = live ? "live" : "execute";
+
   return `rpc(async (api) => {
   const op = await api.operator(${JSON.stringify(opToken)});
 
@@ -512,7 +670,7 @@ function generateRpcBlock({
   // operator above — same query, different scope, different data.
   return op.orders()${statusLine}${groupByLine}${orderByLine}
     .select(({ orders }) => (${selectBody}))
-    .execute(api.db);
+    .${terminator}(api.db);
 });`;
 }
 
@@ -521,7 +679,7 @@ function generateRpcBlock({
 // unchanged — controls go inert rather than corrupting the file.
 function stampWidget(
   src: string,
-  opts: { opToken: OpToken; statusFilter: readonly Status[]; groupBy: GroupByCol; orderBy: OrderByCol; orderDir: OrderDir },
+  opts: { opToken: OpToken; statusFilter: readonly Status[]; groupBy: GroupByCol; orderBy: OrderByCol; orderDir: OrderDir; live: boolean },
 ): string {
   const next = generateRpcBlock(opts);
   // Anchor at column 0 so the literal `rpc(async (api)` inside the
@@ -539,22 +697,26 @@ const WidgetControls = ({
   groupBy,
   orderBy,
   orderDir,
+  live,
   onOpToken,
   onStatusFilter,
   onGroupBy,
   onOrderBy,
   onOrderDir,
+  onLive,
 }: {
   opToken: OpToken;
   statusFilter: readonly Status[];
   groupBy: GroupByCol;
   orderBy: OrderByCol;
   orderDir: OrderDir;
+  live: boolean;
   onOpToken: (v: OpToken) => void;
   onStatusFilter: (v: readonly Status[]) => void;
   onGroupBy: (v: GroupByCol) => void;
   onOrderBy: (v: OrderByCol) => void;
   onOrderDir: (v: OrderDir) => void;
+  onLive: (v: boolean) => void;
 }) => {
   const toggleStatus = (s: Status) => {
     onStatusFilter(statusFilter.includes(s) ? statusFilter.filter((x) => x !== s) : [...statusFilter, s]);
@@ -624,6 +786,19 @@ const WidgetControls = ({
             <option key={d} value={d}>{d}</option>
           ))}
         </select>
+      </Field>
+      <Field label="live">
+        <button
+          type="button"
+          onClick={() => onLive(!live)}
+          className={`text-[11px] px-2 py-0.5 rounded border transition-colors ${
+            live
+              ? "bg-green-600 border-green-500 text-white"
+              : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600"
+          }`}
+        >
+          {live ? "● on" : "○ off"}
+        </button>
       </Field>
       <span className="text-[10px] text-gray-500 ml-auto">
         controls regenerate the rpc(...) block

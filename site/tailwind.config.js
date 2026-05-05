@@ -18,6 +18,8 @@ export default {
         gradient: "gradient 8s ease infinite",
         float: "float 6s ease-in-out infinite",
         "pulse-slow": "pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "row-flash": "rowFlash 1500ms ease-out",
+        "cell-flash": "cellFlash 1500ms ease-out",
       },
       keyframes: {
         gradient: {
@@ -33,6 +35,14 @@ export default {
         float: {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-20px)" },
+        },
+        rowFlash: {
+          "0%": { backgroundColor: "rgba(34, 197, 94, 0.4)" },
+          "100%": { backgroundColor: "transparent" },
+        },
+        cellFlash: {
+          "0%": { backgroundColor: "rgba(234, 179, 8, 0.5)" },
+          "100%": { backgroundColor: "transparent" },
         },
       },
       backgroundImage: {
