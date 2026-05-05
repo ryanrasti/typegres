@@ -463,45 +463,68 @@ const OutputView = ({ value }: { value: unknown }) => {
   //     cell gets a yellow flash
   // Rows without an `id` never flash (we have no stable identity).
   const prevByIdRef = useRef<Map<string, Record<string, unknown>>>(new Map());
-  const [freshRows, setFreshRows] = useState<Set<string>>(new Set());
-  const [freshCells, setFreshCells] = useState<Set<string>>(new Set());
+  const isFirstYieldRef = useRef(true);
+  // Per-row / per-cell version counters. Bumped each time the cell
+  // changes; the rendered <span> uses the version in its React key
+  // so successive flashes within the animation window get a fresh
+  // DOM element and the CSS animation restarts from frame 0.
+  const [rowGen, setRowGen] = useState<Map<string, number>>(new Map());
+  const [cellGen, setCellGen] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
-    if (!isRowsArray(value)) {
+    if (!isRowsArray(value) || value.length === 0) {
       prevByIdRef.current = new Map();
+      isFirstYieldRef.current = true;
       return;
     }
+    // Choose a key column: prefer `id` when it's present (the
+    // ungrouped row case), otherwise fall back to the first column
+    // (the groupBy case — e.g. `status` is the natural key when
+    // grouped by status). Composite group keys aren't handled.
+    const firstRow = value[0]!;
+    const keyCol = "id" in firstRow ? "id" : Object.keys(firstRow)[0]!;
     const fresh = new Set<string>();
     const cells = new Set<string>();
     const nextById = new Map<string, Record<string, unknown>>();
     for (const r of value) {
-      const id = r.id;
-      if (typeof id !== "string" && typeof id !== "number") continue;
-      const key = String(id);
+      const k = r[keyCol];
+      if (typeof k !== "string" && typeof k !== "number") continue;
+      const key = String(k);
       nextById.set(key, r);
       const prev = prevByIdRef.current.get(key);
       if (!prev) {
         fresh.add(key);
         continue;
       }
-      // Existing row — compare cells. JSON.stringify gives a cheap
-      // structural compare for nested values like `customer: {...}`.
+      // Existing row — compare every other cell. JSON.stringify gives
+      // a cheap structural compare for nested values like
+      // `customer: { name: ... }`.
       for (const col of Object.keys(r)) {
-        if (col === "id") continue;
+        if (col === keyCol) continue;
         if (JSON.stringify(prev[col]) !== JSON.stringify(r[col])) {
           cells.add(`${key}.${col}`);
         }
       }
     }
     prevByIdRef.current = nextById;
+    // First yield establishes the baseline — don't flash the entire
+    // table just for showing up. Real changes start with the second
+    // yield (a live mutation).
+    if (isFirstYieldRef.current) {
+      isFirstYieldRef.current = false;
+      return;
+    }
     if (fresh.size === 0 && cells.size === 0) return;
-    setFreshRows(fresh);
-    setFreshCells(cells);
-    const t = setTimeout(() => {
-      setFreshRows(new Set());
-      setFreshCells(new Set());
-    }, 1500);
-    return () => clearTimeout(t);
+    setRowGen((prev) => {
+      const next = new Map(prev);
+      for (const k of fresh) next.set(k, (next.get(k) ?? 0) + 1);
+      return next;
+    });
+    setCellGen((prev) => {
+      const next = new Map(prev);
+      for (const k of cells) next.set(k, (next.get(k) ?? 0) + 1);
+      return next;
+    });
   }, [value]);
 
   if (!isRowsArray(value)) {
@@ -532,28 +555,33 @@ const OutputView = ({ value }: { value: unknown }) => {
       </thead>
       <tbody>
         {value.map((row, i) => {
-          const id = row.id;
-          const stableKey = typeof id === "string" || typeof id === "number" ? String(id) : null;
+          const keyCol = "id" in row ? "id" : cols[0]!;
+          const k = row[keyCol];
+          const stableKey = typeof k === "string" || typeof k === "number" ? String(k) : null;
           const key = stableKey ?? i;
-          const rowFlash = stableKey !== null && freshRows.has(stableKey);
+          const rGen = stableKey !== null ? rowGen.get(stableKey) ?? 0 : 0;
           return (
-            <tr
-              key={key}
-              className={`border-b border-gray-800/60 hover:bg-gray-900/40 ${
-                rowFlash ? "animate-row-flash" : ""
-              }`}
-            >
+            <tr key={key} className="border-b border-gray-800/60 hover:bg-gray-900/40">
               {cols.map((c) => {
-                const cellFlash =
-                  stableKey !== null && freshCells.has(`${stableKey}.${c}`);
+                const cKey = stableKey !== null ? `${stableKey}.${c}` : null;
+                const cGen = cKey !== null ? cellGen.get(cKey) ?? 0 : 0;
+                // Highest-priority animation wins; cell change beats
+                // row arrival when both happen (rare but possible).
+                const animClass =
+                  cGen > 0
+                    ? "animate-cell-flash"
+                    : rGen > 0
+                      ? "animate-row-flash"
+                      : "";
+                // Bump the key on each flash so the <span> remounts —
+                // browser then re-runs the CSS animation from frame 0
+                // instead of being stuck mid-fade on the prior class.
+                const animKey = `${c}-${rGen}-${cGen}`;
                 return (
-                  <td
-                    key={c}
-                    className={`px-3 py-1 align-top text-gray-200 ${
-                      cellFlash ? "animate-cell-flash" : ""
-                    }`}
-                  >
-                    <Cell value={row[c]} />
+                  <td key={c} className="px-3 py-1 align-top text-gray-200">
+                    <span key={animKey} className={`block ${animClass}`}>
+                      <Cell value={row[c]} />
+                    </span>
                   </td>
                 );
               })}

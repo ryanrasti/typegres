@@ -18,8 +18,8 @@ export default {
         gradient: "gradient 8s ease infinite",
         float: "float 6s ease-in-out infinite",
         "pulse-slow": "pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-        "row-flash": "rowFlash 1500ms ease-out",
-        "cell-flash": "cellFlash 1500ms ease-out",
+        "row-flash": "rowFlash 1800ms ease-out",
+        "cell-flash": "cellFlash 1800ms ease-out",
       },
       keyframes: {
         gradient: {
@@ -36,12 +36,15 @@ export default {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-20px)" },
         },
+        // Hold the saturated colour for the first ~40% of the run so
+        // the eye actually catches it; ease-out alone fades too fast
+        // to register on a quick mutation.
         rowFlash: {
-          "0%": { backgroundColor: "rgba(34, 197, 94, 0.4)" },
+          "0%, 40%": { backgroundColor: "rgba(34, 197, 94, 0.6)" },
           "100%": { backgroundColor: "transparent" },
         },
         cellFlash: {
-          "0%": { backgroundColor: "rgba(234, 179, 8, 0.5)" },
+          "0%, 40%": { backgroundColor: "rgba(234, 179, 8, 0.7)" },
           "100%": { backgroundColor: "transparent" },
         },
       },
