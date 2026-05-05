@@ -27,9 +27,15 @@ export type NullOf<T> = T extends Any<infer N extends number> ? N : 1;
 // Nullability: N=0 → null, N=0|1 → U|null, N=1 → U, N=number → U (aggregate/unknown, not null)
 export type TsTypeOf<T> =
   T extends Any<infer N>
-    ? (T extends { deserialize: (_: any) => infer U }
-      ? (number extends N ? U : 0 extends N ? (1 extends N ? U | null : null) : U)
-      : unknown)
+    ? T extends { deserialize: (_: any) => infer U }
+      ? number extends N
+        ? U
+        : 0 extends N
+          ? 1 extends N
+            ? U | null
+            : null
+          : U
+      : unknown
     : T;
 
 // Extract the nullable variant of a pg type via the [meta] bag
@@ -62,22 +68,27 @@ export type OptionalKeys<R> = {
 }[ColumnKeys<R>];
 
 // Insert row: required columns + optional columns (as TsTypeOf)
-export type InsertRow<R> =
-  { [K in RequiredKeys<R>]: TsTypeOf<R[K]> } &
-  { [K in OptionalKeys<R>]?: TsTypeOf<R[K]> };
+export type InsertRow<R> = { [K in RequiredKeys<R>]: TsTypeOf<R[K]> } & {
+  [K in OptionalKeys<R>]?: TsTypeOf<R[K]>;
+};
 
 // Update set row: partial of all columns (as TsTypeOf)
-export type SetRow<R> = Partial<{ [K in ColumnKeys<R>]: TsTypeOf<R[K]> }>;
+export type SetRow<R> = Partial<{ [K in ColumnKeys<R>]: R[K] | TsTypeOf<R[K]> }>;
 export const isSetRow = (row: unknown): row is SetRow<any> => {
-  if (typeof row !== "object" || row === null) { return false; }
-  return Object.values(row).every(v => {
+  if (typeof row !== "object" || row === null) {
+    return false;
+  }
+  return Object.values(row).every((v) => {
+    if (v instanceof types.Any) {
+      return true;
+    }
     if (typeof v === "object" && v !== null) {
       const proto = Object.getPrototypeOf(v);
       return proto === Object.prototype || proto === null;
     }
     return true;
   });
-}
+};
 
 // Runtime type resolution
 // pgType(expr) — returns the constructor via [meta].__class (set once in Any, narrowed by subclasses)
@@ -97,16 +108,22 @@ export const match = (args: unknown[], cases: MatchCase[]): [typeof Any, ...unkn
   for (const [matchers, retType] of cases) {
     const matched = matchers.every((m, i) => {
       const arg = args[i];
-      if (arg instanceof m.type) { return true; }
+      if (arg instanceof m.type) {
+        return true;
+      }
       if (m.allowPrimitive) {
         const expected = getTypeDef(m.type.__typnameText).tsType;
-        if (typeof arg === expected) { return true; }
+        if (typeof arg === expected) {
+          return true;
+        }
       }
       return false;
     });
     if (matched) {
       const serialized = matchers.map((m, i) => {
-        if (args[i] instanceof m.type) { return args[i]; }
+        if (args[i] instanceof m.type) {
+          return args[i];
+        }
         return m.type.serialize(args[i]);
       });
       return [retType, ...serialized];
@@ -117,7 +134,9 @@ export const match = (args: unknown[], cases: MatchCase[]): [typeof Any, ...unkn
 
 // Extract the Sql node from an arg. After match(), args are Any instances.
 const argToSql = (arg: unknown): Sql => {
-  if (arg instanceof types.Any) { return arg.toSql(); }
+  if (arg instanceof types.Any) {
+    return arg.toSql();
+  }
   return sql.param(arg);
 };
 
@@ -163,5 +182,7 @@ export class PgSrf<R extends { [key: string]: Any<any> }, A extends string> exte
   // Expose the args fragment so generic tree walkers (extractor, linting,
   // future live-query predicate extraction) can see the expressions passed
   // into the SRF rather than stopping at the opaque boundary.
-  override children(): readonly Sql[] { return [this.#argsSql]; }
+  override children(): readonly Sql[] {
+    return [this.#argsSql];
+  }
 }

@@ -114,6 +114,122 @@ test("update: multiple where calls AND-combine", async () => {
   });
 });
 
+// --- set() with typegres expressions ---
+//
+// The SET clause accepts both primitive values (strings, numbers...)
+// and typegres expressions (Any-typed). This is what makes `SET col =
+// col + delta` and other in-SQL transformations work without a
+// read-then-write detour.
+
+test("set: arithmetic on existing column (col = col + 1)", async () => {
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE counters (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      n int8 NOT NULL
+    )`);
+    await tx.execute(sql`INSERT INTO counters (n) VALUES (10), (20)`);
+
+    class Counters extends db.Table("counters") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+      n  = (Int8<1>).column({ nonNull: true });
+    }
+
+    await tx.execute(
+      Counters.update()
+        .where(({ counters }) => counters.id["="]("1"))
+        .set(({ counters }) => ({ n: counters.n["+"]("5") })),
+    );
+
+    const rows = await tx.execute(
+      Counters.from()
+        .select(({ counters }) => ({ id: counters.id, n: counters.n }))
+        .orderBy(({ counters }) => counters.id),
+    );
+    expect(rows).toEqual([
+      { id: "1", n: "15" },
+      { id: "2", n: "20" },
+    ]);
+  });
+});
+
+test("set: typegres function call (literal expression via Text.from)", async () => {
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE labels (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      tag text NOT NULL
+    )`);
+    await tx.execute(sql`INSERT INTO labels (tag) VALUES ('alpha')`);
+
+    class Labels extends db.Table("labels") {
+      id  = (Int8<1>).column({ nonNull: true, generated: true });
+      tag = (Text<1>).column({ nonNull: true });
+    }
+
+    // `tag.upper()` is a typegres expression — should compile to
+    // `SET tag = upper(tag)`, not be rejected as "not a SetRow".
+    await tx.execute(
+      Labels.update()
+        .where(({ labels }) => labels.id["="]("1"))
+        .set(({ labels }) => ({ tag: labels.tag.upper() })),
+    );
+
+    const rows = await tx.execute(Labels.from().select(({ labels }) => ({ tag: labels.tag })));
+    expect(rows).toEqual([{ tag: "ALPHA" }]);
+  });
+});
+
+test("set: mixing primitive and expression values in one call", async () => {
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE mixed (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      n int8 NOT NULL,
+      label text NOT NULL
+    )`);
+    await tx.execute(sql`INSERT INTO mixed (n, label) VALUES (1, 'a')`);
+
+    class Mixed extends db.Table("mixed") {
+      id    = (Int8<1>).column({ nonNull: true, generated: true });
+      n     = (Int8<1>).column({ nonNull: true });
+      label = (Text<1>).column({ nonNull: true });
+    }
+
+    // `n` set via expression (n + 100), `label` via primitive ("z").
+    // Both should land in the same UPDATE.
+    await tx.execute(
+      Mixed.update()
+        .where(({ mixed }) => mixed.id["="]("1"))
+        .set(({ mixed }) => ({ n: mixed.n["+"]("100"), label: "z" })),
+    );
+
+    const rows = await tx.execute(Mixed.from().select(({ mixed }) => ({ n: mixed.n, label: mixed.label })));
+    expect(rows).toEqual([{ n: "101", label: "z" }]);
+  });
+});
+
+test("set: expression with returning round-trips the new value", async () => {
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE balances (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      cents int8 NOT NULL
+    )`);
+    await tx.execute(sql`INSERT INTO balances (cents) VALUES (1000)`);
+
+    class Balances extends db.Table("balances") {
+      id    = (Int8<1>).column({ nonNull: true, generated: true });
+      cents = (Int8<1>).column({ nonNull: true });
+    }
+
+    const [updated] = await tx.execute(
+      Balances.update()
+        .where(({ balances }) => balances.id["="]("1"))
+        .set(({ balances }) => ({ cents: balances.cents["-"]("250") }))
+        .returning(({ balances }) => ({ id: balances.id, cents: balances.cents })),
+    );
+    expect(updated).toEqual({ id: "1", cents: "750" });
+    expectTypeOf(updated!.cents).toEqualTypeOf<string>();
+  });
+});
+
 test("update without where throws", async () => {
   await withinTransaction(async (tx) => {
     await tx.execute(sql`CREATE TABLE noop (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)`);
