@@ -9,7 +9,8 @@
 // `Orders.contextOf(this)` without re-threading.
 
 import type { Database } from "typegres";
-import { tool } from "typegres/exoeval";
+import { RpcClient, inMemoryChannel, tool } from "typegres/exoeval";
+import { db } from "../runtime";
 import { Operators } from "../schema/operators";
 import { Customers } from "../schema/customers";
 import { Orders } from "../schema/orders";
@@ -154,3 +155,15 @@ export class Api {
     });
   }
 }
+
+// The exoeval RPC client widgets dispatch through. Lives here (rather
+// than in runtime.ts) because runtime.ts feeds db to the schemas and
+// the schemas feed back here — putting client construction here puts
+// it strictly downstream of that cycle.
+//
+// Widgets call `client.run(async (api) => ...)`; the closure is
+// stringified, shipped through `inMemoryChannel`, parsed by exoEval
+// on the server end with `api` bound to a fresh `Api(db)`, and the
+// JSON-serialized result(s) come back as AsyncIterable<string>.
+// Real deployments swap inMemoryChannel for a wire transport.
+export const client: RpcClient<Api> = new RpcClient<Api>(inMemoryChannel(new Api(db)));

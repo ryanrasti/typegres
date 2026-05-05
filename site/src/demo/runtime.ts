@@ -1,10 +1,12 @@
-// Boots PGlite + typegres in the browser, runs migrations + seed.
+// Boots PGlite + typegres in the browser, runs migrations + seed,
+// and exposes the exoeval RPC client the widget calls into.
 // Uses top-level await so schema files can import a ready `db` and
-// define tables at module-eval time — same pattern as `examples/ops-demo/src/db.ts`.
+// define tables at module-eval time — same pattern as
+// `examples/ops-demo/src/db.ts`.
 
 import { typegres } from "typegres";
-import type { OperatorRoot } from "./server/api";
 import { runMigrations, runSeed } from "./seed";
+import type { OperatorRoot } from "./server/api";
 
 export const db = await typegres<OperatorRoot>({ type: "pglite" });
 

@@ -6,7 +6,9 @@
 //   widgets/main.ts → rpc.ts → server/api.ts + runtime.ts → schema/*
 
 import { describe, expect, test } from "vitest";
-import { rpc } from "./rpc";
+import { client } from "./server/api";
+
+const rpc = client.run.bind(client);
 
 describe("playground demo: cap-rooted API over exoeval RPC", () => {
   test("scoped read returns only the operator's tenant rows", async () => {

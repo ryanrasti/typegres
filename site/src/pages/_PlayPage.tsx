@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Api } from "@/demo/server/api";
 import * as monaco from "monaco-editor";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
@@ -22,13 +21,14 @@ import ordersSrc from "@/demo/schema/orders.ts?raw";
 import orderLinesSrc from "@/demo/schema/order_lines.ts?raw";
 import shipmentsSrc from "@/demo/schema/shipments.ts?raw";
 import apiSrc from "@/demo/server/api.ts?raw";
-import rpcSrc from "@/demo/rpc.ts?raw";
 import widgetSrc from "@/demo/widgets/main.ts?raw";
 
 // Runtime modules — give the eval'd widget code something real to run
 // against. Importing rpc.ts pulls in db + Api transitively (and runs
 // migrations + seed via runtime.ts's top-level await).
-import { rpc, rpcQueued, _consumePendingRpc } from "@/demo/rpc";
+import { client } from "@/demo/server/api";
+
+const rpc = client.run.bind(client);
 
 import { transformCodeWithEsbuild } from "@/lib/monaco-typegres-integration";
 
@@ -68,7 +68,6 @@ const FILES: FileNode[] = [
   { path: "schema/order_lines.ts",        content: orderLinesSrc,         editable: false, uri: monaco.Uri.parse("file:///schema/order_lines.ts") },
   { path: "schema/shipments.ts",          content: shipmentsSrc,          editable: false, uri: monaco.Uri.parse("file:///schema/shipments.ts") },
   { path: "server/api.ts",                content: apiSrc,                editable: false, uri: monaco.Uri.parse("file:///server/api.ts") },
-  { path: "rpc.ts",                       content: rpcSrc,                editable: false, uri: monaco.Uri.parse("file:///rpc.ts") },
 ];
 
 // No ambient declarations needed — the widget is a real TS module
@@ -82,12 +81,15 @@ export default function PlayPage() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string>("");
   const [opToken, setOpToken] = useState<OpToken>("op_brightship_alice");
-  const [statusFilter, setStatusFilter] = useState<readonly Status[]>(["packed"]);
-  const [groupBy, setGroupBy] = useState<GroupByCol>("none");
-  const [orderBy, setOrderBy] = useState<OrderByCol>("id");
-  const [orderDir, setOrderDir] = useState<OrderDir>("desc");
-  const [live, setLive] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<readonly Status[]>([]);
+  const [groupBy, setGroupBy] = useState<GroupByCol>("status");
+  const [orderBy, setOrderBy] = useState<OrderByCol>("status");
+  const [orderDir, setOrderDir] = useState<OrderDir>("asc");
+  const [live, setLive] = useState(true);
+  const [insertedOnce, setInsertedOnce] = useState(false);
+  const [advancedOnce, setAdvancedOnce] = useState(false);
   const iterRef = useRef<AsyncIterator<unknown> | null>(null);
+  const autoRanRef = useRef(false);
   const [modelsReady, setModelsReady] = useState(false);
 
   const activeFile = useMemo(() => FILES.find((f) => f.path === activePath)!, [activePath]);
@@ -95,15 +97,23 @@ export default function PlayPage() {
 
   // Whenever a control changes (and models exist), regenerate the
   // widget body. Per the design: the controls are a code generator;
-  // the entire `rpc(...)` block is rewritten on each change.
+  // the entire `rpc(...)` block is rewritten on each change. If a
+  // query is currently running (live or otherwise), restart it so
+  // the new code takes effect immediately — no Stop / Watch dance.
   useEffect(() => {
     if (!modelsReady) return;
     const widgetModel = monaco.editor.getModel(FILES[0]!.uri);
     if (!widgetModel) return;
     const next = stampWidget(widgetModel.getValue(), { opToken, statusFilter, groupBy, orderBy, orderDir, live });
-    if (next !== widgetModel.getValue()) {
-      widgetModel.setValue(next);
+    if (next === widgetModel.getValue()) return;
+    widgetModel.setValue(next);
+    if (running) {
+      void (async () => {
+        await stop();
+        await run();
+      })();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opToken, statusFilter, groupBy, orderBy, orderDir, live, modelsReady]);
 
   // One-time Monaco setup: TS compiler options, typegres types, models.
@@ -142,6 +152,7 @@ declare module "typegres/types"       { export * from "typegres"; }
 declare module "typegres/sql-builder" { export * from "typegres"; }
 declare module "typegres/config"      { export * from "typegres"; }
 declare module "typegres/exoeval"     { export * from "typegres"; }
+declare function output(value: unknown): void;
         `;
         monaco.languages.typescript.typescriptDefaults.addExtraLib(
           lib,
@@ -155,8 +166,10 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
 
       // Create one model per file. If a model already exists from a
       // previous mount (HMR / strict-mode double-effect), reset its
-      // content to the on-disk source so a stale corrupted value
-      // doesn't survive across reloads.
+      // content to the on-disk source — the widget is the only
+      // editable file, but even there we'd rather lose in-memory
+      // edits than carry stale shapes (e.g. a previous version's
+      // `export default` keyword) into runtime.
       for (const f of FILES) {
         const existing = monaco.editor.getModel(f.uri);
         if (existing) {
@@ -203,7 +216,7 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
     // through finally), then call .return() on our local iterator
     // to drain the channel.
     try {
-      await rpc(async (api: Api) => api.resetLive());
+      await rpc(async (api) => api.resetLive());
     } catch {
       /* ignore — best-effort */
     }
@@ -214,8 +227,9 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
   // effects propagate to any active live iterator (which then yields
   // a new snapshot and the table re-renders with row flashes).
   const insertOrder = async () => {
+    setInsertedOnce(true);
     try {
-      await rpc(async (api: Api, { token }: { token: string }) => {
+      await rpc(async (api, { token }: { token: string }) => {
         const op = await api.operator(token);
         return op.insertDraftOrder(api.db);
       }, { token: opToken });
@@ -224,8 +238,9 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
     }
   };
   const advanceRandom = async () => {
+    setAdvancedOnce(true);
     try {
-      await rpc(async (api: Api, { token }: { token: string }) => {
+      await rpc(async (api, { token }: { token: string }) => {
         const op = await api.operator(token);
         return op.advanceRandom(api.db);
       }, { token: opToken });
@@ -233,6 +248,15 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
       setError(String(e instanceof Error ? e.message : e));
     }
   };
+
+  // Auto-start on first load — `live` is on by default, so users land
+  // on a streaming table without having to hit Watch.
+  useEffect(() => {
+    if (!modelsReady || autoRanRef.current) return;
+    autoRanRef.current = true;
+    void run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelsReady]);
 
   const run = async () => {
     setError("");
@@ -243,29 +267,39 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
       const userSrc = widgetModel.getValue();
 
       // The widget is a TS module with `import` lines (for Monaco's
-      // type resolver) and a top-level `doRpc(async (api) => {...})`
+      // type resolver) and a top-level `rpc(async (api) => {...})`
       // call. To execute it we:
-      //   1. strip the imports (we provide `doRpc` via closure)
-      //   2. esbuild-transform TS-isms to JS
-      //   3. wrap in `new Function` and run — the doRpc call enqueues
-      //      its promise; we await whichever promise was registered
+      //   1. strip the imports (we provide `rpc` via closure)
+      //   2. rewrite the leading `rpc(` to `return rpc(` so the
+      //      function body's value is the rpc result
+      //   3. esbuild-transform TS-isms to JS
+      //   4. wrap in `new Function` and run — the returned hybrid is
+      //      both Promise and AsyncIterable; we iterate either way
+      // Strip imports — they're for Monaco's resolver, not runtime.
       const noImports = userSrc.replace(/^\s*import .*?;?\s*$/gm, "");
       const transformed = await transformCodeWithEsbuild(noImports);
 
-      // The widget calls `rpc(...)` against the QUEUED variant, which
-      // deposits its result in the queue for us to pick up below.
-      // Internal page code (stop / insertOrder / advanceRandom) uses
-      // the non-queued `rpc` instead so it doesn't pollute the queue.
+      // Inject `rpc` and `output` into the widget's scope. The widget
+      // is free-form code; it calls `output(value)` to send a result
+      // (a Promise or AsyncIterable) to the play page. We capture the
+      // last value handed to output — earlier ones are discarded so a
+      // widget can iteratively refine without leaking state.
+      let captured: AsyncIterable<unknown> | Promise<unknown> | null = null;
       const fn = new (Function as any)(
         "ctx",
-        `const { rpc } = ctx;
+        `const { client, output } = ctx;
          ${transformed}`,
       );
-      fn({ rpc: rpcQueued });
-      const pending = _consumePendingRpc();
-      if (!pending) {
-        throw new Error("Widget did not call rpc(...)");
+      fn({
+        client,
+        output: (value: unknown) => {
+          captured = value as AsyncIterable<unknown> | Promise<unknown>;
+        },
+      });
+      if (!captured) {
+        throw new Error("Widget did not call output(...) — pass it an rpc(...) result.");
       }
+      const pending = captured as AsyncIterable<unknown>;
       // Always iterate. One-shot closures yield exactly once; live
       // closures (e.g. `db.live(qb)`) keep yielding until the source
       // ends. The output panel updates on each yield.
@@ -389,14 +423,22 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
                   <div className="ml-auto flex items-center gap-2">
                     <button
                       onClick={insertOrder}
-                      className="text-[11px] normal-case px-2 py-0.5 rounded border border-gray-700 hover:border-blue-500 text-gray-300 hover:text-white"
+                      className={`text-[11px] normal-case px-2 py-0.5 rounded border transition-colors ${
+                        insertedOnce
+                          ? "border-gray-700 hover:border-blue-500 text-gray-300 hover:text-white"
+                          : "border-blue-500 bg-blue-600/30 text-white animate-pulse-slow ring-2 ring-blue-500/40"
+                      }`}
                       title="Inserts a draft order in the current operator's tenant"
                     >
                       + Insert order
                     </button>
                     <button
                       onClick={advanceRandom}
-                      className="text-[11px] normal-case px-2 py-0.5 rounded border border-gray-700 hover:border-blue-500 text-gray-300 hover:text-white"
+                      className={`text-[11px] normal-case px-2 py-0.5 rounded border transition-colors ${
+                        advancedOnce
+                          ? "border-gray-700 hover:border-blue-500 text-gray-300 hover:text-white"
+                          : "border-blue-500 bg-blue-600/30 text-white animate-pulse-slow ring-2 ring-blue-500/40"
+                      }`}
                       title="Picks a non-delivered order and advances its lifecycle one step"
                     >
                       ↻ Advance random
@@ -691,7 +733,7 @@ function generateRpcBlock({
 
   const terminator = live ? "live" : "execute";
 
-  return `rpc(async (api) => {
+  return `const result = client.run(async (api) => {
   const op = await api.operator(${JSON.stringify(opToken)});
 
   // \`op.orders()\` is pre-\`where\`'d to op's organization. Switch the
@@ -699,7 +741,12 @@ function generateRpcBlock({
   return op.orders()${statusLine}${groupByLine}${orderByLine}
     .select(({ orders }) => (${selectBody}))
     .${terminator}(api.db);
-});`;
+});
+
+// Hand the result to the play page's output panel. Promises render
+// as a one-shot table; AsyncIterables (\`.live(api.db)\` above) keep
+// streaming until you click Stop.
+output(result);`;
 }
 
 // Replace the existing `rpc(async (api) => { ... });` call with a
@@ -710,9 +757,10 @@ function stampWidget(
   opts: { opToken: OpToken; statusFilter: readonly Status[]; groupBy: GroupByCol; orderBy: OrderByCol; orderDir: OrderDir; live: boolean },
 ): string {
   const next = generateRpcBlock(opts);
-  // Anchor at column 0 so the literal `rpc(async (api)` inside the
-  // leading doc comment doesn't get matched.
-  const re = /^rpc\(async \(api\)[\s\S]*?^\}\);?/m;
+  // Match `const result = client.run(async (api) => …);\noutput(result);`
+  // anchored at column 0 (avoids the backticked occurrences in the
+  // doc comment).
+  const re = /^const result = client\.run\(async \(api\)[\s\S]*?^output\(result\);?/m;
   if (!re.test(src)) return src;
   return src.replace(re, next);
 }
