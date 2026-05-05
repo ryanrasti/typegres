@@ -1,21 +1,26 @@
 import { exoEval } from "./index";
 
 // ExoEval wire protocol:
-//   client -> server: a JS expression string (exoeval subset), specifically
-//     assuming a single free variable `api` (the cap root)
-//  server -> client: JSON-serialized return value
-// Additional notes:
-//   - captures (variables from the client's scope) are inlined as `const x = <JSON-serialized value>;`
-//     before a final IIFE declaration against the cap root.
-//   - safeStringify (vs raw JSON.stringify) guards against accidentally serializing class instances,
-//     which would leak all their own-enumerable fields into the wire. Only plain objects, arrays, and
-//     primitives are allowed to reach the wire.
+//   client -> server: a JS expression string (exoeval subset), assuming
+//     a single free variable `api` (the cap root) and a `captures` object
+//     as the closure's second arg.
+//   server -> client: AsyncIterable of JSON-serialized chunks. One-shot
+//     calls yield exactly once; streaming calls (closure returns an
+//     iterable / async-iterable like `db.live(qb)`) yield once per item.
+// Notes:
+//   - captures are passed as the IIFE's second argument so destructuring
+//     works (`(api, { minId }) => ...`) and bundler-renamed parameters
+//     don't desync from the JSON capture map.
+//   - safeStringify (vs raw JSON.stringify) guards against accidentally
+//     serializing class instances, which would leak all their own-
+//     enumerable fields. Only plain objects, arrays, and primitives reach
+//     the wire.
 //
 // TODO(framework): error envelope. Wrap responses as {ok: true, value} |
 // {ok: false, error: {name, message, stack?}} so server errors propagate
 // to the client with class + stack preserved (optional pass-through).
 
-export type RawChannel = (message: string) => Promise<string>;
+export type RawChannel = (message: string) => AsyncIterable<string>;
 
 export class RpcClient<A> {
     private channel: RawChannel;
@@ -24,22 +29,23 @@ export class RpcClient<A> {
         this.channel = channel;
     }
 
-    async run<R, C extends object = {}>(fn: (api: A, captures: C) => R, captures: C = {} as C) {
+    // One-shot: take the first yielded value from the channel and return
+    // it as a Promise. Errors out if the channel produces nothing.
+    async run<R, C extends object = {}>(fn: (api: A, captures: C) => R, captures: C = {} as C): Promise<R> {
+        for await (const v of this.runIter(fn, captures)) {
+            return v as R;
+        }
+        throw new Error("RpcClient.run: channel produced no values");
+    }
+
+    // Streaming: yield each value the channel emits. Used when the
+    // closure returns an iterable / async-iterable (e.g. `db.live(qb)`).
+    async *runIter<R, C extends object = {}>(fn: (api: A, captures: C) => R, captures: C = {} as C): AsyncIterable<R> {
         const fnString = fn.toString();
-        // Captures are passed as the IIFE's second argument so callers can
-        // destructure (`(api, { minId }) => ...`). Inlining as `const`s
-        // earlier broke under bundlers that rename outer-scope bindings:
-        // SWC renames a function-parameter `token` to `token1` if a closure
-        // captures it lexically, but the wire still ships the *captures
-        // map* keyed by the original name — closure references resolve to
-        // a `token1` that doesn't exist. Passing captures explicitly
-        // sidesteps that: the closure's parameter name is whatever the
-        // function declaration says, and bundlers don't rename it.
-        // safeStringify rather than JSON.stringify so a class-instance
-        // capture fails loud rather than leaking instance fields.
         const asString = `(${fnString})(api, ${safeStringify(captures)})`;
-        const response = await this.channel(asString);
-        return JSON.parse(response);
+        for await (const chunk of this.channel(asString)) {
+            yield JSON.parse(chunk) as R;
+        }
     }
 }
 
@@ -79,7 +85,22 @@ export const safeStringify = (value: unknown): string =>
  * is: input is a JS expression string, output is a JSON-serialized result.
  */
 export const inMemoryChannel = <A>(api: A): RawChannel =>
-  async (code: string): Promise<string> => {
+  async function* (code: string): AsyncIterable<string> {
     const result = await exoEval(code, { api });
-    return safeStringify(result);
+    // If the closure returned a (sync or async) iterable, stream its
+    // items one at a time; otherwise yield a single value. Strings and
+    // class instances (e.g. typegres' Record) deliberately fall through
+    // to the single-yield branch even though strings are iterable —
+    // safeStringify handles class shapes there.
+    if (
+      result != null &&
+      typeof result === "object" &&
+      (Symbol.asyncIterator in (result as object) || Symbol.iterator in (result as object))
+    ) {
+      for await (const item of result as AsyncIterable<unknown> | Iterable<unknown>) {
+        yield safeStringify(item);
+      }
+      return;
+    }
+    yield safeStringify(result);
   };

@@ -87,6 +87,44 @@ describe("exoeval rpc — in-memory", () => {
     );
   });
 
+  test("runIter streams items when closure returns an iterable", async () => {
+    class StreamApi {
+      @tool.unchecked()
+      *count(n: number): Iterable<number> {
+        for (let i = 0; i < n; i++) yield i;
+      }
+    }
+    const rpc = new RpcClient<StreamApi>(inMemoryChannel(new StreamApi()));
+    const out: number[] = [];
+    for await (const v of rpc.runIter((api) => api.count(3))) out.push(v);
+    expect(out).toEqual([0, 1, 2]);
+  });
+
+  test("runIter streams items from an async iterable", async () => {
+    class AsyncStreamApi {
+      @tool.unchecked()
+      async *ticks(n: number): AsyncIterable<{ i: number }> {
+        for (let i = 0; i < n; i++) yield { i };
+      }
+    }
+    const rpc = new RpcClient<AsyncStreamApi>(inMemoryChannel(new AsyncStreamApi()));
+    const out: { i: number }[] = [];
+    for await (const v of rpc.runIter((api) => api.ticks(2))) out.push(v);
+    expect(out).toEqual([{ i: 0 }, { i: 1 }]);
+  });
+
+  test("run() of an iterable closure takes the first item only", async () => {
+    class StreamApi {
+      @tool.unchecked()
+      *count(n: number): Iterable<number> {
+        for (let i = 0; i < n; i++) yield i;
+      }
+    }
+    const rpc = new RpcClient<StreamApi>(inMemoryChannel(new StreamApi()));
+    const result = await rpc.run((api) => api.count(5));
+    expect(result).toBe(0);
+  });
+
   test("non-@tool methods are not callable from the wire", async () => {
     class Internal {
       @tool()
