@@ -24,7 +24,14 @@ export type NullOf<T> = T extends Any<infer N extends number> ? N : 1;
 
 // Extract the TS type that a pg type deserializes to.
 // Uses the return type of deserialize(). For primitives passed directly, it's the type itself.
-// Nullability: N=0 → null, N=0|1 → U|null, N=1 → U, N=number → U (aggregate/unknown, not null)
+// Resolve the runtime JS type of a column / typegres expression.
+// Non-Any inputs collapse to `never` — methods, derived-column
+// functions, arbitrary class keys aren't deserialized and have no
+// "TS-side" type here. The fallback was previously `T`, which leaked
+// method types into row results (caller would think `row.method`
+// was callable; runtime returns plain objects).
+//
+// Nullability: N=0 → null, N=0|1 → U|null, N=1 → U, N=number → U (aggregate/unknown, not null).
 export type TsTypeOf<T> =
   T extends Any<infer N>
     ? T extends { deserialize: (_: any) => infer U }
@@ -36,7 +43,7 @@ export type TsTypeOf<T> =
             : null
           : U
       : unknown
-    : T;
+    : never;
 
 // Extract the nullable variant of a pg type via the [meta] bag
 export type Nullable<T> = T extends { [meta]: { __nullable: infer U } } ? U : T;

@@ -116,8 +116,18 @@ type Namespace = {
   [k: string]: RowType;
 };
 
+// Map each row field to its deserialized JS type. Non-Any fields
+// (methods, derived-column functions, user-written instance methods)
+// resolve to `never` via TsTypeOf, so calling them is a TS error
+// even if the key is structurally present.
+//
+// We don't use an `as` remap to drop non-Any keys outright — that
+// breaks TS's variance reasoning across generic intersections like
+// `RowTypeToTsType<R & R2>` ↔ `RowTypeToTsType<R2>` (used by
+// returningMerge and similar mutation chains). Trade-off: row type
+// has the method keys with `never` values rather than no keys.
 export type RowTypeToTsType<R extends RowType> = {
-  [k in keyof R]: TsTypeOf<R[k]>;
+  [K in keyof R]: TsTypeOf<R[K]>;
 };
 
 type RowTypeToNullable<R extends RowType> = {

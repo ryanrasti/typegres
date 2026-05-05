@@ -63,9 +63,13 @@ test("TsTypeOf on container types", () => {
   expectTypeOf<TsTypeOf<Anymultirange<Int4<1>, 1>>>().toEqualTypeOf<unknown>();
 });
 
-test("TsTypeOf falls through for TS primitives", () => {
-  expectTypeOf<TsTypeOf<number>>().toEqualTypeOf<number>();
-  expectTypeOf<TsTypeOf<string>>().toEqualTypeOf<string>();
+test("TsTypeOf collapses non-Any inputs to never", () => {
+  // Non-Any types aren't deserializable and have no meaningful runtime
+  // type here. Earlier behavior was to fall through (`TsTypeOf<X> = X`),
+  // which leaked method types into row results.
+  expectTypeOf<TsTypeOf<number>>().toEqualTypeOf<never>();
+  expectTypeOf<TsTypeOf<string>>().toEqualTypeOf<never>();
+  expectTypeOf<TsTypeOf<() => string>>().toEqualTypeOf<never>();
 });
 
 // --- Method return type nullability ---
