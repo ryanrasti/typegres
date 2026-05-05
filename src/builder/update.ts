@@ -8,7 +8,7 @@ import type { RowType, RowTypeToTsType } from "./query";
 import { combinePredicates, compileSelectList, isRowType, mergeReturning, reAlias } from "./query";
 import type { TableBase } from "../table";
 import { Database } from "../database";
-import { getColumn } from "../types/overrides/any";
+import { Any, getColumn } from "../types/overrides/any";
 import { fn, tool } from "../exoeval/tool";
 import z from "zod";
 
@@ -58,6 +58,9 @@ export const compileSetClauses = <T extends TableBase>(
   setRow: SetRow<T>,
 ): Sql[] =>
   Object.entries(setRow as { [key: string]: unknown }).map(([k, v]) => {
+    if (v instanceof Any) {
+      return sql`${sql.ident(k)} = ${v.toSql()}`;
+    }
     const col = getColumn(instance, k);
     return sql`${sql.ident(k)} = ${col[meta].__class.from(v).toSql()}`;
   });
@@ -145,12 +148,12 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
   }
 
   @tool(z.lazy(() => z.instanceof(Database)))
-  override async execute(db: Database): Promise<RowTypeToTsType<R>[]> {
+  override async execute(db: Database<any>): Promise<RowTypeToTsType<R>[]> {
     return db.execute(this);
   }
 
   @tool(z.lazy(() => z.instanceof(Database)))
-  async hydrate(db: Database): Promise<R[]> {
+  async hydrate(db: Database<any>): Promise<R[]> {
     return db.hydrate<any, any, R>(this);
   }
 

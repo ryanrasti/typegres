@@ -1,0 +1,8 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PlayPage from "./_PlayPage";
+---
+
+<BaseLayout title="Typegres Playground">
+  <PlayPage client:only="react" />
+</BaseLayout>

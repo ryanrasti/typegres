@@ -1,5 +1,5 @@
+import { Int8, Text } from "typegres";
 import { db } from "../db";
-import { Int8, Text } from "typegres/types";
 import { Dogs } from "./dogs";
 
 export class Collars extends db.Table("collars") {

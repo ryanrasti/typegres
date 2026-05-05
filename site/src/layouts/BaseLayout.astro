@@ -1,0 +1,45 @@
+---
+import "../styles/globals.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "Typegres - PostgreSQL, expressed in TypeScript",
+  description = "Import the full power of Postgres as a TypeScript library.",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/typegres_favicon.svg" />
+    <link rel="apple-touch-icon" href="/typegres_favicon.svg" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content="https://typegres.com" />
+    <meta property="og:site_name" content="Typegres" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://typegres.com/typegres_logo.svg" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content={title} />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content="https://typegres.com/typegres_logo.svg" />
+
+    <script defer data-domain="typegres.com" src="https://plausible.io/js/script.js"></script>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

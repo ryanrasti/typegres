@@ -1,4 +1,3 @@
-"use client";
 
 import { Github, ArrowUpRight, Check, X, AlertTriangle } from "lucide-react";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
@@ -121,7 +120,6 @@ export class Api extends RpcTarget {
       rightLabel: "frontend.tsx",
       leftLanguage: "typescript",
       rightLanguage: "tsx",
-      badge: "Coming Soon",
     },
   ];
 
@@ -129,25 +127,9 @@ export class Api extends RpcTarget {
     <>
       <DarkModeToggle />
 
-      {/* Experimental Banner */}
-      <div className="fixed top-0 left-0 right-0 z-[100] bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          <p className="text-sm text-yellow-800 dark:text-yellow-300 text-center">
-            🧪 Experimental | The RPC layer is under active development. Not ready for production use.{" "}
-            <a
-              href="https://github.com/ryanrasti/typegres"
-              className="font-medium underline hover:text-yellow-900 dark:hover:text-yellow-200 transition-colors"
-            >
-              Star on GitHub for updates →
-            </a>
-          </p>
-        </div>
-      </div>
-
       {/* Fixed Header */}
       <header
         className="fixed top-0 left-0 right-0 z-[90] backdrop-blur-md bg-white/80 dark:bg-gray-950/80 border-b border-gray-200 dark:border-gray-800"
-        style={{ top: "2.5rem" }}
       >
         <nav className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 h-14">
           <a href="/" className="flex items-center gap-2 group">
@@ -183,7 +165,7 @@ export class Api extends RpcTarget {
       </header>
 
       {/* Main Content */}
-      <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 pt-24">
+      <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 pt-16">
         {/* Hero Section */}
         <section className="relative overflow-hidden">
           <div className="absolute inset-0 bg-grid-gray-100 dark:bg-grid-gray-800 [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]" />
@@ -577,15 +559,23 @@ export class Api extends RpcTarget {
                     Q: How does the RPC layer actually work?
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                    Using the amazing{" "}
+                    A highly constrained interpreter that evaluates untrusted code (the same shape as
+                    {" "}codemode for AI agents), inspired by{" "}
                     <a
                       href="https://github.com/cloudflare/capnweb"
                       className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium transition-colors"
                     >
                       Cap&apos;n Web
+                    </a>
+                    . The client serializes a closure that composes over a set of classes/methods, and the
+                    server evaluates it in a single RPC call. There&apos;s also a{" "}
+                    <a
+                      href="https://github.com/cloudflare/capnweb/pull/162"
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium transition-colors"
+                    >
+                      PR
                     </a>{" "}
-                    project. It enables an RPC layer that naturally allows composing over a set of classes/methods
-                    safely in a single RPC call.
+                    in flight to make Cap&apos;n Web itself work as a transport for Typegres.
                   </p>
                 </div>
                 <div>

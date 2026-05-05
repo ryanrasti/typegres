@@ -30,6 +30,12 @@ type Leaf = {
 // consumer awaits `wait`; bus invokes `signal` (resolves wait, drains
 // leafs). `unsubscribe()` is idempotent — safe to call from a
 // consumer-break finally even after auto-unsubscribe ran.
+//
+// `cancel(reason)` rejects `wait` so an external caller (typically
+// `bus.stop()` or a per-iter abort) can release a consumer parked on
+// the await. The live generator catches AbortError in its finally and
+// exits cleanly. Without this, `await currentSub.wait` is a non-yield
+// point that .return() cannot interrupt — the iterator hangs forever.
 export class Subscription {
   readonly leafs: Leaf[] = [];
   constructor(
@@ -38,6 +44,7 @@ export class Subscription {
     readonly wait: Promise<void>,
     readonly signal: () => void,
     readonly unsubscribe: () => void,
+    readonly cancel: (reason?: unknown) => void,
   ) {}
 }
 
@@ -131,6 +138,10 @@ export class Bus {
     this.#loopPromise = undefined;
     this.#watermark = undefined;
     this.#buffer = [];
+    // Wake any consumers parked on `await sub.wait` so their generators
+    // can run finally + return cleanly. cancel() rejects `wait`; the
+    // live iterator catches AbortError and exits.
+    for (const sub of [...this.#subs]) sub.cancel();
   }
 
   // Returns undefined if the in-memory backfill buffer already shows a
@@ -162,8 +173,12 @@ export class Bus {
     }
 
     // No backfill match — index for future polls.
-    const { promise: wait, resolve } = Promise.withResolvers<void>();
-    const sub = new Subscription(
+    const { promise: wait, resolve, reject } = Promise.withResolvers<void>();
+    // wait gets attached to one of resolve/reject in the call below;
+    // before that, swallow unhandled-rejection if cancel fires before
+    // anyone awaits.
+    wait.catch(() => {});
+    const sub: Subscription = new Subscription(
       cursor,
       predicateSet,
       wait,
@@ -195,6 +210,13 @@ export class Bus {
           this.#index.delete(L.table);
         }
         sub.leafs.length = 0;
+      },
+      // cancel: reject `wait` so a parked consumer wakes with a
+      // throwable. Idempotent — calling it after signal/unsubscribe
+      // is a no-op (Promise rejection is one-shot).
+      (reason: unknown = new DOMException("aborted", "AbortError")) => {
+        reject(reason);
+        sub.unsubscribe();
       },
     );
     this.#subs.add(sub);
@@ -250,8 +272,11 @@ export class Bus {
         }
         await new Promise<void>((resolve) => {
           this.#wakeup = resolve;
-          const t = setTimeout(resolve, this.#intervalMs);
-          t.unref();
+          // Node's Timeout has .unref() so an idle bus doesn't keep
+          // the process alive; browser setTimeout returns a number
+          // and has no such method.
+          const t = setTimeout(resolve, this.#intervalMs) as unknown as { unref?: () => void };
+          t.unref?.();
         });
         this.#wakeup = undefined;
       }

@@ -116,8 +116,18 @@ type Namespace = {
   [k: string]: RowType;
 };
 
+// Map each row field to its deserialized JS type. Non-Any fields
+// (methods, derived-column functions, user-written instance methods)
+// resolve to `never` via TsTypeOf, so calling them is a TS error
+// even if the key is structurally present.
+//
+// We don't use an `as` remap to drop non-Any keys outright — that
+// breaks TS's variance reasoning across generic intersections like
+// `RowTypeToTsType<R & R2>` ↔ `RowTypeToTsType<R2>` (used by
+// returningMerge and similar mutation chains). Trade-off: row type
+// has the method keys with `never` values rather than no keys.
 export type RowTypeToTsType<R extends RowType> = {
-  [k in keyof R]: TsTypeOf<R[k]>;
+  [K in keyof R]: TsTypeOf<R[K]>;
 };
 
 type RowTypeToNullable<R extends RowType> = {
@@ -381,17 +391,25 @@ export class QueryBuilder<
   // QueryResult to a row array, and expose the hydrated / single-row
   // variants as chainable terminators too.
   @tool(z.lazy(() => z.instanceof(Database)))
-  override async execute(db: Database): Promise<RowTypeToTsType<O>[]> {
+  override async execute(db: Database<any>): Promise<RowTypeToTsType<O>[]> {
     return db.execute(this);
   }
 
+  // Streaming terminator. Mirrors `execute` but yields the rowset on
+  // every committed mutation that touches one of the live-tagged
+  // tables this query reads from. Caller iterates with `for await`.
   @tool(z.lazy(() => z.instanceof(Database)))
-  async hydrate(db: Database): Promise<O[]> {
+  live(db: Database<any>): AsyncIterable<RowTypeToTsType<O>[]> {
+    return db.live(this) as AsyncIterable<RowTypeToTsType<O>[]>;
+  }
+
+  @tool(z.lazy(() => z.instanceof(Database)))
+  async hydrate(db: Database<any>): Promise<O[]> {
     return db.hydrate<O, GB, Card>(this);
   }
 
   @tool(z.lazy(() => z.instanceof(Database)))
-  async one(db: Database): Promise<O> {
+  async one(db: Database<any>): Promise<O> {
     const [row] = await db.hydrate(this.limit(1));
     if (!row) {
       throw new Error("QueryBuilder.one(): query returned no rows");
@@ -400,7 +418,7 @@ export class QueryBuilder<
   }
 
   @tool(z.lazy(() => z.instanceof(Database)))
-  async maybeOne(db: Database): Promise<O | null> {
+  async maybeOne(db: Database<any>): Promise<O | null> {
     const [row] = await db.hydrate(this.limit(1));
     return row ?? null;
   }

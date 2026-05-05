@@ -63,9 +63,13 @@ test("TsTypeOf on container types", () => {
   expectTypeOf<TsTypeOf<Anymultirange<Int4<1>, 1>>>().toEqualTypeOf<unknown>();
 });
 
-test("TsTypeOf falls through for TS primitives", () => {
-  expectTypeOf<TsTypeOf<number>>().toEqualTypeOf<number>();
-  expectTypeOf<TsTypeOf<string>>().toEqualTypeOf<string>();
+test("TsTypeOf collapses non-Any inputs to never", () => {
+  // Non-Any types aren't deserializable and have no meaningful runtime
+  // type here. Earlier behavior was to fall through (`TsTypeOf<X> = X`),
+  // which leaked method types into row results.
+  expectTypeOf<TsTypeOf<number>>().toEqualTypeOf<never>();
+  expectTypeOf<TsTypeOf<string>>().toEqualTypeOf<never>();
+  expectTypeOf<TsTypeOf<() => string>>().toEqualTypeOf<never>();
 });
 
 // --- Method return type nullability ---
@@ -458,5 +462,94 @@ test("Type.from() precise nullability", () => {
   // Sql → nullable (0|1)
   expectTypeOf(Int4.from(sql`1`)).toEqualTypeOf<Int4<0 | 1>>();
   expectTypeOf(Text.from(sql`'hello'`)).toEqualTypeOf<Text<0 | 1>>();
+});
+
+// `Any.from(v)` accepts primitives, plain objects, arrays, null —
+// anything with a default prototype. Class instances (typegres
+// expressions, dates, buffers, user classes) are rejected. The
+// historical bug: passing an Any expression silently wrapped it as
+// `Param(anAny)` which serialized as `{}`. Hard rejection at the
+// boundary catches the issue at its source.
+
+test("Any.from: rejects typegres expressions (caught at boundary, not at SQL gen)", () => {
+  const expr = Int4.from(5)["+"](3); // an Int4 expression — instance of Int4 (a class)
+  expect(() => Int4.from(expr)).toThrow(/cannot wrap Int4 instance/);
+});
+
+test("Any.from: rejects user class instances", () => {
+  class Cents {
+    constructor(public n: number) {}
+  }
+  expect(() => Int4.from(new Cents(100))).toThrow(/cannot wrap Cents instance/);
+});
+
+test("Any.from: rejects Date instances", () => {
+  // Timestamptz round-trips as ISO strings; passing a Date silently
+  // worked before but the type system didn't allow it. Now it throws
+  // at runtime too.
+  expect(() => Text.from(new Date())).toThrow(/cannot wrap Date instance/);
+});
+
+test("Any.in: empty vararg → FALSE", () => {
+  const expr = Text.from("a").in();
+  const compiled = compile(sql`SELECT ${expr.toSql()}`, "pg");
+  expect(compiled.text).toContain("$1");
+});
+
+test("Any.in: single value → equality (no IN list)", () => {
+  const expr = Text.from("a").in(Text.from("b"));
+  const compiled = compile(sql`SELECT ${expr.toSql()}`, "pg");
+  expect(compiled.text).toMatch(/=/);
+  expect(compiled.text).not.toContain("IN");
+});
+
+test("Any.in: multiple values → IN list", () => {
+  const expr = Text.from("a").in(Text.from("b"), Text.from("c"), Text.from("d"));
+  const compiled = compile(sql`SELECT ${expr.toSql()}`, "pg");
+  expect(compiled.text).toContain(" IN (");
+  expect(compiled.text.match(/\$\d+/g)?.length).toBe(4); // lhs + 3 rhs
+});
+
+test("e2e: Any.in matches a value in the list", async () => {
+  const expr = Text.from("packed").in(Text.from("draft"), Text.from("packed"), Text.from("shipped"));
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("hit")}`);
+  expect(result.rows[0]?.["hit"]).toBe("t");
+});
+
+test("Any.in: accepts primitives directly", () => {
+  const expr = Text.from("a").in("b", "c", "d");
+  const compiled = compile(sql`SELECT ${expr.toSql()}`, "pg");
+  expect(compiled.text).toContain(" IN (");
+});
+
+test("e2e: Any.in matches a primitive value", async () => {
+  const expr = Text.from("packed").in("draft", "packed", "shipped");
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("hit")}`);
+  expect(result.rows[0]?.["hit"]).toBe("t");
+});
+
+test("e2e: Any.in misses when value not in list", async () => {
+  const expr = Text.from("missing").in(Text.from("a"), Text.from("b"));
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("hit")}`);
+  expect(result.rows[0]?.["hit"]).toBe("f");
+});
+
+test("Any.in: accepts varied nullabilities of same type", () => {
+  const nullable = Text.from(sql`'maybe'`); // Text<0|1>
+  const nonNull = Text.from("def");           // Text<1>
+  const expr = Text.from("abc").in(nullable, nonNull);
+  expectTypeOf(expr).toMatchTypeOf<Bool<1>>();
+});
+
+test("Any.from: accepts primitives, null, plain objects, arrays", () => {
+  expect(() => Int4.from(5)).not.toThrow();
+  expect(() => Text.from("hi")).not.toThrow();
+  expect(() => Bool.from(true)).not.toThrow();
+  expect(() => Int8.from(42n)).not.toThrow();
+  expect(() => Int4.from(null)).not.toThrow();
+  // Plain object (jsonb) — Object.prototype passes the check.
+  expect(() => Text.from({ shape: "object" } as any)).not.toThrow();
+  // Array (for array-typed columns).
+  expect(() => Text.from([1, 2, 3] as any)).not.toThrow();
 });
 

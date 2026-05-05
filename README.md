@@ -27,10 +27,10 @@ truth — and your application's public API is exposed directly on top of it.
 
 ```typescript
 class Users extends db.Table("users") {
-  id = Int8<1>.column({ nonNull: true, generated: true });
-  first_name = Text<1>.column({ nonNull: true });
-  last_name = Text<1>.column({ nonNull: true });
-  created_at = Timestamptz<1>.column({ nonNull: true });
+  id = (Int8<1>).column({ nonNull: true, generated: true });
+  first_name = (Text<1>).column({ nonNull: true });
+  last_name = (Text<1>).column({ nonNull: true });
+  created_at = (Timestamptz<1>).column({ nonNull: true });
 
   // Derived column — part of the public interface, not in the schema.
   fullName() {
@@ -48,6 +48,9 @@ const rows = await Users.from()
   .execute(db);
 ```
 
+A live, in-browser demo showing the cap-rooted API + live queries +
+RPC closure transport runs at [/play](https://typegres.com/play).
+
 ## Architecture sketch
 
 - **Types codegen'd from the Postgres catalog.** 77 base types, full
@@ -62,16 +65,22 @@ throughout.
 ## Status
 
 - [x] Full pg type system + operator/function codegen
-- [x] Query builder (SELECT + JOIN + WHERE + GROUP BY + HAVING + ORDER BY + LIMIT)
-- [x] Mutations (INSERT / UPDATE / DELETE / RETURNING)
+- [x] Query builder (`.select` + `.join` + `.where` + `.groupBy` + `.having` + `.orderBy` + `.limit`)
+- [x] Mutations (`.insert` / `.update` / `.delete` / `.returning`)
 - [x] Subqueries, scalar/array aggregation
 - [x] Table codegen from live schema
+- [x] Live queries — `qb.live(db)` returns an async iterable that
+      re-yields when committed mutations would change the result
+- [x] Capability-rooted RPC — closures composed against `@tool`-marked
+      classes/methods are serialized, evaluated server-side under a
+      constrained interpreter, and JSON-streamed back
 
 ## Planned
 
-- [ ] Live queries.
 - [ ] SQLite backend (sql-builder is dialect-aware; adapter is stubbed)
-- [ ] Capability-exposed RPC endpoint (thin layer on top of the table classes)
+- [ ] `pg_notify`-driven live updates (currently polls; see `src/live/ISSUES.md` #5)
+- [ ] Cap'n Web transport (in-flight upstream PR;
+      [cloudflare/capnweb#162](https://github.com/cloudflare/capnweb/pull/162))
 
 ## Quick start
 

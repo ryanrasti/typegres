@@ -1,8 +1,9 @@
 import { Any as Generated } from "../generated/any";
 import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
-import type { NullOf } from "../runtime";
+import type { NullOf, TsTypeOf } from "../runtime";
 import { Column, Param, sql, Sql, TypedParam, Unbound } from "../../builder/sql";
+import { tool } from "../../exoeval/tool";
 import * as types from "../index";
 
 type ColumnOpts = { nonNull?: boolean; default?: Sql; generated?: boolean };
@@ -56,6 +57,31 @@ export class Any<in out N extends number> extends Generated<N> {
     return cls.from(sql`CAST(${this.toSql()} AS ${cls.__typname})`) as any;
   }
 
+  // Type-safe IN. Accepts a vararg of "this type at any nullability"
+  // — including primitive values that the type knows how to serialize.
+  // For `Text`, that means `.in("a", "b", textVal)` all work. Compiles to:
+  //   - empty list  → `FALSE` (SQL forbids `IN ()`, and `x IN ∅` is logically false)
+  //   - one value   → `(this = v)` (lets pg pick a normal `=` plan)
+  //   - many values → `(this IN (v1, v2, ...))`
+  // Returns Bool<1> conservatively.
+  @tool.unchecked()
+  in<T extends Any<any>>(
+    this: T,
+    ...vals: (
+      | (T extends { [meta]: { __any: infer A } } ? A : Any<any>)
+      | TsTypeOf<T>
+    )[]
+  ): types.Bool<1> {
+    if (vals.length === 0) return types.Bool.from(false) as types.Bool<1>;
+    const cls = (this as Any<any>)[meta].__class as typeof Any;
+    const wrapped = vals.map((v) => (v instanceof Any ? v : cls.serialize(v)));
+    if (wrapped.length === 1) {
+      return types.Bool.from(sql`(${this.toSql()} = ${wrapped[0]!.toSql()})`) as types.Bool<1>;
+    }
+    const list = sql.join(wrapped.map((v) => v.toSql()));
+    return types.Bool.from(sql`(${this.toSql()} IN (${list}))`) as types.Bool<1>;
+  }
+
   // COALESCE(this, rhs) — returns first non-null. Chainable.
   // rhs must be same concrete type (via [meta].__any). If rhs is non-null, returns __nonNullable.
   coalesce<T extends Any<any>, R extends (T extends { [meta]: { __any: infer A } } ? A : Any<any>)>(
@@ -73,9 +99,29 @@ export class Any<in out N extends number> extends Generated<N> {
   static from<T extends typeof Any>(this: T, v: unknown): InstanceType<T> extends { [meta]: { __nonNullable: infer U } } ? U : InstanceType<T>;
   static from(v: Sql | unknown): any {
     const instance = new this();
-    const __raw = v instanceof Sql
-      ? v
-      : new TypedParam(new Param(v), this.__typname);
+    let __raw: Sql;
+    if (v instanceof Sql) {
+      __raw = v;
+    } else {
+      // Reject class instances — they almost always indicate a bug.
+      // The historical case: passing an Any expression to .from()
+      // silently wraps it as `Param(anAny)` which serializes as `{}`,
+      // producing either invalid SQL or a confusing cast error far
+      // from the call site. Plain objects (jsonb), arrays, nulls,
+      // and primitives are fine.
+      if (v !== null && typeof v === "object") {
+        const proto = Object.getPrototypeOf(v);
+        if (proto !== Object.prototype && proto !== Array.prototype && proto !== null) {
+          const name = (proto as { constructor?: { name?: string } } | null)?.constructor?.name ?? "anonymous";
+          throw new TypeError(
+            `${this.__typnameText}.from: cannot wrap ${name} instance as a typegres parameter. ` +
+              `If this is a typegres expression, pass its .toSql() result; ` +
+              `otherwise extract the primitive value first.`,
+          );
+        }
+      }
+      __raw = new TypedParam(new Param(v), this.__typname);
+    }
     // Set [meta] at runtime — subclasses' `declare [meta]` narrows the type only
     Object.defineProperty(instance, meta, {
       value: { __class: this, __raw },

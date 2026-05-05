@@ -1,11 +1,9 @@
+import { Int8, Text, Timestamptz, sql } from "typegres";
 import { db } from "../db";
-import { Int8, Text, Timestamptz } from "typegres/types";
 import { Teams } from "./teams";
 import { Collars } from "./collars";
 import { Microchips } from "./microchips";
 import { Toys } from "./toys";
-import { sql } from "typegres/sql-builder";
-
 export class Dogs extends db.Table("dogs") {
   // @generated-start
   id = (Int8<1>).column({ nonNull: true, generated: true });

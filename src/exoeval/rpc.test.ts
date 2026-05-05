@@ -5,9 +5,10 @@ import { RpcClient, inMemoryChannel } from "./rpc";
 // Minimal end-to-end test of the exoeval RPC mechanism, in-memory.
 //
 // Wire format (defined in `./rpc.ts`):
-//   client → server: a JS expression string. Captures are inlined as
-//     `const x = <safeStringified value>;` declarations above an IIFE that
-//     invokes the user's function with `api` (the cap root) as its sole arg.
+//   client → server: a JS expression string. The IIFE invokes the user's
+//     function with two args — `api` (the cap root) and `captures` (the
+//     safeStringified captures object). Callers destructure: `(api, {
+//     minId }) => ...`.
 //   server → client: safeStringify(returnValue)
 //
 // `inMemoryChannel` (from `./rpc.ts`) stands in for whatever real transport
@@ -38,11 +39,11 @@ describe("exoeval rpc — in-memory", () => {
     expect(result).toBe("Hello, world!");
   });
 
-  test("captures inline as const declarations in scope", async () => {
+  test("captures arrive as the closure's second argument (destructure-friendly)", async () => {
     const rpc = new RpcClient<Api>(inMemoryChannel(new Api()));
     const x = 7;
     const y = 35;
-    const result = await rpc.run((api) => api.add(x, y), { x, y });
+    const result = await rpc.run((api, { x, y }) => api.add(x, y), { x, y });
     expect(result).toBe(42);
   });
 
@@ -54,11 +55,13 @@ describe("exoeval rpc — in-memory", () => {
     });
   });
 
-  test("captures named 'api' are rejected (collides with cap root)", async () => {
+  test("capture key 'api' is fine — captures are an object, not a binding", async () => {
     const rpc = new RpcClient<Api>(inMemoryChannel(new Api()));
-    await expect(
-      rpc.run((api) => api.greet("x"), { api: "shadowed" }),
-    ).rejects.toThrow(/cannot be named 'api'/);
+    const result = await rpc.run(
+      (api, { api: shadowed }) => api.greet(shadowed),
+      { api: "world" },
+    );
+    expect(result).toBe("Hello, world!");
   });
 
   // Demonstrates the safeStringify guard: even though `Leaky` has a method
@@ -82,6 +85,45 @@ describe("exoeval rpc — in-memory", () => {
     await expect(rpc.run((api) => api.getSelf())).rejects.toThrow(
       /cannot serialize Leaky instance/,
     );
+  });
+
+  test("plain arrays are NOT streamed (one-shot semantics preserved)", async () => {
+    class ListApi {
+      @tool.unchecked()
+      list(): number[] {
+        return [10, 20, 30];
+      }
+    }
+    const rpc = new RpcClient<ListApi>(inMemoryChannel(new ListApi()));
+    const result = await rpc.run((api) => api.list());
+    expect(result).toEqual([10, 20, 30]);
+  });
+
+  test("runIter streams items from an async iterable", async () => {
+    class AsyncStreamApi {
+      @tool.unchecked()
+      async *ticks(n: number): AsyncIterable<{ i: number }> {
+        for (let i = 0; i < n; i++) yield { i };
+      }
+    }
+    const rpc = new RpcClient<AsyncStreamApi>(inMemoryChannel(new AsyncStreamApi()));
+    const out: { i: number }[] = [];
+    for await (const v of rpc.run((api) => api.ticks(2))) out.push(v);
+    expect(out).toEqual([{ i: 0 }, { i: 1 }]);
+  });
+
+  test("await on a streaming closure resolves to the first chunk", async () => {
+    class TickApi {
+      @tool.unchecked()
+      async *ticks(n: number): AsyncIterable<number> {
+        for (let i = 0; i < n; i++) yield i;
+      }
+    }
+    const rpc = new RpcClient<TickApi>(inMemoryChannel(new TickApi()));
+    // Static type is AsyncIterable<number>; runtime hybrid is also
+    // thenable, so awaiting takes the first chunk.
+    const first = await (rpc.run((api) => api.ticks(5)) as unknown as PromiseLike<number>);
+    expect(first).toBe(0);
   });
 
   test("non-@tool methods are not callable from the wire", async () => {
