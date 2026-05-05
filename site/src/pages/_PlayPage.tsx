@@ -369,8 +369,12 @@ declare function output(value: unknown): void;
   return (
     <main className="min-h-screen bg-gray-950 text-gray-200 flex flex-col">
       <header className="bg-white text-gray-900 border-b border-gray-200 px-6 py-2 flex items-center">
-        <a href="/" className="flex items-center hover:opacity-80 transition-opacity" aria-label="Typegres home">
-          <img src="/typegres_logo.svg" alt="Typegres" className="h-7 w-auto" />
+        <a href="/" className="flex items-center gap-2 group" aria-label="Typegres home">
+          <img src="/typegres_icon.svg" alt="" className="h-7 w-auto" />
+          <span className="text-xl font-semibold">
+            <span className="text-gray-900">type</span>
+            <span className="text-blue-600">gres</span>
+          </span>
         </a>
         <a
           href="https://github.com/ryanrasti/typegres"
@@ -391,6 +395,11 @@ declare function output(value: unknown): void;
             backend is one click away. */}
         {showFiles && (
           <aside className="w-60 border-r border-gray-800 bg-gray-900 overflow-y-auto p-2 text-sm">
+            <div className="px-2 pt-1 pb-3 text-[11px] leading-snug text-gray-500 border-b border-gray-800 mb-2">
+              <span className="text-gray-300">This is the entire backend.</span>{" "}
+              Schemas, server, seed — all read-only. Edit a widget on
+              the left to compose against it.
+            </div>
             <FileTree files={FILES} active={activePath} onPick={setActivePath} />
           </aside>
         )}
