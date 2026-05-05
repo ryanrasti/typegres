@@ -83,6 +83,8 @@ export default function PlayPage() {
   const [opToken, setOpToken] = useState<OpToken>("op_brightship_alice");
   const [statusFilter, setStatusFilter] = useState<readonly Status[]>(["packed"]);
   const [groupBy, setGroupBy] = useState<GroupByCol>("none");
+  const [orderBy, setOrderBy] = useState<OrderByCol>("id");
+  const [orderDir, setOrderDir] = useState<OrderDir>("desc");
   const [modelsReady, setModelsReady] = useState(false);
 
   const activeFile = useMemo(() => FILES.find((f) => f.path === activePath)!, [activePath]);
@@ -95,11 +97,11 @@ export default function PlayPage() {
     if (!modelsReady) return;
     const widgetModel = monaco.editor.getModel(FILES[0]!.uri);
     if (!widgetModel) return;
-    const next = stampWidget(widgetModel.getValue(), { opToken, statusFilter, groupBy });
+    const next = stampWidget(widgetModel.getValue(), { opToken, statusFilter, groupBy, orderBy, orderDir });
     if (next !== widgetModel.getValue()) {
       widgetModel.setValue(next);
     }
-  }, [opToken, statusFilter, groupBy, modelsReady]);
+  }, [opToken, statusFilter, groupBy, orderBy, orderDir, modelsReady]);
 
   // One-time Monaco setup: TS compiler options, typegres types, models.
   useEffect(() => {
@@ -289,9 +291,13 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
                     opToken={opToken}
                     statusFilter={statusFilter}
                     groupBy={groupBy}
+                    orderBy={orderBy}
+                    orderDir={orderDir}
                     onOpToken={setOpToken}
                     onStatusFilter={setStatusFilter}
                     onGroupBy={setGroupBy}
+                    onOrderBy={setOrderBy}
+                    onOrderDir={setOrderDir}
                   />
                 )}
                 <div ref={containerRef} className="flex-1 min-h-0" />
@@ -364,14 +370,24 @@ type Status = (typeof STATUSES)[number];
 const GROUP_BY_COLS = ["none", "status", "priority"] as const;
 type GroupByCol = (typeof GROUP_BY_COLS)[number];
 
+const ORDER_BY_COLS = ["none", "id", "status", "priority", "created_at"] as const;
+type OrderByCol = (typeof ORDER_BY_COLS)[number];
+
+const ORDER_DIRS = ["asc", "desc"] as const;
+type OrderDir = (typeof ORDER_DIRS)[number];
+
 function generateRpcBlock({
   opToken,
   statusFilter,
   groupBy,
+  orderBy,
+  orderDir,
 }: {
   opToken: OpToken;
   statusFilter: readonly Status[];
   groupBy: GroupByCol;
+  orderBy: OrderByCol;
+  orderDir: OrderDir;
 }): string {
   // Status filter compiles to `.in(...)` regardless of arity. Empty
   // list short-circuits the filter (we just omit it) — Any.in itself
@@ -398,12 +414,24 @@ function generateRpcBlock({
   const groupByLine =
     groupBy === "none" ? "" : `\n    .groupBy(({ orders }) => [orders.${groupBy}])`;
 
+  // orderBy by either an ungrouped column (most cases) or — when group
+  // by is set — by the grouped column to keep things sortable.
+  const orderByEntry =
+    orderBy === "none"
+      ? null
+      : groupBy !== "none" && orderBy !== groupBy
+        ? null
+        : orderDir === "asc"
+          ? `orders.${orderBy}`
+          : `[orders.${orderBy}, "desc"]`;
+  const orderByLine = orderByEntry ? `\n    .orderBy(({ orders }) => ${orderByEntry})` : "";
+
   return `rpc(async (api) => {
   const op = await api.operator(${JSON.stringify(opToken)});
 
   // \`op.orders()\` is pre-\`where\`'d to op's organization. Switch the
   // operator above — same query, different scope, different data.
-  return op.orders()${statusLine}${groupByLine}
+  return op.orders()${statusLine}${groupByLine}${orderByLine}
     .select(({ orders }) => (${selectBody}))
     .execute(api.db);
 });`;
@@ -414,7 +442,7 @@ function generateRpcBlock({
 // unchanged — controls go inert rather than corrupting the file.
 function stampWidget(
   src: string,
-  opts: { opToken: OpToken; statusFilter: readonly Status[]; groupBy: GroupByCol },
+  opts: { opToken: OpToken; statusFilter: readonly Status[]; groupBy: GroupByCol; orderBy: OrderByCol; orderDir: OrderDir },
 ): string {
   const next = generateRpcBlock(opts);
   // Anchor at column 0 so the literal `rpc(async (api)` inside the
@@ -430,16 +458,24 @@ const WidgetControls = ({
   opToken,
   statusFilter,
   groupBy,
+  orderBy,
+  orderDir,
   onOpToken,
   onStatusFilter,
   onGroupBy,
+  onOrderBy,
+  onOrderDir,
 }: {
   opToken: OpToken;
   statusFilter: readonly Status[];
   groupBy: GroupByCol;
+  orderBy: OrderByCol;
+  orderDir: OrderDir;
   onOpToken: (v: OpToken) => void;
   onStatusFilter: (v: readonly Status[]) => void;
   onGroupBy: (v: GroupByCol) => void;
+  onOrderBy: (v: OrderByCol) => void;
+  onOrderDir: (v: OrderDir) => void;
 }) => {
   const toggleStatus = (s: Status) => {
     onStatusFilter(statusFilter.includes(s) ? statusFilter.filter((x) => x !== s) : [...statusFilter, s]);
@@ -486,6 +522,27 @@ const WidgetControls = ({
         >
           {GROUP_BY_COLS.map((c) => (
             <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="order by">
+        <select
+          value={orderBy}
+          onChange={(e) => onOrderBy(e.target.value as OrderByCol)}
+          className="bg-gray-800 text-gray-200 text-xs rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-blue-500"
+        >
+          {ORDER_BY_COLS.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        <select
+          value={orderDir}
+          onChange={(e) => onOrderDir(e.target.value as OrderDir)}
+          disabled={orderBy === "none"}
+          className="bg-gray-800 text-gray-200 text-xs rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-blue-500 disabled:opacity-40"
+        >
+          {ORDER_DIRS.map((d) => (
+            <option key={d} value={d}>{d}</option>
           ))}
         </select>
       </Field>
