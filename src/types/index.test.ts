@@ -464,3 +464,41 @@ test("Type.from() precise nullability", () => {
   expectTypeOf(Text.from(sql`'hello'`)).toEqualTypeOf<Text<0 | 1>>();
 });
 
+// `Any.from(v)` accepts primitives, plain objects, arrays, null —
+// anything with a default prototype. Class instances (typegres
+// expressions, dates, buffers, user classes) are rejected. The
+// historical bug: passing an Any expression silently wrapped it as
+// `Param(anAny)` which serialized as `{}`. Hard rejection at the
+// boundary catches the issue at its source.
+
+test("Any.from: rejects typegres expressions (caught at boundary, not at SQL gen)", () => {
+  const expr = Int4.from(5)["+"](3); // an Int4 expression — instance of Int4 (a class)
+  expect(() => Int4.from(expr)).toThrow(/cannot wrap Int4 instance/);
+});
+
+test("Any.from: rejects user class instances", () => {
+  class Cents {
+    constructor(public n: number) {}
+  }
+  expect(() => Int4.from(new Cents(100))).toThrow(/cannot wrap Cents instance/);
+});
+
+test("Any.from: rejects Date instances", () => {
+  // Timestamptz round-trips as ISO strings; passing a Date silently
+  // worked before but the type system didn't allow it. Now it throws
+  // at runtime too.
+  expect(() => Text.from(new Date())).toThrow(/cannot wrap Date instance/);
+});
+
+test("Any.from: accepts primitives, null, plain objects, arrays", () => {
+  expect(() => Int4.from(5)).not.toThrow();
+  expect(() => Text.from("hi")).not.toThrow();
+  expect(() => Bool.from(true)).not.toThrow();
+  expect(() => Int8.from(42n)).not.toThrow();
+  expect(() => Int4.from(null)).not.toThrow();
+  // Plain object (jsonb) — Object.prototype passes the check.
+  expect(() => Text.from({ shape: "object" } as any)).not.toThrow();
+  // Array (for array-typed columns).
+  expect(() => Text.from([1, 2, 3] as any)).not.toThrow();
+});
+

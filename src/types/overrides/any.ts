@@ -73,9 +73,29 @@ export class Any<in out N extends number> extends Generated<N> {
   static from<T extends typeof Any>(this: T, v: unknown): InstanceType<T> extends { [meta]: { __nonNullable: infer U } } ? U : InstanceType<T>;
   static from(v: Sql | unknown): any {
     const instance = new this();
-    const __raw = v instanceof Sql
-      ? v
-      : new TypedParam(new Param(v), this.__typname);
+    let __raw: Sql;
+    if (v instanceof Sql) {
+      __raw = v;
+    } else {
+      // Reject class instances — they almost always indicate a bug.
+      // The historical case: passing an Any expression to .from()
+      // silently wraps it as `Param(anAny)` which serializes as `{}`,
+      // producing either invalid SQL or a confusing cast error far
+      // from the call site. Plain objects (jsonb), arrays, nulls,
+      // and primitives are fine.
+      if (v !== null && typeof v === "object") {
+        const proto = Object.getPrototypeOf(v);
+        if (proto !== Object.prototype && proto !== Array.prototype && proto !== null) {
+          const name = (proto as { constructor?: { name?: string } } | null)?.constructor?.name ?? "anonymous";
+          throw new TypeError(
+            `${this.__typnameText}.from: cannot wrap ${name} instance as a typegres parameter. ` +
+              `If this is a typegres expression, pass its .toSql() result; ` +
+              `otherwise extract the primitive value first.`,
+          );
+        }
+      }
+      __raw = new TypedParam(new Param(v), this.__typname);
+    }
     // Set [meta] at runtime — subclasses' `declare [meta]` narrows the type only
     Object.defineProperty(instance, meta, {
       value: { __class: this, __raw },

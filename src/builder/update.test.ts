@@ -206,6 +206,37 @@ test("set: mixing primitive and expression values in one call", async () => {
   });
 });
 
+test("returning: expression in projection (not just bare columns)", async () => {
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE notes (
+      id  int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      tag text NOT NULL
+    )`);
+    await tx.execute(sql`INSERT INTO notes (tag) VALUES ('hello')`);
+
+    class Notes extends db.Table("notes") {
+      id  = (Int8<1>).column({ nonNull: true, generated: true });
+      tag = (Text<1>).column({ nonNull: true });
+    }
+
+    // RETURNING goes through compileSelectList — same path as SELECT
+    // projections, so an expression in the projection (here
+    // `tag.upper()`) should compile to `RETURNING upper(tag) AS shouted`.
+    // The Class.from(v) Any-rewrap bug fixed in compileSetClauses doesn't
+    // apply here. Verify by round-tripping the expression value.
+    const [updated] = await tx.execute(
+      Notes.update()
+        .where(({ notes }) => notes.id["="]("1"))
+        .set(() => ({ tag: "world" }))
+        .returning(({ notes }) => ({
+          id: notes.id,
+          shouted: notes.tag.upper(),
+        })),
+    );
+    expect(updated).toEqual({ id: "1", shouted: "WORLD" });
+  });
+});
+
 test("set: expression with returning round-trips the new value", async () => {
   await withinTransaction(async (tx) => {
     await tx.execute(sql`CREATE TABLE balances (
