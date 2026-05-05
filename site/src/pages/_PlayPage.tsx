@@ -1,490 +1,335 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as monaco from "monaco-editor";
 
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
-import { CodeEditor, CodeEditorWithOutput } from "@/components/CodeEditor";
-import { useIsMobile } from "@/hooks/useIsMobile";
-import { Github, Code, Terminal, Database, Share2, Check } from "lucide-react";
-// `next/dynamic` removed; React.lazy is the equivalent under Astro.
-import inspect from "object-inspect";
-import { format } from "sql-formatter";
-import { SyntaxHighlight } from "@/components/SyntaxHighlight";
-import {
-  setupMonacoWithTypegres,
-  transformCodeWithEsbuild,
-} from "@/lib/monaco-typegres-integration";
-import {
-  getCodeFromURL,
-  updateURLWithCode,
-  copyShareURL,
-} from "@/lib/share-utils";
+// Vite worker setup — required for Monaco's TS language service
+// (autocomplete, diagnostics, jump-to-def). `@monaco-editor/react`
+// would do this implicitly; we use raw `monaco-editor`.
+import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
+import TsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
 
-const MonacoEditor = lazy(() => import("@monaco-editor/react"));
+// The demo's source files, imported as raw text via Vite. Same files
+// also imported normally below for the runtime — one source of truth.
+import runtimeSrc from "@/demo/runtime.ts?raw";
+import seedSrc from "@/demo/seed.ts?raw";
+import organizationsSrc from "@/demo/schema/organizations.ts?raw";
+import operatorsSrc from "@/demo/schema/operators.ts?raw";
+import locationsSrc from "@/demo/schema/locations.ts?raw";
+import customersSrc from "@/demo/schema/customers.ts?raw";
+import inventoryPositionsSrc from "@/demo/schema/inventory_positions.ts?raw";
+import ordersSrc from "@/demo/schema/orders.ts?raw";
+import orderLinesSrc from "@/demo/schema/order_lines.ts?raw";
+import shipmentsSrc from "@/demo/schema/shipments.ts?raw";
+import apiSrc from "@/demo/server/api.ts?raw";
+import widgetSrc from "@/demo/widgets/main.ts?raw";
+
+// Runtime modules — give the eval'd widget code something real to run against.
+import { sql } from "typegres";
+import { db } from "@/demo/runtime";
+import { Organizations } from "@/demo/schema/organizations";
+import { Operators } from "@/demo/schema/operators";
+import { Locations } from "@/demo/schema/locations";
+import { Customers } from "@/demo/schema/customers";
+import { InventoryPositions } from "@/demo/schema/inventory_positions";
+import { Orders } from "@/demo/schema/orders";
+import { OrderLines } from "@/demo/schema/order_lines";
+import { Shipments } from "@/demo/schema/shipments";
+import { operatorFromToken } from "@/demo/server/api";
+
+import { transformCodeWithEsbuild } from "@/lib/monaco-typegres-integration";
 
 declare global {
   interface Window {
-    typegres: any;
-    pglite: any;
-    cachedTg?: any; // Cache the typegres connection
+    MonacoEnvironment?: monaco.Environment;
   }
 }
 
-// Mobile playground component with tabs
-function MobilePlayground({ initialCode }: { initialCode: string }) {
-  const [activeTab, setActiveTab] = useState<'code' | 'output' | 'sql'>('code');
-  const [code, setCode] = useState(initialCode);
+self.MonacoEnvironment = {
+  getWorker(_workerId: string, label: string) {
+    if (label === "typescript" || label === "javascript") return new TsWorker();
+    return new EditorWorker();
+  },
+};
+
+// Files exposed in the file tree. Mirrors the on-disk layout of
+// `src/demo/`. The widget is the only editable file; everything else
+// is read-only "see how typegres works."
+type FileNode = {
+  path: string;        // for display + tab key
+  uri: monaco.Uri;     // for Monaco's TS resolver
+  content: string;
+  editable: boolean;
+};
+
+const FILES: FileNode[] = [
+  { path: "widgets/main.ts",              content: widgetSrc,             editable: true,  uri: monaco.Uri.parse("file:///widgets/main.ts") },
+  { path: "runtime.ts",                   content: runtimeSrc,            editable: false, uri: monaco.Uri.parse("file:///runtime.ts") },
+  { path: "seed.ts",                      content: seedSrc,               editable: false, uri: monaco.Uri.parse("file:///seed.ts") },
+  { path: "schema/organizations.ts",      content: organizationsSrc,      editable: false, uri: monaco.Uri.parse("file:///schema/organizations.ts") },
+  { path: "schema/operators.ts",          content: operatorsSrc,          editable: false, uri: monaco.Uri.parse("file:///schema/operators.ts") },
+  { path: "schema/locations.ts",          content: locationsSrc,          editable: false, uri: monaco.Uri.parse("file:///schema/locations.ts") },
+  { path: "schema/customers.ts",          content: customersSrc,          editable: false, uri: monaco.Uri.parse("file:///schema/customers.ts") },
+  { path: "schema/inventory_positions.ts",content: inventoryPositionsSrc, editable: false, uri: monaco.Uri.parse("file:///schema/inventory_positions.ts") },
+  { path: "schema/orders.ts",             content: ordersSrc,             editable: false, uri: monaco.Uri.parse("file:///schema/orders.ts") },
+  { path: "schema/order_lines.ts",        content: orderLinesSrc,         editable: false, uri: monaco.Uri.parse("file:///schema/order_lines.ts") },
+  { path: "schema/shipments.ts",          content: shipmentsSrc,          editable: false, uri: monaco.Uri.parse("file:///schema/shipments.ts") },
+  { path: "server/api.ts",                content: apiSrc,                editable: false, uri: monaco.Uri.parse("file:///server/api.ts") },
+];
+
+// No ambient declarations needed — the widget is a real TS module
+// with imports, so Monaco resolves types through cross-file URIs.
+
+export default function PlayPage() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const [activePath, setActivePath] = useState<string>("widgets/main.ts");
   const [output, setOutput] = useState<string>("");
-  const [sqlOutput, setSqlOutput] = useState<string>("");
+  const [running, setRunning] = useState(false);
   const [error, setError] = useState<string>("");
-  const [isRunning, setIsRunning] = useState(false);
-  const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied'>('idle');
 
+  const activeFile = useMemo(() => FILES.find((f) => f.path === activePath)!, [activePath]);
+
+  // One-time Monaco setup: TS compiler options, typegres types, models.
   useEffect(() => {
-    if (initialCode && initialCode !== code) {
-      setCode(initialCode);
-    }
-  }, [initialCode]);
+    if (!containerRef.current) return;
 
-  const handleShare = async () => {
-    try {
-      setShareStatus('copying');
-      await copyShareURL(code);
-      updateURLWithCode(code);
-      setShareStatus('copied');
-      setTimeout(() => setShareStatus('idle'), 2000);
-    } catch (error) {
-      console.error('Failed to share:', error);
-      setShareStatus('idle');
-    }
-  };
-
-  const runCode = useCallback(async () => {
-    setOutput("");
-    setSqlOutput("");
-    setError("");
-    setIsRunning(true);
-
-    const originalConsoleLog = console.log;
-    const logs: any[] = [];
-    const sqlQueries: Array<{ sql: string; parameters?: any[] }> = [];
-
-    try {
-      if (!window.typegres) {
-        await import("@electric-sql/pglite");
-        try {
-          // @ts-ignore
-          const typegresModule = await import("../../public/typegres");
-          window.typegres = typegresModule;
-        } catch (error) {
-          console.error("Failed to load typegres bundle:", error);
-          throw new Error("Failed to load typegres bundle");
-        }
-      }
-
-      const jsCode = await transformCodeWithEsbuild(code);
-      let transformedCode = jsCode.replace(
-        /import\s*\{([^}]+)\}\s*from\s*['"]typegres['"]/g,
-        "const {$1} = window.typegres"
-      );
-      
-      // Replace typegres({ type: "pglite" }) with cached instance
-      if (!window.cachedTg) {
-        window.cachedTg = await window.typegres.typegres({ type: "pglite" });
-      }
-      
-      // Replace the typegres initialization with our cached instance
-      transformedCode = transformedCode.replace(
-        /const\s+(\w+)\s*=\s*await\s+typegres\s*\(\s*\{\s*type\s*:\s*["']pglite["']\s*\}\s*\)/g,
-        'const $1 = window.cachedTg'
-      );
-
-      console.log = (...args: any[]) => {
-        originalConsoleLog(...args);
-        
-        if (args[0] === "Debugging query:" && args[1] && typeof args[1] === 'object' && 'sql' in args[1]) {
-          sqlQueries.push({
-            sql: args[1].sql,
-            parameters: args[1].parameters
-          });
-        } else {
-          logs.push(args);
-        }
-      };
-
-      const executeCode = new Function(
-        `
-        return (async () => {
-          ${transformedCode}          
-        })();
-      `
-      );
-
-      await executeCode();
-      
-      const formattedLogs = logs.map((logArgs) => {
-        const formattedArgs = logArgs.map((arg: any) => {
-          if (typeof arg === 'object' && arg !== null) {
-            return inspect(arg, {
-              depth: 4,
-              indent: 2,
-            });
-          }
-          return String(arg);
-        });
-        
-        return formattedArgs.join(' ');
-      }).join('\n\n');
-      
-      setOutput(formattedLogs);
-      
-      if (sqlQueries.length > 0) {
-        const formattedParts: { sql: string; params?: string }[] = sqlQueries.map((query, index) => {
-          let sql = format(query.sql, {
-            language: 'postgresql',
-            tabWidth: 2,
-            keywordCase: 'upper',
-            linesBetweenQueries: 2,
-          });
-          
-          if (sqlQueries.length > 1) {
-            sql = `-- Query ${index + 1}\n${sql}`;
-          }
-          
-          let params = undefined;
-          if (query.parameters && query.parameters.length > 0) {
-            params = inspect(query.parameters, {
-              depth: 3,
-            });
-          }
-          
-          return { sql, params };
-        });
-        
-        const combinedOutput = formattedParts.map(part => {
-          let result = part.sql;
-          if (part.params) {
-            result += `\n\n-- Parameters:\n/*\n${part.params}\n*/`;
-          }
-          return result;
-        }).join('\n\n' + '-'.repeat(60) + '\n\n');
-        
-        setSqlOutput(combinedOutput);
-      }
-      
-    } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
-    } finally {
-      console.log = originalConsoleLog;
-      setIsRunning(false);
-      setActiveTab('output'); // Switch to output after completion
-    }
-  }, [code]);
-
-  const handleEditorMount = (editor: any, monaco: any) => {
-    const loadTypes = async () => {
-      try {
-        await setupMonacoWithTypegres(monaco);
-      } catch (error) {
-        console.error("Failed to load types:", error);
-      }
-    };
-
-    loadTypes();
-  };
-
-  return (
-    <div className="flex flex-col h-[calc(100dvh-64px)] relative">
-      {/* Floating Action Buttons - Only visible on Code tab */}
-      {activeTab === 'code' && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
-          <div className="flex gap-2">
-            <button
-              onClick={runCode}
-              disabled={isRunning}
-              className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg shadow-sm hover:bg-blue-600 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-          {isRunning ? (
-            <>
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-              </svg>
-              Running...
-            </>
-          ) : (
-            <>
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-              Run Code
-            </>
-          )}
-            </button>
-            <button
-              onClick={handleShare}
-              className="px-4 py-3 bg-gray-700 text-white rounded-lg shadow-sm hover:bg-gray-600 flex items-center justify-center gap-2 transition-all"
-            >
-              {shareStatus === 'copied' ? (
-                <Check className="w-5 h-5" />
-              ) : (
-                <Share2 className="w-5 h-5" />
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-      
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
-        <button
-          onClick={() => setActiveTab('code')}
-          className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 relative ${
-            activeTab === 'code'
-              ? 'text-blue-600 dark:text-blue-400'
-              : 'text-gray-600 dark:text-gray-400'
-          }`}
-        >
-          <Code className="w-4 h-4" />
-          Code
-          {activeTab === 'code' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('output')}
-          className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 relative ${
-            activeTab === 'output'
-              ? 'text-blue-600 dark:text-blue-400'
-              : 'text-gray-600 dark:text-gray-400'
-          }`}
-        >
-          <Terminal className="w-4 h-4" />
-          Output
-          {activeTab === 'output' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('sql')}
-          className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 relative ${
-            activeTab === 'sql'
-              ? 'text-blue-600 dark:text-blue-400'
-              : 'text-gray-600 dark:text-gray-400'
-          }`}
-        >
-          <Database className="w-4 h-4" />
-          SQL
-          {activeTab === 'sql' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
-          )}
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 relative overflow-hidden">
-        {/* Code tab */}
-        <div className={`absolute inset-0 h-full flex flex-col ${activeTab === 'code' ? 'visible' : 'invisible'}`}>
-          <div className="flex-1">
-            <MonacoEditor
-              defaultLanguage="typescript"
-              theme="vs-dark"
-              value={code}
-              onChange={(value) => setCode(value || "")}
-              onMount={handleEditorMount}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 12,
-                lineHeight: 1.5,
-                tabSize: 2,
-                automaticLayout: true,
-                scrollBeyondLastLine: true,
-                fixedOverflowWidgets: true,
-                lineNumbers: "off",
-                folding: false,
-                lineDecorationsWidth: 0,
-                lineNumbersMinChars: 0,
-                glyphMargin: false,
-                renderLineHighlight: 'none',
-                overviewRulerLanes: 0,
-                padding: { bottom: 80 },
-              }}
-            />
-          </div>
-        </div>
-        
-        {/* Output tab */}
-        <div className={`absolute inset-0 h-full p-4 bg-gray-900 overflow-auto ${activeTab === 'output' ? 'visible' : 'invisible'}`}>
-          <div className="text-gray-200">
-            {error ? (
-              <pre className="text-red-400 whitespace-pre-wrap text-sm font-mono">Error: {error}</pre>
-            ) : output ? (
-              <SyntaxHighlight code={output} language="typescript" className="text-sm" />
-            ) : (
-              <span className="text-gray-500">Run code to see output</span>
-            )}
-          </div>
-        </div>
-        
-        {/* SQL tab */}
-        <div className={`absolute inset-0 h-full p-4 bg-gray-900 overflow-auto ${activeTab === 'sql' ? 'visible' : 'invisible'}`}>
-          <div className="text-gray-200">
-            {sqlOutput ? (
-              <SyntaxHighlight code={sqlOutput} language="sql" className="text-sm" />
-            ) : (
-              <span className="text-gray-500">No SQL queries captured</span>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function PlaygroundPage() {
-  const [runCode, setRunCode] = useState<(() => Promise<void>) | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const [hasRunOnce, setHasRunOnce] = useState(false);
-  const [initialCode, setInitialCode] = useState("");
-  const [currentCode, setCurrentCode] = useState("");
-  const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied'>('idle');
-  const isMobile = useIsMobile();
-
-  // Load initial code
-  useEffect(() => {
-    // First check if there's code in the URL
-    const sharedCode = getCodeFromURL();
-    if (sharedCode) {
-      setInitialCode(sharedCode);
-      setCurrentCode(sharedCode);
-      return;
-    }
-
-    // Otherwise load the demo code
-    fetch("/demo.ts.static")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch initial code: ${response.statusText}`
-          );
-        }
-        return response.text();
-      })
-      .then((text) => {
-        setInitialCode(text);
-        setCurrentCode(text);
-      })
-      .catch((error) => {
-        console.error("Error fetching initial code:", error);
+    let cancelled = false;
+    (async () => {
+      monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ES2022,
+        module: monaco.languages.typescript.ModuleKind.ESNext,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        allowNonTsExtensions: true,
+        strict: true,
+        esModuleInterop: true,
+        jsx: monaco.languages.typescript.JsxEmit.None,
       });
+      monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+      });
+      monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
+
+      // Load the bundled typegres .d.ts — single file with all
+      // declarations. Wrap it as `typegres` module and re-export
+      // through the submodule paths so `import { Int8 } from
+      // "typegres/types"` etc. resolve. Pragmatic over precise.
+      try {
+        const res = await fetch("/typegres.d.ts");
+        const raw = await res.text();
+        const lib = `
+declare module "typegres" {
+${raw}
+}
+declare module "typegres/types"       { export * from "typegres"; }
+declare module "typegres/sql-builder" { export * from "typegres"; }
+declare module "typegres/config"      { export * from "typegres"; }
+declare module "typegres/exoeval"     { export * from "typegres"; }
+        `;
+        monaco.languages.typescript.typescriptDefaults.addExtraLib(
+          lib,
+          "file:///node_modules/typegres/index.d.ts",
+        );
+      } catch (e) {
+        console.error("Failed to load typegres types for Monaco:", e);
+      }
+
+      if (cancelled) return;
+
+      // Create one model per file (idempotent across HMR).
+      for (const f of FILES) {
+        if (!monaco.editor.getModel(f.uri)) {
+          monaco.editor.createModel(f.content, "typescript", f.uri);
+        }
+      }
+
+      const editor = monaco.editor.create(containerRef.current!, {
+        model: monaco.editor.getModel(activeFile.uri),
+        theme: "vs-dark",
+        automaticLayout: true,
+        minimap: { enabled: false },
+        fontSize: 13,
+        readOnly: !activeFile.editable,
+        scrollBeyondLastLine: false,
+      });
+      editorRef.current = editor;
+    })();
+
+    return () => {
+      cancelled = true;
+      editorRef.current?.dispose();
+      editorRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleShare = async (code: string) => {
+  // Switch model when active tab changes.
+  useEffect(() => {
+    if (!editorRef.current || !activeFile) return;
+    const model = monaco.editor.getModel(activeFile.uri);
+    if (model) {
+      editorRef.current.setModel(model);
+      editorRef.current.updateOptions({ readOnly: !activeFile.editable });
+    }
+  }, [activeFile]);
+
+  const run = async () => {
+    setError("");
+    setOutput("");
+    setRunning(true);
     try {
-      setShareStatus('copying');
-      await copyShareURL(code);
-      updateURLWithCode(code);
-      setShareStatus('copied');
-      setTimeout(() => setShareStatus('idle'), 2000);
-    } catch (error) {
-      console.error('Failed to share:', error);
-      setShareStatus('idle');
+      const widgetModel = monaco.editor.getModel(FILES[0]!.uri)!;
+      const userSrc = widgetModel.getValue();
+
+      // The widget is a TS module with `import` lines (for type
+      // resolution in Monaco) and `export default async function
+      // widget() { ... }`. To execute it we:
+      //   1. strip the imports (the body references names we'll
+      //      provide via closure, not via real module loading)
+      //   2. drop the `export default` keyword so it becomes a plain
+      //      function declaration
+      //   3. esbuild-transform any TS-isms to JS
+      //   4. wrap in `new Function` with the demo runtime as scope,
+      //      and invoke `widget()` to get the result
+      const noImports = userSrc.replace(/^\s*import .*?;?\s*$/gm, "");
+      const noExport = noImports.replace(/^\s*export\s+default\s+/m, "");
+      const transformed = await transformCodeWithEsbuild(noExport);
+
+      const fn = new (Function as any)(
+        "ctx",
+        `const { db, sql, Organizations, Operators, Locations, Customers,
+                InventoryPositions, Orders, OrderLines, Shipments,
+                operatorFromToken } = ctx;
+         ${transformed}
+         return widget();`,
+      );
+      const result = await fn({
+        db, sql,
+        Organizations, Operators, Locations, Customers,
+        InventoryPositions, Orders, OrderLines, Shipments,
+        operatorFromToken,
+      });
+      setOutput(JSON.stringify(result, null, 2));
+    } catch (e) {
+      setError(String(e instanceof Error ? e.message + "\n" + e.stack : e));
+    } finally {
+      setRunning(false);
     }
   };
 
-
   return (
-    <div className="min-h-screen bg-white dark:bg-typegres-dark text-typegres-dark dark:text-white">
-      <nav className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50 backdrop-blur">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <a href="/" className="flex items-center gap-2">
-              <img
-                src="/typegres_icon.svg"
-                alt="Typegres"
-                className="h-8 w-auto"
-              />
-              <span className="text-2xl font-bold">
-                <span className="text-typegres-dark dark:text-white">
-                  type
-                </span>
-                <span className="text-typegres-blue">gres</span>
+    <main className="min-h-screen bg-gray-950 text-gray-200 flex flex-col">
+      <header className="border-b border-gray-800 px-6 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-lg font-semibold">
+            <span className="text-white">type</span>
+            <span className="text-blue-400">gres</span>
+          </span>
+          <span className="text-xs text-gray-500">playground</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={run}
+            disabled={running}
+            className="px-3 py-1 text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-50"
+          >
+            {running ? "Running..." : "Run ▶"}
+          </button>
+        </div>
+      </header>
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* File tree */}
+        <aside className="w-60 border-r border-gray-800 bg-gray-900 overflow-y-auto p-2 text-sm">
+          <FileTree files={FILES} active={activePath} onPick={setActivePath} />
+        </aside>
+
+        {/* Editor + result */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="border-b border-gray-800 bg-gray-900 px-3 py-1.5 text-xs text-gray-400 flex items-center gap-3">
+            <span>{activeFile.path}</span>
+            {!activeFile.editable && (
+              <span className="px-1.5 py-0.5 rounded bg-gray-800 text-gray-500 text-[10px]">
+                read-only
               </span>
-              <span className="text-gray-400 dark:text-gray-600 mx-2 hidden sm:inline">•</span>
-              <span className="text-gray-600 dark:text-gray-400 hidden sm:inline">Playground</span>
-            </a>
-            <a
-              href="https://github.com/ryanrasti/typegres"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              <Github className="w-4 h-4" />
-              <span className="hidden sm:inline">GitHub</span>
-            </a>
+            )}
+          </div>
+          <div ref={containerRef} className="flex-1" />
+
+          <div className="border-t border-gray-800 bg-gray-900 max-h-[40%] overflow-y-auto">
+            <div className="px-4 py-2 border-b border-gray-800 text-xs font-medium text-gray-400 uppercase tracking-wide">
+              Output
+            </div>
+            <pre className="px-4 py-3 text-xs font-mono whitespace-pre-wrap">
+              {error ? (
+                <span className="text-red-400">{error}</span>
+              ) : output ? (
+                <span className="text-gray-200">{output}</span>
+              ) : (
+                <span className="text-gray-500">Click Run to execute the widget.</span>
+              )}
+            </pre>
           </div>
         </div>
-      </nav>
-
-      {isMobile ? (
-        <MobilePlayground
-          initialCode={initialCode}
-        />
-      ) : (
-        <CodeEditorWithOutput
-          initialCode={initialCode}
-          height="calc(100vh - 64px)"
-          onCodeChange={setCurrentCode}
-          onRunCode={(fn) => {
-            setRunCode(() => fn);
-          }}
-          customRunButton={(runFn, running) => (
-          <div className="flex items-center gap-2">
-          <button
-            onClick={async () => {
-              if (!running) {
-                setIsRunning(true);
-                setHasRunOnce(true);
-                try {
-                  await runFn();
-                } finally {
-                  setIsRunning(false);
-                }
-              }
-            }}
-            disabled={running}
-            className={`${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 relative overflow-hidden`}
-          >
-            {running ? (
-              <svg className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} animate-spin`} fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-              </svg>
-            ) : (
-              <svg className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            )}
-            {running ? 'Running...' : 'Run Code'}
-            {/* Shimmer effect */}
-            {!hasRunOnce && runCode && !running && (
-              <div className="absolute inset-0 -top-1/2 -bottom-1/2 opacity-30">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent -skew-x-12 animate-shimmer" />
-              </div>
-            )}
-          </button>
-            <button
-              onClick={() => handleShare(currentCode)}
-              className={`${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} bg-gray-700 text-white rounded hover:bg-gray-600 flex items-center gap-2 transition-all`}
-            >
-              {shareStatus === 'copied' ? (
-                <Check className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-              ) : (
-                <Share2 className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-              )}
-              {shareStatus === 'copied' ? 'Copied!' : 'Share'}
-            </button>
-          </div>
-          )}
-        />
-      )}
-    </div>
+      </div>
+    </main>
   );
 }
+
+// --- File tree ---
+
+const FileTree = ({
+  files,
+  active,
+  onPick,
+}: {
+  files: FileNode[];
+  active: string;
+  onPick: (path: string) => void;
+}) => {
+  // Group by top-level dir.
+  const groups = useMemo(() => {
+    const out: { dir: string; files: FileNode[] }[] = [];
+    for (const f of files) {
+      const parts = f.path.split("/");
+      const dir = parts.length > 1 ? parts[0]! : "";
+      let bucket = out.find((g) => g.dir === dir);
+      if (!bucket) {
+        bucket = { dir, files: [] };
+        out.push(bucket);
+      }
+      bucket.files.push(f);
+    }
+    return out;
+  }, [files]);
+
+  return (
+    <div className="space-y-3">
+      {groups.map((g) => (
+        <div key={g.dir}>
+          {g.dir && (
+            <div className="px-2 py-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+              {g.dir}/
+            </div>
+          )}
+          {g.files.map((f) => {
+            const name = f.path.split("/").slice(-1)[0]!;
+            return (
+              <button
+                key={f.path}
+                onClick={() => onPick(f.path)}
+                className={`w-full text-left px-2 py-1 rounded text-xs flex items-center gap-1.5 ${
+                  f.path === active
+                    ? "bg-gray-800 text-white"
+                    : "text-gray-400 hover:bg-gray-800/60"
+                }`}
+              >
+                <span className="text-[10px]">{f.editable ? "✏️" : "🔒"}</span>
+                <span className="font-mono">{name}</span>
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+};
