@@ -72,8 +72,19 @@ export type InsertRow<R> = { [K in RequiredKeys<R>]: TsTypeOf<R[K]> } & {
   [K in OptionalKeys<R>]?: TsTypeOf<R[K]>;
 };
 
-// Update set row: partial of all columns (as TsTypeOf)
-export type SetRow<R> = Partial<{ [K in ColumnKeys<R>]: R[K] | TsTypeOf<R[K]> }>;
+// Drop the column-only `__required` marker from a column type's meta.
+// Lets SET-side typegres expressions (which don't carry `__required`)
+// satisfy the column type without widening to `Any<N>` (which would
+// lose class precision — Text expression assignable to Int8 column).
+type StripRequired<T> = {
+  [K in keyof T]: K extends typeof meta ? Omit<T[K], "__required"> : T[K];
+};
+
+// Update set row: per column, either a typegres expression of the same
+// class & nullability (sans `__required`) or the JS-side primitive.
+export type SetRow<R> = Partial<{
+  [K in ColumnKeys<R>]: StripRequired<R[K]> | TsTypeOf<R[K]>;
+}>;
 export const isSetRow = (row: unknown): row is SetRow<any> => {
   if (typeof row !== "object" || row === null) {
     return false;

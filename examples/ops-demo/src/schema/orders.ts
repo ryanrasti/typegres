@@ -2,12 +2,12 @@ import { db } from "../db";
 import type { Database } from "typegres";
 import { Int8, Text, Timestamptz } from "typegres/types";
 import { tool } from "typegres/exoeval";
+import { sql } from "typegres/sql-builder";
 import type { OperatorRoot } from "../server/api";
 import { Customers } from "./customers";
 import { OrderLines } from "./order_lines";
 import { Organizations } from "./organizations";
 import { Shipments } from "./shipments";
-import { sql } from "typegres/sql-builder";
 
 export class Orders extends db.Table("orders") {
   // @generated-start
@@ -31,6 +31,12 @@ export class Orders extends db.Table("orders") {
   // that scoped the read, and the row's id is therefore already
   // guaranteed to belong to that principal's tenant. The only check
   // here is the role gate (orthogonal to tenancy).
+  //
+  // The CASE expression encodes the lifecycle in SQL — single
+  // round-trip, atomic, no read-then-write. The terminal-status
+  // check is "did anything come back from RETURNING?" — `delivered`
+  // rows have no next state, so the CASE returns NULL and the WHERE
+  // (which excludes NULL) keeps them unchanged.
   @tool.unchecked()
   async advance(db: Database<OperatorRoot>): Promise<{ id: string; status: string }> {
     const op = Orders.contextOf(this);
@@ -40,31 +46,32 @@ export class Orders extends db.Table("orders") {
     if (op.role !== "ops_lead") {
       throw new Error(`role '${op.role}' cannot advance orders (ops_lead required)`);
     }
-    return db.transaction(async (tx) => {
-      const [cur] = await Orders.from()
-        .where(({ orders }) => orders.id["="](this.id))
-        .select(({ orders }) => ({ status: orders.status }))
-        .execute(tx);
-      if (!cur) {
-        throw new Error("Order no longer exists");
-      }
-      const next = nextStatus(cur.status);
-      if (!next) {
-        throw new Error(`Order is already at terminal status '${cur.status}'`);
-      }
-      const [updated] = await Orders.update()
-        .where(({ orders }) => orders.id["="](this.id))
-        .set(() => ({ status: next }))
-        .returning(({ orders }) => ({ id: orders.id, status: orders.status }))
-        .execute(tx);
-      return updated!;
-    });
+    const [updated] = await Orders.update()
+      .where(({ orders }) => orders.id["="](this.id))
+      .where(({ orders }) => orders.status["<>"]("delivered"))
+      // The WHERE excludes 'delivered' so the CASE always matches; the
+      // `as Text<1>` asserts the non-null we structurally guarantee
+      // (Text.from(Sql) types as nullable by default).
+      .set(() => ({ status: nextStatusExpr as Text<1> }))
+      .returning(({ orders }) => ({ id: orders.id, status: orders.status }))
+      .execute(db);
+    if (!updated) {
+      throw new Error("Order is already at terminal status, or no longer exists");
+    }
+    return updated;
   }
 }
 
-// Order lifecycle. Single source of truth for `nextStatus`.
-const STATUS_FLOW = ["draft", "confirmed", "picking", "packed", "shipped", "delivered"] as const;
-const nextStatus = (cur: string): (typeof STATUS_FLOW)[number] | null => {
-  const i = (STATUS_FLOW as readonly string[]).indexOf(cur);
-  return i >= 0 && i < STATUS_FLOW.length - 1 ? STATUS_FLOW[i + 1]! : null;
-};
+// Order lifecycle as a typegres-wrapped CASE expression — keeps the
+// transition rules in one place and lets the UPDATE happen in a
+// single round-trip. `Text.from(sql\`...\`)` wraps raw SQL as a
+// Text-typed Any so set() accepts it.
+const nextStatusExpr = Text.from(sql`
+  CASE status
+    WHEN 'draft'     THEN 'confirmed'
+    WHEN 'confirmed' THEN 'picking'
+    WHEN 'picking'   THEN 'packed'
+    WHEN 'packed'    THEN 'shipped'
+    WHEN 'shipped'   THEN 'delivered'
+  END
+`);
