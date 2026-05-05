@@ -35,7 +35,7 @@ export default function HomePage() {
   }
 }`,
       leftDiff: true,
-      rightCode: `// Compiles to the single SQL query you&apos;d write manually.
+      rightCode: `// Compiles to the single SQL query you'd write manually.
 const latest = await User.from()
   .orderBy(({ users }) => [users.createdAt(), "desc"])
   .limit(1)
@@ -151,7 +151,7 @@ export class Api extends RpcTarget {
       >
         <nav className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 h-14">
           <a href="/" className="flex items-center gap-2 group">
-            <img src="/typegres_icon.svg" alt="Typegres" className="h-7 w-auto" />
+            <img src="/typegres_icon.svg" alt="" className="h-7 w-auto" />
             <span className="text-xl font-semibold">
               <span className="text-gray-900 dark:text-white">type</span>
               <span className="text-blue-600 dark:text-blue-400">gres</span>
@@ -215,9 +215,12 @@ export class Api extends RpcTarget {
                     <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-3">
                       {example.title}
                       {example.badge && (
-                        <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-                          {example.badge}
-                        </span>
+                        <>
+                          {" "}
+                          <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                            {example.badge}
+                          </span>
+                        </>
                       )}
                     </h2>
                     <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed max-w-3xl break-words">
