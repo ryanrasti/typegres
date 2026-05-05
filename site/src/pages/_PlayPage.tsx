@@ -32,6 +32,7 @@ import { client, setCurrentUserToken } from "@/demo/server/api";
 const rpc = client.run.bind(client);
 
 import { transformCodeWithEsbuild } from "@/lib/monaco-typegres-integration";
+import { SyntaxHighlight } from "@/components/SyntaxHighlight";
 import {
   ORDERS_PATH as ORDERS_PATH_W,
   INVENTORY_PATH as INVENTORY_PATH_W,
@@ -100,12 +101,20 @@ export default function PlayPage() {
   const [output, setOutput] = useState<unknown>(undefined);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string>("");
+  // Captured by the console.log shim during run(): the most recent
+  // `.debug()` payloads from typegres queries inside the closure.
+  // Each entry is the compiled SQL + parameter values; rendered in
+  // the SQL tab.
+  const [sqlEntries, setSqlEntries] = useState<Array<{ text: string; params: unknown[] }>>([]);
+  const [outputTab, setOutputTab] = useState<"table" | "sql">("table");
   const [userToken, setUserToken] = useState<UserToken>("user_brightship_alice");
   // `live` is a shared toggle: each widget's controls strip surfaces
   // it but they all read/write the same value, so the running query
   // observes a single live state.
   const [live, setLive] = useState(true);
-  const [showFiles, setShowFiles] = useState(false);
+  // File tree visible by default — it's the "see the entire
+  // backend" beat of the demo, easy to miss behind a chevron.
+  const [showFiles, setShowFiles] = useState(true);
   const iterRef = useRef<AsyncIterator<unknown> | null>(null);
   const autoRanRef = useRef(false);
   const [modelsReady, setModelsReady] = useState(false);
@@ -296,6 +305,25 @@ declare function output(value: unknown): void;
       // last value handed to output — earlier ones are discarded so a
       // widget can iteratively refine without leaking state.
       let captured: AsyncIterable<unknown> | Promise<unknown> | null = null;
+      // Shim console.log to capture qb.debug() output (the typegres
+      // builders emit `console.log("Debugging query:", { sql, parameters })`).
+      // The shim survives for the lifetime of the iterator below — live
+      // queries call .debug() once at compile time, so one entry per
+      // .debug() in the closure. Restored in finally.
+      setSqlEntries([]);
+      const originalConsoleLog = console.log;
+      console.log = (...args: unknown[]) => {
+        if (
+          args[0] === "Debugging query:" &&
+          args[1] && typeof args[1] === "object" &&
+          "sql" in (args[1] as object)
+        ) {
+          const e = args[1] as { sql: string; parameters?: unknown[] };
+          setSqlEntries((prev) => [...prev, { text: e.sql, params: e.parameters ?? [] }]);
+          return;
+        }
+        originalConsoleLog(...args);
+      };
       const fn = new (Function as any)(
         "ctx",
         `const { client, output } = ctx;
@@ -328,6 +356,7 @@ declare function output(value: unknown): void;
         }
       } finally {
         iterRef.current = null;
+        console.log = originalConsoleLog;
       }
       if (!any) throw new Error("rpc(...) produced no values");
     } catch (e) {
@@ -339,31 +368,21 @@ declare function output(value: unknown): void;
 
   return (
     <main className="min-h-screen bg-gray-950 text-gray-200 flex flex-col">
-      <header className="border-b border-gray-800 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-semibold">
-            <span className="text-white">type</span>
-            <span className="text-blue-400">gres</span>
-          </span>
-          <span className="text-xs text-gray-500">playground</span>
-        </div>
-        <div className="flex items-center gap-3">
-          {running ? (
-            <button
-              onClick={stop}
-              className="px-3 py-1 text-sm font-medium bg-red-600 hover:bg-red-500 text-white rounded"
-            >
-              Stop ■
-            </button>
-          ) : (
-            <button
-              onClick={run}
-              className="px-3 py-1 text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white rounded"
-            >
-              {live ? "Watch ▶" : "Run ▶"}
-            </button>
-          )}
-        </div>
+      <header className="bg-white text-gray-900 border-b border-gray-200 px-6 py-2 flex items-center">
+        <a href="/" className="flex items-center hover:opacity-80 transition-opacity" aria-label="Typegres home">
+          <img src="/typegres_logo.svg" alt="Typegres" className="h-7 w-auto" />
+        </a>
+        <a
+          href="https://github.com/ryanrasti/typegres"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ml-auto px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors inline-flex items-center gap-1.5"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
@@ -419,11 +438,27 @@ declare function output(value: unknown): void;
 
             <Panel id="output" defaultSize="50%" minSize="15%">
               <div className="h-full w-full flex flex-col bg-gray-900">
-                {/* Page-level identity. The dropdown writes the
-                    ambient currentUser token; api.currentUser() in
-                    every widget closure resolves to it. */}
+                {/* Page-level: who's logged in + Run/Stop. Same row
+                    so the visitor sees identity + execution paired. */}
                 <div className="border-b border-gray-800 bg-gray-900/60 px-3 py-2 flex items-center gap-3 shrink-0">
                   <UserPicker userToken={userToken} onUserToken={setUserToken} />
+                  <div className="ml-auto">
+                    {running ? (
+                      <button
+                        onClick={stop}
+                        className="px-3 py-1 text-sm font-medium bg-red-600 hover:bg-red-500 text-white rounded"
+                      >
+                        Stop ■
+                      </button>
+                    ) : (
+                      <button
+                        onClick={run}
+                        className="px-3 py-1 text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white rounded"
+                      >
+                        {live ? "Watch ▶" : "Run ▶"}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {/* Per-widget controls. Both widgets always mount —
                     they keep their state alive while the visitor
@@ -446,7 +481,18 @@ declare function output(value: unknown): void;
                   onLive={setLive}
                 />
                 <div className="px-4 py-2 border-b border-gray-800 text-xs font-medium text-gray-400 uppercase tracking-wide shrink-0 flex items-center gap-3">
-                  <span>Output</span>
+                  <button
+                    onClick={() => setOutputTab("table")}
+                    className={`px-2 py-0.5 rounded transition-colors ${outputTab === "table" ? "text-white bg-gray-800" : "hover:text-gray-200"}`}
+                  >
+                    Table
+                  </button>
+                  <button
+                    onClick={() => setOutputTab("sql")}
+                    className={`px-2 py-0.5 rounded transition-colors ${outputTab === "sql" ? "text-white bg-gray-800" : "hover:text-gray-200"}`}
+                  >
+                    SQL{sqlEntries.length > 1 ? ` (${sqlEntries.length})` : ""}
+                  </button>
                   {running && live && (
                     <span className="flex items-center gap-1 text-green-400 normal-case font-normal text-[11px]">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
@@ -457,6 +503,8 @@ declare function output(value: unknown): void;
                 <div className="flex-1 min-h-0 overflow-auto">
                   {error ? (
                     <pre className="px-4 py-3 text-xs font-mono whitespace-pre-wrap text-red-400">{error}</pre>
+                  ) : outputTab === "sql" ? (
+                    <SqlView entries={sqlEntries} />
                   ) : output === undefined ? (
                     <div className="px-4 py-3 text-xs text-gray-500">Click Run to execute the widget.</div>
                   ) : (
@@ -666,6 +714,65 @@ const Cell = ({ value }: { value: unknown }) => {
 
 // (ToggleButton, Field, LiveToggle, generators all live in
 // _PlayWidgets.tsx alongside the widget components themselves.)
+
+// SQL tab: renders captured `.debug()` payloads. Each entry is one
+// compiled query with its parameter values. Formatted with
+// sql-formatter (postgresql dialect) and syntax-highlighted via
+// monaco.editor.colorize so it picks up the editor's theme.
+const SqlView = ({ entries }: { entries: Array<{ text: string; params: unknown[] }> }) => {
+  if (entries.length === 0) {
+    return (
+      <div className="px-4 py-3 text-xs text-gray-500">
+        No SQL captured. Add <code className="font-mono text-gray-400">.debug()</code> to a query
+        chain to log its compiled form here.
+      </div>
+    );
+  }
+  return (
+    <div className="px-4 py-3 space-y-4">
+      {entries.map((e, i) => (
+        <div key={i}>
+          <SqlBlock sql={e.text} />
+          {e.params.length > 0 && (
+            <div className="mt-2 text-[11px] text-gray-500">
+              params:{" "}
+              <span className="text-gray-300 font-mono">
+                {JSON.stringify(e.params)}
+              </span>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const SqlBlock = ({ sql }: { sql: string }) => {
+  // Format with sql-formatter (postgresql dialect) lazily so the
+  // import doesn't hit the initial bundle. Falls back to raw text
+  // until the formatter resolves.
+  const [formatted, setFormatted] = useState<string>(sql);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { format } = await import("sql-formatter");
+        const text = format(sql, { language: "postgresql", tabWidth: 2, keywordCase: "upper" });
+        if (!cancelled) setFormatted(text);
+      } catch {
+        if (!cancelled) setFormatted(sql);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sql]);
+  return (
+    <div className="bg-gray-950/60 rounded p-3 border border-gray-800">
+      <SyntaxHighlight code={formatted} language="sql" className="text-xs" />
+    </div>
+  );
+};
 
 
 // --- File tree ---

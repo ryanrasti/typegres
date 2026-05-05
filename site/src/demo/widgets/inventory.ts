@@ -5,8 +5,8 @@ const result = client.run(async (api) => {
   // composes against the existing schemas.
 
   const user = await api.currentUser();
-  // Inventory pressure: stock on hand at low thresholds, joined to
-  // open order lines so we can see demand against supply.
+  // Inventory pressure: stock at or below the threshold, joined to
+  // each position's location for display.
   return user.inventory()
     .where(({ inventory_positions: p }) => p.on_hand["<="]("10"))
     .select(({ inventory_positions: p }) => ({
@@ -16,6 +16,7 @@ const result = client.run(async (api) => {
       location: p.location().select(({ locations }) => ({ name: locations.name })).scalar(),
     }))
     .orderBy(({ inventory_positions: p }) => p.on_hand)
+    .debug()
     .live(api.db);
 });
 

@@ -158,6 +158,37 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
     expect(settled.done).toBe(true);
   });
 
+  test("qb.debug() logs the compiled SQL via console.log", async () => {
+    // The play page's SQL tab works by shimming console.log: typegres'
+    // QueryBuilder.debug() emits `console.log("Debugging query:", { sql, parameters })`
+    // and returns the unchanged builder. Verify both halves so a
+    // refactor of debug()'s log shape would fail visibly.
+    const captured: Array<unknown[]> = [];
+    const original = console.log;
+    console.log = (...args: unknown[]) => captured.push(args);
+    try {
+      const result = await rpc(async (api) => {
+        const u = await api.user("user_brightship_alice");
+        return u.orders()
+          .select(({ orders }) => ({ id: orders.id }))
+          .debug()
+          .execute(api.db);
+      });
+      // Result is the actual rows — debug() must be a transparent
+      // pass-through, not a side channel.
+      expect(Array.isArray(result)).toBe(true);
+    } finally {
+      console.log = original;
+    }
+    const debugCalls = captured.filter((args) => args[0] === "Debugging query:");
+    expect(debugCalls.length).toBe(1);
+    const payload = debugCalls[0]![1] as { sql: string; parameters?: unknown[] };
+    expect(typeof payload.sql).toBe("string");
+    expect(payload.sql).toMatch(/SELECT/i);
+    expect(payload.sql.toLowerCase()).toContain("orders");
+    expect(Array.isArray(payload.parameters)).toBe(true);
+  });
+
   test("invalid token rejects", async () => {
     await expect(
       rpc(async (api) => {

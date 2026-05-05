@@ -83,6 +83,22 @@ export class UserRoot {
     return row.advance(db);
   }
 
+  // Demo mutation. Picks a random inventory position in this user's
+  // tenant and bumps its on_hand by a small random amount. Role-
+  // gated to inventory_control — Bob can do this; Alice can't.
+  @tool.unchecked()
+  async restockRandom(db: Database<UserRoot>): Promise<{ id: string; on_hand: string } | null> {
+    if (this.role !== "inventory_control") {
+      throw new Error(`role '${this.role}' cannot restock (inventory_control required)`);
+    }
+    const [pos] = await this.inventory()
+      .limit(1)
+      .hydrate(db);
+    if (!pos) return null;
+    const delta = 1 + Math.floor(Math.random() * 5);
+    return pos.adjust(db, delta);
+  }
+
   // Demo mutation. Inserts a fresh `draft` order for one of this
   // user's customers. Role-gated like the other writes; tenant comes
   // from the principal — no free-form `organization_id` from the wire.

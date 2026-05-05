@@ -207,6 +207,8 @@ function generateOrdersBlock(opts: {
           : `[orders.${orderBy}, "desc"]`;
   const orderByLine = orderByEntry ? `\n    .orderBy(({ orders }) => ${orderByEntry})` : "";
   const terminator = live ? "live" : "execute";
+  // `.debug()` is a no-op pass-through that console.logs the
+  // compiled SQL — captured by the page and shown in the SQL tab.
   return `const result = client.run(async (api) => {
   // This code is serialized and then (safely) run over RPC.
 
@@ -218,6 +220,7 @@ function generateOrdersBlock(opts: {
   //           so it is scoped to the current user.
   return user.orders()${statusLine}${groupByLine}${orderByLine}
     .select(({ orders }) => (${selectBody}))
+    .debug()
     .${terminator}(api.db);
 });
 
@@ -370,6 +373,7 @@ function generateInventoryBlock(opts: { threshold: number; live: boolean }): str
       location: p.location().select(({ locations }) => ({ name: locations.name })).scalar(),
     }))
     .orderBy(({ inventory_positions: p }) => p.on_hand)
+    .debug()
     .${terminator}(api.db);
 });
 
@@ -379,6 +383,26 @@ output(result);`;
 
 export const InventoryWidget = (props: WidgetProps) => {
   const [threshold, setThreshold] = useState<number>(10);
+  const [autoRestock, setAutoRestock] = useState(true);
+  const [restockError, setRestockError] = useState<string | null>(null);
+
+  // Inventory's auto-cycle. Role-gated to `inventory_control` —
+  // Bob can do this, Alice can't, so switching users surfaces the
+  // role gate on the toggle.
+  useAutoCycle(
+    autoRestock && props.visible,
+    [4000, 8000],
+    [7500, 22500],
+    async () => {
+      try {
+        await rpc(async (api) => (await api.currentUser()).restockRandom(api.db));
+        return null;
+      } catch (e) {
+        return e instanceof Error ? e.message : String(e);
+      }
+    },
+    setRestockError,
+  );
 
   const next = generateInventoryBlock({ threshold, live: props.live });
   useWidgetStamp(INVENTORY_URI, props.modelsReady, props.running, props.restart, next);
@@ -400,6 +424,16 @@ export const InventoryWidget = (props: WidgetProps) => {
         <span className="text-xs text-gray-300 tabular-nums w-6 text-right">{threshold}</span>
       </Field>
       <LiveToggle live={props.live} onLive={props.onLive} />
+      <div className="ml-auto flex items-center gap-2">
+        <ToggleButton
+          active={autoRestock}
+          onClick={() => setAutoRestock((v) => !v)}
+          title="Auto-restock a random position every few seconds (inventory_control only). Click to pause."
+          error={restockError}
+        >
+          ⤴ auto-restock
+        </ToggleButton>
+      </div>
     </ControlsStrip>
   );
 };
@@ -416,19 +450,29 @@ export type UserToken = (typeof USER_TOKENS)[number]["value"];
 export const UserPicker = ({
   userToken,
   onUserToken,
+  variant = "dark",
 }: {
   userToken: UserToken;
   onUserToken: (v: UserToken) => void;
-}) => (
-  <Field label="user">
-    <select
-      value={userToken}
-      onChange={(e) => onUserToken(e.target.value as UserToken)}
-      className="bg-gray-800 text-gray-200 text-xs rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-blue-500"
-    >
-      {USER_TOKENS.map((o) => (
-        <option key={o.value} value={o.value}>{o.label}</option>
-      ))}
-    </select>
-  </Field>
-);
+  variant?: "dark" | "light";
+}) => {
+  const labelCls = variant === "light" ? "text-gray-500" : "text-gray-400";
+  const selectCls =
+    variant === "light"
+      ? "bg-white text-gray-900 border-gray-300 focus:border-blue-500"
+      : "bg-gray-800 text-gray-200 border-gray-700 focus:border-blue-500";
+  return (
+    <label className={`flex items-center gap-2 text-[11px] uppercase tracking-wide ${labelCls}`}>
+      <span>user</span>
+      <select
+        value={userToken}
+        onChange={(e) => onUserToken(e.target.value as UserToken)}
+        className={`text-xs rounded px-2 py-1 border focus:outline-none ${selectCls}`}
+      >
+        {USER_TOKENS.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+};
