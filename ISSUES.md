@@ -10,9 +10,12 @@
    active assertion in `src/builder/query.test.ts > scalar with cardinality
    'one'` (was a TODO comment, now `expectTypeOf<{name: string}>()`).
 
-2. **`Record` override DTS mismatch** — a `@ts-expect-error` is stripped by
-   DTS generation. The emitted `.d.ts` has a conflicting `deserialize`
-   return type.
+2. ~~**`Record` override DTS mismatch**~~ — stale; verified via standalone
+   `tsc --noEmit` consumer test (with and without `skipLibCheck`). Source
+   no longer has `@ts-expect-error`; emitted `.d.ts` cleanly types the
+   override as `(raw: string) => T extends object ? RowTypeToTsType<T> :
+   unknown`, which is a valid narrower-return override of the inherited
+   `Any.deserialize: (raw: string) => unknown`.
 
 3. ~~**`RowTypeToTsType` includes class methods**~~ — fixed in
    `src/types/runtime.ts`: `TsTypeOf<T>` collapses non-Any inputs to
