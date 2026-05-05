@@ -490,8 +490,12 @@ test("scalar with cardinality 'one'", async () => {
       }))
       );
 
-    // TODO: TsTypeOf doesn't recursively unwrap Record<O> — nested type is O not TsTypeOf<O>
     expectTypeOf(rows[0]!.title).toEqualTypeOf<string>();
+    // Pin down the nested-Record-unwrap behavior. ISSUES.md critical
+    // #1 claimed `author` types as `{name: Text<1>}` instead of
+    // `{name: string}`. After the TsTypeOf fix that closed ISSUES #3,
+    // verify whether this is also now resolved.
+    expectTypeOf(rows[0]!.author).toEqualTypeOf<{ name: string }>();
     expect(rows).toHaveLength(2);
     expect(rows[0]).toEqual({ title: "Book A", author: { name: "Alice" } });
     expect(rows[1]).toEqual({ title: "Book B", author: { name: "Alice" } });
