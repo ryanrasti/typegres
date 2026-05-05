@@ -1,10 +1,11 @@
 import { db } from "../runtime";
 import { Int8, Text } from "typegres/types";
+import { TypegresLiveEvents } from "typegres";
 import { tool } from "typegres/exoeval";
 import { InventoryPositions } from "./inventory_positions";
 import { Organizations } from "./organizations";
 
-export class Locations extends db.Table("locations") {
+export class Locations extends db.Table("locations", { transformer: TypegresLiveEvents.makeTransformer() }) {
   // @generated-start
   @tool() id = (Int8<1>).column({ nonNull: true, generated: true });
   @tool() code = (Text<1>).column({ nonNull: true });

@@ -1,11 +1,12 @@
 import { db } from "../runtime";
 import { Int8, Text, Timestamptz } from "typegres/types";
+import { TypegresLiveEvents } from "typegres";
 import { tool } from "typegres/exoeval";
 import { Orders } from "./orders";
 import { Organizations } from "./organizations";
 import { sql } from "typegres/sql-builder";
 
-export class Shipments extends db.Table("shipments") {
+export class Shipments extends db.Table("shipments", { transformer: TypegresLiveEvents.makeTransformer() }) {
   // @generated-start
   @tool() id = (Int8<1>).column({ nonNull: true, generated: true });
   @tool() order_id = (Int8<1>).column({ nonNull: true });

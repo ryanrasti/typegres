@@ -226,6 +226,13 @@ export class Database<C = undefined> {
       throw new Error("startLive() must be called on a pool-backed Database, not inside a transaction");
     }
     if (this.#bus) { throw new Error("Live bus already started"); }
+    // Idempotent: ensures `_typegres_live_events` exists before the bus
+    // starts polling it. Tables that opt into events via the live
+    // transformer write here on every mutation.
+    const { TypegresLiveEvents } = await import("./live/events");
+    for (const stmt of TypegresLiveEvents.createTableSqlStatements()) {
+      await this.driver.execute(stmt);
+    }
     this.#bus = new Bus(this.driver, opts);
     await this.#bus.start();
   }

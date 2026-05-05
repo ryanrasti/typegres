@@ -10,3 +10,7 @@ export const db = await typegres<OperatorRoot>({ type: "pglite" });
 
 await runMigrations(db);
 await runSeed(db);
+
+// `.live(qb)` requires the bus — installs the live-events table and
+// starts polling. Without it `db.live()` throws.
+await db.startLive();

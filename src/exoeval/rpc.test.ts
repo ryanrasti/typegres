@@ -87,17 +87,16 @@ describe("exoeval rpc — in-memory", () => {
     );
   });
 
-  test("runIter streams items when closure returns an iterable", async () => {
-    class StreamApi {
+  test("plain arrays are NOT streamed (one-shot semantics preserved)", async () => {
+    class ListApi {
       @tool.unchecked()
-      *count(n: number): Iterable<number> {
-        for (let i = 0; i < n; i++) yield i;
+      list(): number[] {
+        return [10, 20, 30];
       }
     }
-    const rpc = new RpcClient<StreamApi>(inMemoryChannel(new StreamApi()));
-    const out: number[] = [];
-    for await (const v of rpc.runIter((api) => api.count(3))) out.push(v);
-    expect(out).toEqual([0, 1, 2]);
+    const rpc = new RpcClient<ListApi>(inMemoryChannel(new ListApi()));
+    const result = await rpc.run((api) => api.list());
+    expect(result).toEqual([10, 20, 30]);
   });
 
   test("runIter streams items from an async iterable", async () => {
@@ -109,20 +108,22 @@ describe("exoeval rpc — in-memory", () => {
     }
     const rpc = new RpcClient<AsyncStreamApi>(inMemoryChannel(new AsyncStreamApi()));
     const out: { i: number }[] = [];
-    for await (const v of rpc.runIter((api) => api.ticks(2))) out.push(v);
+    for await (const v of rpc.run((api) => api.ticks(2))) out.push(v);
     expect(out).toEqual([{ i: 0 }, { i: 1 }]);
   });
 
-  test("run() of an iterable closure takes the first item only", async () => {
-    class StreamApi {
+  test("await on a streaming closure resolves to the first chunk", async () => {
+    class TickApi {
       @tool.unchecked()
-      *count(n: number): Iterable<number> {
+      async *ticks(n: number): AsyncIterable<number> {
         for (let i = 0; i < n; i++) yield i;
       }
     }
-    const rpc = new RpcClient<StreamApi>(inMemoryChannel(new StreamApi()));
-    const result = await rpc.run((api) => api.count(5));
-    expect(result).toBe(0);
+    const rpc = new RpcClient<TickApi>(inMemoryChannel(new TickApi()));
+    // Static type is AsyncIterable<number>; runtime hybrid is also
+    // thenable, so awaiting takes the first chunk.
+    const first = await (rpc.run((api) => api.ticks(5)) as unknown as PromiseLike<number>);
+    expect(first).toBe(0);
   });
 
   test("non-@tool methods are not callable from the wire", async () => {

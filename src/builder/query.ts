@@ -395,6 +395,14 @@ export class QueryBuilder<
     return db.execute(this);
   }
 
+  // Streaming terminator. Mirrors `execute` but yields the rowset on
+  // every committed mutation that touches one of the live-tagged
+  // tables this query reads from. Caller iterates with `for await`.
+  @tool(z.lazy(() => z.instanceof(Database)))
+  live(db: Database<any>): AsyncIterable<RowTypeToTsType<O>[]> {
+    return db.live(this) as AsyncIterable<RowTypeToTsType<O>[]>;
+  }
+
   @tool(z.lazy(() => z.instanceof(Database)))
   async hydrate(db: Database<any>): Promise<O[]> {
     return db.hydrate<O, GB, Card>(this);

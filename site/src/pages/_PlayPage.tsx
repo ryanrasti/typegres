@@ -220,8 +220,15 @@ declare module "typegres/exoeval"     { export * from "typegres"; }
       if (!pending) {
         throw new Error("Widget did not call rpc(...)");
       }
-      const result = await pending;
-      setOutput(JSON.stringify(result, null, 2));
+      // Always iterate. One-shot closures yield exactly once; live
+      // closures (e.g. `db.live(qb)`) keep yielding until the source
+      // ends. The output panel updates on each yield.
+      let any = false;
+      for await (const value of pending) {
+        any = true;
+        setOutput(JSON.stringify(value, null, 2));
+      }
+      if (!any) throw new Error("rpc(...) produced no values");
     } catch (e) {
       setError(String(e instanceof Error ? e.message + "\n" + e.stack : e));
     } finally {

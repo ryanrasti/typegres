@@ -22,6 +22,18 @@ import { exoEval } from "./index";
 
 export type RawChannel = (message: string) => AsyncIterable<string>;
 
+// Single-method RPC: the closure's static return type picks the shape.
+// If it (or its eventual Promise resolution) is an iterable / async-
+// iterable, `run` returns an AsyncIterable<U>; otherwise Promise<U>.
+// At runtime the returned object satisfies both interfaces — `await`
+// resolves to the first value, `for await` yields every value — but
+// TS exposes only the appropriate one so callers can't accidentally
+// await a stream and get just the first chunk.
+type Awaited1<T> = T extends PromiseLike<infer U> ? U : T;
+type RunResult<R> =
+    Awaited1<R> extends AsyncIterable<infer U> ? AsyncIterable<U>
+    : Promise<Awaited1<R>>;
+
 export class RpcClient<A> {
     private channel: RawChannel;
 
@@ -29,22 +41,39 @@ export class RpcClient<A> {
         this.channel = channel;
     }
 
-    // One-shot: take the first yielded value from the channel and return
-    // it as a Promise. Errors out if the channel produces nothing.
-    async run<R, C extends object = {}>(fn: (api: A, captures: C) => R, captures: C = {} as C): Promise<R> {
-        for await (const v of this.runIter(fn, captures)) {
-            return v as R;
-        }
-        throw new Error("RpcClient.run: channel produced no values");
+    run<R, C extends object = {}>(
+        fn: (api: A, captures: C) => R,
+        captures: C = {} as C,
+    ): RunResult<R> {
+        const fnString = fn.toString();
+        // Captures are passed as the IIFE's second argument so callers can
+        // destructure (`(api, { minId }) => ...`). Inlining as `const`s
+        // earlier broke under bundlers that rename outer-scope bindings.
+        // safeStringify rather than JSON.stringify so a class-instance
+        // capture fails loud rather than leaking instance fields.
+        const asString = `(${fnString})(api, ${safeStringify(captures)})`;
+        const iterable = this.#stream(asString);
+
+        // Hybrid: thenable + async iterable. The static return type
+        // narrows to one or the other; the runtime supports both.
+        return {
+            [Symbol.asyncIterator]: () => iterable[Symbol.asyncIterator](),
+            then: <T1, T2>(
+                onFulfilled?: ((v: unknown) => T1 | PromiseLike<T1>) | null | undefined,
+                onRejected?: ((r: unknown) => T2 | PromiseLike<T2>) | null | undefined,
+            ): Promise<T1 | T2> => {
+                const first = (async () => {
+                    for await (const v of iterable) return v;
+                    throw new Error("RpcClient.run: channel produced no values");
+                })();
+                return first.then(onFulfilled, onRejected);
+            },
+        } as unknown as RunResult<R>;
     }
 
-    // Streaming: yield each value the channel emits. Used when the
-    // closure returns an iterable / async-iterable (e.g. `db.live(qb)`).
-    async *runIter<R, C extends object = {}>(fn: (api: A, captures: C) => R, captures: C = {} as C): AsyncIterable<R> {
-        const fnString = fn.toString();
-        const asString = `(${fnString})(api, ${safeStringify(captures)})`;
-        for await (const chunk of this.channel(asString)) {
-            yield JSON.parse(chunk) as R;
+    async *#stream(code: string): AsyncIterable<unknown> {
+        for await (const chunk of this.channel(code)) {
+            yield JSON.parse(chunk);
         }
     }
 }
@@ -87,17 +116,18 @@ export const safeStringify = (value: unknown): string =>
 export const inMemoryChannel = <A>(api: A): RawChannel =>
   async function* (code: string): AsyncIterable<string> {
     const result = await exoEval(code, { api });
-    // If the closure returned a (sync or async) iterable, stream its
-    // items one at a time; otherwise yield a single value. Strings and
-    // class instances (e.g. typegres' Record) deliberately fall through
-    // to the single-yield branch even though strings are iterable —
-    // safeStringify handles class shapes there.
+    // Only async iterables count as "streams." Plain arrays and other
+    // sync iterables are *complete* values that happen to be iterable;
+    // streaming them item-by-item would silently change the shape of
+    // one-shot results (e.g. `qb.execute(db)` returns rows[] — should
+    // yield once, not once per row). Async generators, AsyncIterables
+    // (db.live, custom subscriptions) are the explicit streaming shape.
     if (
       result != null &&
       typeof result === "object" &&
-      (Symbol.asyncIterator in (result as object) || Symbol.iterator in (result as object))
+      Symbol.asyncIterator in (result as object)
     ) {
-      for await (const item of result as AsyncIterable<unknown> | Iterable<unknown>) {
+      for await (const item of result as AsyncIterable<unknown>) {
         yield safeStringify(item);
       }
       return;

@@ -1,6 +1,7 @@
 import { db } from "../runtime";
 import type { Database } from "typegres";
 import { Int8, Text, Timestamptz } from "typegres/types";
+import { TypegresLiveEvents } from "typegres";
 import { tool } from "typegres/exoeval";
 import { sql } from "typegres/sql-builder";
 import type { OperatorRoot } from "../server/api";
@@ -9,7 +10,7 @@ import { OrderLines } from "./order_lines";
 import { Organizations } from "./organizations";
 import { Shipments } from "./shipments";
 
-export class Orders extends db.Table("orders") {
+export class Orders extends db.Table("orders", { transformer: TypegresLiveEvents.makeTransformer() }) {
   // @generated-start
   @tool() id = (Int8<1>).column({ nonNull: true, generated: true });
   @tool() customer_id = (Int8<1>).column({ nonNull: true });

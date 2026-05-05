@@ -4,6 +4,7 @@ export { Table } from "./table";
 export { sql, Sql } from "./builder/sql";
 export { QueryBuilder } from "./builder/query";
 export { PgDriver, PgliteDriver } from "./driver";
+export { TypegresLiveEvents } from "./live/events";
 export type { Config } from "./config";
 export type { Driver } from "./driver";
 

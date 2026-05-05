@@ -13,6 +13,7 @@ import { tool } from "typegres/exoeval";
 import { Operators } from "../schema/operators";
 import { Customers } from "../schema/customers";
 import { Orders } from "../schema/orders";
+import type { Int8 } from "typegres/types";
 import { OrderLines } from "../schema/order_lines";
 import { InventoryPositions } from "../schema/inventory_positions";
 import { Shipments } from "../schema/shipments";
@@ -68,6 +69,25 @@ export class OperatorRoot {
       .join(Orders, ({ order_lines: l, orders: o }) =>
         l.order_id["="](o.id).and(o.organization_id["="](this.organizationId)),
       );
+  }
+
+  // Demo mutation. Inserts a fresh `draft` order for one of op's
+  // customers. Role-gated like the other writes; tenant comes from
+  // the principal — no free-form `organization_id` from the wire.
+  @tool.unchecked()
+  async insertDraftOrder(db: Database<OperatorRoot>, customerId: string): Promise<{ id: string }> {
+    if (this.role !== "ops_lead") {
+      throw new Error(`role '${this.role}' cannot insert orders (ops_lead required)`);
+    }
+    const [row] = await Orders.insert({
+      organization_id: this.organizationId as unknown as Int8<1>,
+      customer_id: customerId as unknown as Int8<1>,
+      status: "draft",
+      priority: "0" as unknown as Int8<1>,
+    })
+      .returning(({ orders }) => ({ id: orders.id }))
+      .execute(db);
+    return row!;
   }
 }
 

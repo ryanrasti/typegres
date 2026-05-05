@@ -19,28 +19,36 @@ export class TypegresLiveEvents extends Table("_typegres_live_events") {
   private after = (Jsonb<0 | 1>).column();
   private inserted_at = (Timestamptz<1>).column({ nonNull: true });
 
+  // Single-statement form. Some drivers (notably PGlite, which uses
+  // prepared statements) reject multi-statement DDL, so the table and
+  // its index are returned as separate sql nodes — callers iterate.
   static createTableSql(): Sql {
-    return sql`
-      CREATE TABLE IF NOT EXISTS ${sql.ident(this.tableName)} (
-        id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        xid xid8 NOT NULL,
-        -- before/after are jsonb objects
-        -- keyed by column name with values rendered as text — same
-        -- canonicalization the extractor uses so the bus matcher doesn't
-        -- need per-type coercion.
-        "table" text NOT NULL,
-        before jsonb,
-        after jsonb,
-        -- Wall-clock stamp; not load-bearing for correctness (matching is
-        -- xid-based) — used for retention policies and human-readable
-        -- ordering when debugging.
-        inserted_at timestamptz NOT NULL DEFAULT clock_timestamp()
-      );
-      -- Supports the bus range scan on xid >= cursor.xmin, bounding
-      -- visibility-filter work to the small set of recent / concurrent xids.
-      CREATE INDEX IF NOT EXISTS ${sql.ident(`${this.tableName}_xid_idx`)}
-        ON ${sql.ident(this.tableName)} (xid);
-    `;
+    return sql.join(this.createTableSqlStatements(), sql`; `);
+  }
+
+  static createTableSqlStatements(): Sql[] {
+    return [
+      sql`
+        CREATE TABLE IF NOT EXISTS ${sql.ident(this.tableName)} (
+          id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          xid xid8 NOT NULL,
+          -- before/after are jsonb objects keyed by column name with
+          -- values rendered as text — same canonicalization the
+          -- extractor uses, so the bus matcher doesn't need per-type
+          -- coercion.
+          "table" text NOT NULL,
+          before jsonb,
+          after jsonb,
+          -- Wall-clock stamp; not load-bearing for correctness
+          -- (matching is xid-based) — used for retention policies and
+          -- human-readable ordering when debugging.
+          inserted_at timestamptz NOT NULL DEFAULT clock_timestamp()
+        )
+      `,
+      // Supports the bus range scan on xid >= cursor.xmin, bounding
+      // visibility-filter work to recent / concurrent xids.
+      sql`CREATE INDEX IF NOT EXISTS ${sql.ident(`${this.tableName}_xid_idx`)} ON ${sql.ident(this.tableName)} (xid)`,
+    ];
   }
 
   static makeTransformer(): QueryTransformer {

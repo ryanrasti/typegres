@@ -76,6 +76,56 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
     }
   });
 
+  test("live query re-yields after a mutation against the watched table", async () => {
+    // Start watching orders for op_brightship_alice (org=1).
+    const iter = rpc(async (api) => {
+      const op = await api.operator("op_brightship_alice");
+      return op.orders()
+        .where(({ orders }) => orders.status["="]("draft"))
+        .select(({ orders }) => ({ id: orders.id }))
+        .live(api.db);
+    });
+    const it = (iter as AsyncIterable<{ id: string }[]>)[Symbol.asyncIterator]();
+
+    // Snapshot 1 — current draft orders.
+    const first = await it.next();
+    expect(first.done).toBe(false);
+    const before = first.value!.length;
+
+    // Insert a new draft order in alice's tenant. The live transformer
+    // on Orders fires an event into `_typegres_live_events`; the bus
+    // wakes the subscription; the iterator yields again with the new
+    // row included.
+    const inserted = await rpc(async (api) => {
+      const op = await api.operator("op_brightship_alice");
+      return (await op.insertDraftOrder(api.db, "1")).id;
+    });
+
+    const second = await it.next();
+    expect(second.done).toBe(false);
+    expect(second.value!.length).toBe(before + 1);
+    expect(second.value!.some((r) => r.id === inserted)).toBe(true);
+
+    await it.return?.();
+  });
+
+  test("db.live(qb) streams the current rowset over the rpc wire", async () => {
+    const iter = rpc(async (api) => {
+      const op = await api.operator("op_brightship_alice");
+      return op.orders()
+        .select(({ orders }) => ({ id: orders.id, status: orders.status }))
+        .live(api.db);
+    });
+    // First yield: the current snapshot.
+    const it = (iter as AsyncIterable<{ id: string; status: string }[]>)[Symbol.asyncIterator]();
+    const first = await it.next();
+    expect(first.done).toBe(false);
+    expect(Array.isArray(first.value)).toBe(true);
+    expect(first.value!.length).toBeGreaterThan(0);
+    // Caller terminates the stream cleanly.
+    await it.return?.();
+  });
+
   test("invalid token rejects", async () => {
     await expect(
       rpc(async (api) => {
