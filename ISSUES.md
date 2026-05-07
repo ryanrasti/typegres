@@ -4,23 +4,28 @@
 
 ## Critical
 
-1. **`TsTypeOf` doesn't recursively unwrap `Record`** — nested relations via
-   `scalar()` surface `{name: Text<1>}` in TS rather than `{name: string}`.
-   Runtime deserialization is correct.
+1. ~~**`TsTypeOf` doesn't recursively unwrap `Record`**~~ — fixed by the
+   #3 fix below; `Record<T>.deserialize`'s return type is
+   `RowTypeToTsType<T>` which now resolves correctly. Verified by the
+   active assertion in `src/builder/query.test.ts > scalar with cardinality
+   'one'` (was a TODO comment, now `expectTypeOf<{name: string}>()`).
 
-2. **`Record` override DTS mismatch** — a `@ts-expect-error` is stripped by
-   DTS generation. The emitted `.d.ts` has a conflicting `deserialize`
-   return type.
+2. ~~**`Record` override DTS mismatch**~~ — stale; verified via standalone
+   `tsc --noEmit` consumer test (with and without `skipLibCheck`). Source
+   no longer has `@ts-expect-error`; emitted `.d.ts` cleanly types the
+   override as `(raw: string) => T extends object ? RowTypeToTsType<T> :
+   unknown`, which is a valid narrower-return override of the inherited
+   `Any.deserialize: (raw: string) => unknown`.
 
-3. **`RowTypeToTsType` includes class methods** — `db.execute(Todo.from())`
-   returns `RowTypeToTsType<Todo>[]`, which maps every key on the row class.
-   For column fields (`Any` instances) that's `TsTypeOf<col> = string | bigint | …`,
-   but for class methods (e.g. `Todo.update`) the conditional falls through
-   to `T`, threading the *method type* into the row type. Runtime returns
-   plain deserialized objects with no methods — so the type claims `.update`
-   exists but the runtime value is `undefined`. Fix: filter `RowTypeToTsType`
-   to keys whose values extend `Any`. Mirrors issue #1 in shape (both are
-   `TsTypeOf` mapping holes).
+3. ~~**`RowTypeToTsType` includes class methods**~~ — fixed in
+   `src/types/runtime.ts`: `TsTypeOf<T>` collapses non-Any inputs to
+   `never` (was: fell through to `T`, leaking method types into row
+   results). Method-typed fields on rows now resolve to `never`, so
+   `row.someMethod()` is "never is not callable" at the type level.
+   Type test in `src/builder/query.test.ts` pins down both branches.
+   Note: keys still appear in the row type with `never` values
+   (couldn't switch to `as`-remap without breaking variance across
+   `RowTypeToTsType<R & R2>` used by InsertBuilder.returningMerge).
 
 ## Non-critical
 
@@ -39,10 +44,22 @@
 9. **JSON wire format loses precision for some types.** RPC sends queries +
    results as JSON. `int8` and `bytea` are deserialized as strings (not bigint /
    Uint8Array) so they round-trip through JSON cleanly. Float NaN / Infinity
-   serialize as null through `JSON.stringify` and don't survive the wire. A
-   richer "tagged JSON" wire codec — bigint, bytes, dates, ±Infinity, NaN as
-   tagged sentinels (e.g. `["bigint","42"]`) — is the v0.2 fix; see Endo's
-   `pass-style` for prior art.
+   serialize as null through `JSON.stringify` and don't survive the wire.
+   `undefined` collapses to `null` too — `safeStringify` maps top-level
+   `undefined` to `"null"` so void-returning closures round-trip, but the
+   distinction `undefined` vs `null` is lost. A richer "tagged JSON" wire codec
+   — bigint, bytes, dates, ±Infinity, NaN, undefined as tagged sentinels (e.g.
+   `["bigint","42"]`) — is the v0.2 fix; see Endo's `pass-style` for prior art.
+
+10. **Rename `@tool` → `@expose`.** The decorator is the only gatekeeper for
+    what crosses the wire (columns, relations, methods, properties — for any
+    caller: humans, frontends, agents). The current name is sticky baggage from
+    the codemode/agents framing and undersells the broader role. `@expose`
+    matches the verb the README and landing copy already use ("Mark methods
+    exposed", "what you've marked"). Mechanical but wide: `src/exoeval/tool.ts`,
+    `src/index.ts` re-export, codegen template in `src/tables/generate.ts`, all
+    demo schemas (regen via `tg generate`), demo `api.ts`, README example, the
+    inline snapshots in `src/tables/generate.test.ts`, and site copy.
 
 ## Missing features
 
@@ -51,9 +68,26 @@
 
 10. **CTE (`with`)** — next up.
 
-13. **RPC layer + DoS protection** — planned to use `exoeval` (minimal JS
-    subset for capability-based untrusted execution), with gas/memory
-    limits on the evaluator and query-cost analysis before sending to pg.
+13. **exoeval DoS / resource exhaustion** — exoeval lets untrusted clients
+    compose queries arbitrarily. Nothing currently bounds the DB resources a
+    single RPC call can consume (unbounded joins, huge cardinality scans,
+    repeated expensive aggregations). Two solution paths:
+
+    **A. Gas accounting (runtime metering):** instrument the evaluator and
+    the DB layer with cost counters — AST node budget, max joins per query,
+    `EXPLAIN`-based cardinality estimates or row-count caps, wall-clock
+    timeout. Provides fine-grained control but adds latency (especially if
+    running EXPLAIN before execution) and complexity.
+
+    **B. Pre-compiled query whitelists:** clients can only invoke
+    server-registered query templates (similar to persisted queries in
+    GraphQL). The server pre-analyzes and approves each template; runtime
+    only fills in parameters. Eliminates arbitrary composition entirely —
+    simpler to reason about, but sacrifices the "ship any query from the
+    client" flexibility that makes exoeval interesting.
+
+    Likely answer is both: pre-compiled for production traffic, gas-metered
+    for dev/admin/exploratory use.
 
 15. **Site: upgrade Next.js 14 → 16.** `npm audit` reports 4 high-severity
     Next.js CVEs, all fix-gated on the 16.x major. They're server-side
@@ -63,8 +97,5 @@
     static-export opt-in changes, React 19 if we go that far, tailwind 4 if
     we bundle it. Track separately.
 
-14. **`.live()` subscriptions** — previous implementation lived under
-    `src/live/` and was removed as unreviewed. Design: tables+predicates
-    extracted from each live query, WAL-driven (or synthetic event table)
-    change matching, re-run query on match. Needs real design review
-    before reimplementing.
+14. ~~**`.live()` subscriptions**~~ — done (PR #72). Predicate extraction,
+    reverse-index bus, MVCC-snapshot-aware re-iteration.

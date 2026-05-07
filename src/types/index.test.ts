@@ -63,9 +63,13 @@ test("TsTypeOf on container types", () => {
   expectTypeOf<TsTypeOf<Anymultirange<Int4<1>, 1>>>().toEqualTypeOf<unknown>();
 });
 
-test("TsTypeOf falls through for TS primitives", () => {
-  expectTypeOf<TsTypeOf<number>>().toEqualTypeOf<number>();
-  expectTypeOf<TsTypeOf<string>>().toEqualTypeOf<string>();
+test("TsTypeOf collapses non-Any inputs to never", () => {
+  // Non-Any types aren't deserializable and have no meaningful runtime
+  // type here. Earlier behavior was to fall through (`TsTypeOf<X> = X`),
+  // which leaked method types into row results.
+  expectTypeOf<TsTypeOf<number>>().toEqualTypeOf<never>();
+  expectTypeOf<TsTypeOf<string>>().toEqualTypeOf<never>();
+  expectTypeOf<TsTypeOf<() => string>>().toEqualTypeOf<never>();
 });
 
 // --- Method return type nullability ---
@@ -458,5 +462,191 @@ test("Type.from() precise nullability", () => {
   // Sql → nullable (0|1)
   expectTypeOf(Int4.from(sql`1`)).toEqualTypeOf<Int4<0 | 1>>();
   expectTypeOf(Text.from(sql`'hello'`)).toEqualTypeOf<Text<0 | 1>>();
+});
+
+// `Any.from(v)` accepts primitives, plain objects, arrays, null —
+// anything with a default prototype. Class instances (typegres
+// expressions, dates, buffers, user classes) are rejected. The
+// historical bug: passing an Any expression silently wrapped it as
+// `Param(anAny)` which serialized as `{}`. Hard rejection at the
+// boundary catches the issue at its source.
+
+test("Any.from: rejects typegres expressions (caught at boundary, not at SQL gen)", () => {
+  const expr = Int4.from(5)["+"](3); // an Int4 expression — instance of Int4 (a class)
+  expect(() => Int4.from(expr)).toThrow(/cannot wrap Int4 instance/);
+});
+
+test("Any.from: rejects user class instances", () => {
+  class Cents {
+    constructor(public n: number) {}
+  }
+  expect(() => Int4.from(new Cents(100))).toThrow(/cannot wrap Cents instance/);
+});
+
+test("Any.from: rejects Date instances", () => {
+  // Timestamptz round-trips as ISO strings; passing a Date silently
+  // worked before but the type system didn't allow it. Now it throws
+  // at runtime too.
+  expect(() => Text.from(new Date())).toThrow(/cannot wrap Date instance/);
+});
+
+test("sql template inlines Any expressions via duck-typed toSql()", () => {
+  // `${anyExpr}` inside an `sql` template should compile to the
+  // expression's underlying SQL, NOT a Param wrapping the Any
+  // instance. Without this, raw-SQL fragments that reference typed
+  // columns (e.g. `CASE ${col} WHEN ...`) would parameterize the
+  // class instance — invalid or worse, silently `{}`.
+  const expr = Int4.from(5)["+"](3);
+  const compiled = compile(sql`SELECT ${expr} AS x`, "pg");
+  // The Int4 binop renders as a real `+` between two operands —
+  // multiple `$N` placeholders, an explicit `+` operator. The bug
+  // we're guarding against is the whole expr collapsing to a single
+  // `$1` parameter that carries the Any object.
+  expect(compiled.text).toContain("+");
+  expect(compiled.values.length).toBe(2);
+  expect(compiled.text).not.toMatch(/SELECT \$\d+ AS x/i);
+});
+
+// --- Any.in: arg-length cases ---
+
+test("Any.in: empty vararg is a type error (SQL forbids `IN ()`)", () => {
+  // @ts-expect-error — at least one value is required
+  Text.from("a").in();
+});
+
+test("Any.in: single value → IN list (no `=` rewrite — pg planner handles that)", () => {
+  const expr = Text.from("a").in(Text.from("b"));
+  const compiled = compile(sql`SELECT ${expr.toSql()}`, "pg");
+  expect(compiled).toMatchInlineSnapshot(`
+    {
+      "text": "SELECT (CAST($1 AS text) IN (CAST($2 AS text)))",
+      "values": [
+        "a",
+        "b",
+      ],
+    }
+  `);
+});
+
+test("Any.in: multiple values → IN list", () => {
+  const expr = Text.from("a").in(Text.from("b"), Text.from("c"), Text.from("d"));
+  const compiled = compile(sql`SELECT ${expr.toSql()}`, "pg");
+  expect(compiled).toMatchInlineSnapshot(`
+    {
+      "text": "SELECT (CAST($1 AS text) IN (CAST($2 AS text), CAST($3 AS text), CAST($4 AS text)))",
+      "values": [
+        "a",
+        "b",
+        "c",
+        "d",
+      ],
+    }
+  `);
+});
+
+test("Any.in: accepts primitives directly", () => {
+  const expr = Text.from("a").in("b", "c", "d");
+  const compiled = compile(sql`SELECT ${expr.toSql()}`, "pg");
+  expect(compiled).toMatchInlineSnapshot(`
+    {
+      "text": "SELECT (CAST($1 AS text) IN (CAST($2 AS text), CAST($3 AS text), CAST($4 AS text)))",
+      "values": [
+        "a",
+        "b",
+        "c",
+        "d",
+      ],
+    }
+  `);
+});
+
+// --- Any.in: runtime three-valued logic table ---
+// SQL `IN` is null-propagating; result is null iff there's no match
+// AND either the LHS or any list element is null.
+//
+// | x      | list           | result |
+// | ------ | -------------- | ------ |
+// | 3      | (1, 2)         | false  |
+// | 3      | (1, 2, NULL)   | null   |
+// | NULL   | (1, 2)         | null   |
+// | 1      | (1, NULL)      | true   (match short-circuits null)
+
+test("e2e: x IN (1, 2) where x=3 → false", async () => {
+  const expr = Int4.from(3).in(Int4.from(1), Int4.from(2));
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("hit")}`);
+  expect(result.rows[0]?.["hit"]).toBe("f");
+});
+
+test("e2e: x IN (1, 2, NULL) where x=3 → null", async () => {
+  const nullInt = sql`NULL::int4` as unknown as Int4<0 | 1>;
+  const expr = Int4.from(3).in(Int4.from(1), Int4.from(2), Int4.from(nullInt));
+  const result = await exec.execute(sql`SELECT (${expr.toSql()}) IS NULL as ${sql.ident("isnull")}`);
+  expect(result.rows[0]?.["isnull"]).toBe("t");
+});
+
+test("e2e: NULL IN (1, 2) → null", async () => {
+  const nullInt = Int4.from(sql`NULL::int4`);
+  const expr = nullInt.in(Int4.from(1), Int4.from(2));
+  const result = await exec.execute(sql`SELECT (${expr.toSql()}) IS NULL as ${sql.ident("isnull")}`);
+  expect(result.rows[0]?.["isnull"]).toBe("t");
+});
+
+test("e2e: x IN (1, NULL) where x=1 → true (a match overrides nulls in the list)", async () => {
+  const nullInt = Int4.from(sql`NULL::int4`);
+  const expr = Int4.from(1).in(Int4.from(1), nullInt);
+  const result = await exec.execute(sql`SELECT ${expr.toSql()} as ${sql.ident("hit")}`);
+  expect(result.rows[0]?.["hit"]).toBe("t");
+});
+
+// --- Any.in: nullability propagation type table ---
+
+test("Any.in type: non-null LHS, all non-null args → Bool<1>", () => {
+  const expr = Text.from("a").in("b", "c");
+  expectTypeOf(expr).toEqualTypeOf<Bool<1>>();
+});
+
+test("Any.in type: non-null LHS, one nullable arg → Bool<0|1>", () => {
+  const nullable = Text.from(sql`NULL::text`); // Text<0|1>
+  const expr = Text.from("a").in(nullable, "c");
+  expectTypeOf(expr).toEqualTypeOf<Bool<0 | 1>>();
+});
+
+test("Any.in type: nullable LHS, all non-null args → Bool<0|1>", () => {
+  const nullableLhs = Text.from(sql`NULL::text`); // Text<0|1>
+  const expr = nullableLhs.in("b", "c");
+  expectTypeOf(expr).toEqualTypeOf<Bool<0 | 1>>();
+});
+
+test("Any.in type: nullable LHS + nullable arg → Bool<0|1>", () => {
+  const nullableLhs = Text.from(sql`NULL::text`); // Text<0|1>
+  const nullableArg = Text.from(sql`NULL::text`); // Text<0|1>
+  const expr = nullableLhs.in(nullableArg);
+  expectTypeOf(expr).toEqualTypeOf<Bool<0 | 1>>();
+});
+
+test("Any.in: rejects class instances passed as list values", () => {
+  class Random {}
+  expect(() => Text.from("a").in(new Random() as unknown as string)).toThrow(
+    /cannot accept Random instance as a list value/,
+  );
+});
+
+test("Any.in type: accepts varied nullabilities of same type", () => {
+  const nullable = Text.from(sql`NULL::text`); // Text<0|1>
+  const nonNull = Text.from("def");             // Text<1>
+  const expr = Text.from("abc").in(nullable, nonNull);
+  expectTypeOf(expr).toEqualTypeOf<Bool<0 | 1>>();
+});
+
+test("Any.from: accepts primitives, null, plain objects, arrays", () => {
+  expect(() => Int4.from(5)).not.toThrow();
+  expect(() => Text.from("hi")).not.toThrow();
+  expect(() => Bool.from(true)).not.toThrow();
+  expect(() => Int8.from(42n)).not.toThrow();
+  expect(() => Int4.from(null)).not.toThrow();
+  // Plain object (jsonb) — Object.prototype passes the check.
+  expect(() => Text.from({ shape: "object" } as any)).not.toThrow();
+  // Array (for array-typed columns).
+  expect(() => Text.from([1, 2, 3] as any)).not.toThrow();
 });
 

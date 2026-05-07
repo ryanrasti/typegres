@@ -117,12 +117,12 @@ export class DeleteBuilder<Name extends string, T extends TableBase, R extends R
   }
 
   @tool(z.lazy(() => z.instanceof(Database)))
-  override async execute(db: Database): Promise<RowTypeToTsType<R>[]> {
+  override async execute(db: Database<any>): Promise<RowTypeToTsType<R>[]> {
     return db.execute(this);
   }
 
   @tool(z.lazy(() => z.instanceof(Database)))
-  async hydrate(db: Database): Promise<R[]> {
+  async hydrate(db: Database<any>): Promise<R[]> {
     return db.hydrate<any, any, R>(this);
   }
 

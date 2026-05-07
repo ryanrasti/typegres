@@ -243,7 +243,27 @@ function _sql(strings: TemplateStringsArray, ...exprs: unknown[]): BoundSql {
     if (s) { parts.push(new Raw(s)); }
     if (i < exprs.length) {
       const expr = exprs[i];
-      parts.push(expr instanceof Sql ? expr : new Param(expr));
+      if (expr instanceof Sql) {
+        parts.push(expr);
+      } else if (
+        // Duck-typed: any object exposing `toSql(): Sql` gets inlined
+        // as its compiled form instead of being parameterized. This
+        // is how typegres' `Any` (and anything else built on top of
+        // Sql) splices into raw templates without an explicit
+        // `.toSql()` call at the call site. Importing Any here would
+        // cycle through types/runtime/sql.
+        expr !== null && typeof expr === "object" && typeof (expr as { toSql?: unknown }).toSql === "function"
+      ) {
+        const out = (expr as { toSql: () => unknown }).toSql();
+        if (!(out instanceof Sql)) {
+          throw new Error(
+            `toSql() must return an instance of Sql — got ${typeof out} from ${expr}.` 
+          );
+        }
+        parts.push(out);
+      } else {
+        parts.push(new Param(expr));
+      }
     }
   }
   return new Join(parts);

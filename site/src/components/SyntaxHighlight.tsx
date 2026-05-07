@@ -1,4 +1,3 @@
-"use client";
 
 import { Highlight, themes } from "prism-react-renderer";
 

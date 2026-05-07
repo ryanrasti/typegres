@@ -46,6 +46,13 @@ export default [
       }, {
         selector: "AssignmentExpression[left.type='MemberExpression'][left.computed=true][left.property.value='__proto__']",
         message: "Don't assign to __proto__ — use Object.setPrototypeOf if you really mean it.",
+      }, {
+        // `@tool.unchecked` skips the zod schema typegres uses to validate
+        // RPC arguments. Legitimate only for internal methods with generics
+        // that can't be expressed in zod, or test fixtures. Every use must
+        // be acknowledged with a disable comment + reason.
+        selector: "MemberExpression[object.name='tool'][property.name='unchecked']",
+        message: "Don't use @tool.unchecked — it skips RPC arg validation. Use @tool(zSchema) instead. If the method's signature is genuinely inexpressible in zod (or this is a test fixture), add `// eslint-disable-next-line no-restricted-syntax -- <reason>`.",
       }],
       "@typescript-eslint/no-restricted-types": ["error", {
         types: {

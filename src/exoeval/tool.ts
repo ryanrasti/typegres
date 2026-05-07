@@ -172,9 +172,14 @@ export const expr = () => (target: any, _context: ClassMethodDecoratorContext): 
  * For cases where the host already validates args internally
  */
 const uncheckedImpl = () => {
+	// `ClassMethodDecoratorContext<any, any>` (rather than the unparameterized
+	// default of `<unknown, (this: unknown, ...args: any) => any>`) so the
+	// caller's `this`/args shape stays whatever the method declares
+	// (e.g. `Any.in<T>(this: T, ...vals)`). tool.unchecked is the escape
+	// hatch precisely so TS doesn't have to project a fixed shape onto it.
 	return function (
 		target: any,
-		_context: ClassMethodDecoratorContext,
+		_context: ClassMethodDecoratorContext<any, any>,
 	): any {
 		tagToolKind(target, 'raw')
 		return target

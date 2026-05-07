@@ -52,6 +52,7 @@ class Api {
   // so expose them through Api methods that return the builder. Each
   // returned builder is fully @tool-decorated, so the chain composes
   // server-side.
+  // eslint-disable-next-line no-restricted-syntax -- test fixture
   @tool.unchecked()
   insertUsers(row: { name: string }) {
     return Users.insert(row);
@@ -108,7 +109,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
       const minId = "2";
 
       const rows = await rpc.run(
-        (api) =>
+        (api, { minId }) =>
           api.users()
             .where(({ users }) => users.id[">="](minId))
             .select(({ users }) => ({ name: users.name }))

@@ -1,8 +1,10 @@
 import { Any as Generated } from "../generated/any";
 import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
-import type { NullOf } from "../runtime";
+import type { NullOf, StrictNull, TsTypeOf } from "../runtime";
 import { Column, Param, sql, Sql, TypedParam, Unbound } from "../../builder/sql";
+import { tool } from "../../exoeval/tool";
+import { isPlainData } from "../../util";
 import * as types from "../index";
 
 type ColumnOpts = { nonNull?: boolean; default?: Sql; generated?: boolean };
@@ -56,6 +58,44 @@ export class Any<in out N extends number> extends Generated<N> {
     return cls.from(sql`CAST(${this.toSql()} AS ${cls.__typname})`) as any;
   }
 
+  // Type-safe IN. Accepts a vararg of "this type at any nullability"
+  // — including primitive values that the type knows how to serialize.
+  // For `Text`, that means `.in("a", "b", textVal)` all work. Always
+  // compiles to `(this IN (v1, v2, ...))`; pg's planner rewrites the
+  // single-value case to `=` itself during planning. SQL forbids
+  // `IN ()`, so the type signature requires at least one arg.
+  //
+  // Return nullability propagates from the LHS and any of the args:
+  // SQL three-valued logic on `IN` returns NULL when there's no match
+  // and either `this` or any list element is NULL.
+  //
+  // eslint-disable-next-line no-restricted-syntax -- generic vararg signature with `this`-bound type narrowing isn't expressible in zod
+  @tool.unchecked()
+  in<
+    T extends Any<any>,
+    Vs extends [
+      (T extends { [meta]: { __any: infer A } } ? A : Any<any>) | TsTypeOf<T>,
+      ...((T extends { [meta]: { __any: infer A } } ? A : Any<any>) | TsTypeOf<T>)[],
+    ],
+  >(
+    this: T,
+    ...vals: Vs
+  ): types.Bool<StrictNull<NullOf<T> | NullOf<Vs[number]>>> {
+    const wrapped = vals.map((v) => {
+      if (v instanceof Any) {return v;}
+      if (!isPlainData(v)) {
+        const name = (Object.getPrototypeOf(v) as { constructor?: { name?: string } } | null)?.constructor?.name ?? "anonymous";
+        throw new TypeError(
+          `Any.in: cannot accept ${name} instance as a list value. ` +
+            `Pass a typegres expression or a primitive matching ${(this[meta].__class as typeof Any).__typnameText}.`,
+        );
+      }
+      return this[meta].__class.serialize(v);
+    });
+    const list = sql.join(wrapped.map((v) => v.toSql()));
+    return types.Bool.from(sql`(${this.toSql()} IN (${list}))`) as unknown as types.Bool<StrictNull<NullOf<T> | NullOf<Vs[number]>>>;
+  }
+
   // COALESCE(this, rhs) — returns first non-null. Chainable.
   // rhs must be same concrete type (via [meta].__any). If rhs is non-null, returns __nonNullable.
   coalesce<T extends Any<any>, R extends (T extends { [meta]: { __any: infer A } } ? A : Any<any>)>(
@@ -64,7 +104,7 @@ export class Any<in out N extends number> extends Generated<N> {
   ): 0 extends NullOf<R>
     ? T  // rhs can be null → preserve T (still nullable)
     : (T extends { [meta]: { __nonNullable: infer U } } ? U : T) {  // rhs is non-null → __nonNullable
-    return ((this as any)[meta].__class as typeof Any).from(sql`COALESCE(${this.toSql()}, ${rhs.toSql()})`) as any;
+    return this[meta].__class.from(sql`COALESCE(${this.toSql()}, ${rhs.toSql()})`) as any;
   }
 
   // Public constructor alternative with precise nullability.
@@ -73,9 +113,26 @@ export class Any<in out N extends number> extends Generated<N> {
   static from<T extends typeof Any>(this: T, v: unknown): InstanceType<T> extends { [meta]: { __nonNullable: infer U } } ? U : InstanceType<T>;
   static from(v: Sql | unknown): any {
     const instance = new this();
-    const __raw = v instanceof Sql
-      ? v
-      : new TypedParam(new Param(v), this.__typname);
+    let __raw: Sql;
+    if (v instanceof Sql) {
+      __raw = v;
+    } else {
+      // Reject class instances — they almost always indicate a bug.
+      // The historical case: passing an Any expression to .from()
+      // silently wraps it as `Param(anAny)` which serializes as `{}`,
+      // producing either invalid SQL or a confusing cast error far
+      // from the call site. Plain objects (jsonb), arrays, nulls,
+      // and primitives are fine.
+      if (!isPlainData(v)) {
+        const name = (Object.getPrototypeOf(v) as { constructor?: { name?: string } } | null)?.constructor?.name ?? "anonymous";
+        throw new TypeError(
+          `${this.__typnameText}.from: cannot wrap ${name} instance as a typegres parameter. ` +
+            `If this is a typegres expression, pass its .toSql() result; ` +
+            `otherwise extract the primitive value first.`,
+        );
+      }
+      __raw = new TypedParam(new Param(v), this.__typname);
+    }
     // Set [meta] at runtime — subclasses' `declare [meta]` narrows the type only
     Object.defineProperty(instance, meta, {
       value: { __class: this, __raw },
