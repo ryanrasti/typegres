@@ -103,7 +103,38 @@ subqueries — fine. The extractor only inspects top-level `WHERE`/`ON`.
    `OR`, `NOT`, non-equality predicates at the top level just don't get
    seen by the extractor. Workable but unhelpful to diagnose.
 
-11. **WAL / logical-replication ingestion as an alternative to the shadow
+11. **`wrapUpdate` shadows the user's column references with `__typegres_before`.**
+   The live transformer rewrites a plain UPDATE into a CTE chain that
+   joins `__typegres_before` (a `SELECT *, ctid FROM <foos> ... FOR UPDATE`).
+   Both `<foos>` and `__typegres_before` are then in scope of the SET / RETURNING
+   clauses, so any user-written raw-SQL fragment that references columns
+   *unqualified* hits "column reference X is ambiguous" once live is enabled.
+
+   Reproducer (the demo's `Orders.advance` originally tripped this):
+   ```ts
+   .set(() => ({ status: Text.from(sql`CASE status WHEN 'draft' THEN 'confirmed' ... END`) }))
+   ```
+   Workaround: write `CASE orders.status WHEN ...` (qualify with the table alias).
+
+   Fix range: rename the CTE columns out of the user's namespace
+   (`SELECT col AS __tg_before_col, ctid` etc.), or expose a
+   first-class `.case()` builder on `Any` so users don't author raw
+   SQL for what should be typed expressions:
+
+   ```ts
+   orders.status.case({
+     "draft":     "confirmed",
+     "confirmed": "picking",
+     ...
+   } /* , else?: ... */)  // → Text<...>
+   ```
+
+   That removes the need for the user to think about qualification
+   *and* gives them type-checked branch values; the builder emits
+   `CASE <this.toSql()> WHEN ... END` so the receiver is always
+   correctly qualified.
+
+12. **WAL / logical-replication ingestion as an alternative to the shadow
    table** — today every mutation gains a `_typegres_live_events` insert
    in the same statement. That captures only writes that go through
    typegres builders, costs an extra row per mutation, and grows a table

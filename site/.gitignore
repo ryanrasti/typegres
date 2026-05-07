@@ -1,0 +1,10 @@
+.astro/
+dist/
+node_modules/
+.next/
+out/
+public/api/
+public/typegres.js
+public/typegres.d.ts
+public/demo.ts.static
+public/events-*.js

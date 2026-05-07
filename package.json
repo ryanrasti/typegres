@@ -20,6 +20,10 @@
     "./sql-builder": {
       "import": "./dist/builder/sql.mjs",
       "types": "./dist/builder/sql.d.mts"
+    },
+    "./exoeval": {
+      "import": "./dist/exoeval/index.mjs",
+      "types": "./dist/exoeval/index.d.mts"
     }
   },
   "bin": {

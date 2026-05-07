@@ -16,7 +16,7 @@ const swcPlugin = () =>
 export default defineConfig([
   // Library: multi-entry ESM + per-entry .d.ts for npm consumers.
   {
-    entry: ["src/index.ts", "src/config.ts", "src/types/index.ts", "src/builder/sql.ts", "src/cli.ts"],
+    entry: ["src/index.ts", "src/config.ts", "src/types/index.ts", "src/builder/sql.ts", "src/cli.ts", "src/exoeval/index.ts"],
     format: ["esm"],
     clean: true,
     plugins: [swcPlugin()],

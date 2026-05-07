@@ -490,8 +490,8 @@ test("scalar with cardinality 'one'", async () => {
       }))
       );
 
-    // TODO: TsTypeOf doesn't recursively unwrap Record<O> — nested type is O not TsTypeOf<O>
     expectTypeOf(rows[0]!.title).toEqualTypeOf<string>();
+    expectTypeOf(rows[0]!.author).toEqualTypeOf<{ name: string }>();
     expect(rows).toHaveLength(2);
     expect(rows[0]).toEqual({ title: "Book A", author: { name: "Alice" } });
     expect(rows[1]).toEqual({ title: "Book B", author: { name: "Alice" } });
@@ -841,4 +841,42 @@ test("orderBy defers — empty array fails .min(1) at compile", () => {
 test("groupBy() with no args is allowed (optional callback)", () => {
   const q = db.values({ a: Int4.from(1) }).groupBy();
   expect(() => compile(q, "pg")).not.toThrow();
+});
+
+test("type test: db.execute(Table.from()) row methods are never-typed (uncallable)", async () => {
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE widgets (
+      id   int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL
+    )`);
+    await tx.execute(sql`INSERT INTO widgets (name) VALUES ('w1')`);
+
+    class Widgets extends db.Table("widgets") {
+      id   = (Int8<1>).column({ nonNull: true, generated: true });
+      name = (Text<1>).column({ nonNull: true });
+
+      // Plain method — should not be a callable function on the row type.
+      doStuff(): string {
+        return "stuff";
+      }
+
+      // Derived column — returns an Any expression. Should also not
+      // be callable on the row type (you'd select via .select(...) explicitly).
+      preview() {
+        return this.name["||"](Text.from("…"));
+      }
+    }
+
+    const rows = await tx.execute(Widgets.from());
+
+    // 1. Column fields type as their deserialized values.
+    expectTypeOf(rows[0]!.id).toEqualTypeOf<string>();
+    expectTypeOf(rows[0]!.name).toEqualTypeOf<string>();
+
+    // 2. Method fields are `never` — runtime returns plain objects, so
+    // the row has no `doStuff` / `preview` methods. Calling
+    // `rows[0]!.doStuff()` would be a TS error ("never is not callable").
+    expectTypeOf(rows[0]!.doStuff).toEqualTypeOf<never>();
+    expectTypeOf(rows[0]!.preview).toEqualTypeOf<never>();
+  });
 });
