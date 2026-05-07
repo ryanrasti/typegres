@@ -1,6 +1,5 @@
 import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
-import tailwind from "@astrojs/tailwind";
 import mdx from "@astrojs/mdx";
 import swc from "unplugin-swc";
 
@@ -10,15 +9,15 @@ import swc from "unplugin-swc";
 //
 // SWC plugin handles TC39 stage-3 decorators that typegres uses on
 // `@tool()` — the friction Next 14's compiler couldn't accommodate.
+//
+// Tailwind 4 is wired through postcss.config.js (Astro picks it up
+// automatically) — `@astrojs/tailwind` was only a convenience
+// wrapper for that and doesn't ship for Astro 6.
 
 export default defineConfig({
   output: "static",
   trailingSlash: "ignore",
-  integrations: [
-    react(),
-    tailwind({ applyBaseStyles: false }), // we provide our own globals.css
-    mdx(),
-  ],
+  integrations: [react(), mdx()],
   vite: {
     plugins: [
       swc.vite({

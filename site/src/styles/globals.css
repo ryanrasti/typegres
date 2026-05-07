@@ -1,6 +1,49 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Tailwind 4 moves theme tokens out of `tailwind.config.js` and into a
+   `@theme` block in CSS. Custom colors/animations the Next-era config
+   defined under `theme.extend.*` live here now. Tailwind generates
+   utility classes (`bg-typegres-blue`, `animate-row-flash`, etc.) from
+   these variable names automatically. */
+@theme {
+  --color-typegres-blue: #3b82f6;
+  --color-typegres-dark: #111827;
+  --color-typegres-gray: #6b7280;
+
+  --animate-gradient: gradient 8s ease infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-row-flash: rowFlash 1800ms ease-out;
+  --animate-cell-flash: cellFlash 1800ms ease-out;
+}
+
+/* Class-based dark mode: opt in via `.dark` ancestor (DarkModeToggle
+   sets it on <html>). Was `darkMode: "class"` in v3 config. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@keyframes gradient {
+  0%, 100% { background-size: 200% 200%; background-position: left center; }
+  50% { background-size: 200% 200%; background-position: right center; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+/* Hold the saturated colour for the first ~40% of the run so the eye
+   actually catches it; ease-out alone fades too fast to register on a
+   quick mutation. */
+@keyframes rowFlash {
+  0%, 40% { background-color: rgba(34, 197, 94, 0.6); }
+  100% { background-color: transparent; }
+}
+@keyframes cellFlash {
+  0%, 40% { background-color: rgba(234, 179, 8, 0.7); }
+  100% { background-color: transparent; }
+}
+@keyframes shimmer {
+  0%, 80% { transform: translateX(-100%) skewX(-12deg); }
+  100% { transform: translateX(200%) skewX(-12deg); }
+}
 
 :root {
   --foreground-rgb: 17, 24, 39;
@@ -9,11 +52,12 @@
   --typegres-dark: 17, 24, 39;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-rgb: 17, 24, 39;
-  }
+/* Class-driven, not OS-driven: DarkModeToggle sets `.dark` on <html>.
+   The earlier `prefers-color-scheme` rule made the toggle a no-op for
+   body bg/fg — left the page stuck on the OS preference. */
+:root.dark {
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 17, 24, 39;
 }
 
 body {
@@ -25,32 +69,23 @@ body {
   .text-balance {
     text-wrap: balance;
   }
-  
+
   .bg-dot-pattern {
     background-image: radial-gradient(circle, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
     background-size: 20px 20px;
   }
-  
+
   .gradient-text {
     @apply bg-gradient-to-r from-typegres-dark to-typegres-blue bg-clip-text text-transparent;
   }
-  
+
   @media (prefers-color-scheme: dark) {
     .gradient-text {
       @apply bg-gradient-to-r from-gray-100 via-gray-200 to-typegres-blue;
     }
   }
-}
 
-@keyframes shimmer {
-  0%, 80% {
-    transform: translateX(-100%) skewX(-12deg);
+  .animate-shimmer {
+    animation: shimmer 10s infinite;
   }
-  100% {
-    transform: translateX(200%) skewX(-12deg);
-  }
-}
-
-.animate-shimmer {
-  animation: shimmer 10s infinite;
 }

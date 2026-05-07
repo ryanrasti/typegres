@@ -1,6 +1,7 @@
 
-import { Github, ArrowUpRight, Check, X, AlertTriangle } from "lucide-react";
+import { ArrowUpRight, Check, X, AlertTriangle } from "lucide-react";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
+import { GitHubIcon } from "@/components/GitHubIcon";
 import { SyntaxHighlight } from "@/components/SyntaxHighlight";
 
 type CodeLanguage = "typescript" | "sql" | "tsx" | "javascript";
@@ -157,7 +158,7 @@ export class Api extends RpcTarget {
               href="https://github.com/ryanrasti/typegres"
               className="ml-2 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors inline-flex items-center gap-1.5"
             >
-              <Github className="w-4 h-4" />
+              <GitHubIcon className="w-4 h-4" />
               <span>GitHub</span>
             </a>
           </div>
@@ -300,7 +301,7 @@ export class Api extends RpcTarget {
                   href="https://github.com/ryanrasti/typegres"
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 font-medium rounded-lg transition-colors"
                 >
-                  <Github className="w-5 h-5" />
+                  <GitHubIcon className="w-5 h-5" />
                   Star on GitHub
                 </a>
               </div>
