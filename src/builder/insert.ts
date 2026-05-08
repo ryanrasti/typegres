@@ -6,7 +6,7 @@ import type { TableBase } from "../table";
 import { Database } from "../database";
 import { getColumn } from "../types/overrides/any";
 import { meta } from "../types/runtime";
-import { fn, tool } from "../exoeval/tool";
+import { fn, expose } from "../exoeval/tool";
 import z from "zod";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
@@ -67,7 +67,7 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
     return this.#opts.instance.constructor.tableName as Name;
   }
 
-  @tool(fn.returns(z.custom<any>((v) => isRowType(v))))
+  @expose(fn.returns(z.custom<any>((v) => isRowType(v))))
   returning<R2 extends RowType>(fn: (ns: Namespace<Name, T>) => R2): InsertBuilder<Name, T, R2> {
     return new InsertBuilder({ ...this.#opts, returning: fn });
   }
@@ -115,17 +115,17 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
     return [this.finalize()];
   }
 
-  @tool(z.lazy(() => z.instanceof(Database)))
+  @expose(z.lazy(() => z.instanceof(Database)))
   override async execute(db: Database<any>): Promise<RowTypeToTsType<R>[]> {
     return db.execute(this);
   }
 
-  @tool(z.lazy(() => z.instanceof(Database)))
+  @expose(z.lazy(() => z.instanceof(Database)))
   async hydrate(db: Database<any>): Promise<R[]> {
     return db.hydrate<any, any, R>(this);
   }
 
-  @tool()
+  @expose()
   debug(): this {
     const compiled = compile(this, "pg");
     console.log("Debugging query:", { sql: compiled.text, parameters: compiled.values });

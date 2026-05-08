@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { tool } from "./tool";
+import { expose } from "./tool";
 import { RpcClient, inMemoryChannel } from "./rpc";
 
 // Minimal end-to-end test of the exoeval RPC mechanism, in-memory.
@@ -16,20 +16,20 @@ import { RpcClient, inMemoryChannel } from "./rpc";
 // handler so the tests exercise the protocol without any wire machinery.
 
 // Test fixture: the surface here exists to drive the protocol, not to
-// validate args. Production callers always use @tool(zSchema).
+// validate args. Production callers always use @expose(zSchema).
 /* eslint-disable no-restricted-syntax -- test fixture */
 class Api {
-  @tool.unchecked()
+  @expose.unchecked()
   greet(name: string): string {
     return `Hello, ${name}!`;
   }
 
-  @tool.unchecked()
+  @expose.unchecked()
   add(a: number, b: number): number {
     return a + b;
   }
 
-  @tool.unchecked()
+  @expose.unchecked()
   echo<T>(value: T): T {
     return value;
   }
@@ -69,10 +69,10 @@ describe("exoeval rpc — in-memory", () => {
   });
 
   // Demonstrates the safeStringify guard: even though `Leaky` has a method
-  // (callable via @tool) that returns the receiver itself, the response
+  // (callable via @expose) that returns the receiver itself, the response
   // serializer refuses to walk a class instance. Without this check, every
   // own-enumerable instance field of `Leaky` would leak into the wire even
-  // though only `getSelf` is @tool-marked.
+  // though only `getSelf` is @expose-marked.
   test("safeStringify refuses to serialize a class instance returned from the wire", async () => {
     class Leaky {
       // TS-private is *not* runtime-private — `secret` is an own enumerable
@@ -80,7 +80,7 @@ describe("exoeval rpc — in-memory", () => {
       // emit it; safeStringify catches the class-instance return.
       private secret = "internals";
 
-      @tool()
+      @expose()
       getSelf(): Leaky {
         return this;
       }
@@ -94,7 +94,7 @@ describe("exoeval rpc — in-memory", () => {
   test("plain arrays are NOT streamed (one-shot semantics preserved)", async () => {
     class ListApi {
       // eslint-disable-next-line no-restricted-syntax -- test fixture
-      @tool.unchecked()
+      @expose.unchecked()
       list(): number[] {
         return [10, 20, 30];
       }
@@ -107,7 +107,7 @@ describe("exoeval rpc — in-memory", () => {
   test("runIter streams items from an async iterable", async () => {
     class AsyncStreamApi {
       // eslint-disable-next-line no-restricted-syntax -- test fixture
-      @tool.unchecked()
+      @expose.unchecked()
       async *ticks(n: number): AsyncIterable<{ i: number }> {
         for (let i = 0; i < n; i++) {yield { i };}
       }
@@ -121,7 +121,7 @@ describe("exoeval rpc — in-memory", () => {
   test("await on a streaming closure resolves to the first chunk", async () => {
     class TickApi {
       // eslint-disable-next-line no-restricted-syntax -- test fixture
-      @tool.unchecked()
+      @expose.unchecked()
       async *ticks(n: number): AsyncIterable<number> {
         for (let i = 0; i < n; i++) {yield i;}
       }
@@ -133,9 +133,9 @@ describe("exoeval rpc — in-memory", () => {
     expect(first).toBe(0);
   });
 
-  test("non-@tool methods are not callable from the wire", async () => {
+  test("non-@expose methods are not callable from the wire", async () => {
     class Internal {
-      @tool()
+      @expose()
       open(): string {
         return "ok";
       }

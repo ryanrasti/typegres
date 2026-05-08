@@ -3,7 +3,7 @@ import { getTypeDef } from "../deserialize";
 import { meta } from "../runtime";
 import type { NullOf, StrictNull, TsTypeOf } from "../runtime";
 import { Column, Param, sql, Sql, TypedParam, Unbound } from "../../builder/sql";
-import { tool } from "../../exoeval/tool";
+import { expose } from "../../exoeval/tool";
 import { isPlainData } from "../../util";
 import * as types from "../index";
 
@@ -70,7 +70,7 @@ export class Any<in out N extends number> extends Generated<N> {
   // and either `this` or any list element is NULL.
   //
   // eslint-disable-next-line no-restricted-syntax -- generic vararg signature with `this`-bound type narrowing isn't expressible in zod
-  @tool.unchecked()
+  @expose.unchecked()
   in<
     T extends Any<any>,
     Vs extends [

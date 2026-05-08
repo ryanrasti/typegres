@@ -51,15 +51,11 @@
    — bigint, bytes, dates, ±Infinity, NaN, undefined as tagged sentinels (e.g.
    `["bigint","42"]`) — is the v0.2 fix; see Endo's `pass-style` for prior art.
 
-10. **Rename `@tool` → `@expose`.** The decorator is the only gatekeeper for
-    what crosses the wire (columns, relations, methods, properties — for any
-    caller: humans, frontends, agents). The current name is sticky baggage from
-    the codemode/agents framing and undersells the broader role. `@expose`
-    matches the verb the README and landing copy already use ("Mark methods
-    exposed", "what you've marked"). Mechanical but wide: `src/exoeval/tool.ts`,
-    `src/index.ts` re-export, codegen template in `src/tables/generate.ts`, all
-    demo schemas (regen via `tg generate`), demo `api.ts`, README example, the
-    inline snapshots in `src/tables/generate.test.ts`, and site copy.
+10. ~~**Rename `@tool` → `@expose`.**~~ Done at launch prep. The exported
+    decorator and namespace are `expose` / `expose.unchecked`; the
+    `tool.ts` file kept its name internally. ESLint rule, codegen
+    template, generated/ outputs, schema files, demo, README, and site
+    copy all updated.
 
 ## Missing features
 
@@ -89,7 +85,7 @@
     Likely answer is both: pre-compiled for production traffic, gas-metered
     for dev/admin/exploratory use.
 
-15. **Site: upgrade Next.js 14 → 16.** `npm audit` reports 4 high-severity
+15. ~~**Site: upgrade Next.js 14 → 16.**~~ `npm audit` reports 4 high-severity
     Next.js CVEs, all fix-gated on the 16.x major. They're server-side
     vulnerabilities (image optimizer, RSC, rewrites, Server Components DoS)
     that don't affect our static-export deployment to GitHub Pages — no Next

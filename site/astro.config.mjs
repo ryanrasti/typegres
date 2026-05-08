@@ -8,7 +8,7 @@ import swc from "unplugin-swc";
 // interactive bits (playground, demo, dark-mode toggle).
 //
 // SWC plugin handles TC39 stage-3 decorators that typegres uses on
-// `@tool()` — the friction Next 14's compiler couldn't accommodate.
+// `@expose()` — the friction Next 14's compiler couldn't accommodate.
 //
 // Tailwind 4 is wired through postcss.config.js (Astro picks it up
 // automatically) — `@astrojs/tailwind` was only a convenience

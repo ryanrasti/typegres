@@ -15,7 +15,10 @@ const result = client.run(async (api) => {
     .select(({ orders }) => ({
       status: orders.status,
       count: orders.id.count(),
+      avg_priority: orders.priority.avg(),
+      max_priority: orders.priority.max(),
     }))
+    .debug()
     .live(api.db);
 });
 

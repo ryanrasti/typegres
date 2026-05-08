@@ -201,10 +201,10 @@ const generateTypeFile = (
   const lines: string[] = [];
   lines.push("// Auto-generated — do not edit");
   lines.push('import * as runtime from "../runtime";');
-  // @tool.unchecked exposes every codegen'd method to exoeval-bound code
+  // @expose.unchecked exposes every codegen'd method to exoeval-bound code
   // without arg validation (typegres's runtime overload dispatcher already
   // validates internally). One import here, prepended on every method.
-  lines.push('import { tool } from "../../exoeval/tool";');
+  lines.push('import { expose } from "../../exoeval/tool";');
 
   // Parent class needs a direct import, not `types.Parent`: class `extends`
   // clauses evaluate at module-load time, and the barrel may not have finished
@@ -460,7 +460,7 @@ const generateTypeFile = (
       const colRuntime = f0.outColumns.map((c) => { const t = typeMap.get(c.typeOid)!; return `["${c.name}", types.${t.className}]`; });
       const sig = buildSig(f0, true);
       const ret = `runtime.PgSrf<{ ${colEntries.join("; ")} }, "${f0.name}">`;
-      lines.push(`  @tool.unchecked()`);
+      lines.push(`  @expose.unchecked()`);
       lines.push(`  ${sig}: ${ret} { return new runtime.PgSrf("${f0.name}", [${allArgs}], [${colRuntime.join(", ")}]) as any; }`);
       continue;
     }
@@ -477,7 +477,7 @@ const generateTypeFile = (
       if (group.length === 1) {
         const sig = buildSig(f0, allowMap.get(f0) ?? true, nameOverride);
         const retType = wrapRet(f0, buildRetType(f0));
-        lines.push(`  @tool.unchecked()`);
+        lines.push(`  @expose.unchecked()`);
         lines.push(`  ${sig}: ${retType} { ${buildBody(group, allowMap)} }`);
         return;
       }
@@ -497,7 +497,7 @@ const generateTypeFile = (
       const implParams = Array.from({ length: maxArity }, (_, i) =>
         `arg${i}${i >= minArity ? "?" : ""}: unknown`,
       ).join(", ");
-      lines.push(`  @tool.unchecked()`);
+      lines.push(`  @expose.unchecked()`);
       lines.push(`  ${nameOverride ?? methodName(f0)}(${implParams}): any { ${buildBody(group, allowMap)} }`);
     };
 

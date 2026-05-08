@@ -5,7 +5,7 @@ export { sql, Sql } from "./builder/sql";
 export { QueryBuilder } from "./builder/query";
 export { PgDriver, PgliteDriver } from "./driver";
 export { TypegresLiveEvents } from "./live/events";
-export { tool } from "./exoeval/tool";
+export { expose } from "./exoeval/tool";
 export type { ToolFunction } from "./exoeval/tool";
 export { RpcClient, inMemoryChannel, safeStringify } from "./exoeval/rpc";
 export type { RawChannel } from "./exoeval/rpc";

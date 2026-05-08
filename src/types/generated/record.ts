@@ -1,6 +1,6 @@
 // Auto-generated — do not edit
 import * as runtime from "../runtime";
-import { tool } from "../../exoeval/tool";
+import { expose } from "../../exoeval/tool";
 import { Anynonarray } from "../generated/anynonarray";
 import * as types from "../index";
 
@@ -16,52 +16,52 @@ export class Record<in out N extends number> extends Anynonarray<N> {
   };
   static __typname = runtime.sql`record`;
   static __typnameText = "record";
-  @tool.unchecked()
+  @expose.unchecked()
   recordImageEq<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("record_image_eq", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   recordImageGe<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("record_image_ge", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   recordImageGt<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("record_image_gt", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   recordImageLe<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("record_image_le", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   recordImageLt<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("record_image_lt", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   recordImageNe<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("record_image_ne", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['*<']<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`*<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['*<=']<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`*<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['*<>']<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`*<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['*=']<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`*=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['*>']<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`*>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['*>=']<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`*>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['<']<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   lt<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['<=']<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   lte<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['<>']<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ne<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['=']<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   eq<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['>']<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   gt<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['>=']<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   gte<M0 extends types.Record<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Record, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
 }

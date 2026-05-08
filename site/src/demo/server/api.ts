@@ -10,9 +10,11 @@
 // downstream methods on the row can reach the principal via
 // `Orders.contextOf(this)` without re-threading.
 
-import { Database, RpcClient, inMemoryChannel, tool } from "typegres";
+import { Database, RpcClient, inMemoryChannel, expose } from "typegres";
+import type { RawChannel } from "typegres";
 import { z } from "zod";
 import { db } from "../runtime";
+import { wireLog } from "../wire-log";
 import { Users } from "../schema/users";
 import { Customers } from "../schema/customers";
 import { Orders } from "../schema/orders";
@@ -30,10 +32,10 @@ export type Role = "ops_lead" | "inventory_control" | "account_manager";
 // explicitly — the executor is the caller's responsibility, not the
 // principal's.
 export class UserRoot {
-  @tool() userId: string;
-  @tool() organizationId: string;
-  @tool() role: Role;
-  @tool() name: string;
+  @expose() userId: string;
+  @expose() organizationId: string;
+  @expose() role: Role;
+  @expose() name: string;
 
   constructor(opts: {
     userId: string;
@@ -50,23 +52,23 @@ export class UserRoot {
   // Scoped reads. Each returns a QueryBuilder pre-`where`'d to this
   // org and tagged with `this` as its context. Hydrated rows carry
   // the user forward through every relation traversal.
-  @tool() customers() {
+  @expose() customers() {
     return Customers.scope(this).where(({ customers }) => customers.organization_id["="](this.organizationId));
   }
-  @tool() orders() {
+  @expose() orders() {
     return Orders.scope(this).where(({ orders }) => orders.organization_id["="](this.organizationId));
   }
-  @tool() inventory() {
+  @expose() inventory() {
     return InventoryPositions.scope(this).where(({ inventory_positions: p }) => p.organization_id["="](this.organizationId));
   }
-  @tool() shipments() {
+  @expose() shipments() {
     return Shipments.scope(this).where(({ shipments }) => shipments.organization_id["="](this.organizationId));
   }
-  @tool() locations() {
+  @expose() locations() {
     return Locations.scope(this).where(({ locations }) => locations.organization_id["="](this.organizationId));
   }
   // Order lines have no direct organization_id; scope through the parent order via a join.
-  @tool() orderLines() {
+  @expose() orderLines() {
     return OrderLines.scope(this)
       .join(Orders, ({ order_lines: l, orders: o }) =>
         l.order_id["="](o.id).and(o.organization_id["="](this.organizationId)),
@@ -76,7 +78,7 @@ export class UserRoot {
   // Demo mutation. Picks a non-terminal order in this user's tenant
   // and runs its `.advance()` lifecycle step. Returns null if there's
   // nothing advanceable. Role gate happens inside Orders.advance().
-  @tool(z.lazy(() => z.instanceof(Database)))
+  @expose(z.lazy(() => z.instanceof(Database)))
   async advanceRandom(db: Database<any>): Promise<{ id: string; status: string } | null> {
     const [row] = await this.orders()
       .where(({ orders }) => orders.status["<>"]("delivered"))
@@ -89,7 +91,7 @@ export class UserRoot {
   // Demo mutation. Picks a random inventory position in this user's
   // tenant and bumps its on_hand by a small random amount. Role-
   // gated to inventory_control — Bob can do this; Alice can't.
-  @tool(z.lazy(() => z.instanceof(Database)))
+  @expose(z.lazy(() => z.instanceof(Database)))
   async restockRandom(db: Database<any>): Promise<{ id: string; on_hand: string } | null> {
     if (this.role !== "inventory_control") {
       throw new Error(`role '${this.role}' cannot restock (inventory_control required)`);
@@ -105,7 +107,7 @@ export class UserRoot {
   // Demo mutation. Inserts a fresh `draft` order for one of this
   // user's customers. Role-gated like the other writes; tenant comes
   // from the principal — no free-form `organization_id` from the wire.
-  @tool(z.lazy(() => z.instanceof(Database)))
+  @expose(z.lazy(() => z.instanceof(Database)))
   async insertDraftOrder(db: Database<any>): Promise<{ id: string }> {
     if (this.role !== "ops_lead") {
       throw new Error(`role '${this.role}' cannot insert orders (ops_lead required)`);
@@ -130,7 +132,7 @@ export class UserRoot {
 }
 
 export class Api {
-  @tool() db: Database<UserRoot>;
+  @expose() db: Database<UserRoot>;
 
   // Server-side ambient: who's "logged in" for this RPC. In the
   // playground the right-pane user dropdown writes here; in a
@@ -152,7 +154,7 @@ export class Api {
   // subscribe immediately. In a real deployment the wire would have
   // a per-iter abort channel; here we tear down the whole bus
   // because the demo only ever has one iter at a time.
-  @tool()
+  @expose()
   async resetLive(): Promise<void> {
     await this.db.stopLive();
     await this.db.startLive();
@@ -162,7 +164,7 @@ export class Api {
   // current-user token (set by the page UI via setCurrentUserToken).
   // Real deployments would set this from the request's auth cookie /
   // bearer token before dispatching the rpc closure.
-  @tool()
+  @expose()
   async currentUser(): Promise<UserRoot> {
     const token = this.#currentUserToken;
     if (!token) throw new Error("no current user — page UI hasn't set one");
@@ -198,7 +200,46 @@ export class Api {
 // JSON-serialized result(s) come back as AsyncIterable<string>.
 // Real deployments swap inMemoryChannel for a wire transport.
 const apiInstance = new Api(db);
-export const client: RpcClient<Api> = new RpcClient<Api>(inMemoryChannel(apiInstance));
+
+// Logging channel wrapper: mirrors `inMemoryChannel` but pushes a
+// wire-log entry on every closure shipped + every chunk received.
+// Live vs query is detected by `.live(` substring in the closure
+// source — typegres closures are explicit about which terminator
+// they use, so the heuristic is reliable.
+const baseChannel: RawChannel = inMemoryChannel(apiInstance);
+
+// Cheap row counter for the wire log. Arrays → length; single
+// objects (e.g. `.one()` results, `insertDraftOrder` returning a row)
+// → 1; void / null / primitives → null, falls through to bytes in
+// the renderer.
+const countRows = (chunk: string): number | null => {
+  try {
+    const v = JSON.parse(chunk);
+    if (Array.isArray(v)) {return v.length;}
+    if (v !== null && typeof v === "object") {return 1;}
+  } catch { /* fall through */ }
+  return null;
+};
+
+const loggingChannel: RawChannel = async function* (code: string) {
+  const isLive = code.includes(".live(");
+  wireLog.push({ kind: isLive ? "live-request" : "query-request", t: Date.now(), code });
+  try {
+    for await (const chunk of baseChannel(code)) {
+      wireLog.push({
+        kind: isLive ? "live-update" : "query-response",
+        t: Date.now(),
+        bytes: chunk.length,
+        rows: countRows(chunk),
+      });
+      yield chunk;
+    }
+  } catch (e) {
+    wireLog.push({ kind: "error", t: Date.now(), message: e instanceof Error ? e.message : String(e) });
+    throw e;
+  }
+};
+export const client: RpcClient<Api> = new RpcClient<Api>(loggingChannel);
 
 // Page-side hook: dropdown change → ambient current-user token. The
 // widget's `api.currentUser()` calls then resolve to whichever user

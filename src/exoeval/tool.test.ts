@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { exoEval } from './index'
-import { fn, isToolableFunction, tool, toolFieldsSymbol, toolSymbol } from './tool'
+import { fn, isToolableFunction, expose, toolFieldsSymbol, toolSymbol } from './tool'
 
 class SampleToolset {
 	value = 10
@@ -14,12 +14,12 @@ class SampleToolset {
 		return x + y
 	}
 
-	@tool(z.number(), z.number())
+	@expose(z.number(), z.number())
 	add(x: number, y: number) {
 		return this.value + x + y
 	}
 
-	@tool()
+	@expose()
 	getValue() {
 		return this.value
 	}
@@ -65,10 +65,10 @@ describe('getter decorator', () => {
 	class WithGetters {
 		private data = [1, 2, 3]
 
-		@tool()
+		@expose()
 		get length() { return this.data.length }
 
-		@tool(fn.returns(z.any()))
+		@expose(fn.returns(z.any()))
 		get map() { return this.data.map.bind(this.data) }
 
 		// Non-tool getter
@@ -108,7 +108,7 @@ describe('getter decorator', () => {
 	it('getter-returned function runtime validation rejects invalid callback result (direct and exoEval)', () => {
 		class WithValidatedMap {
 			private data = [1, 2, 3]
-			@tool(fn.returns(z.array(z.number())))
+			@expose(fn.returns(z.array(z.number())))
 			get map() { return this.data.map.bind(this.data) }
 		}
 		const instance = new WithValidatedMap()
@@ -124,14 +124,14 @@ describe('getter decorator', () => {
 })
 
 describe('class decorator', () => {
-	@tool(z.any().optional())
+	@expose(z.any().optional())
 	class Constructable {
 		readonly value: number
 		constructor(value?: number) {
 			this.value = value ?? 42
 		}
 
-		@tool()
+		@expose()
 		get val() { return this.value }
 	}
 
@@ -158,7 +158,7 @@ describe('class decorator', () => {
 	})
 
 	it('class constructor runtime arg validation rejects invalid args (direct and exoEval)', () => {
-		@tool(z.number())
+		@expose(z.number())
 		class NumOnly {
 			constructor(public n: number) {}
 		}
@@ -172,10 +172,10 @@ describe('class decorator', () => {
 
 describe('field decorator', () => {
 	class WithFields {
-		@tool()
+		@expose()
 		label = 'hello'
 
-		@tool(z.number())
+		@expose(z.number())
 		compute = (x: number) => x * 2
 
 		plain = 'not a tool'
@@ -220,10 +220,10 @@ describe('field decorator', () => {
 
 describe('static decorator', () => {
 	class WithStatics {
-		@tool(z.number(), z.number())
+		@expose(z.number(), z.number())
 		static add(a: number, b: number) { return a + b }
 
-		@tool()
+		@expose()
 		static get name2() { return 'test' }
 	}
 
@@ -251,32 +251,32 @@ describe('static decorator', () => {
 	})
 })
 
-describe('@tool type checking', () => {
+describe('@expose type checking', () => {
 	it('rejects schema/method type mismatches', () => {
 		// These should all produce TypeScript errors.
 		// If the @ts-expect-error is unnecessary (no error), the test itself fails.
 
 		class _TypeChecks {
 			// @ts-expect-error — z.string() does not match number parameter
-			@tool(z.string())
+			@expose(z.string())
 			numMethod(x: number) { return x }
 
 			// @ts-expect-error — too few schemas (expects 2 args, only 1 schema)
-			@tool(z.number())
+			@expose(z.number())
 			twoArgs(a: number, b: number) { return a + b }
 
 			// @ts-expect-error — wrong schema type for second param
-			@tool(z.number(), z.boolean())
+			@expose(z.number(), z.boolean())
 			stringSecond(a: number, b: string) { return `${a}${b}` }
 		}
 	})
 })
 
 describe('tool with function argument', () => {
-	it('can pass arrow function from exoeval to @tool method', () => {
+	it('can pass arrow function from exoeval to @expose method', () => {
 		class EventSource {
 			callbacks: Array<(x: number) => number> = []
-			@tool(z.any())
+			@expose(z.any())
 			onEvent(cb: (x: number) => number) {
 				this.callbacks.push(cb)
 			}

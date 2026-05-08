@@ -1,7 +1,7 @@
 import { defineConfig } from "tsdown";
 import swc from "unplugin-swc";
 
-// SWC handles TC39 stage-3 decorators (`@tool()`, `@tool.unchecked()`).
+// SWC handles TC39 stage-3 decorators (`@expose()`, `@expose.unchecked()`).
 // tsdown's underlying rolldown/oxc transform leaves them as-is, which
 // trips Node at runtime with a SyntaxError. SWC lowers them to ES2022.
 const swcPlugin = () =>

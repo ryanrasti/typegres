@@ -1,7 +1,7 @@
 import { describe, test, expect } from "vitest";
 import { sql, Table, Int8, Text } from "typegres";
 import type { Database } from "typegres";
-import { tool } from "./exoeval/tool";
+import { expose } from "./exoeval/tool";
 import { RpcClient, inMemoryChannel } from "./exoeval/rpc";
 import { setupDb, withinTransaction } from "./test-helpers";
 setupDb();
@@ -23,26 +23,26 @@ setupDb();
 // The closures inside .where / .select aren't exported as stubs — they're
 // shipped as JS source and re-interpreted server-side under exoeval, with
 // the typegres namespace ({users: <Users instance>}) passed in. Every
-// QueryBuilder method is @tool-decorated, so the builder composes over
+// QueryBuilder method is @expose-decorated, so the builder composes over
 // the wire directly — no host-side wrapper class needed.
 
 class Users extends Table("users") {
-  @tool()
+  @expose()
   id = (Int8<1>).column({ nonNull: true, generated: true });
 
-  @tool()
+  @expose()
   name = (Text<1>).column({ nonNull: true });
 }
 
 class Api {
-  @tool()
+  @expose()
   db: Database;
 
   constructor(db: Database) {
     this.db = db;
   }
 
-  @tool()
+  @expose()
   users() {
     return Users.from();
   }
@@ -50,20 +50,20 @@ class Api {
   // Insert/update/delete entry points. The static methods on TableBase
   // can't be called directly from the wire (the class itself isn't a tool),
   // so expose them through Api methods that return the builder. Each
-  // returned builder is fully @tool-decorated, so the chain composes
+  // returned builder is fully @expose-decorated, so the chain composes
   // server-side.
   // eslint-disable-next-line no-restricted-syntax -- test fixture
-  @tool.unchecked()
+  @expose.unchecked()
   insertUsers(row: { name: string }) {
     return Users.insert(row);
   }
 
-  @tool()
+  @expose()
   updateUsers() {
     return Users.update();
   }
 
-  @tool()
+  @expose()
   deleteUsers() {
     return Users.delete();
   }

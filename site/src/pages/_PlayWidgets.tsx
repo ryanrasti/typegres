@@ -97,6 +97,53 @@ const ToggleButton = ({
   </button>
 );
 
+// Manual-fire button + auto-toggle as one compact unit. The fire
+// button is a regular button (style matches inactive ToggleButton);
+// the auto pill flips state on click. The error badge appears on
+// whichever side last reported the error (auto-cycle writes via
+// setError; manual fire writes via the same setter from onFire).
+const FireWithAutoToggle = ({
+  label,
+  onFire,
+  auto,
+  onAuto,
+  fireTitle,
+  autoTitle,
+  error,
+}: {
+  label: string;
+  onFire: () => void | Promise<void>;
+  auto: boolean;
+  onAuto: () => void;
+  fireTitle: string;
+  autoTitle: string;
+  error: string | null;
+}) => (
+  <div className="relative inline-flex items-center rounded border overflow-hidden border-gray-700">
+    <button
+      onClick={() => { void onFire(); }}
+      title={error ?? fireTitle}
+      className="text-[11px] normal-case px-2 py-0.5 text-gray-300 hover:bg-gray-800 transition-colors"
+    >
+      {label}
+    </button>
+    <button
+      onClick={onAuto}
+      title={error ?? autoTitle}
+      className={`text-[11px] normal-case px-2 py-0.5 border-l border-gray-700 transition-colors ${
+        auto ? "bg-blue-600/30 text-white" : "text-gray-500 hover:bg-gray-800 hover:text-gray-300"
+      }`}
+    >
+      auto
+    </button>
+    {error && (
+      <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 text-white text-[8px] leading-3 text-center font-bold">
+        !
+      </span>
+    )}
+  </div>
+);
+
 // Self-rescheduling auto-cycle. Each tick fires `action()` after a
 // random delay in [minMs, maxMs]; ON by default. Pauses when the
 // gate is off OR when the widget isn't visible (no point firing
@@ -187,6 +234,17 @@ function generateOrdersBlock(opts: {
       : `\n    .where(({ orders }) => orders.status.in(${statusFilter
           .map((s) => JSON.stringify(s))
           .join(", ")}))`;
+  // For grouped views, include a couple of priority aggregates beyond
+  // the row count so the table actually shifts on mutation (count alone
+  // is just integers; avg fluctuates as new draft orders land at
+  // priority 0). Skip when grouping *by* priority — the avg/max would
+  // be tautological.
+  const priorityAggs =
+    groupBy !== "none" && groupBy !== "priority"
+      ? `
+      avg_priority: orders.priority.avg(),
+      max_priority: orders.priority.max(),`
+      : "";
   const selectBody =
     groupBy === "none"
       ? `{
@@ -196,7 +254,7 @@ function generateOrdersBlock(opts: {
     }`
       : `{
       ${groupBy}: orders.${groupBy},
-      count: orders.id.count(),
+      count: orders.id.count(),${priorityAggs}
     }`;
   const groupByLine =
     groupBy === "none" ? "" : `\n    .groupBy(({ orders }) => [orders.${groupBy}])`;
@@ -246,34 +304,27 @@ export const OrdersWidget = (props: WidgetProps) => {
   const [insertError, setInsertError] = useState<string | null>(null);
   const [advanceError, setAdvanceError] = useState<string | null>(null);
 
-  useAutoCycle(
-    autoInsert && props.visible,
-    [3000, 7000],
-    [7500, 22500],
-    async () => {
-      try {
-        await rpc(async (api) => (await api.currentUser()).insertDraftOrder(api.db));
-        return null;
-      } catch (e) {
-        return e instanceof Error ? e.message : String(e);
-      }
-    },
-    setInsertError,
-  );
-  useAutoCycle(
-    autoAdvance && props.visible,
-    [7000, 11000],
-    [7500, 22500],
-    async () => {
-      try {
-        await rpc(async (api) => (await api.currentUser()).advanceRandom(api.db));
-        return null;
-      } catch (e) {
-        return e instanceof Error ? e.message : String(e);
-      }
-    },
-    setAdvanceError,
-  );
+  // Same action shared by the manual-fire buttons and the auto-cycle —
+  // returns an error string (or null) instead of throwing so both
+  // entry points report through setInsertError / setAdvanceError.
+  const fireInsert = async () => {
+    try {
+      await rpc(async (api) => (await api.currentUser()).insertDraftOrder(api.db));
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e);
+    }
+  };
+  const fireAdvance = async () => {
+    try {
+      await rpc(async (api) => (await api.currentUser()).advanceRandom(api.db));
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e);
+    }
+  };
+  useAutoCycle(autoInsert && props.visible, [3000, 7000], [7500, 22500], fireInsert, setInsertError);
+  useAutoCycle(autoAdvance && props.visible, [7000, 11000], [7500, 22500], fireAdvance, setAdvanceError);
 
   const next = generateOrdersBlock({ statusFilter, groupBy, orderBy, orderDir, live: props.live });
   useWidgetStamp(ORDERS_URI, props.modelsReady, props.running, props.restart, next);
@@ -333,23 +384,25 @@ export const OrdersWidget = (props: WidgetProps) => {
         </select>
       </Field>
       <LiveToggle live={props.live} onLive={props.onLive} />
-      <div className="ml-auto flex items-center gap-2">
-        <ToggleButton
-          active={autoInsert}
-          onClick={() => setAutoInsert((v) => !v)}
-          title="Auto-insert a draft order every few seconds. Click to pause."
+      <div className="ml-auto flex items-center gap-3">
+        <FireWithAutoToggle
+          label="+ insert"
+          onFire={async () => setInsertError(await fireInsert())}
+          auto={autoInsert}
+          onAuto={() => setAutoInsert((v) => !v)}
+          fireTitle="Insert a single draft order."
+          autoTitle="Auto-insert a draft order every few seconds. Click to pause."
           error={insertError}
-        >
-          + auto-insert
-        </ToggleButton>
-        <ToggleButton
-          active={autoAdvance}
-          onClick={() => setAutoAdvance((v) => !v)}
-          title="Auto-advance a random non-delivered order every few seconds. Click to pause."
+        />
+        <FireWithAutoToggle
+          label="↻ advance"
+          onFire={async () => setAdvanceError(await fireAdvance())}
+          auto={autoAdvance}
+          onAuto={() => setAutoAdvance((v) => !v)}
+          fireTitle="Advance one random non-delivered order."
+          autoTitle="Auto-advance a random non-delivered order every few seconds. Click to pause."
           error={advanceError}
-        >
-          ↻ auto-advance
-        </ToggleButton>
+        />
       </div>
     </ControlsStrip>
   );

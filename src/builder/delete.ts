@@ -5,7 +5,7 @@ import type { RowType, RowTypeToTsType } from "./query";
 import { combinePredicates, compileSelectList, isRowType, mergeReturning, reAlias } from "./query";
 import type { TableBase } from "../table";
 import { Database } from "../database";
-import { fn, tool } from "../exoeval/tool";
+import { fn, expose } from "../exoeval/tool";
 import z from "zod";
 
 type Namespace<Name extends string, T> = { [K in Name]: T };
@@ -59,7 +59,7 @@ export class DeleteBuilder<Name extends string, T extends TableBase, R extends R
   }
 
   // Multiple where() calls are combined with AND. .where(true) matches all rows.
-  @tool(z.union([z.literal(true), fn.returns(z.lazy(() => z.instanceof(Bool)))]))
+  @expose(z.union([z.literal(true), fn.returns(z.lazy(() => z.instanceof(Bool)))]))
   where(fn: ((ns: Namespace<Name, T>) => Bool<any>) | true): DeleteBuilder<Name, T, R> {
     const wrapped: (ns: Namespace<Name, T>) => Bool<any> =
       fn === true ? () => Bool.from(sql`TRUE`) as Bool<any> : fn;
@@ -69,7 +69,7 @@ export class DeleteBuilder<Name extends string, T extends TableBase, R extends R
     });
   }
 
-  @tool(fn.returns(z.custom<any>((v) => isRowType(v))))
+  @expose(fn.returns(z.custom<any>((v) => isRowType(v))))
   returning<R2 extends RowType>(fn: (ns: Namespace<Name, T>) => R2): DeleteBuilder<Name, T, R2> {
     return new DeleteBuilder({ ...this.#opts, returning: fn });
   }
@@ -116,17 +116,17 @@ export class DeleteBuilder<Name extends string, T extends TableBase, R extends R
     return [this.finalize()];
   }
 
-  @tool(z.lazy(() => z.instanceof(Database)))
+  @expose(z.lazy(() => z.instanceof(Database)))
   override async execute(db: Database<any>): Promise<RowTypeToTsType<R>[]> {
     return db.execute(this);
   }
 
-  @tool(z.lazy(() => z.instanceof(Database)))
+  @expose(z.lazy(() => z.instanceof(Database)))
   async hydrate(db: Database<any>): Promise<R[]> {
     return db.hydrate<any, any, R>(this);
   }
 
-  @tool()
+  @expose()
   debug(): this {
     const compiled = compile(this, "pg");
     console.log("Debugging query:", { sql: compiled.text, parameters: compiled.values });

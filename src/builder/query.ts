@@ -4,7 +4,7 @@ import { Database } from "../database";
 import { Bool } from "../types";
 import { Any, Anyarray, Record } from "../types";
 import { type TsTypeOf, type Nullable, type AggregateRow, meta } from "../types/runtime";
-import { fn, tool } from "../exoeval/tool";
+import { fn, expose } from "../exoeval/tool";
 import { isTableClass, TableBase } from "../table";
 import z from "zod";
 import { Values } from "./values";
@@ -254,13 +254,13 @@ export class QueryBuilder<
   }
 
   // Subsequent `select` calls replace the output type (columns must be redefined).
-  @tool(fn.returns(z.custom<any>(isRowType)))
+  @expose(fn.returns(z.custom<any>(isRowType)))
   select<O2 extends RowType>(select: (n: N) => O2): QueryBuilder<N, O2, GB, Card> {
     return new QueryBuilder({ ...this.opts, select: select }, this.card);
   }
 
   // Multiple `where` calls are combined with AND
-  @tool(fn.returns(z.lazy(() => z.instanceof(Bool))))
+  @expose(fn.returns(z.lazy(() => z.instanceof(Bool))))
   where(where: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
     return new QueryBuilder({
       ...this.opts,
@@ -293,7 +293,7 @@ export class QueryBuilder<
     from: Fromable<R, A>,
     on: (ns: N & { [k in A]: R }) => Bool<any>,
   ): QueryBuilder<N & { [k in A]: R }, O, GB>;
-  @tool(z.custom<any>(isFromable), fn.returns(z.lazy(() => z.instanceof(Bool))))
+  @expose(z.custom<any>(isFromable), fn.returns(z.lazy(() => z.instanceof(Bool))))
   join(from: Fromable, on: (ns: any) => Bool<any>): any {
     this.#assertNotInNamespace(from.tsAlias);
     return new QueryBuilder({
@@ -310,7 +310,7 @@ export class QueryBuilder<
     from: Fromable<R, A>,
     onFn: (ns: N & { [k in A]: RowTypeToNullable<R> }) => Bool<any>,
   ): QueryBuilder<N & { [k in A]: RowTypeToNullable<R> }, O, GB>;
-  @tool(z.custom<Fromable>(isFromable), fn.returns(z.lazy(() => z.instanceof(Bool))))
+  @expose(z.custom<Fromable>(isFromable), fn.returns(z.lazy(() => z.instanceof(Bool))))
   leftJoin(from: Fromable, onFn: (ns: any) => Bool<any>): any {
     this.#assertNotInNamespace(from.tsAlias);
     return new QueryBuilder({
@@ -328,7 +328,7 @@ export class QueryBuilder<
   groupBy<G extends Any<any>[]>(
     groupBy: (n: N) => [...G],
   ): QueryBuilder<{ [K in keyof N]: AggregateRow<N[K]> } & G, {}, [...GB, ...G], Card>;
-  @tool(fn.returns(z.array(z.lazy(() => z.instanceof(Any)))).optional())
+  @expose(fn.returns(z.array(z.lazy(() => z.instanceof(Any)))).optional())
   groupBy(groupBy?: (n: N) => Any<any>[]): any {
     const { select: _, ...opts } = this.opts;
     if (!groupBy) {
@@ -344,7 +344,7 @@ export class QueryBuilder<
   }
 
   // Multiple `having` calls are combined with AND
-  @tool(fn.returns(z.lazy(() => z.instanceof(Bool))))
+  @expose(fn.returns(z.lazy(() => z.instanceof(Bool))))
   having(having: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
     return new QueryBuilder({
       ...this.opts,
@@ -353,7 +353,7 @@ export class QueryBuilder<
   }
 
   // Multiple `orderBy` calls are concatenated (ORDER BY a, b, c).
-  @tool(
+  @expose(
     fn.returns(
       z.union([z.custom<any>(isOrderByEntry), z.array(z.custom<any>(isOrderByEntry)).min(1)]),
     ),
@@ -376,13 +376,13 @@ export class QueryBuilder<
   }
 
   // Multiple `limit` calls are combined with `MIN` (safest option)
-  @tool(z.int().gte(0))
+  @expose(z.int().gte(0))
   limit(n: number): QueryBuilder<N, O, GB> {
     return new QueryBuilder({ ...this.opts, limit: Math.min(this.opts.limit ?? Infinity, n) });
   }
 
   // Multiple `offset` calls are combined by summing offsets (safest option)
-  @tool(z.int().gte(0))
+  @expose(z.int().gte(0))
   offset(n: number): QueryBuilder<N, O, GB> {
     return new QueryBuilder({ ...this.opts, offset: (this.opts.offset ?? 0) + n });
   }
@@ -390,7 +390,7 @@ export class QueryBuilder<
   // Fluent terminators. Narrow the Sql.execute() return type from
   // QueryResult to a row array, and expose the hydrated / single-row
   // variants as chainable terminators too.
-  @tool(z.lazy(() => z.instanceof(Database)))
+  @expose(z.lazy(() => z.instanceof(Database)))
   override async execute(db: Database<any>): Promise<RowTypeToTsType<O>[]> {
     return db.execute(this);
   }
@@ -398,17 +398,17 @@ export class QueryBuilder<
   // Streaming terminator. Mirrors `execute` but yields the rowset on
   // every committed mutation that touches one of the live-tagged
   // tables this query reads from. Caller iterates with `for await`.
-  @tool(z.lazy(() => z.instanceof(Database)))
+  @expose(z.lazy(() => z.instanceof(Database)))
   live(db: Database<any>): AsyncIterable<RowTypeToTsType<O>[]> {
     return db.live(this) as AsyncIterable<RowTypeToTsType<O>[]>;
   }
 
-  @tool(z.lazy(() => z.instanceof(Database)))
+  @expose(z.lazy(() => z.instanceof(Database)))
   async hydrate(db: Database<any>): Promise<O[]> {
     return db.hydrate<O, GB, Card>(this);
   }
 
-  @tool(z.lazy(() => z.instanceof(Database)))
+  @expose(z.lazy(() => z.instanceof(Database)))
   async one(db: Database<any>): Promise<O> {
     const [row] = await db.hydrate(this.limit(1));
     if (!row) {
@@ -417,7 +417,7 @@ export class QueryBuilder<
     return row;
   }
 
-  @tool(z.lazy(() => z.instanceof(Database)))
+  @expose(z.lazy(() => z.instanceof(Database)))
   async maybeOne(db: Database<any>): Promise<O | null> {
     const [row] = await db.hydrate(this.limit(1));
     return row ?? null;
@@ -433,7 +433,7 @@ export class QueryBuilder<
       ? Record<O, 0 | 1>
       : Anyarray<Record<O, 1>, 1>;
   /* eslint-enable @typescript-eslint/no-restricted-types */
-  @tool()
+  @expose()
   scalar(): any {
     const staticCols = selectList(this.rowType());
     const RecordClass = Record.of(staticCols as any);
@@ -529,12 +529,12 @@ export class QueryBuilder<
     return [this.finalize()];
   }
 
-  @tool(ZCardinality)
+  @expose(ZCardinality)
   cardinality<C extends Cardinality>(card: C): QueryBuilder<N, O, GB, C> {
     return new QueryBuilder(this.opts, card);
   }
 
-  @tool()
+  @expose()
   debug(): this {
     const compiled = compile(this, "pg");
     console.log("Debugging query:", { sql: compiled.text, parameters: compiled.values });

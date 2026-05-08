@@ -62,7 +62,7 @@ export const registerToolField = (obj: unknown, key: string) => {
 }
 
 /**
- * @tool decorator - marks a method, getter, field, or class as a tool
+ * @expose decorator - marks a method, getter, field, or class as a tool
  *
  * Methods: returns a replacement function on the prototype with validation + toolSymbol.
  * Getters: returns a replacement getter with toolSymbol on the function.
@@ -71,12 +71,12 @@ export const registerToolField = (obj: unknown, key: string) => {
  *          If value is a function with schemas, wraps with asTool.
  * Classes: returns replacement class with constructor validation + toolSymbol.
  *
- * NOTE: @tool() on a class means `new MyClass(...)` is callable by sandboxed code
+ * NOTE: @expose() on a class means `new MyClass(...)` is callable by sandboxed code
  * that has a reference to it. This is intended for builtins (e.g. `new Date`, `new Map`)
  * where construction is part of the API. For capability classes where you want to expose
  * only methods (not construction), don't decorate the class — just decorate the methods.
  */
-export function tool<Schemas extends StandardSchemaV1[]>(
+export function expose<Schemas extends StandardSchemaV1[]>(
 	...argSchemas: Schemas
 ): {
 	<This, Value extends (this: This, ...args: SchemasToParams<Schemas>) => any>(
@@ -97,7 +97,7 @@ export function tool<Schemas extends StandardSchemaV1[]>(
 		context: ClassDecoratorContext<Value>,
 	): void
 }
-export function tool<Schemas extends StandardSchemaV1[]>(...argSchemas: Schemas) {
+export function expose<Schemas extends StandardSchemaV1[]>(...argSchemas: Schemas) {
 	return function (
 		target: any,
 		context: ClassMethodDecoratorContext | ClassGetterDecoratorContext | ClassFieldDecoratorContext | ClassDecoratorContext,
@@ -168,14 +168,14 @@ export const expr = () => (target: any, _context: ClassMethodDecoratorContext): 
 }
 
 /**
- * @tool.unchecked - marks a method as exposed to exoeval without arg validation.
+ * @expose.unchecked - marks a method as exposed to exoeval without arg validation.
  * For cases where the host already validates args internally
  */
 const uncheckedImpl = () => {
 	// `ClassMethodDecoratorContext<any, any>` (rather than the unparameterized
 	// default of `<unknown, (this: unknown, ...args: any) => any>`) so the
 	// caller's `this`/args shape stays whatever the method declares
-	// (e.g. `Any.in<T>(this: T, ...vals)`). tool.unchecked is the escape
+	// (e.g. `Any.in<T>(this: T, ...vals)`). expose.unchecked is the escape
 	// hatch precisely so TS doesn't have to project a fixed shape onto it.
 	return function (
 		target: any,
@@ -186,12 +186,12 @@ const uncheckedImpl = () => {
 	}
 }
 
-// Namespace-merge so callers can write `@tool.unchecked()` after a single
-// `import { tool } from "..."`.
-export namespace tool {
+// Namespace-merge so callers can write `@expose.unchecked()` after a single
+// `import { expose } from "..."`.
+export namespace expose {
 	export const unchecked = uncheckedImpl
 }
-;(tool as any).unchecked = uncheckedImpl
+;(expose as any).unchecked = uncheckedImpl
 
 export const asToolFn = <Schemas extends StandardSchemaV1[], T extends (...args: SchemasToParams<Schemas>) => unknown>(fn: T, schemas: Schemas): T & ToolFunction => {
 	const name = fn.name || 'anonymous'

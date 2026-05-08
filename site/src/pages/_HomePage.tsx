@@ -83,40 +83,35 @@ await todo.update({ completed: true }).execute(db);`,
     {
       title: "3. Expose your API over RPC, Safely",
       description:
-        "Give clients a composable query builder with your unescapable data boundaries. Compose queries in the client with every Postgres feature (joins, window functions, CTEs, etc.) and function as primitives.",
-      leftCode: `class User extends Table("users") {
+        "Give clients a composable query builder with your unescapable data boundaries. Compose queries in the client with rich Postgres features and function as primitives.",
+      leftCode: `class User extends db.Table("users") {
   // ...
 }
 
-class Todo extends Table("todos") {
-  // ...
-}
+class Api {
+  @expose() db = db;
 
-export class Api extends RpcTarget {
-  getUserFromToken(token: string) {
+  // Server-validated entry point — clients compose against this:
+  @expose(z.string())
+  forToken(token: string) {
     return User.from()
       .where(({ users }) => users.token.eq(token));
   }
 }
 
-// Clients receive composable query builders
-// not flat results`,
-      rightCode: `export function TodoList({ searchQuery }: { searchQuery: string }) {
-  const todos = useTypegresQuery((user) => user.todos()
-    // Arbitrarily compose your base query...
-    .select(({ todos }) => ({ id: todos.id, title: todos.title }))
-    // ...using any Postgres function such as \`ilike\`:
-    .where(({ todos }) => todos.title.ilike(\`%\${searchQuery}%\`))
-  );
+export const client = new RpcClient<Api>(...);`,
+      rightCode: `// Client-composed query — crosses the wire to a constrained
+// interpreter, where the server validates the @expose surface:
+const stream = client.run((api) =>
+  api.forToken(token)
+    .select(({ users }) => ({ id: users.id, name: users.name }))
+    // Any Postgres function — \`ilike\`, window funcs:
+    .where(({ users }) => users.name.ilike("%alice%"))
+    .live(api.db)
+);
 
-  return (
-    <ul>
-      {todos.map((todo) => (
-        <li key={todo.id}>{todo.title}</li>
-      ))}
-    </ul>
-  );
-}`,
+// Re-yields on every committed mutation that matches:
+for await (const rows of stream) render(rows);`,
       leftLabel: "api.ts",
       rightLabel: "frontend.tsx",
       leftLanguage: "typescript",
