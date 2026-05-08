@@ -13,7 +13,7 @@ export default defineConfig({
       typegres: `${src}/index.ts`,
     },
   },
-  // SWC handles TC39 stage-3 decorators (`@tool()`, `@tool.unchecked()` on
+  // SWC handles TC39 stage-3 decorators (`@expose()`, `@expose.unchecked()` on
   // codegen'd methods). Vite 8's default Oxc transform leaves them as-is,
   // which trips the Node runtime with a SyntaxError. SWC lowers them.
   // `oxc: false` disables the default; SWC owns the TS pipeline.

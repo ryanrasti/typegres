@@ -1,135 +1,135 @@
 // Auto-generated — do not edit
 import * as runtime from "../runtime";
-import { tool } from "../../exoeval/tool";
+import { expose } from "../../exoeval/tool";
 import { Anycompatiblemultirange } from "../generated/anycompatiblemultirange";
 import * as types from "../index";
 
 export class Anymultirange<T extends types.Any<any>, in out N extends number> extends Anycompatiblemultirange<T, N> {
-  @tool.unchecked()
+  @expose.unchecked()
   isempty(): types.Bool<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bool]]); return runtime.PgFunc("isempty", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   lower(): T { const [__rt, ...__rest] = runtime.match([], [[[], runtime.pgElement(this)]]); return runtime.PgFunc("lower", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   lowerInc(): types.Bool<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bool]]); return runtime.PgFunc("lower_inc", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   lowerInf(): types.Bool<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bool]]); return runtime.PgFunc("lower_inf", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeAdjacentMultirange<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_adjacent_multirange", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeAdjacentRange<M0 extends types.Anyrange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anyrange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_adjacent_range", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeAfterMultirange<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_after_multirange", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeAfterRange<M0 extends types.Anyrange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anyrange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_after_range", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeBeforeMultirange<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_before_multirange", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeBeforeRange<M0 extends types.Anyrange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anyrange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_before_range", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeContainedByMultirange<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_contained_by_multirange", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeContainedByRange<M0 extends types.Anyrange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anyrange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_contained_by_range", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeContainsElem<M0 extends T | runtime.TsTypeOf<T>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anyelement, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_contains_elem", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeContainsMultirange<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_contains_multirange", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeContainsRange<M0 extends types.Anyrange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anyrange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_contains_range", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeIntersectAggTransfn<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Anymultirange<T, runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], runtime.pgType(this)]]); return runtime.PgFunc("multirange_intersect_agg_transfn", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeOverlapsMultirange<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_overlaps_multirange", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeOverlapsRange<M0 extends types.Anyrange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anyrange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_overlaps_range", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeOverleftMultirange<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_overleft_multirange", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeOverleftRange<M0 extends types.Anyrange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anyrange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_overleft_range", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeOverrightMultirange<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_overright_multirange", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   multirangeOverrightRange<M0 extends types.Anyrange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anyrange, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("multirange_overright_range", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   rangeMerge(): types.Anyrange<T, N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Anyrange]]); return runtime.PgFunc("range_merge", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   upper(): T { const [__rt, ...__rest] = runtime.match([], [[[], runtime.pgElement(this)]]); return runtime.PgFunc("upper", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   upperInc(): types.Bool<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bool]]); return runtime.PgFunc("upper_inc", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   upperInf(): types.Bool<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bool]]); return runtime.PgFunc("upper_inf", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   rangeAgg(): types.Anymultirange<T, 0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], runtime.pgType(this)]]); return runtime.PgFunc("range_agg", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   rangeIntersectAgg(): types.Anymultirange<T, 0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], runtime.pgType(this)]]); return runtime.PgFunc("range_intersect_agg", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   unnest(): runtime.PgSrf<{ unnest: types.Anyrange<T, N> }, "unnest"> { const [__rt, ...__rest] = runtime.match([], [[[], types.Anyrange]]); return new runtime.PgSrf("unnest", [this, ...__rest], [["unnest", __rt]]) as any; }
   ['&&']<M0 extends types.Anyrange<T, any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['&&']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  @tool.unchecked()
+  @expose.unchecked()
   ['&&'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anyrange }], types.Bool], [[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`&&`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['&<']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['&<']<M0 extends types.Anyrange<T, any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  @tool.unchecked()
+  @expose.unchecked()
   ['&<'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool], [[{ type: types.Anyrange }], types.Bool]]); return runtime.PgOp(runtime.sql`&<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['&>']<M0 extends types.Anyrange<T, any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['&>']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  @tool.unchecked()
+  @expose.unchecked()
   ['&>'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anyrange }], types.Bool], [[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`&>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['*']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Anymultirange<T, runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], runtime.pgType(this)]]); return runtime.PgOp(runtime.sql`*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   times<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Anymultirange<T, runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], runtime.pgType(this)]]); return runtime.PgOp(runtime.sql`*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['+']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Anymultirange<T, runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], runtime.pgType(this)]]); return runtime.PgOp(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   plus<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Anymultirange<T, runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], runtime.pgType(this)]]); return runtime.PgOp(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['-']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Anymultirange<T, runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], runtime.pgType(this)]]); return runtime.PgOp(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   minus<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Anymultirange<T, runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], runtime.pgType(this)]]); return runtime.PgOp(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['-|-']<M0 extends types.Anyrange<T, any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['-|-']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  @tool.unchecked()
+  @expose.unchecked()
   ['-|-'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anyrange }], types.Bool], [[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`-|-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['<']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   lt<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['<<']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['<<']<M0 extends types.Anyrange<T, any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  @tool.unchecked()
+  @expose.unchecked()
   ['<<'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool], [[{ type: types.Anyrange }], types.Bool]]); return runtime.PgOp(runtime.sql`<<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['<=']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   lte<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['<>']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ne<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['<@']<M0 extends types.Anyrange<T, any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['<@']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  @tool.unchecked()
+  @expose.unchecked()
   ['<@'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anyrange }], types.Bool], [[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<@`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['=']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   eq<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['>']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   gt<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['>=']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   gte<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['>>']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['>>']<M0 extends types.Anyrange<T, any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  @tool.unchecked()
+  @expose.unchecked()
   ['>>'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool], [[{ type: types.Anyrange }], types.Bool]]); return runtime.PgOp(runtime.sql`>>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['@>']<M0 extends types.Anymultirange<T, any> | runtime.TsTypeOf<T>[]>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['@>']<M0 extends types.Anyrange<T, any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['@>']<M0 extends T>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  @tool.unchecked()
+  @expose.unchecked()
   ['@>'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Anymultirange, allowPrimitive: true }], types.Bool], [[{ type: types.Anyrange }], types.Bool], [[{ type: types.Anyelement }], types.Bool]]); return runtime.PgOp(runtime.sql`@>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
 }

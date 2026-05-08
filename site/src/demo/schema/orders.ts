@@ -1,4 +1,4 @@
-import { Database, Int8, Text, Timestamptz, TypegresLiveEvents, sql, tool } from "typegres";
+import { Database, Int8, Text, Timestamptz, TypegresLiveEvents, sql, expose } from "typegres";
 import { z } from "zod";
 import { db } from "../runtime";
 import { Customers } from "./customers";
@@ -8,18 +8,18 @@ import { Shipments } from "./shipments";
 
 export class Orders extends db.Table("orders", { transformer: TypegresLiveEvents.makeTransformer() }) {
   // @generated-start
-  @tool() id = (Int8<1>).column({ nonNull: true, generated: true });
-  @tool() organization_id = (Int8<1>).column({ nonNull: true });
-  @tool() customer_id = (Int8<1>).column({ nonNull: true });
-  @tool() status = (Text<1>).column({ nonNull: true, default: sql`'draft'::text` });
-  @tool() priority = (Int8<1>).column({ nonNull: true, default: sql`0` });
-  @tool() ship_by = (Timestamptz<0 | 1>).column();
-  @tool() created_at = (Timestamptz<1>).column({ nonNull: true, default: sql`now()` });
+  @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
+  @expose() organization_id = (Int8<1>).column({ nonNull: true });
+  @expose() customer_id = (Int8<1>).column({ nonNull: true });
+  @expose() status = (Text<1>).column({ nonNull: true, default: sql`'draft'::text` });
+  @expose() priority = (Int8<1>).column({ nonNull: true, default: sql`0` });
+  @expose() ship_by = (Timestamptz<0 | 1>).column();
+  @expose() created_at = (Timestamptz<1>).column({ nonNull: true, default: sql`now()` });
   // relations
-  @tool() customer() { return Customers.scope(Orders.contextOf(this)).where(({ customers }) => customers.id["="](this.customer_id)).cardinality("one"); }
-  @tool() organization() { return Organizations.scope(Orders.contextOf(this)).where(({ organizations }) => organizations.id["="](this.organization_id)).cardinality("one"); }
-  @tool() order_lines() { return OrderLines.scope(Orders.contextOf(this)).where(({ order_lines }) => order_lines.order_id["="](this.id)).cardinality("many"); }
-  @tool() shipments() { return Shipments.scope(Orders.contextOf(this)).where(({ shipments }) => shipments.order_id["="](this.id)).cardinality("many"); }
+  @expose() customer() { return Customers.scope(Orders.contextOf(this)).where(({ customers }) => customers.id["="](this.customer_id)).cardinality("one"); }
+  @expose() organization() { return Organizations.scope(Orders.contextOf(this)).where(({ organizations }) => organizations.id["="](this.organization_id)).cardinality("one"); }
+  @expose() order_lines() { return OrderLines.scope(Orders.contextOf(this)).where(({ order_lines }) => order_lines.order_id["="](this.id)).cardinality("many"); }
+  @expose() shipments() { return Shipments.scope(Orders.contextOf(this)).where(({ shipments }) => shipments.order_id["="](this.id)).cardinality("many"); }
   // @generated-end
 
   // ops_lead-only: advance this order one step along the lifecycle
@@ -34,7 +34,7 @@ export class Orders extends db.Table("orders", { transformer: TypegresLiveEvents
   // check is "did anything come back from RETURNING?" — `delivered`
   // rows have no next state, so the CASE returns NULL and the WHERE
   // (which excludes NULL) keeps them unchanged.
-  @tool(z.lazy(() => z.instanceof(Database)))
+  @expose(z.lazy(() => z.instanceof(Database)))
   async advance(db: Database<any>): Promise<{ id: string; status: string }> {
     const user = Orders.contextOf(this);
     if (!user) {

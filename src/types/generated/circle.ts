@@ -1,6 +1,6 @@
 // Auto-generated — do not edit
 import * as runtime from "../runtime";
-import { tool } from "../../exoeval/tool";
+import { expose } from "../../exoeval/tool";
 import { Anynonarray } from "../generated/anynonarray";
 import * as types from "../index";
 
@@ -17,94 +17,94 @@ export class Circle<in out N extends number> extends Anynonarray<N> {
   static __typname = runtime.sql`circle`;
   static __typnameText = "circle";
   declare deserialize: (raw: string) => string;
-  @tool.unchecked()
+  @expose.unchecked()
   area(): types.Float8<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Float8]]); return runtime.PgFunc("area", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleAbove<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("circle_above", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleBelow<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("circle_below", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleContain<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("circle_contain", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleContained<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("circle_contained", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleDistance<M0 extends types.Circle<any> | string>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Float8]]); return runtime.PgFunc("circle_distance", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleLeft<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("circle_left", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleOverabove<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("circle_overabove", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleOverbelow<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("circle_overbelow", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleOverlap<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("circle_overlap", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleOverleft<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("circle_overleft", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleOverright<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("circle_overright", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleRight<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("circle_right", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleSame<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgFunc("circle_same", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   circleSend(): types.Bytea<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bytea]]); return runtime.PgFunc("circle_send", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   diameter(): types.Float8<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Float8]]); return runtime.PgFunc("diameter", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   distCpoly<M0 extends types.Polygon<any> | string>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Polygon, allowPrimitive: true }], types.Float8]]); return runtime.PgFunc("dist_cpoly", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   polygon(): types.Polygon<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Polygon]]); return runtime.PgFunc("polygon", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   radius(): types.Float8<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Float8]]); return runtime.PgFunc("radius", [this, ...__rest], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['&&']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`&&`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['&<']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`&<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['&<|']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`&<|`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['&>']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`&>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['<']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   lt<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['<->']<M0 extends types.Polygon<any>>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['<->']<M0 extends types.Circle<any> | string>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  @tool.unchecked()
+  @expose.unchecked()
   ['<->'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Polygon }], types.Float8], [[{ type: types.Circle, allowPrimitive: true }], types.Float8]]); return runtime.PgOp(runtime.sql`<->`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['<<']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['<<|']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<<|`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['<=']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   lte<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['<>']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ne<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['<@']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`<@`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['=']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   eq<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['>']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   gt<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['>=']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   gte<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['>>']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`>>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['@>']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`@>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['|&>']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`|&>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['|>>']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`|>>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  @tool.unchecked()
+  @expose.unchecked()
   ['~=']<M0 extends types.Circle<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle, allowPrimitive: true }], types.Bool]]); return runtime.PgOp(runtime.sql`~=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
 }

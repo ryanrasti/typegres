@@ -169,14 +169,14 @@ const generateColumnLine = (col: ColumnInfo, withTool: boolean): string => {
     opts.push("generated: true");
   }
   const optsArg = opts.length > 0 ? `{ ${opts.join(", ")} }` : "";
-  const prefix = withTool ? "@tool() " : "";
+  const prefix = withTool ? "@expose() " : "";
   return `  ${prefix}${col.column_name} = (${cls}<${nullable}>).column(${optsArg});`;
 };
 
 const generateRelationLine = (rel: Relation, currentTable: string, withTool: boolean): string => {
   const targetClass = pgNameToClassName(rel.targetTable);
   const currentClass = pgNameToClassName(currentTable);
-  const prefix = withTool ? "@tool() " : "";
+  const prefix = withTool ? "@expose() " : "";
   // `Target.scope(Current.contextOf(this))` propagates the row's
   // scope tag through every relation traversal — joins n-deep stay
   // bound to the same principal. For unscoped rows, contextOf
@@ -185,9 +185,9 @@ const generateRelationLine = (rel: Relation, currentTable: string, withTool: boo
 };
 
 // Scan the existing @generated block to learn which columns/relations the
-// user opted out of `@tool()` decoration on. Default for new entries is
+// user opted out of `@expose()` decoration on. Default for new entries is
 // decorated; existing entries keep whatever decoration state they had so
-// hand-removed `@tool()`s aren't re-added on regenerate (same spirit as
+// hand-removed `@expose()`s aren't re-added on regenerate (same spirit as
 // `// @generated-start` preserving the file's surrounding code).
 const parseExistingDecorations = (
   block: string,
@@ -200,11 +200,11 @@ const parseExistingDecorations = (
     if (line === "" || line.startsWith("//")) {
       continue;
     }
-    if (/^@tool\(\)\s*$/.test(line)) {
+    if (/^@expose\(\)\s*$/.test(line)) {
       pendingTool = true;
       continue;
     }
-    const inline = /^(@tool\(\)\s+)?(\w+)\s*(=|\()/.exec(line);
+    const inline = /^(@expose\(\)\s+)?(\w+)\s*(=|\()/.exec(line);
     if (!inline) {
       pendingTool = false;
       continue;
@@ -223,7 +223,7 @@ const END_MARKER = "// @generated-end";
 
 // Pure generation entry point — no DB, no fs. `existing` (if provided)
 // must contain @generated-start/@generated-end markers; only content
-// between them is replaced, and per-entry `@tool()` state is preserved.
+// between them is replaced, and per-entry `@expose()` state is preserved.
 // Without `existing`, returns a brand-new full file.
 export const generateTable = (
   tableName: string,
@@ -250,14 +250,14 @@ const newFile = (tableName: string, columns: ColumnInfo[], relations: Relation[]
 
   // Single consolidated `from "typegres"` line — symbols are sorted
   // for stable output and easier diffs across regenerations.
-  const typegresSyms = [...typeClasses, "tool", ...(hasDefault ? ["sql"] : [])].sort();
+  const typegresSyms = [...typeClasses, "expose", ...(hasDefault ? ["sql"] : [])].sort();
   const imports = [
     `import { db } from "${dbImport}";`,
     `import { ${typegresSyms.join(", ")} } from "typegres";`,
     ...relImports,
   ];
 
-  // New file: every column/relation gets `@tool()` by default. Users can
+  // New file: every column/relation gets `@expose()` by default. Users can
   // strip individual decorators in-place; updateBlock will respect that.
   const colLines = columns.map((c) => generateColumnLine(c, true));
   const relLines = relations.map((r) => generateRelationLine(r, tableName, true));
@@ -284,7 +284,7 @@ const updateBlock = (existing: string, tableName: string, columns: ColumnInfo[],
   }
 
   // Preserve per-entry decoration state from the existing block. New
-  // entries (introduced by a schema migration) default to `@tool()`;
+  // entries (introduced by a schema migration) default to `@expose()`;
   // entries the user has stripped stay stripped.
   const blockContent = existing.slice(startIdx + START_MARKER.length, endIdx);
   const prior = parseExistingDecorations(blockContent);

@@ -186,6 +186,16 @@ export class Database<C = undefined> {
     });
   }
 
+  // Shut the underlying connection pool. Without this, scripts hang
+  // after their last query because pg's idle-timeout has to expire
+  // before node can exit. Idempotent on the driver side.
+  async close(): Promise<void> {
+    if (this.#boundExecute) {
+      throw new Error("close() must be called on a pool-backed Database, not inside a transaction");
+    }
+    await this.driver.close();
+  }
+
   // Entry point for non-Table Fromables (SRFs, Values, subqueries) —
   // Table classes have their own static `.from()`.
   public from<R extends RowType, A extends string>(

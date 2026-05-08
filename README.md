@@ -1,73 +1,71 @@
 # Typegres
 
-Postgres tables wrapped in TypeScript classes. The methods on those classes —
-SQL expressions, aggregates, subqueries, role gates, state transitions — are
-your API. Clients compose typed queries against them, end-to-end-typed; no
-routes, no GraphQL schema, no auto-CRUD.
+![Typegres playground demo](./assets/demo.gif)
 
-The schema underneath stays yours to refactor. The classes are the contract.
+- **Methods on Postgres tables = your API.** No routes. No GraphQL. No auto-CRUD.
+- **Every Postgres function, fully typed.** All 77 base types, every operator, nullability tracked at the type level.
+- **Clients compose typed SQL across the wire.** Server validates the surface area you expose.
+- **Live by default.** `.live()` re-queries when the underlying data changes — pushed directly to clients.
 
-> **Status:** clean rewrite in progress. Core architecture is settled. See
-> [ARCHITECTURE.md](./ARCHITECTURE.md) for design notes.
+> [typegres.com/play](https://typegres.com/play) · [demo.mp4](./assets/demo.mp4) · [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
 
-## Tenets
+## Usage
 
-1. **Clients compose, server constrains.**
-   The query builder is typed end-to-end and runs client-side; the server only
-   evaluates what you've marked `@tool`. The class surface is your contract —
-   refactor the schema underneath without breaking callers.
+> **Developer preview** — surface is settled, edges still being filed. Not
+> yet recommended for production.
 
-2. **Your API is an abstract data type on top of the database.**
-   Tables are TypeScript classes; methods — plain SQL expressions, aggregates,
-   subqueries, whatever — are the public interface. Logic, permissions, and
-   state transitions live alongside the data, in one place.
-
-3. **Every Postgres capability, as a typed TS method.**
-   All 77 pg base types, every operator, every function — codegen'd from the
-   catalog with full overload preservation and compile-time null tracking.
-   `Int4<1>["+"](Int4<0|1>)` returns `Int4<0|1>`; pg's strictness rules are
-   captured in the types.
-
-## Example
+```bash
+npm install typegres pg
+```
 
 ```typescript
+import { typegres, Int8, Text, expose } from "typegres";
+
+const db = await typegres({
+  type: "pg",
+  connectionString: process.env.DATABASE_URL!,
+});
+
 class Users extends db.Table("users") {
-  id = (Int8<1>).column({ nonNull: true, generated: true });
-  first_name = (Text<1>).column({ nonNull: true });
-  last_name = (Text<1>).column({ nonNull: true });
-  created_at = (Timestamptz<1>).column({ nonNull: true });
+  @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
+  @expose() first_name = (Text<1>).column({ nonNull: true });
+  @expose() last_name = (Text<1>).column({ nonNull: true });
 
-  // Derived column — part of the public interface, not in the schema.
-  // `@tool` marks it reachable from the client.
-  @tool() fullName() {
-    return this.first_name["||"](sql` `)["||"](this.last_name);
-  }
-
-  // Related query — composable, chainable, typed end-to-end.
-  @tool() todos() {
-    return Todos.from().where((t) => t.user_id["="](this.id));
+  // Derived column — composes back into your typed query API.
+  @expose() fullName() {
+    return this.first_name["||"](" ")["||"](this.last_name);
   }
 }
 
+// `fullName()` works anywhere a column does — select, where, orderBy:
 const rows = await Users.from()
-  .orderBy(({ users }) => users.created_at)
+  .select(({ users }) => ({
+    id: users.id,
+    name: users.fullName(),
+  }))
   .execute(db);
+
+console.log(rows);
+await db.close();
 ```
 
-A live, in-browser demo runs at [/play](https://typegres.com/play) — a
-capability-rooted API (`user.orders().where(...)` auto-scopes to the
-principal), live queries, and RPC by closure transport, all over PGlite.
+For a complete scaffold with migrations + codegen, see
+[`examples/basic`](./examples/basic). Or try it interactively at
+[typegres.com/play](https://typegres.com/play).
 
-## Architecture sketch
+## How it works
 
-- **Types codegen'd from the Postgres catalog.** 77 base types, full
-  method/operator coverage, nullability tracked at the type level.
-- **Capability-based query API.** Clients can only reach what you've exposed
-  as `@tool` methods — columns, relations, scoped reads, mutations. The class
-  surface is the contract; the schema underneath is free to move.
+1. **Types codegen'd from the Postgres catalog.** 77 base types, full
+   method/operator coverage, nullability tracked at the type level.
+2. **Object-capability queries.** Clients can only reach what you've exposed
+   as `@expose` methods — columns, relations, scoped reads, mutations. The class
+   surface is the contract; the schema underneath is free to move.
+3. **Object-capability RPC.** The query builder ships to a constrained
+   interpreter on the server; only `@expose`-marked methods reach evaluation.
+4. **Live queries.** `.live()` watches the predicates your query depends
+   on and re-yields when committed mutations would change the result.
 
-Deeper dive in [ARCHITECTURE.md](./ARCHITECTURE.md); code is annotated
-throughout.
+Deeper dive in [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
 ## Status
 
@@ -76,44 +74,32 @@ throughout.
 - [x] Mutations (`.insert` / `.update` / `.delete` / `.returning`)
 - [x] Subqueries, scalar/array aggregation
 - [x] Table codegen from live schema
-- [x] Live queries — `qb.live(db)` returns an async iterable that
+- [x] Live queries — `.live()` returns an async iterable that
       re-yields when committed mutations would change the result
-- [x] Capability-rooted RPC — closures composed against `@tool`-marked
+- [x] Capability-rooted RPC — closures composed against `@expose`-marked
       classes/methods are serialized, evaluated server-side under a
       constrained interpreter, and JSON-streamed back
 
 ## Planned
 
 - [ ] SQLite backend (sql-builder is dialect-aware; adapter is stubbed)
-- [ ] `pg_notify`-driven live updates (currently polls; see `src/live/ISSUES.md` #5)
+- [ ] `pg_notify`-driven live updates (currently a single shared polling loop, not per-subscription)
+- [ ] WAL-mode for live updates (currently uses an auxiliary table)
 - [ ] Cap'n Web transport (in-flight upstream PR;
       [cloudflare/capnweb#162](https://github.com/cloudflare/capnweb/pull/162))
 
-## Quick start
-
-```bash
-npm install typegres pg
-```
-
-```typescript
-import { Database, PgDriver, sql } from "typegres";
-
-const driver = await PgDriver.create(process.env.DATABASE_URL!);
-const db = new Database(driver);
-
-const rows = await db.execute(sql`SELECT 1 + 1 AS sum`);
-```
-
-For a working scaffold with migrations + codegen, see
-[`examples/basic`](./examples/basic).
-
 ## Development
 
+> Recommended: [Nix the package manager](https://nixos.org/download/)
+> + [direnv](https://direnv.net). The `.envrc` (`use flake`) auto-activates
+> the pinned toolchain when you `cd` into the repo, and `bin/startpg`
+> works out of the box. Without Nix, point `DATABASE_URL` at any local
+> Postgres and skip `startpg`.
+
 ```bash
-./bin/startpg             # one-time dev Postgres socket
+./bin/startpg             # one-time dev Postgres socket (Nix)
 npm install
 npm run check             # lint + typecheck + tests
-./bin/tg generate         # table codegen (reads typegres.config.ts)
 ```
 
 ## License

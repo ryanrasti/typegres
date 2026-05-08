@@ -7,9 +7,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as monaco from "monaco-editor";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { client, setCurrentUserToken } from "@/demo/server/api";
 import { transformCodeWithEsbuild } from "@/lib/monaco-typegres-integration";
 import { SyntaxHighlight } from "@/components/SyntaxHighlight";
+import { WireLog } from "@/components/WireLog";
 import { ORDERS_PATH, INVENTORY_PATH } from "./_PlayPaths";
 import {
   OrdersWidget,
@@ -240,22 +242,34 @@ export default function PlayActiveArea({ modelsReady, activeWidget }: PlayActive
           </span>
         )}
       </div>
-      <div className="flex-1 min-h-0 overflow-auto">
-        {error ? (
-          <pre className="px-4 py-3 text-xs font-mono whitespace-pre-wrap text-red-400">
-            {error}
-          </pre>
-        ) : outputTab === "sql" ? (
-          <SqlView entries={sqlEntries} />
-        ) : output === undefined ? (
-          <div className="px-4 py-3 text-xs text-gray-500">
-            {running
-              ? "Running…"
-              : "Click Run to execute the widget."}
-          </div>
-        ) : (
-          <OutputView value={output} />
-        )}
+      <div className="flex-1 min-h-0">
+        <Group orientation="vertical" className="h-full">
+          <Panel id="output-area" defaultSize="40%" minSize="20%">
+            <div className="h-full overflow-auto">
+              {error ? (
+                <pre className="px-4 py-3 text-xs font-mono whitespace-pre-wrap text-red-400">
+                  {error}
+                </pre>
+              ) : outputTab === "sql" ? (
+                <SqlView entries={sqlEntries} />
+              ) : (
+                // Always render — the empty/Running placeholder lives
+                // inside OutputView so its diff state (prevByIdRef,
+                // isFirstYield) survives the brief `output === undefined`
+                // window during a manual Run. Otherwise the component
+                // unmounts/remounts and the diff resets every time.
+                <OutputView value={output} running={running} />
+              )}
+            </div>
+          </Panel>
+          <Separator
+            className="h-1 bg-gray-800 hover:bg-blue-500 cursor-row-resize transition-colors"
+            aria-label="Resize wire log"
+          />
+          <Panel id="wire-log" defaultSize="60%" minSize="10%">
+            <WireLog />
+          </Panel>
+        </Group>
       </div>
     </div>
   );
@@ -272,18 +286,59 @@ const isPlainObject = (v: unknown): v is Record<string, unknown> => {
 const isRowsArray = (v: unknown): v is Record<string, unknown>[] =>
   Array.isArray(v) && v.length > 0 && v.every(isPlainObject);
 
-const OutputView = ({ value }: { value: unknown }) => {
+// Cell-level equality for the diff. Plain `===` / JSON.stringify
+// trips false positives on pg `numeric` columns (avg/max/sum etc.) —
+// pg returns them as strings with variable trailing zeros: "0", "0.0",
+// "0.00000000000000000000" all represent the same value but stringify
+// differently. Coerce string→number for purely numeric strings; fall
+// back to structural equality otherwise.
+const cellEq = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true;
+  if (typeof a === "string" && typeof b === "string") {
+    const na = Number(a);
+    const nb = Number(b);
+    if (!Number.isNaN(na) && !Number.isNaN(nb) && Number.isFinite(na) && Number.isFinite(nb) && na === nb) {
+      return true;
+    }
+  }
+  return JSON.stringify(a) === JSON.stringify(b);
+};
+
+// Animation duration (ms). Matches the `rowFlash` / `cellFlash`
+// keyframes in globals.css — keep in sync.
+const FLASH_MS = 1800;
+
+const OutputView = ({ value, running }: { value: unknown; running: boolean }) => {
   // Diff key column adapts: prefer `id`, otherwise the first column
   // (the groupBy case — `status` is the natural key when grouped).
   const prevByIdRef = useRef<Map<string, Record<string, unknown>>>(new Map());
   const isFirstYieldRef = useRef(true);
   const [rowGen, setRowGen] = useState<Map<string, number>>(new Map());
   const [cellGen, setCellGen] = useState<Map<string, number>>(new Map());
+  // Per-key clear timers so a re-bump within the flash window cancels
+  // the previous clear and re-schedules from scratch.
+  const rowTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const cellTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Cleanup pending timers on unmount.
+  useEffect(() => {
+    const rt = rowTimersRef.current;
+    const ct = cellTimersRef.current;
+    return () => {
+      for (const t of rt.values()) clearTimeout(t);
+      for (const t of ct.values()) clearTimeout(t);
+      rt.clear();
+      ct.clear();
+    };
+  }, []);
 
   useEffect(() => {
     if (!isRowsArray(value) || value.length === 0) {
-      prevByIdRef.current = new Map();
-      isFirstYieldRef.current = true;
+      // Manual `.execute()` runs flash through `setOutput(undefined)`
+      // before the new result arrives. Don't wipe the prior dataset
+      // here — the next valid value needs it to compute the diff.
+      // (Live updates never transit through undefined, so they were
+      // already fine.)
       return;
     }
     const firstRow = value[0]!;
@@ -303,7 +358,7 @@ const OutputView = ({ value }: { value: unknown }) => {
       }
       for (const col of Object.keys(r)) {
         if (col === keyCol) continue;
-        if (JSON.stringify(prev[col]) !== JSON.stringify(r[col])) {
+        if (!cellEq(prev[col], r[col])) {
           cells.add(`${key}.${col}`);
         }
       }
@@ -324,8 +379,37 @@ const OutputView = ({ value }: { value: unknown }) => {
       for (const k of cells) next.set(k, (next.get(k) ?? 0) + 1);
       return next;
     });
+    // After the animation duration, clear the entries so the
+    // `animate-*-flash` class no longer hangs on the element. Lingering
+    // classes can trigger spurious re-flashes during reconciliation when
+    // unrelated rows update.
+    for (const k of fresh) {
+      const prevTimer = rowTimersRef.current.get(k);
+      if (prevTimer) clearTimeout(prevTimer);
+      rowTimersRef.current.set(k, setTimeout(() => {
+        setRowGen((m) => { const next = new Map(m); next.delete(k); return next; });
+        rowTimersRef.current.delete(k);
+      }, FLASH_MS));
+    }
+    for (const k of cells) {
+      const prevTimer = cellTimersRef.current.get(k);
+      if (prevTimer) clearTimeout(prevTimer);
+      cellTimersRef.current.set(k, setTimeout(() => {
+        setCellGen((m) => { const next = new Map(m); next.delete(k); return next; });
+        cellTimersRef.current.delete(k);
+      }, FLASH_MS));
+    }
   }, [value]);
 
+  // Empty / undefined: placeholder. Stays mounted so diff state
+  // survives the manual-Run undefined transition.
+  if (value === undefined || value === null) {
+    return (
+      <div className="px-4 py-3 text-xs text-gray-500">
+        {running ? "Running…" : "Click Run to execute the widget."}
+      </div>
+    );
+  }
   if (!isRowsArray(value)) {
     return (
       <pre className="px-4 py-3 text-xs font-mono whitespace-pre-wrap text-gray-200">

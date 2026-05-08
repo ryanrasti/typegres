@@ -1,6 +1,6 @@
 // Auto-generated — do not edit
 import * as runtime from "../runtime";
-import { tool } from "../../exoeval/tool";
+import { expose } from "../../exoeval/tool";
 import { Anynonarray } from "../generated/anynonarray";
 import * as types from "../index";
 
@@ -17,6 +17,6 @@ export class Regoperator<in out N extends number> extends Anynonarray<N> {
   static __typname = runtime.sql`regoperator`;
   static __typnameText = "regoperator";
   declare deserialize: (raw: string) => string;
-  @tool.unchecked()
+  @expose.unchecked()
   regoperatorsend(): types.Bytea<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bytea]]); return runtime.PgFunc("regoperatorsend", [this, ...__rest], __rt) as any; }
 }

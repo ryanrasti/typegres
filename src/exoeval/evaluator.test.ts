@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import z from 'zod'
 import { exoEval } from './index'
-import { tool } from './tool'
+import { expose } from './tool'
 
 class MockCalc {
-	@tool(z.number(), z.number())
+	@expose(z.number(), z.number())
 	add(a: number, b: number): number { return a + b }
 }
 
@@ -839,7 +839,7 @@ describe('exoEval', () => {
 			expect(exoEval('x', { x: 42 })).toBe(42)
 		})
 
-		it('injected @tool() objects are callable', () => {
+		it('injected @expose() objects are callable', () => {
 			expect(exoEval('calc.add(1, 2)', { calc: new MockCalc() })).toBe(3)
 		})
 
