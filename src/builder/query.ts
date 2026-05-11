@@ -9,16 +9,13 @@ import { isTableClass, TableBase } from "../table";
 import z from "zod";
 import { Values } from "./values";
 
-// Extract only Any<> instances from a row type
-export const selectList = <T extends RowType>(output: T): T => {
-  return Object.fromEntries(Object.entries(output).filter(([, v]) => v instanceof Any)) as T;
-};
-
 // Compile a row type into a SQL select list: col AS "name", ...
-export const compileSelectList = (output: RowType): Sql => {
+export const compileSelectList = (output: RowType, omitAliases = false): Sql => {
   return sql.join(
     Object.entries(output).flatMap(([k, v]) =>
-      v instanceof Any ? [sql`${v.toSql()} as ${sql.ident(k)}`] : [],
+      v instanceof Any ? [
+        omitAliases ? v.toSql() :
+        sql`${v.toSql()} as ${sql.ident(k)}`] : [],
     ),
   );
 };
@@ -42,30 +39,6 @@ export const reAlias = <R extends RowType>(row: R, alias: Alias): R => {
     }
   }
   return out;
-};
-
-// Deserialize raw string rows using typed output descriptors
-export const deserializeRows = <R>(
-  rows: { [key: string]: string }[],
-  output: { [key: string]: unknown },
-): R[] => {
-  return rows.map((row) =>
-    Object.fromEntries(
-      Object.entries(row).map(([k, v]) => {
-        const type = output[k];
-        if (!(type instanceof Any)) {
-          throw new Error(
-            `deserializeRows: output column '${k}' is not a typed pg expression (got ${typeof v}). ` +
-              `The select callback must return an object whose values are Any instances.`,
-          );
-        }
-        if (v === null || v === undefined) {
-          return [k, null];
-        }
-        return [k, type.deserialize(String(v))];
-      }),
-    ),
-  ) as R[];
 };
 
 // Hydrate raw rows into typed instances that share the shape's prototype.
@@ -102,13 +75,19 @@ export const hydrateRows = <R>(
 };
 
 // Mapping of row name to type (class instance)
-export type RowType = object;
+export type RowType = TableBase | { [k: string]: Any<any> };
 export const isRowType = (obj: unknown): obj is RowType => {
   if (obj === null || typeof obj !== "object") {
     return false;
   }
+  if (obj instanceof TableBase) {
+    return true;
+  }
   const proto = Object.getPrototypeOf(obj);
-  return obj instanceof TableBase || proto === Object.prototype || proto === null;
+  if (proto !== Object.prototype && proto !== null) {
+    return false;
+  }
+  return Object.entries(obj).every(([_, v]) => v instanceof Any);
 };
 
 // All of the row types in the current namespace
@@ -285,7 +264,7 @@ export class QueryBuilder<
   // overload, R widens to `TableBase` and column access on the namespace fails.
   // By destructuring the constructor to `InstanceType<T>` directly, we capture
   // the concrete subclass type (`Owners`, `Pets`, …).
-  join<T extends { readonly tsAlias: string; new (): object }>(
+  join<T extends typeof TableBase>(
     from: T,
     on: (ns: N & { [K in T["tsAlias"]]: InstanceType<T> }) => Bool<any>,
   ): QueryBuilder<N & { [K in T["tsAlias"]]: InstanceType<T> }, O, GB>;
@@ -302,7 +281,7 @@ export class QueryBuilder<
     });
   }
 
-  leftJoin<T extends { readonly tsAlias: string; new (): object }>(
+  leftJoin<T extends typeof TableBase>(
     from: T,
     on: (ns: N & { [K in T["tsAlias"]]: RowTypeToNullable<InstanceType<T>> }) => Bool<any>,
   ): QueryBuilder<N & { [K in T["tsAlias"]]: RowTypeToNullable<InstanceType<T>> }, O, GB>;
@@ -426,25 +405,20 @@ export class QueryBuilder<
   // TODO: ROW(), array_agg(), COALESCE should be regular typed ops once we support them
   // Conditional return type avoids overload resolution quirks: TS's `this:`
   // overloads can pick the wrong branch when the Card type is already narrowed.
-  /* eslint-disable @typescript-eslint/no-restricted-types */
   scalar(): [Card] extends ["one"]
     ? Record<O, 1>
     : [Card] extends ["maybe"]
       ? Record<O, 0 | 1>
       : Anyarray<Record<O, 1>, 1>;
-  /* eslint-enable @typescript-eslint/no-restricted-types */
   @expose()
   scalar(): any {
-    const staticCols = selectList(this.rowType());
-    const RecordClass = Record.of(staticCols as any);
+    const RecordClass = Record.of(this.rowType());
 
     // Wrap as a subquery: (SELECT ROW(...) FROM ... WHERE ...)
     // inner QB — when embedded in sql``, its emit() wraps as subquery with AS
     const inner = this.select((ns) => {
-      const cols = selectList(this.#doSelect(ns));
-      const rowExprs = Object.values(cols).map((type: any) => type.toSql());
       // ROW() takes raw expressions without aliases
-      const rowSql = sql`ROW(${sql.join(rowExprs)})`;
+      const rowSql = sql`ROW(${compileSelectList(this.#doSelect(ns), true)})`;
       return { __row: RecordClass.from(rowSql) };
     });
     if (this.card === "many") {

@@ -1,7 +1,7 @@
 import { Record as Generated } from "../generated/record";
-import type { Any } from "../index";
-import type { RowTypeToTsType } from "../../builder/query";
+import type { RowType, RowTypeToTsType } from "../../builder/query";
 import { sql } from "../../builder/sql";
+import { deserializeRows } from "../../util";
 
 // Pg composite format parser: `(val1,val2,...)` → per-field string, or null
 // for a pg NULL field. Pg encodes NULL as absence between commas
@@ -48,32 +48,24 @@ const parseComposite = (raw: string): (string | null)[] => {
 };
 
 export class Record<T = unknown, N extends number = number> extends Generated<N> {
-  static __columns: { [key: string]: Any<any> } = {};
-
   // Conditional so the declaration tolerates T being filled with a non-row
   // type (e.g. codegen's `types.Record<0 | 1>` in variant [meta] fields,
   // where the slot is positionally wrong but inert).
-  declare deserialize: (raw: string) => T extends object ? RowTypeToTsType<T> : unknown;
+  declare deserialize: (raw: string) => T extends RowType ? RowTypeToTsType<T> : unknown;
 
-  static of<T extends { [key: string]: Any<any> }>(columns: T) {
-    const entries = Object.entries(columns);
+  static of<T extends RowType>(rowType: T) {
     const cls = class extends (this as any) {
-      static __columns = columns;
       static __typname = sql`record`;
       static __typnameText = "record";
     };
-    // Closure over entries — works even when called without `this` (e.g., from Anyarray)
     cls.prototype["deserialize"] = (raw: string) => {
+      // pg emits composite fields positionally; reassemble into a named
+      // row so deserializeRows can apply the @expose filter by name.
       const fields = parseComposite(raw);
-      return Object.fromEntries(
-        entries.map(([name, type], i) => {
-          const val = fields[i];
-          // undefined = column not emitted (pg output always emits every
-          // field, so this is just a safety net); null = pg NULL; "" = real
-          // empty string and flows through to type.deserialize.
-          return [name, val === undefined || val === null ? null : type.deserialize(val)];
-        }),
+      const namedRow = Object.fromEntries(
+        Object.keys(rowType).map((name, i) => [name, fields[i] ?? null]),
       );
+      return deserializeRows([namedRow], rowType)[0];
     };
     return cls as unknown as typeof Record<T, any>;
   }

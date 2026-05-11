@@ -4,6 +4,13 @@ import z from 'zod'
 export const toolSymbol = Symbol.for('exoeval_tool')
 export const toolFieldsSymbol = Symbol.for('exoeval_toolFields')
 
+// Reads the `@expose` marker if present. Returns the Set when the
+// output is a marker-bearing instance (a typegres Table row); returns
+// `undefined` for POJOs (no filter applies). Callers extract once and
+// pass the result to consumers like `deserializeRows` / `Record.of`.
+export const exposedFieldsOf = (output: object): Set<string> | undefined =>
+	(output as { [k: symbol]: unknown })[toolFieldsSymbol] as Set<string> | undefined
+
 export type ToolKind = 'raw' | 'expr' | 'constructor'
 
 export type ToolFunction<T extends (...args: unknown[]) => unknown = (...args: unknown[]) => unknown> = T & ((...args: unknown[]) => unknown) & {

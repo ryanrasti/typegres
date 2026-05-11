@@ -6,12 +6,11 @@ import * as types from "./index";
 import type { Any } from "./index";
 import { getTypeDef } from "./deserialize";
 import { isPlainData } from "../util";
+import type { RowType } from "../builder/query";
 
 // Global metadata symbol — hides internals from autocomplete.
 // All type metadata (__class, __nullable, __nonNullable, etc.) lives under this key.
 export const meta = Symbol("typegres");
-
-export type Meta<T> = T extends { [meta]: infer M } ? M : never;
 
 // Nullability: 0 = null, 1 = non-null, 0|1 = nullable, number = aggregate/unknown
 // StrictNull: null propagates — if any arg is null, result is null (proisstrict = true)
@@ -50,11 +49,11 @@ export type TsTypeOf<T> =
 export type Nullable<T> = T extends { [meta]: { __nullable: infer U } } ? U : T;
 
 // Extract the aggregate variant (N=number) of a pg type via the [meta] bag
-export type Aggregate<T> = T extends { [meta]: { __aggregate: infer U } } ? U : T;
+export type Aggregate<T extends Any<any>> = T[typeof meta]['__aggregate'];
 
 // Transform a row type to aggregate context — all columns become N=number
-export type AggregateRow<R> = {
-  [K in keyof R]: Aggregate<R[K]>;
+export type AggregateRow<R extends RowType> = {
+  [K in keyof R]: R[K] extends Any<any> ? Aggregate<R[K]> : never;
 };
 
 // Keys of R that are column descriptors (have the __required brand from column())
