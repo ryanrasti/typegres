@@ -76,7 +76,7 @@ const runReadmeUsage = async (mode: InstallMode): Promise<void> => {
       mode === "working-tree"
         ? bashSnippet.replace(/\btypegres\b/, JSON.stringify(`file:${REPO_ROOT}`))
         : bashSnippet
-    ).replace(/\bnpm install\b/, "npm install --no-audit --no-fund --prefer-offline");
+    ).replace(/\bnpm install\b/, `npm install --no-audit --no-fund ${mode === 'working-tree' ? '--prefer-offline' : ''}`);
     await execFileP("sh", ["-c", installCmd], { cwd: tmpDir });
 
     // Compile the snippet via swc — handles stage-3 decorators that
@@ -119,8 +119,9 @@ const runReadmeUsage = async (mode: InstallMode): Promise<void> => {
     expect(stdout).toContain("Bob Jones");
   } finally {
     await db.execute(sql`DROP TABLE IF EXISTS users`).catch(() => {});
-    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
+  // Only delete the temp dir if everything succeeded:
+  fs.rmSync(tmpDir, { recursive: true, force: true });
 };
 
 test(
