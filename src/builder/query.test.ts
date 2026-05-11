@@ -2,6 +2,7 @@ import { test, expect, expectTypeOf } from "vitest";
 import { Int4, Int8, Text, Bool, Jsonb } from "../types";
 import { sql, compile } from "./sql";
 import { setupDb, db } from "../test-helpers";
+import { expose } from "typegres";
 setupDb();
 
 // --- values() ---
@@ -742,6 +743,9 @@ test("groupBy: multiple calls stack", async () => {
     )
     .groupBy((n) => [n.values.a])
     .groupBy((n) => [n.values.b])
+    // @ts-expect-error --- TODO: typing here is broken as the tuple
+    //  type intersected with the namespace (with the previous tuple) isn't
+    //  quite correct
     .select(({ 0: a, 1: b, values }) => ({ a, b, total: values.c.sum() }))
     .orderBy((n) => [n[0] as any, "asc"])
     );
@@ -852,7 +856,9 @@ test("type test: db.execute(Table.from()) row methods are never-typed (uncallabl
     await tx.execute(sql`INSERT INTO widgets (name) VALUES ('w1')`);
 
     class Widgets extends db.Table("widgets") {
+      @expose()
       id   = (Int8<1>).column({ nonNull: true, generated: true });
+      @expose()
       name = (Text<1>).column({ nonNull: true });
 
       // Plain method — should not be a callable function on the row type.

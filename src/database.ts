@@ -1,6 +1,7 @@
 import type { ExecuteFn, Driver, QueryResult } from "./driver";
 import type { Fromable, RowType, RowTypeToTsType } from "./builder/query";
-import { QueryBuilder, deserializeRows, hydrateRows } from "./builder/query";
+import { QueryBuilder, hydrateRows } from "./builder/query";
+import { deserializeRows } from "./util";
 import type { Sql } from "./builder/sql";
 import { sql } from "./builder/sql";
 import { Table, type TableBase, type TableOptions } from "./table";
@@ -78,14 +79,14 @@ export class Database<C = undefined> {
   async execute(query: Sql): Promise<any> {
     const result = await this.#exec(query);
     if (query instanceof QueryBuilder) {
-      return deserializeRows(result.rows as { [key: string]: string }[], query.rowType() as { [key: string]: unknown });
+      return deserializeRows(result.rows as { [key: string]: string }[], query.rowType());
     }
     if (query instanceof InsertBuilder || query instanceof UpdateBuilder || query instanceof DeleteBuilder) {
       const returning = query.rowType();
       if (!returning) {
         return [];
       }
-      return deserializeRows(result.rows as { [key: string]: string }[], returning as { [key: string]: unknown });
+      return deserializeRows(result.rows as { [key: string]: string }[], returning);
     }
     return result;
   }

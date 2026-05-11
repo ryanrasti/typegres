@@ -1,5 +1,5 @@
 import { describe, test, expect, expectTypeOf, beforeAll } from "vitest";
-import { typegres, sql, Table, Int8, Text, Bool } from "typegres";
+import { typegres, sql, Table, Int8, Text, Bool, expose } from "typegres";
 import type { Database, QueryBuilder } from "typegres";
 
 // End-to-end tests for db.hydrate(): materialize query rows as class
@@ -17,9 +17,16 @@ class User extends Table("users") {
 }
 
 class Todo extends Table("todos") {
+  @expose()
   id = (Int8<1>).column({ nonNull: true, generated: true });
+
+  @expose()
   user_id = (Int8<1>).column({ nonNull: true });
+
+  @expose()
   title = (Text<1>).column({ nonNull: true });
+
+  @expose()
   completed = (Bool<1>).column({ nonNull: true });
 
   update(fields: { completed?: boolean; title?: string }) {

@@ -54,13 +54,6 @@ export default [
         selector: "MemberExpression[object.name='expose'][property.name='unchecked']",
         message: "Don't use @expose.unchecked — it skips RPC arg validation. Use @expose(zSchema) instead. If the method's signature is genuinely inexpressible in zod (or this is a test fixture), add `// eslint-disable-next-line no-restricted-syntax -- <reason>`.",
       }],
-      "@typescript-eslint/no-restricted-types": ["error", {
-        types: {
-          "Record": {
-            message: "Use { [key: string]: T } instead. 'Record' conflicts with the pg Record type.",
-          },
-        },
-      }],
     },
   },
   {

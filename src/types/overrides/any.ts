@@ -19,6 +19,7 @@ export class Any<in out N extends number> extends Generated<N> {
     __class: typeof Any;
     __raw: Sql;
     __nullability: N;
+    __aggregate: Any<number>;
   };
   // __typname: the pg type name as a SQL fragment (for use in templates
   // like `CAST(x AS int4)`). __typnameText: the same name as a plain
