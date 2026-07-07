@@ -1,12 +1,12 @@
 // DDL + seed inserts. Runs once on first PGlite boot.
-// `db.execute(sql\`...\`)` uses prepared statements per-call, so each
+// `conn.execute(sql\`...\`)` uses prepared statements per-call, so each
 // CREATE / INSERT has to be its own statement.
 
 import { sql } from "typegres";
-import type { Database } from "typegres";
+import type { Connection } from "typegres";
 import type { UserRoot } from "./server/api";
 
-export const runMigrations = async (db: Database<UserRoot>) => {
+export const runMigrations = async (conn: Connection<UserRoot>) => {
   const ddl = [
     sql`CREATE TABLE organizations (
       id   int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -68,11 +68,11 @@ export const runMigrations = async (db: Database<UserRoot>) => {
     )`,
   ];
   for (const stmt of ddl) {
-    await db.execute(stmt);
+    await conn.execute(stmt);
   }
 };
 
-export const runSeed = async (db: Database<UserRoot>) => {
+export const runSeed = async (conn: Connection<UserRoot>) => {
   const seeds = [
     sql`INSERT INTO organizations (name, slug) VALUES
       ('BrightShip Logistics', 'brightship'),
@@ -100,7 +100,7 @@ export const runSeed = async (db: Database<UserRoot>) => {
       (2, 3, 'AT-SKU-002', 1,  5)`,
   ];
   for (const stmt of seeds) {
-    await db.execute(stmt);
+    await conn.execute(stmt);
   }
 
   // Orders + shipments — generated, varied by status / ship_by.
@@ -122,7 +122,7 @@ export const runSeed = async (db: Database<UserRoot>) => {
     });
   }
   for (const r of orderRows) {
-    await db.execute(sql`
+    await conn.execute(sql`
       INSERT INTO orders (organization_id, customer_id, status, priority, ship_by)
       VALUES (${r.org.toString()}, ${r.customer.toString()}, ${r.status}, ${r.priority.toString()}, ${r.ship_by}::timestamptz)
     `);
@@ -134,7 +134,7 @@ export const runSeed = async (db: Database<UserRoot>) => {
     if (!["packed", "shipped", "delivered"].includes(o.status)) continue;
     const cutoff = days(-1 + (i % 3));
     const shippedAt = o.status === "packed" ? null : days(-2 + (i % 3));
-    await db.execute(sql`
+    await conn.execute(sql`
       INSERT INTO shipments (organization_id, order_id, carrier, cutoff_at, shipped_at, status)
       VALUES (${o.org.toString()}, ${(i + 1).toString()}, ${carriers[i % 4]!},
               ${cutoff}::timestamptz, ${shippedAt}::timestamptz,

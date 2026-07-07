@@ -1,0 +1,61 @@
+// Auto-generated — do not edit
+import * as runtime from "../../runtime";
+import { meta } from "../../sql-value";
+import { expose } from "../../../exoeval/tool";
+import { Anynonarray } from "../generated/anynonarray";
+import * as types from "../index";
+
+export class Macaddr<in out N extends number> extends Anynonarray<N> {
+  declare [meta]: {
+    __class: typeof Macaddr;
+    __raw: runtime.Sql;
+    __nullability: N;
+    __nullable: Macaddr<0 | 1>;
+    __nonNullable: Macaddr<1>;
+    __aggregate: Macaddr<number>;
+    __any: Macaddr<any>;
+  };
+  static __typname = runtime.sql`macaddr`;
+  static __typnameText = "macaddr";
+  declare deserialize: (raw: string) => string;
+  @expose.unchecked()
+  macaddr8(): types.Macaddr8<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Macaddr8]]); return runtime.funcCall("macaddr8", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  macaddrAnd<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Macaddr<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Macaddr]]); return runtime.funcCall("macaddr_and", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  macaddrNot(): types.Macaddr<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Macaddr]]); return runtime.funcCall("macaddr_not", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  macaddrOr<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Macaddr<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Macaddr]]); return runtime.funcCall("macaddr_or", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  macaddrSend(): types.Bytea<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bytea]]); return runtime.funcCall("macaddr_send", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  trunc(): types.Macaddr<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Macaddr]]); return runtime.funcCall("trunc", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  ['&']<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Macaddr<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Macaddr]]); return runtime.opCall(runtime.sql`&`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['<']<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  lt<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['<=']<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  lte<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['<>']<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ne<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['=']<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  eq<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['>']<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  gt<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['>=']<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  gte<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['|']<M0 extends types.Macaddr<any> | string>(arg0: M0): types.Macaddr<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Macaddr, allowPrimitive: true }], types.Macaddr]]); return runtime.opCall(runtime.sql`|`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+}

@@ -1,4 +1,4 @@
-export { Database } from "./database";
+export { Database, Connection } from "./database";
 export type { TransactionIsolation, TransactionOptions } from "./database";
 export { Table } from "./table";
 export { sql, Sql } from "./builder/sql";
@@ -12,19 +12,22 @@ export type { RawChannel } from "./exoeval/rpc";
 export type { Config } from "./config";
 export type { Driver } from "./driver";
 
+import type { Connection } from "./database";
 import { Database } from "./database";
 import { PgDriver, PgliteDriver } from "./driver";
 
-// Convenience factory for quick scripts and the playground. Real apps
-// should compose PgDriver.create(...) + new Database(driver) themselves
-// so they can hold onto the driver for lifecycle management.
+// Convenience factory for quick scripts and the playground. Returns
+// `{ db, conn }` — the immutable metadata handle and its attached
+// runtime Connection. Real apps typically build these separately at
+// module load / bootstrap.
 export const typegres = async <C = undefined>(
   opts: { type: "pglite" } | { type: "pg"; connectionString: string },
-): Promise<Database<C>> => {
+): Promise<{ db: Database<C>; conn: Connection<C> }> => {
   const driver = opts.type === "pglite"
     ? await PgliteDriver.create()
     : await PgDriver.create(opts.connectionString);
-  return new Database<C>(driver);
+  const db = new Database<C>({ dialect: "postgres" });
+  const conn = db.attach(driver);
+  return { db, conn };
 };
 
-export * from "./types";

@@ -1,4 +1,5 @@
-import { Int8, Text, Timestamptz, sql } from "typegres";
+import { sql } from "typegres";
+import { Int8, Text, Timestamptz } from "typegres/postgres";
 import { db } from "../db";
 import { Teams } from "./teams";
 import { Collars } from "./collars";

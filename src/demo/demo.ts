@@ -1,12 +1,13 @@
-import { typegres, sql, Int8, Text } from "typegres";
+import { typegres, sql } from "typegres";
+import { Int8, Text } from "typegres/postgres";
 
-const db = await typegres({ type: "pglite" });
+const { db, conn } = await typegres({ type: "pglite" });
 
 // ------------------------------------
 // Set up a tiny schema + seed data.
 // ------------------------------------
 
-await db.execute(sql`
+await conn.execute(sql`
   CREATE TABLE posts (
     id     int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     author text NOT NULL,
@@ -38,7 +39,7 @@ await Posts.insert(
   { author: "alice", body: "first post", likes: "5" },
   { author: "bob", body: "hello from pglite", likes: "12" },
   { author: "alice", body: "another from alice", likes: "3" },
-).execute(db);
+).execute(conn);
 
 // ------------------------------------
 // Example 1: simple select with a derived column.
@@ -49,7 +50,7 @@ const alicePosts = await Posts.from()
   .select(({ posts }) => ({ id: posts.id, preview: posts.preview() }))
   .orderBy(({ posts }) => posts.id)
   .debug()
-  .execute(db);
+  .execute(conn);
 console.log("Alice's posts:", alicePosts);
 
 // ------------------------------------
@@ -64,7 +65,7 @@ const likesByAuthor = await Posts.from()
   }))
   .orderBy(({ posts }) => [posts.likes.sum(), "desc"])
   .debug()
-  .execute(db);
+  .execute(conn);
 console.log("Likes by author:", likesByAuthor);
 
 // ------------------------------------
@@ -76,5 +77,5 @@ const promoted = await Posts.update()
   .set(() => ({ likes: "999" }))
   .returning(({ posts }) => ({ id: posts.id, likes: posts.likes }))
   .debug()
-  .execute(db);
+  .execute(conn);
 console.log("Promoted:", promoted);

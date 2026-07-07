@@ -18,7 +18,9 @@
     "allowImportingTsExtensions": true,
     "types": ["node"],
     "paths": {
-      "typegres": ["./src/index.ts"]
+      "typegres": ["./src/index.ts"],
+      "typegres/postgres": ["./src/types/postgres/index.ts"],
+      "typegres/sqlite": ["./src/types/sqlite/index.ts"]
     }
   },
   "include": ["src"]

@@ -13,13 +13,17 @@
       "import": "./dist/config.mjs",
       "types": "./dist/config.d.mts"
     },
-    "./types": {
-      "import": "./dist/types/index.mjs",
-      "types": "./dist/types/index.d.mts"
-    },
     "./sql-builder": {
       "import": "./dist/builder/sql.mjs",
       "types": "./dist/builder/sql.d.mts"
+    },
+    "./postgres": {
+      "import": "./dist/types/postgres/index.mjs",
+      "types": "./dist/types/postgres/index.d.mts"
+    },
+    "./sqlite": {
+      "import": "./dist/types/sqlite/index.mjs",
+      "types": "./dist/types/sqlite/index.d.mts"
     },
     "./exoeval": {
       "import": "./dist/exoeval/index.mjs",
@@ -49,8 +53,8 @@
   },
   "scripts": {
     "build": "tsdown",
-    "codegen": "node --experimental-strip-types src/types/generate.ts",
-    "codegen:check": "tmp=$(mktemp -d) && node --experimental-strip-types src/types/generate.ts --out-dir \"$tmp\" && { diff -r \"$tmp\" src/types/generated || { echo 'src/types/generated is stale — run `npm run codegen` and commit.' >&2; rm -rf \"$tmp\"; exit 1; }; } && rm -rf \"$tmp\"",
+    "codegen": "node --experimental-strip-types src/types/postgres/generate.ts && node --experimental-strip-types src/types/sqlite/generate.ts",
+    "codegen:check": "tmp=$(mktemp -d) && node --experimental-strip-types src/types/postgres/generate.ts --out-dir \"$tmp/pg\" && { diff -r \"$tmp/pg\" src/types/postgres/generated || { echo 'src/types/postgres/generated is stale — run `npm run codegen` and commit.' >&2; rm -rf \"$tmp\"; exit 1; }; } && node --experimental-strip-types src/types/sqlite/generate.ts --out-dir \"$tmp/sqlite\" && { diff -r \"$tmp/sqlite/generated\" src/types/sqlite/generated || { echo 'src/types/sqlite/generated is stale — run `npm run codegen` and commit.' >&2; rm -rf \"$tmp\"; exit 1; }; } && rm -rf \"$tmp\"",
     "lint": "eslint src",
     "typecheck": "tsgo --noEmit",
     "format": "prettier --write src",
@@ -63,12 +67,14 @@
     "@standard-schema/spec": "^1.1.0",
     "@swc/core": "^1.15.32",
     "@types/acorn": "^4.0.6",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.6.0",
     "@types/pg": "^8.20.0",
     "@typescript-eslint/eslint-plugin": "^8.59.0",
     "@typescript-eslint/parser": "^8.59.0",
     "@typescript/native-preview": "^7.0.0-dev.20260422.1",
     "acorn": "^8.16.0",
+    "better-sqlite3": "^12.11.1",
     "eslint": "^10.2.1",
     "pg": "^8.20.0",
     "prettier": "^3.8.3",

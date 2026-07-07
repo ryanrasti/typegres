@@ -1,4 +1,5 @@
-import { Int8, Text, TypegresLiveEvents, expose } from "typegres";
+import { TypegresLiveEvents, expose } from "typegres";
+import { Int8, Text } from "typegres/postgres";
 import { db } from "../runtime";
 import { InventoryPositions } from "./inventory_positions";
 import { Orders } from "./orders";

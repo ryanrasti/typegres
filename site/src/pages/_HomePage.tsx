@@ -107,7 +107,7 @@ const stream = client.run((api) =>
     .select(({ users }) => ({ id: users.id, name: users.name }))
     // Any Postgres function — \`ilike\`, window funcs:
     .where(({ users }) => users.name.ilike("%alice%"))
-    .live(api.db)
+    .live(api.conn)
 );
 
 // Re-yields on every committed mutation that matches:

@@ -1,14 +1,14 @@
-import { Sql, sql, Alias, compile } from "./sql";
+import { Sql, sql, Alias, compile, type CompileContext } from "./sql";
 import type { BoundSql } from "./sql";
-import { Bool } from "../types";
+import { zBool, type Bool as Bool } from "../types/bool";
 import type { SetRow } from "../types/runtime";
 import { isSetRow } from "../types/runtime";
-import { meta } from "../types/runtime";
+import { meta } from "../types/sql-value";
 import type { RowType, RowTypeToTsType } from "./query";
 import { combinePredicates, compileSelectList, isRowType, mergeReturning, reAlias } from "./query";
 import type { TableBase } from "../table";
-import { Database } from "../database";
-import { Any, getColumn } from "../types/overrides/any";
+import { Connection } from "../database";
+import { SqlValue, getColumn } from "../types/sql-value";
 import { fn, expose } from "../exoeval/tool";
 import z from "zod";
 
@@ -17,6 +17,10 @@ type Namespace<Name extends string, T> = { [K in Name]: T };
 type UpdateOpts<Name extends string, T extends TableBase, R extends RowType> = {
   instance: T;
   where?: (ns: Namespace<Name, T>) => Bool<any>;
+  // Explicit opt-in for "match every row" — set by `.where(true)`.
+  // Separate from `where` so bind() can emit no WHERE clause (rather than
+  // constructing a dialect-specific `TRUE` Bool).
+  matchAll?: boolean;
   set?: (ns: Namespace<Name, T>) => SetRow<T>;
   returning?: (ns: Namespace<Name, T>) => R;
 };
@@ -27,7 +31,9 @@ type FinalizedUpdateOpts<Name extends string, T extends TableBase, R extends Row
   // Re-aliased instance — used to evaluate where/set/returning callbacks
   // and for getColumn() lookups when coercing SET values.
   instance: T;
-  where: Bool<any>;
+  // undefined + matchAll=true → no WHERE emitted (delete/update all).
+  where: Bool<any> | undefined;
+  matchAll: boolean;
   setRow: SetRow<T>;
   returning?: R;
 };
@@ -42,9 +48,15 @@ export class FinalizedUpdate<Name extends string, T extends TableBase, R extends
 
   bind(): BoundSql {
     const { tableName, alias, where, setRow, returning, instance } = this.opts;
+    const tableCls = instance.constructor;
+    // If a predicate exists, honor it even when `.where(true)` was also
+    // called — matchAll is just the "unrestricted delete/update
+    // acknowledged" flag; a real predicate is still a no-op-safe filter.
+    // Only when no predicate exists does matchAll produce the
+    // "no WHERE clause" form.
     const inner = sql.join([
-      sql`UPDATE ${sql.ident(tableName)} AS ${alias} SET ${sql.join(compileSetClauses(instance, setRow))}`,
-      sql`WHERE ${where.toSql()}`,
+      sql`UPDATE ${tableCls.ident(tableName)} AS ${alias} SET ${sql.join(compileSetClauses(instance, setRow))}`,
+      where && sql`WHERE ${where.toSql()}`,
       returning && sql`RETURNING ${compileSelectList(returning)}`,
     ], sql` `);
     return sql.withScope([alias], inner);
@@ -58,11 +70,12 @@ export const compileSetClauses = <T extends TableBase>(
   setRow: SetRow<T>,
 ): Sql[] =>
   Object.entries(setRow as { [key: string]: unknown }).map(([k, v]) => {
-    if (v instanceof Any) {
-      return sql`${sql.ident(k)} = ${v.toSql()}`;
+    const ident = instance.constructor.database.scopedIdent(k);
+    if (v instanceof SqlValue) {
+      return sql`${ident} = ${v.toSql()}`;
     }
     const col = getColumn(instance, k);
-    return sql`${sql.ident(k)} = ${col[meta].__class.from(v).toSql()}`;
+    return sql`${ident} = ${col[meta].__class.from(v).toSql()}`;
   });
 
 export class UpdateBuilder<Name extends string, T extends TableBase, R extends RowType = {}> extends Sql {
@@ -77,14 +90,21 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
     return this.#opts.instance.constructor.tableName as Name;
   }
 
-  // Multiple where() calls are combined with AND. .where(true) matches all rows.
-  @expose(z.union([z.literal(true), fn.returns(z.lazy(() => z.instanceof(Bool)))]))
+  get database() {
+    return this.#opts.instance.constructor.database;
+  }
+
+  // Multiple where() calls are combined with AND. .where(true) matches all rows
+  // — sets a flag rather than constructing a dialect-specific `TRUE` predicate,
+  // so the bind() step emits no WHERE clause on either PG or SQLite.
+  @expose(z.union([z.literal(true), fn.returns(zBool)]))
   where(fn: ((ns: Namespace<Name, T>) => Bool<any>) | true): UpdateBuilder<Name, T, R> {
-    const wrapped: (ns: Namespace<Name, T>) => Bool<any> =
-      fn === true ? () => Bool.from(sql`TRUE`) as Bool<any> : fn;
+    if (fn === true) {
+      return new UpdateBuilder({ ...this.#opts, matchAll: true });
+    }
     return new UpdateBuilder({
       ...this.#opts,
-      where: combinePredicates(this.#opts.where, wrapped),
+      where: combinePredicates(this.#opts.where, fn),
     });
   }
 
@@ -115,7 +135,7 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
   }
 
   finalize(): FinalizedUpdate<Name, T, R> {
-    if (!this.#opts.where) {
+    if (!this.#opts.where && !this.#opts.matchAll) {
       throw new Error("update() requires .where() — use .where(true) to update all rows");
     }
     if (!this.#opts.set) {
@@ -126,40 +146,41 @@ export class UpdateBuilder<Name extends string, T extends TableBase, R extends R
     const instance = reAlias(this.#opts.instance as RowType, alias) as T;
     const ns = { [tableName]: instance } as Namespace<Name, T>;
     const setRow = this.#opts.set(ns);
-    const where = this.#opts.where(ns);
+    const where = this.#opts.where?.(ns);
     const returning = this.#opts.returning?.(ns);
     return new FinalizedUpdate<Name, T, R>({
       tableName,
       alias,
       instance,
       where,
+      matchAll: !!this.#opts.matchAll,
       setRow,
       ...(returning !== undefined ? { returning } : {}),
     });
   }
 
-  bind(): BoundSql {
+  bind(ctx: CompileContext): BoundSql {
     const t = this.#opts.instance.constructor.transformer?.update;
-    return (t ? t(this) : this.finalize()).bind();
+    return (t ? t(this) : this.finalize()).bind(ctx);
   }
 
   override children() {
     return [this.finalize()];
   }
 
-  @expose(z.lazy(() => z.instanceof(Database)))
-  override async execute(db: Database<any>): Promise<RowTypeToTsType<R>[]> {
-    return db.execute(this);
+  @expose(z.lazy(() => z.instanceof(Connection)))
+  override async execute(conn: Connection<any>): Promise<RowTypeToTsType<R>[]> {
+    return conn.execute(this);
   }
 
-  @expose(z.lazy(() => z.instanceof(Database)))
-  async hydrate(db: Database<any>): Promise<R[]> {
-    return db.hydrate<any, any, R>(this);
+  @expose(z.lazy(() => z.instanceof(Connection)))
+  async hydrate(conn: Connection<any>): Promise<R[]> {
+    return conn.hydrate<any, any, R>(this);
   }
 
   @expose()
   debug(): this {
-    const compiled = compile(this, "pg");
+    const compiled = compile(this, { database: this.database });
     console.log("Debugging query:", { sql: compiled.text, parameters: compiled.values });
     return this;
   }

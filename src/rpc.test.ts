@@ -1,9 +1,10 @@
 import { describe, test, expect, expectTypeOf } from "vitest";
-import { sql, Table, Int8, Text, Record, Anyarray } from "typegres";
-import type { Database } from "typegres";
+import { sql } from "typegres";
+import { Int8, Text, Record, Anyarray } from "typegres/postgres";
+import type { Connection } from "typegres";
 import { expose } from "./exoeval/tool";
 import { RpcClient, inMemoryChannel } from "./exoeval/rpc";
-import { setupDb, withinTransaction } from "./test-helpers";
+import { setupDb, withinTransaction, db } from "./test-helpers";
 setupDb();
 
 // End-to-end: typegres queries authored client-side, shipped over the
@@ -17,7 +18,7 @@ setupDb();
 //     api.users()
 //       .where(({ users }) => users.id["="]("1"))
 //       .select(({ users }) => ({ id: users.id, name: users.name.upper() }))
-//       .execute(api.db),
+//       .execute(api.conn),
 //   );
 //
 // The closures inside .where / .select aren't exported as stubs — they're
@@ -26,7 +27,7 @@ setupDb();
 // QueryBuilder method is @expose-decorated, so the builder composes over
 // the wire directly — no host-side wrapper class needed.
 
-class Users extends Table("users") {
+class Users extends db.Table("users") {
   @expose()
   id = (Int8<1>).column({ nonNull: true, generated: true });
 
@@ -36,10 +37,10 @@ class Users extends Table("users") {
 
 class Api {
   @expose()
-  db: Database;
+  conn: Connection;
 
-  constructor(db: Database) {
-    this.db = db;
+  constructor(conn: Connection) {
+    this.conn = conn;
   }
 
   @expose()
@@ -72,7 +73,7 @@ class Api {
 // Each test creates its own users table inside a withinTransaction block
 // so the tests stay isolated and self-contained — same pattern as the
 // rest of the suite (see src/builder/*.test.ts).
-const setupUsers = async (tx: Database) => {
+const setupUsers = async (tx: Connection) => {
   await tx.execute(sql`
     CREATE TABLE users (
       id   int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -95,7 +96,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
             id: users.id,
             name: users.name.upper(),
           }))
-          .execute(api.db),
+          .execute(api.conn),
       );
 
       expect(rows).toEqual([{ id: "1", name: "ALICE" }]);
@@ -113,7 +114,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
           api.users()
             .where(({ users }) => users.id[">="](minId))
             .select(({ users }) => ({ name: users.name }))
-            .execute(api.db),
+            .execute(api.conn),
         { minId },
       );
 
@@ -130,7 +131,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
         api.users()
           .where(({ users }) => users.id[">"]("0"))
           .select(({ users }) => ({ name: users.name }))
-          .execute(api.db),
+          .execute(api.conn),
       );
 
       expect(rows.map((r: { name: string }) => r.name).sort()).toEqual([
@@ -149,7 +150,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
       const inserted = await rpc.run((api) =>
         api.insertUsers({ name: "dave" })
           .returning(({ users }) => ({ id: users.id, name: users.name }))
-          .execute(api.db),
+          .execute(api.conn),
       );
 
       expect(inserted).toEqual([{ id: "4", name: "dave" }]);
@@ -166,7 +167,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
           .set(({ users: _ }) => ({ name: "ALICE!" }))
           .where(({ users }) => users.id["="]("1"))
           .returning(({ users }) => ({ id: users.id, name: users.name }))
-          .execute(api.db),
+          .execute(api.conn),
       );
 
       expect(updated).toEqual([{ id: "1", name: "ALICE!" }]);
@@ -185,7 +186,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
   //      property access on non-@expose returns undefined; JSON
   //      serialization drops it.
   describe("@expose gating across select shapes", () => {
-    const setupSecrets = async (tx: Database) => {
+    const setupSecrets = async (tx: Connection) => {
       await tx.execute(sql`
         CREATE TABLE secrets (
           id           int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -196,15 +197,15 @@ describe("typegres over exoeval rpc — in-memory", () => {
       await tx.execute(sql`INSERT INTO secrets (public_name, password) VALUES ('alice', 'hunter2')`);
     };
 
-    class Secrets extends Table("secrets") {
+    class Secrets extends db.Table("secrets") {
       @expose() id          = (Int8<1>).column({ nonNull: true, generated: true });
       @expose() public_name = (Text<1>).column({ nonNull: true });
       // Intentionally NOT @expose'd:
                 password    = (Text<1>).column({ nonNull: true });
     }
     class SecretsApi {
-      @expose() db: Database;
-      constructor(db: Database) { this.db = db; }
+      @expose() conn: Connection;
+      constructor(conn: Connection) { this.conn = conn; }
       @expose() all() { return Secrets.from(); }
       // eslint-disable-next-line no-restricted-syntax -- test fixture
       @expose.unchecked()
@@ -212,7 +213,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
       @expose() updateSecrets() { return Secrets.update(); }
       @expose() deleteSecrets() { return Secrets.delete(); }
       // Deliberately returns class instances; used to verify the wire rejects them.
-      @expose() async hydrateAll() { return this.db.hydrate(Secrets.from()); }
+      @expose() async hydrateAll() { return this.conn.hydrate(Secrets.from()); }
     }
 
     // Closure helper: every test in this block does the same tx + rpc + setup
@@ -232,7 +233,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
       await withinTransaction(async (tx) => {
         await setupSecrets(tx);
         const rpc = new RpcClient<SecretsApi>(inMemoryChannel(new SecretsApi(tx)));
-        const rows = await rpc.run((api) => api.all().execute(api.db));
+        const rows = await rpc.run((api) => api.all().execute(api.conn));
         expect(rows).toEqual([{ id: "1", public_name: "alice" }]);
         expect(rows[0]).not.toHaveProperty("password");
       });
@@ -243,7 +244,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
         await setupSecrets(tx);
         const rpc = new RpcClient<SecretsApi>(inMemoryChannel(new SecretsApi(tx)));
         const rows = await rpc.run((api) =>
-          api.all().select(({ secrets }) => ({ ...secrets })).execute(api.db),
+          api.all().select(({ secrets }) => ({ ...secrets })).execute(api.conn),
         );
         expect(rows).toEqual([{ id: "1", public_name: "alice" }]);
         expect(rows[0]).not.toHaveProperty("password");
@@ -262,7 +263,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
           rpc.run((api) =>
             api.all()
               .select(({ secrets }) => ({ pass: secrets.password }))
-              .execute(api.db),
+              .execute(api.conn),
           ),
         ).rejects.toThrow();
       });
@@ -278,7 +279,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
               single: api.all().limit(1).cardinality("one").scalar(),
             }))
             .limit(1)
-            .execute(api.db),
+            .execute(api.conn),
         );
         expect(rows).toEqual([{ single: { id: "1", public_name: "alice" } }]);
         expect(rows[0]!.single).not.toHaveProperty("password");
@@ -299,7 +300,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
               };
             })
             .limit(1)
-            .execute(api.db),
+            .execute(api.conn),
         );
         expect(rows[0]!.all).toEqual([{ id: "1", public_name: "alice" }]);
         expect(rows[0]!.all[0]).toEqual({ id: "1", public_name: "alice" });
@@ -357,7 +358,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
       const rows = await runRpc((api) =>
         api.insertSecrets({ public_name: "dave", password: "hunter3" })
           .returning(({ secrets }) => secrets)
-          .execute(api.db),
+          .execute(api.conn),
       );
       expect(rows).toEqual([{ id: "2", public_name: "dave" }]);
       expect(rows[0]).not.toHaveProperty("password");
@@ -369,7 +370,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
           .set(() => ({ public_name: "ALICE!" }))
           .where(({ secrets }) => secrets.id["="]("1"))
           .returning(({ secrets }) => secrets)
-          .execute(api.db),
+          .execute(api.conn),
       );
       expect(rows).toEqual([{ id: "1", public_name: "ALICE!" }]);
       expect(rows[0]).not.toHaveProperty("password");
@@ -380,7 +381,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
         api.deleteSecrets()
           .where(({ secrets }) => secrets.id["="]("1"))
           .returning(({ secrets }) => secrets)
-          .execute(api.db),
+          .execute(api.conn),
       );
       expect(rows).toEqual([{ id: "1", public_name: "alice" }]);
       expect(rows[0]).not.toHaveProperty("password");
@@ -402,7 +403,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
         api.deleteUsers()
           .where(({ users }) => users.id[">="]("2"))
           .returning(({ users }) => ({ name: users.name }))
-          .execute(api.db),
+          .execute(api.conn),
       );
 
       expect(deleted.map((r: { name: string }) => r.name).sort()).toEqual(["bob", "carol"]);

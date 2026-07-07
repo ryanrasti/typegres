@@ -1,4 +1,5 @@
-import { Database, Int8, Text, TypegresLiveEvents, sql, expose } from "typegres";
+import { Connection, TypegresLiveEvents, sql, expose } from "typegres";
+import { Int8, Text } from "typegres/postgres";
 import { z } from "zod";
 import { db } from "../runtime";
 import { Locations } from "./locations";
@@ -23,8 +24,8 @@ export class InventoryPositions extends db.Table("inventory_positions", { transf
   // returns the principal that scoped the read, and `this.id` is
   // therefore already in that principal's tenant. Only the role gate
   // is checked here.
-  @expose(z.lazy(() => z.instanceof(Database)), z.number())
-  async adjust(db: Database<any>, delta: number): Promise<{ id: string; on_hand: string }> {
+  @expose(z.lazy(() => z.instanceof(Connection)), z.number())
+  async adjust(conn: Connection<any>, delta: number): Promise<{ id: string; on_hand: string }> {
     const user = InventoryPositions.contextOf(this);
     if (!user) {
       throw new Error("InventoryPositions.adjust() requires a scoped query (user.inventory())");
@@ -36,7 +37,7 @@ export class InventoryPositions extends db.Table("inventory_positions", { transf
       .where(({ inventory_positions: p }) => p.id["="](this.id))
       .set(({ inventory_positions: p }) => ({ on_hand: p.on_hand["+"](String(delta)) }))
       .returning(({ inventory_positions: p }) => ({ id: p.id, on_hand: p.on_hand }))
-      .execute(db);
+      .execute(conn);
     if (!updated) {
       throw new Error("Inventory position no longer exists");
     }

@@ -19,9 +19,10 @@ npm install typegres pg
 ```
 
 ```typescript
-import { typegres, Int8, Text, expose } from "typegres";
+import { typegres, expose } from "typegres";
+import { Int8, Text } from "typegres/postgres";
 
-const db = await typegres({
+const { db, conn } = await typegres({
   type: "pg",
   connectionString: process.env.DATABASE_URL!,
 });
@@ -43,10 +44,10 @@ const rows = await Users.from()
     id: users.id,
     name: users.fullName(),
   }))
-  .execute(db);
+  .execute(conn);
 
 console.log(rows);
-await db.close();
+await conn.close();
 ```
 
 For a complete scaffold with migrations + codegen, see

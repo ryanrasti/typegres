@@ -2,7 +2,7 @@ import pg from "pg";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Config } from "../config.ts";
-import { pgNameToClassName } from "../types/introspect.ts";
+import { pgNameToClassName } from "../types/postgres/introspect.ts";
 
 // --- Config ---
 
@@ -248,12 +248,15 @@ const newFile = (tableName: string, columns: ColumnInfo[], relations: Relation[]
     .filter((t) => t !== tableName)
     .map((t) => `import { ${pgNameToClassName(t)} } from "./${t}";`);
 
-  // Single consolidated `from "typegres"` line — symbols are sorted
-  // for stable output and easier diffs across regenerations.
-  const typegresSyms = [...typeClasses, "expose", ...(hasDefault ? ["sql"] : [])].sort();
+  // Split imports: PG-specific type classes come from `typegres/postgres`;
+  // dialect-agnostic runtime helpers (`expose`, `sql`) come from the top
+  // `typegres` barrel. Symbols within each group sorted for stable diffs.
+  const runtimeSyms = ["expose", ...(hasDefault ? ["sql"] : [])].sort();
+  const typeSyms = [...typeClasses].sort();
   const imports = [
     `import { db } from "${dbImport}";`,
-    `import { ${typegresSyms.join(", ")} } from "typegres";`,
+    `import { ${runtimeSyms.join(", ")} } from "typegres";`,
+    `import { ${typeSyms.join(", ")} } from "typegres/postgres";`,
     ...relImports,
   ];
 

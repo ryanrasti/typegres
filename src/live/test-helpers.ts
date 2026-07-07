@@ -1,6 +1,6 @@
 import { afterEach, beforeAll } from "vitest";
 import { sql } from "../builder/sql";
-import { driver } from "../test-helpers";
+import { conn } from "../test-helpers";
 import { TypegresLiveEvents } from "./events";
 
 // Opt-in for live tests: creates `_typegres_live_events` once at the start
@@ -8,9 +8,9 @@ import { TypegresLiveEvents } from "./events";
 // starts clean — no per-test boilerplate.
 export const setupLiveEvents = (): void => {
   beforeAll(async () => {
-    await driver.execute(TypegresLiveEvents.createTableSql());
+    await conn.execute(TypegresLiveEvents.createTableSql(conn.database));
   });
   afterEach(async () => {
-    await driver.execute(sql`TRUNCATE _typegres_live_events`);
+    await conn.execute(sql`TRUNCATE _typegres_live_events`);
   });
 };

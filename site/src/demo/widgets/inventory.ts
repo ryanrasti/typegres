@@ -17,7 +17,7 @@ const result = client.run(async (api) => {
     }))
     .orderBy(({ inventory_positions: p }) => p.on_hand)
     .debug()
-    .live(api.db);
+    .live(api.conn);
 });
 
 output(result);

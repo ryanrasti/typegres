@@ -6,14 +6,14 @@ import { typegres } from "typegres";
 import { runMigrations, runSeed } from "./seed";
 import type { UserRoot } from "./server/api";
 
-export const db = await typegres<UserRoot>({ type: "pglite" });
+export const { db, conn } = await typegres<UserRoot>({ type: "pglite" });
 
-await runMigrations(db);
-await runSeed(db);
+await runMigrations(conn);
+await runSeed(conn);
 
 // `installLiveEvents` is a one-time DDL — production callers run it as
 // part of their migrations. The demo's storage doesn't survive page
 // reloads, so we run it on every boot. `startLive` then assumes the
 // events table exists and only spins up the polling bus.
-await db.installLiveEvents();
-await db.startLive();
+await conn.installLiveEvents();
+await conn.startLive();

@@ -19,7 +19,7 @@ const result = client.run(async (api) => {
       max_priority: orders.priority.max(),
     }))
     .debug()
-    .live(api.db);
+    .live(api.conn);
 });
 
 // Render the result in the table on the right:

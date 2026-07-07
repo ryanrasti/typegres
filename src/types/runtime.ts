@@ -1,16 +1,11 @@
 export type { Sql } from "../builder/sql";
-export { sql } from "../builder/sql";
-import type { BoundSql, Raw } from "../builder/sql";
-import { Func, Op, Sql, sql } from "../builder/sql";
-import * as types from "./index";
-import type { Any } from "./index";
-import { getTypeDef } from "./deserialize";
+export { sql, Srf } from "../builder/sql";
+import type { Raw } from "../builder/sql";
+import { Func, Op, argToSql } from "../builder/sql";
+import { SqlValue, meta } from "./sql-value";
+import type { Any } from "./postgres";
 import { isPlainData } from "../util";
 import type { RowType } from "../builder/query";
-
-// Global metadata symbol — hides internals from autocomplete.
-// All type metadata (__class, __nullable, __nonNullable, etc.) lives under this key.
-export const meta = Symbol("typegres");
 
 // Nullability: 0 = null, 1 = non-null, 0|1 = nullable, number = aggregate/unknown
 // StrictNull: null propagates — if any arg is null, result is null (proisstrict = true)
@@ -18,14 +13,15 @@ export type StrictNull<T extends number> = number extends T ? number : T;
 // MaybeNull: function can return null even with non-null args (proisstrict = false)
 export type MaybeNull<T extends number> = number extends T ? number : 0 | T;
 
-// Extract nullability from a pg expression or TS primitive
-// Pg types extend Any<N> → extract N. TS primitives (number, string, etc.) → 1 (non-null).
-export type NullOf<T> = T extends Any<infer N extends number> ? N : 1;
+// Extract nullability from a typed value or TS primitive.
+// Typed values extend SqlValue<N> → extract N. TS primitives (number,
+// string, etc.) → 1 (non-null). Works across dialects.
+export type NullOf<T> = T extends SqlValue<infer N extends number> ? N : 1;
 
-// Extract the TS type that a pg type deserializes to.
+// Extract the TS type that a dialect type deserializes to.
 // Uses the return type of deserialize(). For primitives passed directly, it's the type itself.
 // Resolve the runtime JS type of a column / typegres expression.
-// Non-Any inputs collapse to `never` — methods, derived-column
+// Non-SqlValue inputs collapse to `never` — methods, derived-column
 // functions, arbitrary class keys aren't deserialized and have no
 // "TS-side" type here. The fallback was previously `T`, which leaked
 // method types into row results (caller would think `row.method`
@@ -33,7 +29,7 @@ export type NullOf<T> = T extends Any<infer N extends number> ? N : 1;
 //
 // Nullability: N=0 → null, N=0|1 → U|null, N=1 → U, N=number → U (aggregate/unknown, not null).
 export type TsTypeOf<T> =
-  T extends Any<infer N>
+  T extends SqlValue<infer N>
     ? T extends { deserialize: (_: any) => infer U }
       ? number extends N
         ? U
@@ -45,15 +41,15 @@ export type TsTypeOf<T> =
       : unknown
     : never;
 
-// Extract the nullable variant of a pg type via the [meta] bag
+// Extract the nullable variant of a dialect type via the [meta] bag
 export type Nullable<T> = T extends { [meta]: { __nullable: infer U } } ? U : T;
 
-// Extract the aggregate variant (N=number) of a pg type via the [meta] bag
-export type Aggregate<T extends Any<any>> = T[typeof meta]['__aggregate'];
+// Extract the aggregate variant (N=number) of a dialect type via the [meta] bag
+export type Aggregate<T extends SqlValue<any>> = T[typeof meta]['__aggregate'];
 
 // Transform a row type to aggregate context — all columns become N=number
 export type AggregateRow<R extends RowType> = {
-  [K in keyof R]: R[K] extends Any<any> ? Aggregate<R[K]> : never;
+  [K in keyof R]: R[K] extends SqlValue<any> ? Aggregate<R[K]> : never;
 };
 
 // Keys of R that are column descriptors (have the __required brand from column())
@@ -96,10 +92,11 @@ export const isSetRow = (row: unknown): row is SetRow<any> => {
   if (typeof row !== "object" || row === null || Array.isArray(row)) {
     return false;
   }
-  // Each value must be either a typegres expression OR plain data
-  // (recursively — no class instances at any depth).
+  // Each value must be either a typegres expression (any dialect —
+  // PG's Any or SQLite's SqliteValue both extend SqlValue) OR plain
+  // data (recursively — no other class instances at any depth).
   return Object.values(row).every(
-    (v) => v instanceof types.Any || isPlainData(v),
+    (v) => v instanceof SqlValue || isPlainData(v),
   );
 };
 
@@ -112,12 +109,14 @@ export const pgElement = (expr: Any<any>): typeof Any => (expr[meta].__class as 
 // Overload matching: validate args and resolve return type constructor.
 // Each case: [argMatchers (one per arg), returnType constructor].
 // allowPrimitive: true if the corresponding TS primitive is accepted for this arg.
-type ArgMatcher = { type: typeof Any; allowPrimitive?: boolean };
-type MatchCase = [args: ArgMatcher[], retType: typeof Any];
+// `type` is widened to `typeof SqlValue` so both PG- and SQLite-codegen
+// call sites typecheck (both dialects' classes descend from SqlValue).
+type ArgMatcher = { type: typeof SqlValue; allowPrimitive?: boolean };
+type MatchCase = [args: ArgMatcher[], retType: typeof SqlValue];
 
 // Validates args, serializes primitives, and returns [retType, ...serializedArgs].
 // The caller destructures: const [retType, ...args] = match(...)
-export const match = (args: unknown[], cases: MatchCase[]): [typeof Any, ...unknown[]] => {
+export const match = (args: unknown[], cases: MatchCase[]): [typeof SqlValue, ...unknown[]] => {
   for (const [matchers, retType] of cases) {
     const matched = matchers.every((m, i) => {
       const arg = args[i];
@@ -125,8 +124,7 @@ export const match = (args: unknown[], cases: MatchCase[]): [typeof Any, ...unkn
         return true;
       }
       if (m.allowPrimitive) {
-        const expected = getTypeDef(m.type.__typnameText).tsType;
-        if (typeof arg === expected) {
+        if (typeof arg === m.type.primitiveTs) {
           return true;
         }
       }
@@ -145,57 +143,18 @@ export const match = (args: unknown[], cases: MatchCase[]): [typeof Any, ...unkn
   throw new Error(`No matching overload for args: [${args.map((a) => typeof a).join(", ")}]`);
 };
 
-// Extract the Sql node from an arg. After match(), args are Any instances.
-const argToSql = (arg: unknown): Sql => {
-  if (arg instanceof types.Any) {
-    return arg.toSql();
-  }
-  return sql.param(arg);
+// Expression node builders — construct real typed instances via
+// constructor(Sql). Dialect is drawn from the target type's class
+// (Int4.dialect.name === "postgres", Integer.dialect.name === "sqlite",
+// etc.) so the resulting Func/Op node carries the right dialect tag
+// for the compile-time provenance check.
+//
+// `type` is widened to `typeof SqlValue` (below all dialects) so both
+// PG-codegen and SQLite-codegen call sites typecheck.
+export const funcCall = (name: string, args: unknown[], type: typeof SqlValue) => {
+  return type.from(new Func(name, args.map(argToSql), type.dialect.name));
 };
 
-// Expression node builders — construct real typed instances via constructor(Sql)
-export const PgFunc = (name: string, args: unknown[], type: typeof Any) => {
-  return type.from(new Func(name, args.map(argToSql)));
+export const opCall = (op: Raw, args: [unknown, unknown], type: typeof SqlValue) => {
+  return type.from(new Op(op, argToSql(args[0]), argToSql(args[1]), type.dialect.name));
 };
-
-export const PgOp = (op: Raw, args: [unknown, unknown], type: typeof Any) => {
-  return type.from(new Op(op, argToSql(args[0]), argToSql(args[1])));
-};
-
-// Set-returning function result — a Fromable for use in FROM/JOIN.
-// columns is the row shape: [[name, constructor], ...]. Single-column SRFs
-// pass a 1-element array; multi-column SRFs with OUT params pass N entries.
-export class PgSrf<R extends { [key: string]: Any<any> }, A extends string> extends Sql {
-  readonly tsAlias: A;
-  #name: string;
-  #columns: [string, typeof Any][];
-  #argsSql: Sql;
-
-  constructor(name: A, args: unknown[], columns: [string, typeof Any][]) {
-    super();
-    this.tsAlias = name;
-    this.#name = name;
-    this.#columns = columns;
-    this.#argsSql = sql.join(args.map(argToSql));
-  }
-
-  // Shape-only: columns hold sql.unbound(). QB's reAlias replaces with
-  // real `Column(alias, key)` refs at bind time.
-  rowType(): R {
-    return Object.fromEntries(
-      this.#columns.map(([colName, type]) => [colName, type.from(sql.unbound())]),
-    ) as R;
-  }
-
-  // FROM-clause source fragment (pre-AS). QB appends `AS <alias>`.
-  override bind(): BoundSql {
-    return sql`${sql.ident(this.#name)}(${this.#argsSql})`;
-  }
-
-  // Expose the args fragment so generic tree walkers (extractor, linting,
-  // future live-query predicate extraction) can see the expressions passed
-  // into the SRF rather than stopping at the opaque boundary.
-  override children(): readonly Sql[] {
-    return [this.#argsSql];
-  }
-}

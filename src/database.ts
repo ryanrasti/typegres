@@ -3,7 +3,7 @@ import type { Fromable, RowType, RowTypeToTsType } from "./builder/query";
 import { QueryBuilder, hydrateRows } from "./builder/query";
 import { deserializeRows } from "./util";
 import type { Sql } from "./builder/sql";
-import { sql } from "./builder/sql";
+import { compile, sql, Ident } from "./builder/sql";
 import { Table, type TableBase, type TableOptions } from "./table";
 import { Values } from "./builder/values";
 import { InsertBuilder } from "./builder/insert";
@@ -13,6 +13,7 @@ import { Bus, type Subscription, type BusOptions } from "./live/bus";
 import { eventsTableSqlStatements } from "./live/events-ddl";
 import { runLiveIteration } from "./live/extractor";
 import { parseSnapshot } from "./live/snapshot";
+import type { DialectName } from "./builder/sql";
 
 export type TransactionIsolation = "read committed" | "repeatable read" | "serializable";
 export type TransactionOptions = {
@@ -35,29 +36,103 @@ const ISOLATION: { [K in TransactionIsolation]: { rank: number; begin: Sql } } =
   "serializable":    { rank: 2, begin: sql`BEGIN ISOLATION LEVEL SERIALIZABLE` },
 };
 
-// `C` is the per-app context (principal) type. Forwarded to every
-// `db.Table(name)` so every codegen-emitted class picks up the same C
-// without changing the generator. Default `undefined` matches the
-// pre-context behavior.
-export class Database<C = undefined> {
+// Immutable metadata handle: dialect + provenance identity, no driver.
+// Construction is synchronous and module-load-safe; call
+// `db.attach(driver)` to get a runtime `Connection`.
+//
+// `C` is the per-app context (principal) type, threaded onto every
+// `db.Table(name)` and readable via `Table.scope(ctx)` / `contextOf(row)`.
+// Default `any` so a bare `Database` used purely as a provenance handle
+// accepts any concrete `Database<C>`; callers that care about `C`
+// write it explicitly (see `typegres<C>()` in index.ts).
+export class Database<C = any> {
+  readonly name?: string;
+  readonly dialect: DialectName;
+
+  constructor(opts: { dialect: DialectName; name?: string }) {
+    this.dialect = opts.dialect;
+    if (opts.name) { this.name = opts.name; }
+  }
+
+  // Provenance-tagged identifier factory. The only way to construct a
+  // schema-referencing Ident that survives the compile-time provenance
+  // check. Prefer over raw `sql.ident(name)` (which leaves the Ident
+  // unattributed) for anything the RPC boundary might touch.
+  scopedIdent(name: string): Ident {
+    return new Ident(name, this);
+  }
+
+  // Forwarded to codegen'd `Table(name, opts, database)` — attaches
+  // `this` as the class's `.database` static, so every Ident it emits
+  // carries this Database's id. The optional `LocalC` type parameter
+  // lets a class-def override the app-wide context type (used by scope
+  // tests where each test has its own Principal shape).
+  public Table = <Name extends string, LocalC = C>(name: Name, opts: TableOptions = {}) =>
+    Table<Name, LocalC>(name, opts, this);
+
+  // Attach a driver → get a runtime Connection. Multiple `attach` calls
+  // are allowed (test + prod, worker pools, replicas) — Connections
+  // share the schema provenance but talk to independent drivers.
+  attach(driver: Driver): Connection<C> {
+    if (driver.dialect !== this.dialect) {
+      throw new Error(
+        `Driver dialect '${driver.dialect}' does not match Database dialect '${this.dialect}'.`,
+      );
+    }
+    return new Connection<C>(this, driver);
+  }
+
+  // Entry point for non-Table Fromables (SRFs, Values, subqueries).
+  // Table classes have their own static `.from()`.
+  from<R extends RowType, A extends string>(
+    from: Fromable<R, A>,
+  ): QueryBuilder<{ [K in A]: R }, R, []> {
+    return new QueryBuilder({
+      database: this,
+      tsAlias: from.tsAlias,
+      tables: [{ type: "from", source: from }],
+    });
+  }
+
+  values<R extends RowType>(
+    vals0: R,
+    ...valsRest: (NoInfer<R> | RowTypeToTsType<NoInfer<R>>)[]
+  ): QueryBuilder<{ values: R }, R, []> {
+    const vals = new Values(vals0, ...valsRest);
+    return new QueryBuilder<{ values: R }, R, []>({
+      database: this,
+      tsAlias: "values",
+      tables: [{ type: "from", source: vals }],
+    });
+  }
+}
+
+// Runtime handle: has a driver, executes queries. Constructed via
+// `db.attach(driver)`. `.transaction()` mints a txn-bound Connection
+// sharing the same driver + Database. `.close()` closes the driver.
+export class Connection<C = undefined> {
   #boundExecute?: ExecuteFn;
-  // Active isolation on a txn-bound Database. `undefined` means either
+  // Active isolation on a txn-bound Connection. `undefined` means either
   // pool-backed (no active txn) or ambient (txn opened without an
   // explicit level — we deferred to pg's session default, which we
   // can't introspect cheaply, so we don't claim a specific level).
   #isolation?: TransactionIsolation;
 
-  // A pool-backed Database (`new Database(driver)`) routes each query
-  // through the driver's pool. A transaction-bound Database (constructed
-  // internally via .transaction()) carries a single-connection ExecuteFn
-  // so every query inside the txn callback lands on the same connection.
-  constructor(private driver: Driver, boundExecute?: ExecuteFn, isolation?: TransactionIsolation) {
+  constructor(
+    readonly database: Database<C>,
+    private driver: Driver,
+    boundExecute?: ExecuteFn,
+    isolation?: TransactionIsolation,
+  ) {
     if (boundExecute) { this.#boundExecute = boundExecute; }
     if (isolation) { this.#isolation = isolation; }
   }
 
+  get dialect() { return this.driver.dialect; }
+
   #exec(query: Sql): Promise<QueryResult> {
-    return (this.#boundExecute ?? this.driver.execute.bind(this.driver))(query);
+    const compiled = compile(query, { database: this.database });
+    return (this.#boundExecute ?? this.driver.execute.bind(this.driver))(compiled);
   }
 
   // Overload resolution matches top-to-bottom and stops on the first
@@ -91,15 +166,8 @@ export class Database<C = undefined> {
     return result;
   }
 
-  // Materialize rows as class instances. Each column field is an Any
-  // wrapping a CAST(param) of the row's value, so methods on the class
-  // (relations, mutations, derived columns) compose into follow-up
-  // queries naturally: `const [user] = await db.hydrate(User.from()...);
-  // await db.execute(user.todos());`.
-  //
-  // For queries whose output shape is a plain object (e.g. `.select(ns =>
-  // ({a: ns.x.foo}))`), hydrate returns plain objects with each field an
-  // Any-wrapped value — the prototype-preservation is a no-op.
+  // Materialize rows as class instances. See original doc on the
+  // hydrate method for the design rationale.
   async hydrate<O extends RowType, GB extends any[], Card extends "one" | "maybe" | "many">(
     query: QueryBuilder<any, O, GB, Card>,
   ): Promise<O[]>;
@@ -122,20 +190,16 @@ export class Database<C = undefined> {
       if (!r) { return []; }
       shape = r as { [k: string]: unknown };
     } else {
-      throw new Error("db.hydrate requires a QueryBuilder or mutation with RETURNING");
+      throw new Error("conn.hydrate requires a QueryBuilder or mutation with RETURNING");
     }
     return hydrateRows(result.rows as { [key: string]: string }[], shape);
   }
 
-  // Run `fn` inside a transaction. The `tx` Database passed to fn is bound
-  // to a single connection; every execute/hydrate on it goes through that
-  // connection. Nested calls flatten: `tx.transaction(...)` just invokes the
-  // callback without opening a new BEGIN/COMMIT.
-  async transaction<T>(fn: (tx: Database<C>) => Promise<T>): Promise<T>;
-  async transaction<T>(opts: TransactionOptions, fn: (tx: Database<C>) => Promise<T>): Promise<T>;
+  async transaction<T>(fn: (tx: Connection<C>) => Promise<T>): Promise<T>;
+  async transaction<T>(opts: TransactionOptions, fn: (tx: Connection<C>) => Promise<T>): Promise<T>;
   async transaction<T>(
-    optsOrFn: TransactionOptions | ((tx: Database<C>) => Promise<T>),
-    maybeFn?: (tx: Database<C>) => Promise<T>,
+    optsOrFn: TransactionOptions | ((tx: Connection<C>) => Promise<T>),
+    maybeFn?: (tx: Connection<C>) => Promise<T>,
   ): Promise<T> {
     const opts = typeof optsOrFn === "function" ? undefined : optsOrFn;
     const fn = typeof optsOrFn === "function" ? optsOrFn : maybeFn;
@@ -144,14 +208,9 @@ export class Database<C = undefined> {
     }
     if (this.#boundExecute) {
       // Already in a txn — flatten, but reject silent isolation downgrades.
-      // Pg can't promote isolation after the first query, so an inner call
-      // requesting more than the active txn provides is a bug.
       if (opts?.isolation) {
         const active = this.#isolation;
         if (active === undefined) {
-          // Outer is ambient (deferred to session default) — we don't
-          // know its actual level, so we can't safely promise the inner
-          // is satisfied. Bail rather than silently flatten.
           throw new Error(
             `Cannot nest a '${opts.isolation}' transaction inside an ambient (no-isolation-specified) transaction — ` +
               `the outer's level depends on session config and can't be verified. Open the outer transaction at '${opts.isolation}' or stronger.`,
@@ -167,18 +226,16 @@ export class Database<C = undefined> {
       return fn(this);
     }
     return this.driver.runInSingleConnection(async (execute) => {
-      const tx = new Database<C>(this.driver, execute, opts?.isolation);
-      await execute(opts?.isolation ? ISOLATION[opts.isolation].begin : sql`BEGIN`);
+      const tx = new Connection<C>(this.database, this.driver, execute, opts?.isolation);
+      const runSql = async (s: Sql) => execute(compile(s, { database: this.database }));
+      await runSql(opts?.isolation ? ISOLATION[opts.isolation].begin : sql`BEGIN`);
       try {
         const result = await fn(tx);
-        await execute(sql`COMMIT`);
+        await runSql(sql`COMMIT`);
         return result;
       } catch (e) {
-        // Preserve the original error even if ROLLBACK itself fails
-        // (connection lost, etc.). Log the rollback failure but rethrow
-        // the user's exception — it's the one they care about.
         try {
-          await execute(sql`ROLLBACK`);
+          await runSql(sql`ROLLBACK`);
         } catch (rollbackErr) {
           console.error("ROLLBACK failed after transaction error:", rollbackErr);
         }
@@ -187,69 +244,28 @@ export class Database<C = undefined> {
     });
   }
 
-  // Shut the underlying connection pool. Without this, scripts hang
-  // after their last query because pg's idle-timeout has to expire
-  // before node can exit. Idempotent on the driver side.
   async close(): Promise<void> {
     if (this.#boundExecute) {
-      throw new Error("close() must be called on a pool-backed Database, not inside a transaction");
+      throw new Error("close() must be called on a pool-backed Connection, not inside a transaction");
     }
     await this.driver.close();
   }
 
-  // Entry point for non-Table Fromables (SRFs, Values, subqueries) —
-  // Table classes have their own static `.from()`.
-  public from<R extends RowType, A extends string>(
-    from: Fromable<R, A>,
-  ): QueryBuilder<{ [K in A]: R }, R, []> {
-    return new QueryBuilder({
-      tsAlias: from.tsAlias,
-      tables: [{ type: "from", source: from }],
-    });
-  }
-
-  public values<R extends RowType>(
-    vals0: R,
-    ...valsRest: (NoInfer<R> | RowTypeToTsType<NoInfer<R>>)[]
-  ): QueryBuilder<{ values: R }, R, []> {
-    const vals = new Values(vals0, ...valsRest);
-    return new QueryBuilder<{ values: R }, R, []>({
-      tsAlias: "values",
-      tables: [{ type: "from", source: vals }],
-    });
-  }
-
-  // Forward the app-wide context type to every `db.Table(name)` so
-  // codegen-emitted classes inherit it without changes to the
-  // generator. `Table<Name, C>` constrains `scope()` to accept only
-  // values assignable to C, and pins `contextOf()`'s return type.
-  public Table = <Name extends string>(name: Name, opts: TableOptions = {}) =>
-    Table<Name, C>(name, opts);
-
   // --- Live queries ---
-  // Bus is per-Driver (per-pool); a tx-bound Database delegates to its
-  // parent's bus. Lifecycle is explicit — startLive() must be called
-  // before any live(). Live queries by definition cross commit boundaries
-  // so calling .live() inside a transaction is rejected.
   #bus: Bus | undefined;
 
-  // One-time DDL: creates `_typegres_live_events` (idempotent via IF NOT
-  // EXISTS). Run as part of your migrations alongside table creation —
-  // production callers do this once at deploy time. The demo runs it on
-  // PGlite boot (in-browser; the table is gone when the page reloads).
-  // `startLive` does not run DDL — it assumes this table already exists.
   async installLiveEvents(): Promise<void> {
-    for (const stmt of eventsTableSqlStatements()) {
-      await this.driver.execute(stmt);
+    for (const stmt of eventsTableSqlStatements(this.database)) {
+      await this.driver.execute(compile(stmt, { database: this.database }));
     }
   }
 
   async startLive(opts: BusOptions = {}): Promise<void> {
     if (this.#boundExecute) {
-      throw new Error("startLive() must be called on a pool-backed Database, not inside a transaction");
+      throw new Error("startLive() must be called on a pool-backed Connection, not inside a transaction");
     }
     if (this.#bus) { throw new Error("Live bus already started"); }
-    this.#bus = new Bus(this.driver, opts);
+    this.#bus = new Bus(this, opts);
     await this.#bus.start();
   }
 
@@ -259,11 +275,6 @@ export class Database<C = undefined> {
     await bus?.stop();
   }
 
-  // Async iterable: yields the current row set, then re-yields whenever a
-  // committed mutation might have changed that result. Each iteration
-  // opens a REPEATABLE READ txn (via runLiveIteration), captures its
-  // cursor, materializes a closed PredicateSet, and registers a
-  // subscription with the bus. Wakes when the bus signals a match.
   async *live<Q extends QueryBuilder<any, any, any, any>>(
     query: Q,
   ): AsyncIterable<
@@ -275,25 +286,18 @@ export class Database<C = undefined> {
       throw new Error("live() can't be called inside a transaction");
     }
     const bus = this.#bus;
-    if (!bus) { throw new Error("Live bus not started — call db.startLive() first"); }
+    if (!bus) { throw new Error("Live bus not started — call conn.startLive() first"); }
 
     let currentSub: Subscription | undefined;
     try {
       while (true) {
         const { rows, cursor, predicateSet } = await runLiveIteration(this, query);
-        // undefined → backfill already shows a mutation the cursor
-        // missed; rerun immediately. Otherwise sub.wait resolves on the
-        // next matching poll (signal auto-unsubscribes).
         currentSub = bus.subscribe(parseSnapshot(cursor), predicateSet);
         yield rows as any;
         if (currentSub) {
           try {
             await currentSub.wait;
           } catch (e) {
-            // `await sub.wait` is a non-yield point; .return() on the
-            // iterator can't interrupt it directly. The bus rejects
-            // wait via sub.cancel() (e.g. on shutdown) so we wake up
-            // here and exit cleanly through finally.
             if (e instanceof DOMException && e.name === "AbortError") {return;}
             throw e;
           }
@@ -301,8 +305,6 @@ export class Database<C = undefined> {
         }
       }
     } finally {
-      // Consumer broke mid-wait — sub still indexed; clean up explicitly.
-      // Idempotent if signal/cancel already unsubscribed.
       currentSub?.unsubscribe();
     }
   }

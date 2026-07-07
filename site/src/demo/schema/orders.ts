@@ -1,4 +1,5 @@
-import { Database, Int8, Text, Timestamptz, TypegresLiveEvents, sql, expose } from "typegres";
+import { Connection, TypegresLiveEvents, sql, expose } from "typegres";
+import { Int8, Text, Timestamptz } from "typegres/postgres";
 import { z } from "zod";
 import { db } from "../runtime";
 import { Customers } from "./customers";
@@ -34,8 +35,8 @@ export class Orders extends db.Table("orders", { transformer: TypegresLiveEvents
   // check is "did anything come back from RETURNING?" — `delivered`
   // rows have no next state, so the CASE returns NULL and the WHERE
   // (which excludes NULL) keeps them unchanged.
-  @expose(z.lazy(() => z.instanceof(Database)))
-  async advance(db: Database<any>): Promise<{ id: string; status: string }> {
+  @expose(z.lazy(() => z.instanceof(Connection)))
+  async advance(conn: Connection<any>): Promise<{ id: string; status: string }> {
     const user = Orders.contextOf(this);
     if (!user) {
       throw new Error("Orders.advance() requires a scoped query (user.orders())");
@@ -65,7 +66,7 @@ export class Orders extends db.Table("orders", { transformer: TypegresLiveEvents
         `) as Text<1>,
       }))
       .returning(({ orders }) => ({ id: orders.id, status: orders.status }))
-      .execute(db);
+      .execute(conn);
     if (!updated) {
       throw new Error("Order is already at terminal status, or no longer exists");
     }

@@ -1,4 +1,4 @@
-import { Int8, Text } from "typegres";
+import { Int8, Text } from "typegres/postgres";
 import { db } from "../db";
 import { Dogs } from "./dogs";
 

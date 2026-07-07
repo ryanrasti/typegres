@@ -1,7 +1,7 @@
 import { test, expect } from "vitest";
-import { Int8, Text } from "../types";
+import { Int8, Text } from "../types/postgres";
 import { sql } from "../builder/sql";
-import { setupDb, withinTransaction } from "../test-helpers";
+import { setupDb, db, withinTransaction } from "../test-helpers";
 import { runLiveIteration } from "./extractor";
 
 setupDb();
@@ -26,11 +26,11 @@ test("runLiveIteration: returns rows + cursor + extracted rows from one txn", as
       sql`INSERT INTO dogs (user_id, name) VALUES (1, 'Rex'), (1, 'Fido'), (2, 'Spot')`,
     );
 
-    class Users extends tx.Table("users") {
+    class Users extends db.Table("users") {
       id = (Int8<1>).column({ nonNull: true, generated: true });
       role = (Text<1>).column({ nonNull: true });
     }
-    class Dogs extends tx.Table("dogs") {
+    class Dogs extends db.Table("dogs") {
       id = (Int8<1>).column({ nonNull: true, generated: true });
       user_id = (Int8<1>).column({ nonNull: true });
       name = (Text<1>).column({ nonNull: true });

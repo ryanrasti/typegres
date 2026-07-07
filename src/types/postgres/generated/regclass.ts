@@ -1,0 +1,25 @@
+// Auto-generated — do not edit
+import * as runtime from "../../runtime";
+import { meta } from "../../sql-value";
+import { expose } from "../../../exoeval/tool";
+import { Anynonarray } from "../generated/anynonarray";
+import * as types from "../index";
+
+export class Regclass<in out N extends number> extends Anynonarray<N> {
+  declare [meta]: {
+    __class: typeof Regclass;
+    __raw: runtime.Sql;
+    __nullability: N;
+    __nullable: Regclass<0 | 1>;
+    __nonNullable: Regclass<1>;
+    __aggregate: Regclass<number>;
+    __any: Regclass<any>;
+  };
+  static __typname = runtime.sql`regclass`;
+  static __typnameText = "regclass";
+  declare deserialize: (raw: string) => string;
+  @expose.unchecked()
+  pgPartitionRoot(): types.Regclass<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Regclass]]); return runtime.funcCall("pg_partition_root", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  regclasssend(): types.Bytea<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bytea]]); return runtime.funcCall("regclasssend", [this, ...__rest], __rt) as any; }
+}

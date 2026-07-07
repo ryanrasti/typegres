@@ -27,7 +27,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as swc from "@swc/core";
 import { sql } from "./builder/sql";
-import { setupDb, db } from "./test-helpers";
+import { setupDb, conn } from "./test-helpers";
 import { requireDatabaseUrl } from "./pg";
 
 const execFileP = promisify(execFile);
@@ -94,12 +94,12 @@ const runReadmeUsage = async (mode: InstallMode): Promise<void> => {
     fs.writeFileSync(path.join(tmpDir, "main.mjs"), compiled.code);
 
     // Seed the per-worker schema with what the snippet expects.
-    await db.execute(sql`CREATE TABLE users (
+    await conn.execute(sql`CREATE TABLE users (
       id         int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       first_name text NOT NULL,
       last_name  text NOT NULL
     )`);
-    await db.execute(sql`INSERT INTO users (first_name, last_name) VALUES
+    await conn.execute(sql`INSERT INTO users (first_name, last_name) VALUES
       ('Alice', 'Smith'),
       ('Bob', 'Jones')`);
 
@@ -118,7 +118,7 @@ const runReadmeUsage = async (mode: InstallMode): Promise<void> => {
     expect(stdout).toContain("Alice Smith");
     expect(stdout).toContain("Bob Jones");
   } finally {
-    await db.execute(sql`DROP TABLE IF EXISTS users`).catch(() => {});
+    await conn.execute(sql`DROP TABLE IF EXISTS users`).catch(() => {});
   }
   // Only delete the temp dir if everything succeeded:
   fs.rmSync(tmpDir, { recursive: true, force: true });

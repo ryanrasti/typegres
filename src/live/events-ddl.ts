@@ -5,13 +5,14 @@
 // when vite bundled the site (TDZ during dynamic import).
 
 import { sql, type Sql } from "../builder/sql";
+import type { Database } from "../database";
 
 export const EVENTS_TABLE_NAME = "_typegres_live_events";
 
-export const eventsTableSqlStatements = (): Sql[] => {
+export const eventsTableSqlStatements = (database: Database): Sql[] => {
   return [
     sql`
-      CREATE TABLE IF NOT EXISTS ${sql.ident(EVENTS_TABLE_NAME)} (
+      CREATE TABLE IF NOT EXISTS ${database.scopedIdent(EVENTS_TABLE_NAME)} (
         id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
         xid xid8 NOT NULL,
         -- before/after are jsonb objects keyed by column name with
@@ -27,6 +28,6 @@ export const eventsTableSqlStatements = (): Sql[] => {
         inserted_at timestamptz NOT NULL DEFAULT clock_timestamp()
       )
     `,
-    sql`CREATE INDEX IF NOT EXISTS ${sql.ident(`${EVENTS_TABLE_NAME}_xid_idx`)} ON ${sql.ident(EVENTS_TABLE_NAME)} (xid)`,
+    sql`CREATE INDEX IF NOT EXISTS ${database.scopedIdent(`${EVENTS_TABLE_NAME}_xid_idx`)} ON ${database.scopedIdent(EVENTS_TABLE_NAME)} (xid)`,
   ];
 };

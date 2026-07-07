@@ -1,11 +1,11 @@
-import { sql } from "./builder/sql";
-import type { BoundSql, Sql } from "./builder/sql";
+import type { BoundSql, Ident, Sql } from "./builder/sql";
+import type { Database } from "./database";
 import type { Fromable} from "./builder/query";
 import { QueryBuilder } from "./builder/query";
 import { DeleteBuilder } from "./builder/delete";
 import { UpdateBuilder } from "./builder/update";
 import { InsertBuilder } from "./builder/insert";
-import { isColumn } from "./types/overrides/any";
+import { isColumn } from "./types/sql-value";
 import type { InsertRow } from "./types/runtime";
 
 // A per-op SQL rewrite hook. Tables opt in via the `transformer` option;
@@ -40,6 +40,11 @@ export type TableOptions = {
 export abstract class TableBase {
   static readonly tableName: string;
   static readonly tsAlias: string;
+  // Provenance handle set by `db.Table(name)`. Propagated to every
+  // Ident this table emits; the compile-time provenance check
+  // enforces same-db at bind time. Non-optional — tables are always
+  // scoped to a Database.
+  static readonly database: Database;
   // Mutation builders on this table run this at bind() time and on each
   // raw result row before deserialization. Default none.
   static readonly transformer: QueryTransformer | undefined = undefined;
@@ -63,7 +68,13 @@ export abstract class TableBase {
   }
 
   static bind(this: typeof TableBase): BoundSql {
-    return sql.ident(this.tableName);
+    return this.database.scopedIdent(this.tableName);
+  }
+
+  // Emit a database-tagged Ident from this table for use in column-name
+  // construction (used by reAlias, mutation builders' column lists, etc.).
+  static ident(this: typeof TableBase, name: string): Ident {
+    return this.database.scopedIdent(name);
   }
 
   // Entry point for query builders: e.g., `Users.from()` 
@@ -73,6 +84,7 @@ export abstract class TableBase {
       InstanceType<T>,
       []
     >({
+      database: this.database,
       tsAlias: this.tsAlias,
       tables: [{ type: "from", source: this as unknown as Fromable }],
     });
@@ -143,7 +155,7 @@ export abstract class TableBase {
 }
 
 // Enumerate column field names on a Table instance. Columns are field
-// initializers that hold an Any with an Unbound sentinel; isColumn
+// initializers that hold a SqlValue with an Unbound sentinel; isColumn
 // filters out expressions and non-column fields.
 export const columnFieldNames = (instance: TableBase): string[] => {
   return Object.getOwnPropertyNames(instance).filter(
@@ -160,7 +172,11 @@ TableBase satisfies Fromable;
 // Apps that thread a context type via `typegres<Principal>()`
 // + `db.Table(name)` get tables whose `scope()` argument and
 // `contextOf()` return type are pinned to `Principal`.
-export const Table = <Name extends string, C = undefined>(name: Name, opts: TableOptions = {}) => {
+export const Table = <Name extends string, C = undefined>(
+  name: Name,
+  opts: TableOptions,
+  database: Database,
+) => {
   // Named class via computed-key shim — shows up as `name` in stack traces.
   const obj = {
     [name]: class extends TableBase {
@@ -171,6 +187,7 @@ export const Table = <Name extends string, C = undefined>(name: Name, opts: Tabl
       // Default value remains `undefined` until `scope()` overrides via
       // subclass; the type narrowing is purely compile-time.
       static override readonly context: C = undefined as C;
+      static override readonly database = database;
     },
   };
   type Obj = typeof obj;

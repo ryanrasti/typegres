@@ -1,6 +1,6 @@
 import { test, expect } from "vitest";
 import { sql } from "../builder/sql";
-import { driver, setupDb } from "../test-helpers";
+import { conn, setupDb } from "../test-helpers";
 import { Bus, CursorTooOldError, type Subscription } from "./bus";
 import { type Cursor, parseSnapshot } from "./snapshot";
 import { setupLiveEvents } from "./test-helpers";
@@ -9,12 +9,12 @@ setupDb();
 setupLiveEvents();
 
 const grabSnapshot = async (): Promise<Cursor> => {
-  const r = await driver.execute(sql`SELECT pg_current_snapshot()::text AS s`);
+  const r = await conn.execute(sql`SELECT pg_current_snapshot()::text AS s`);
   return parseSnapshot((r.rows as { s: string }[])[0]!.s);
 };
 
 const insertEvent = async (table: string, before: object | null, after: object | null) => {
-  await driver.execute(sql`
+  await conn.execute(sql`
     INSERT INTO _typegres_live_events (xid, "table", before, after)
     VALUES (
       pg_current_xact_id(),
@@ -34,7 +34,7 @@ const waitedWithin = async (sub: Subscription, ms = 50): Promise<boolean> =>
   ]);
 
 test("Bus signals a subscription whose cursor doesn't see a matching event", async () => {
-  const bus = new Bus(driver);
+  const bus = new Bus(conn);
   await bus.start();
 
   const sub = bus.subscribe(
@@ -52,7 +52,7 @@ test("Bus signals a subscription whose cursor doesn't see a matching event", asy
 });
 
 test("Bus does not signal when the cursor already sees the event", async () => {
-  const bus = new Bus(driver);
+  const bus = new Bus(conn);
   await bus.start();
 
   // Insert event FIRST, then capture cursor — sub's snapshot sees it.
@@ -70,7 +70,7 @@ test("Bus does not signal when the cursor already sees the event", async () => {
 });
 
 test("subscribe returns undefined when in-memory backfill already shows a matching event", async () => {
-  const bus = new Bus(driver);
+  const bus = new Bus(conn);
   await bus.start();
 
   // Capture cursor BEFORE the event commits (sub won't see it).
@@ -97,7 +97,7 @@ test("subscribe returns undefined when in-memory backfill already shows a matchi
 
 test("subscribe throws CursorTooOldError when cursor is older than the buffer floor", async () => {
   // Tiny window of 2 — easy to roll the floor past an old cursor.
-  const bus = new Bus(driver, { windowSize: 2 });
+  const bus = new Bus(conn, { windowSize: 2 });
   await bus.start();
 
   // Snapshot held by an "ancient" cursor predating any committed events.
@@ -117,7 +117,7 @@ test("subscribe throws CursorTooOldError when cursor is older than the buffer fl
 });
 
 test("subscribe throws if bus is not started", () => {
-  const bus = new Bus(driver);
+  const bus = new Bus(conn);
   expect(() =>
     bus.subscribe({ xmin: 0n, xmax: 0n, xip: new Set() }, new Map()),
   ).toThrow(/not started/);

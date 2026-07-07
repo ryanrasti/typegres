@@ -1,22 +1,26 @@
 import { test, expect, expectTypeOf } from "vitest";
-import { Int4, Int8, Text, Bool, Jsonb } from "../types";
+import { Int4, Int8, Text, Bool, Jsonb } from "../types/postgres";
 import { sql, compile } from "./sql";
-import { setupDb, db } from "../test-helpers";
+import { setupDb, db, conn } from "../test-helpers";
 import { expose } from "typegres";
 setupDb();
+// `db` is populated inside setupDb's beforeAll — but each `compile(q, pgCtx)`
+// call is inside a test body which runs after beforeAll, so this lazy getter
+// captures the current value each time.
+const pgCtx = { get database() { return db; } };
 
 // --- values() ---
 
 test("values with single typed row", async () => {
   const q = db.values({ a: Int4.from(1), b: Text.from("hello") });
-  const compiled = compile(q, "pg");
+  const compiled = compile(q, pgCtx);
   expect(compiled.text).toContain("VALUES");
   expect(compiled.text).toContain("CAST");
 });
 
 test("values with multiple rows, second row uses primitives", async () => {
   const q = db.values({ x: Int4.from(1), y: Text.from("a") }, { x: 2, y: "b" });
-  const compiled = compile(q, "pg");
+  const compiled = compile(q, pgCtx);
   expect(compiled.text).toContain("VALUES");
 });
 
@@ -24,7 +28,7 @@ test("values with multiple rows, second row uses primitives", async () => {
 
 test("values with select identity", async () => {
   const q = db.values({ num: Int4.from(42), name: Text.from("test") }).select((n) => n.values);
-  const compiled = compile(q, "pg");
+  const compiled = compile(q, pgCtx);
   expect(compiled.text).toContain("SELECT");
   expect(compiled.text).toContain("VALUES");
 });
@@ -33,7 +37,7 @@ test("values with select computed column", async () => {
   const q = db.values({ a: Int4.from(5), b: Int4.from(3) }).select((n) => ({
     sum: n.values.a["+"](n.values.b),
   }));
-  const compiled = compile(q, "pg");
+  const compiled = compile(q, pgCtx);
   expect(compiled.text).toContain("SELECT");
   expect(compiled.text).toContain("+");
 });
@@ -41,13 +45,13 @@ test("values with select computed column", async () => {
 // --- e2e ---
 
 test("e2e: values single row", async () => {
-  const result = await db.execute(db.values({ a: Int4.from(1), b: Text.from("hello") }));
+  const result = await conn.execute(db.values({ a: Int4.from(1), b: Text.from("hello") }));
   expectTypeOf(result).toEqualTypeOf<{ a: number; b: string }[]>();
   expect(result).toEqual([{ a: 1, b: "hello" }]);
 });
 
 test("e2e: values multiple rows", async () => {
-  const result = await db.execute(db.values({ x: Int4.from(1), y: Text.from("a") }, { x: 2, y: "b" }));
+  const result = await conn.execute(db.values({ x: Int4.from(1), y: Text.from("a") }, { x: 2, y: "b" }));
   expectTypeOf(result).toEqualTypeOf<{ x: number; y: string }[]>();
   expect(result).toEqual([
     { x: 1, y: "a" },
@@ -56,7 +60,7 @@ test("e2e: values multiple rows", async () => {
 });
 
 test("e2e: values with select expression", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ a: Int4.from(10), b: Int4.from(20) })
     .select((n) => ({
       sum: n.values.a["+"](n.values.b),
@@ -67,7 +71,7 @@ test("e2e: values with select expression", async () => {
 });
 
 test("e2e: values with string upper", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ name: Text.from("hello") })
     .select((n) => ({
       upper: n.values.name.upper(),
@@ -78,7 +82,7 @@ test("e2e: values with string upper", async () => {
 });
 
 test("e2e: values with mixed types", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ num: Int4.from(42), str: Text.from("test"), flag: Bool.from(true) })
     );
   expectTypeOf(result).toEqualTypeOf<{ num: number; str: string; flag: boolean }[]>();
@@ -86,7 +90,7 @@ test("e2e: values with mixed types", async () => {
 });
 
 test("e2e: values with primitive second row", async () => {
-  const result = await db.execute(db.values({ a: Int4.from(1) }, { a: 2 }, { a: 3 }));
+  const result = await conn.execute(db.values({ a: Int4.from(1) }, { a: 2 }, { a: 3 }));
   expectTypeOf(result).toEqualTypeOf<{ a: number }[]>();
   expect(result).toEqual([{ a: 1 }, { a: 2 }, { a: 3 }]);
 });
@@ -94,7 +98,7 @@ test("e2e: values with primitive second row", async () => {
 // --- where ---
 
 test("e2e: where filters rows", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ a: Int4.from(1), b: Text.from("yes") }, { a: 2, b: "no" }, { a: 3, b: "yes" })
     .where((n) => n.values.a[">"](2))
     );
@@ -103,7 +107,7 @@ test("e2e: where filters rows", async () => {
 });
 
 test("e2e: where with equality", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ x: Int4.from(10) }, { x: 20 }, { x: 10 })
     .where((n) => n.values.x["="](10))
     );
@@ -113,7 +117,7 @@ test("e2e: where with equality", async () => {
 
 test("where compiles to SQL", () => {
   const q = db.values({ a: Int4.from(1) }).where((n) => n.values.a[">"](5));
-  const compiled = compile(q, "pg");
+  const compiled = compile(q, pgCtx);
   expect(compiled.text).toContain("WHERE");
 });
 
@@ -127,13 +131,13 @@ test("groupBy compiles to SQL", () => {
       { category: "b", amount: 30 },
     )
     .groupBy((n) => [n.values.category]);
-  const compiled = compile(q, "pg");
+  const compiled = compile(q, pgCtx);
   expect(compiled.text).toContain("GROUP BY");
 });
 
 test("e2e: groupBy select using numeric index", async () => {
   // n.values.category is the same expression used in groupBy — should work directly
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values(
       { category: Text.from("x"), val: Int4.from(1) },
       { category: "x", val: 2 },
@@ -149,7 +153,7 @@ test("e2e: groupBy select using numeric index", async () => {
 });
 
 test("e2e: groupBy with select", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values(
       { category: Text.from("a"), amount: Int4.from(10) },
       { category: "a", amount: 20 },
@@ -178,14 +182,14 @@ test("having compiles to SQL", () => {
     )
     .groupBy((n) => [n.values.category])
     .having((n) => n.values.category[">"](Text.from("a")));
-  const compiled = compile(q, "pg");
+  const compiled = compile(q, pgCtx);
   expect(compiled.text).toContain("HAVING");
   expect(compiled.text).toContain("GROUP BY");
 });
 
 test("e2e: having filters groups", async () => {
   // Group by category, only keep groups where category > 'a'
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values(
       { category: Text.from("a"), val: Int4.from(1) },
       { category: "b", val: 2 },
@@ -205,7 +209,7 @@ test("e2e: having filters groups", async () => {
 });
 
 test("e2e: where + groupBy + having", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values(
       { category: Text.from("a"), amount: Int4.from(10) },
       { category: "a", amount: 20 },
@@ -233,13 +237,13 @@ test("orderBy compiles to SQL", () => {
   const q = db
     .values({ a: Int4.from(1) })
     .orderBy((n) => [n.values.a, "desc"]);
-  const compiled = compile(q, "pg");
+  const compiled = compile(q, pgCtx);
   expect(compiled.text).toContain("ORDER BY");
   expect(compiled.text).toContain("DESC");
 });
 
 test("e2e: orderBy single expr (default asc)", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ x: Int4.from(3) }, { x: 1 }, { x: 2 })
     .orderBy((n) => n.values.x)
     );
@@ -248,7 +252,7 @@ test("e2e: orderBy single expr (default asc)", async () => {
 });
 
 test("e2e: orderBy single tuple", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ x: Int4.from(3) }, { x: 1 }, { x: 2 })
     .orderBy((n) => [n.values.x, "desc"])
     );
@@ -257,7 +261,7 @@ test("e2e: orderBy single tuple", async () => {
 });
 
 test("e2e: orderBy stacking", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values(
       { a: Text.from("x"), b: Int4.from(2) },
       { a: "x", b: 1 },
@@ -275,7 +279,7 @@ test("e2e: orderBy stacking", async () => {
 });
 
 test("e2e: orderBy multiple columns", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values(
       { a: Text.from("x"), b: Int4.from(2) },
       { a: "x", b: 1 },
@@ -297,7 +301,7 @@ test("e2e: orderBy multiple columns", async () => {
 // --- limit / offset ---
 
 test("e2e: limit", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 })
     .orderBy((n) => [[n.values.x, "asc"]])
     .limit(2)
@@ -307,7 +311,7 @@ test("e2e: limit", async () => {
 });
 
 test("e2e: offset", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 })
     .orderBy((n) => [[n.values.x, "asc"]])
     .offset(1)
@@ -317,7 +321,7 @@ test("e2e: offset", async () => {
 });
 
 test("e2e: limit + offset (pagination)", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 }, { x: 4 }, { x: 5 })
     .orderBy((n) => [[n.values.x, "asc"]])
     .limit(2)
@@ -328,7 +332,7 @@ test("e2e: limit + offset (pagination)", async () => {
 });
 
 test("e2e: where + orderBy + limit", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ x: Int4.from(10) }, { x: 5 }, { x: 20 }, { x: 1 }, { x: 15 })
     .where((n) => n.values.x[">"](5))
     .orderBy((n) => [[n.values.x, "asc"]])
@@ -340,8 +344,8 @@ test("e2e: where + orderBy + limit", async () => {
 
 // --- joins ---
 
-const withinTransaction = async (fn: (tx: typeof db) => Promise<void>) => {
-  await db.transaction(async (tx) => {
+const withinTransaction = async (fn: (tx: typeof conn) => Promise<void>) => {
+  await conn.transaction(async (tx) => {
     await fn(tx);
     throw new Error("__test_rollback__");
   }).catch((e) => {
@@ -586,7 +590,7 @@ test("scalar with cardinality 'many' — array result", async () => {
 // --- aggregates ---
 
 test("count on values", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 })
     .groupBy()
     .select((n) => ({ total: n.values.x.count() }))
@@ -597,7 +601,7 @@ test("count on values", async () => {
 });
 
 test("sum and avg", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ x: Int4.from(10) }, { x: 20 }, { x: 30 })
     .groupBy()
     .select((n) => ({ total: n.values.x.sum(), average: n.values.x.avg() }))
@@ -608,7 +612,7 @@ test("sum and avg", async () => {
 });
 
 test("groupBy with count", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values(
       { cat: Text.from("a"), val: Int4.from(1) },
       { cat: "a", val: 2 },
@@ -631,7 +635,7 @@ test("groupBy with count", async () => {
 });
 
 test("max and min", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ x: Int4.from(5) }, { x: 1 }, { x: 9 })
     .groupBy()
     .select((n) => ({ hi: n.values.x.max(), lo: n.values.x.min() }))
@@ -645,7 +649,7 @@ test("max and min", async () => {
 
 test("generate_series as Fromable via db.from()", async () => {
   const series = Int4.from(1).generateSeries(3, 1);
-  const result = await db.execute(db.from(series));
+  const result = await conn.execute(db.from(series));
 
   expectTypeOf(result).toEqualTypeOf<{ generate_series: number }[]>();
   expect(result).toEqual([
@@ -658,7 +662,7 @@ test("generate_series as Fromable via db.from()", async () => {
 test("jsonb_each_text as multi-column SRF", async () => {
   const jsonVal = Jsonb.from('{"a": 1, "b": 2}');
   const each = jsonVal.jsonbEachText();
-  const result = await db.execute(db.from(each)
+  const result = await conn.execute(db.from(each)
     .orderBy(({ jsonb_each_text }) => jsonb_each_text.key)
     );
 
@@ -672,7 +676,7 @@ test("jsonb_each_text as multi-column SRF", async () => {
 // --- method idempotency ---
 
 test("select: last call wins", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ a: Int4.from(1), b: Text.from("x") })
     .select((n) => ({ first: n.values.a }))
     .select((n) => ({ second: n.values.b }))
@@ -683,7 +687,7 @@ test("select: last call wins", async () => {
 });
 
 test("where: multiple calls AND-combine", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 }, { x: 4 })
     .where((n) => n.values.x[">"](1))
     .where((n) => n.values.x["<"](4))
@@ -693,7 +697,7 @@ test("where: multiple calls AND-combine", async () => {
 });
 
 test("orderBy: multiple calls stack", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values(
       { a: Text.from("b"), b: Int4.from(2) },
       { a: "a", b: 1 },
@@ -713,7 +717,7 @@ test("orderBy: multiple calls stack", async () => {
 });
 
 test("limit: multiple calls take MIN", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 }, { x: 4 }, { x: 5 })
     .orderBy((n) => n.values.x)
     .limit(3)
@@ -724,7 +728,7 @@ test("limit: multiple calls take MIN", async () => {
 });
 
 test("offset: multiple calls sum", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values({ x: Int4.from(1) }, { x: 2 }, { x: 3 }, { x: 4 }, { x: 5 })
     .orderBy((n) => n.values.x)
     .offset(1)
@@ -735,7 +739,7 @@ test("offset: multiple calls sum", async () => {
 });
 
 test("groupBy: multiple calls stack", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values(
       { a: Text.from("x"), b: Text.from("1"), c: Int4.from(10) },
       { a: "x", b: "1", c: 20 },
@@ -757,7 +761,7 @@ test("groupBy: multiple calls stack", async () => {
 });
 
 test("having: multiple calls AND-combine", async () => {
-  const result = await db.execute(db
+  const result = await conn.execute(db
     .values(
       { cat: Text.from("a"), val: Int4.from(1) },
       { cat: "a", val: 2 },
@@ -834,20 +838,20 @@ test("where defers callback validation — bad return only throws at compile", (
     .values({ a: Int4.from(1) })
     // @ts-expect-error — callback must return Bool
     .where(() => 42);
-  expectReturnValidationError(() => compile(q, "pg"), /expected Bool, received number/);
+  expectReturnValidationError(() => compile(q, pgCtx), /expected Bool, received number/);
 });
 
 test("orderBy defers — empty array fails .min(1) at compile", () => {
   const q = db.values({ a: Int4.from(1) }).orderBy(() => [] as never);
-  expectReturnValidationError(() => compile(q, "pg"), /expected array to have >=1 items/);
+  expectReturnValidationError(() => compile(q, pgCtx), /expected array to have >=1 items/);
 });
 
 test("groupBy() with no args is allowed (optional callback)", () => {
   const q = db.values({ a: Int4.from(1) }).groupBy();
-  expect(() => compile(q, "pg")).not.toThrow();
+  expect(() => compile(q, pgCtx)).not.toThrow();
 });
 
-test("type test: db.execute(Table.from()) row methods are never-typed (uncallable)", async () => {
+test("type test: conn.execute(Table.from()) row methods are never-typed (uncallable)", async () => {
   await withinTransaction(async (tx) => {
     await tx.execute(sql`CREATE TABLE widgets (
       id   int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
