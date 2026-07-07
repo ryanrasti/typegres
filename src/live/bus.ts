@@ -1,5 +1,6 @@
-import type { Driver } from "../driver";
+import type { Connection } from "../database";
 import { sql } from "../builder/sql";
+import type { Database } from "../database";
 import { type Cursor, parseSnapshot, visible } from "./snapshot";
 import type { PredicateSet } from "./extractor";
 
@@ -106,13 +107,15 @@ export class Bus {
   #oncePolled: (() => void)[] = [];
   readonly #intervalMs: number;
   readonly #windowSize: number;
+  readonly #database: Database;
 
   constructor(
-    private driver: Driver,
+    private conn: Connection<any>,
     opts: BusOptions = {},
   ) {
     this.#intervalMs = opts.intervalMs ?? 100;
     this.#windowSize = opts.windowSize ?? 10_000;
+    this.#database = conn.database;
   }
 
   // Capture the initial snapshot and start the polling loop. Must be
@@ -284,7 +287,7 @@ export class Bus {
   }
 
   async #readCursor(): Promise<Cursor> {
-    const r = await this.driver.execute(sql`SELECT pg_current_snapshot()::text AS s`);
+    const r = await this.conn.execute(sql`SELECT pg_current_snapshot()::text AS s`);
     return parseSnapshot((r.rows as { s: string }[])[0]!.s);
   }
 
@@ -299,9 +302,9 @@ export class Bus {
     // refined by per-row visibility against both cursors. pg_snapshot
     // can't bind as a typed param so cursor text round-trips through
     // `::pg_snapshot`.
-    const r = await this.driver.execute(sql`
+    const r = await this.conn.execute(sql`
       SELECT xid::text AS xid, "table", before::text AS before, after::text AS after
-      FROM ${sql.ident(EVENTS_TABLE)}
+      FROM ${this.#database.scopedIdent(EVENTS_TABLE)}
       WHERE xid >= pg_snapshot_xmin(${sql.param(cursorToText(prev))}::pg_snapshot)
         AND pg_visible_in_snapshot(xid, ${sql.param(cursorToText(cur))}::pg_snapshot)
         AND NOT pg_visible_in_snapshot(xid, ${sql.param(cursorToText(prev))}::pg_snapshot)

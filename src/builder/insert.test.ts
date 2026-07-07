@@ -1,5 +1,5 @@
 import { test, expect, expectTypeOf } from "vitest";
-import { Int8, Text } from "../types";
+import { Int8, Text } from "../types/postgres";
 import type { InsertRow } from "../types/runtime";
 import { sql } from "./sql";
 import { setupDb, db, withinTransaction } from "../test-helpers";

@@ -1,6 +1,7 @@
-import type { Database } from "../database";
+import type { Connection } from "../database";
 import { FinalizedQuery, type QueryBuilder, type RowType, type RowTypeToTsType } from "../builder/query";
 import { type Alias, Column, Op, type Raw, type Sql, sql, TypedParam } from "../builder/sql";
+import type { Database } from "../database";
 import { type TableBase, isTableClass } from "../table";
 
 type Table = typeof TableBase;
@@ -130,6 +131,9 @@ export const traverse = (root: Sql): TraverseResult => {
 export type CteSpec = {
   alias: Alias;
   tableName: string;
+  // The Database this CTE's FROM clause references — used to tag the
+  // schema-referencing table Ident inside `FROM <tableName> AS <alias>`.
+  database: Database;
   predicates: RelativePredicate[];
 };
 
@@ -158,7 +162,12 @@ export const sortAliases = (traversal: TraverseResult): CteSpec[] => {
 
   return order.map((alias) => {
     const entry = traversal.get(alias)!;
-    return { alias, tableName: entry.table.tableName, predicates: entry.predicates };
+    return {
+      alias,
+      tableName: entry.table.tableName,
+      database: entry.table.database,
+      predicates: entry.predicates,
+    };
   });
 };
 
@@ -203,8 +212,8 @@ export const buildExtractor = (specs: CteSpec[]): Sql => {
     const uniqueColumnNames = [...new Set(spec.predicates.map((p) => p.col.name.name))];
     const body = sql.join(
       [
-        sql`SELECT ${sql.join(uniqueColumnNames.map((c) => sql.ident(c)))}`,
-        sql`FROM ${sql.ident(spec.tableName)} AS ${spec.alias}`,
+        sql`SELECT ${sql.join(uniqueColumnNames.map((c) => spec.database.scopedIdent(c)))}`,
+        sql`FROM ${spec.database.scopedIdent(spec.tableName)} AS ${spec.alias}`,
         whereClauses.length > 0 && sql`WHERE ${sql.join(whereClauses, sql` AND `)}`,
       ].filter((x) => x !== false),
       sql` `,
@@ -322,7 +331,7 @@ export type LiveIterationResult<O extends RowType> = {
 // cursor, run the extractor, run the user query, commit. Caller handles the
 // outer "yield + wait for matching event + repeat" loop.
 export const runLiveIteration = async <Q extends QueryBuilder<any, any, any, any>>(
-  db: Database<any>,
+  db: Connection<any>,
   query: Q,
 ): Promise<
   Q extends QueryBuilder<any, infer O extends RowType, any, any>

@@ -1,5 +1,5 @@
 import { test, expect, expectTypeOf } from "vitest";
-import { Int8, Text } from "../types";
+import { Int8, Text } from "../types/postgres";
 import { sql } from "./sql";
 import { setupDb, db, withinTransaction } from "../test-helpers";
 setupDb();
@@ -72,6 +72,39 @@ test("delete: multiple where calls AND-combine", async () => {
     );
 
     expect(rows).toEqual([{ name: "b" }, { name: "c" }, { name: "d" }]);
+  });
+});
+
+test("delete: where(true) after a real .where() is a no-op", async () => {
+  // Regression guard: matchAll (from .where(true)) and a real predicate
+  // are stored separately; if both are set, the predicate must win. A
+  // bug that let matchAll clobber the predicate would silently delete
+  // every row.
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE guards (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL
+    )`);
+    await tx.execute(sql`INSERT INTO guards (name) VALUES ('keep'), ('doomed'), ('keep2')`);
+
+    class Guards extends db.Table("guards") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+      name = (Text<1>).column({ nonNull: true });
+    }
+
+    await tx.execute(
+      Guards.delete()
+        .where(({ guards }) => guards.name["="]("doomed"))
+        .where(true),
+    );
+
+    const rows = await tx.execute(
+      Guards.from()
+        .select(({ guards }) => ({ name: guards.name }))
+        .orderBy(({ guards }) => guards.name),
+    );
+
+    expect(rows).toEqual([{ name: "keep" }, { name: "keep2" }]);
   });
 });
 

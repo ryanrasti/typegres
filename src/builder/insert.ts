@@ -1,11 +1,11 @@
-import { Sql, sql, Alias, compile } from "./sql";
+import { Sql, sql, Alias, compile, type CompileContext } from "./sql";
 import type { BoundSql } from "./sql";
 import type { RowType, RowTypeToTsType } from "./query";
 import { compileSelectList, isRowType, mergeReturning, reAlias } from "./query";
 import type { TableBase } from "../table";
-import { Database } from "../database";
-import { getColumn } from "../types/overrides/any";
-import { meta } from "../types/runtime";
+import { Connection } from "../database";
+import { getColumn } from "../types/sql-value";
+import { meta } from "../types/sql-value";
 import { fn, expose } from "../exoeval/tool";
 import z from "zod";
 
@@ -37,7 +37,8 @@ export class FinalizedInsert<Name extends string, T extends TableBase, R extends
 
   bind(): BoundSql {
     const { tableName, alias, columnNames, rows, returning, instance } = this.opts;
-    const columns = columnNames.map((k) => sql.ident(k));
+    const tableCls = instance.constructor;
+    const columns = columnNames.map((k) => tableCls.database.scopedIdent(k));
     const rowSqls = rows.map((row) => {
       const vals = columnNames.map((k) => {
         const v = row[k];
@@ -48,7 +49,7 @@ export class FinalizedInsert<Name extends string, T extends TableBase, R extends
       return sql`(${sql.join(vals)})`;
     });
     const inner = sql.join([
-      sql`INSERT INTO ${sql.ident(tableName)} AS ${alias} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`,
+      sql`INSERT INTO ${tableCls.ident(tableName)} AS ${alias} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`,
       returning && sql`RETURNING ${compileSelectList(returning)}`,
     ], sql` `);
     return sql.withScope([alias], inner);
@@ -65,6 +66,10 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
 
   get tableName(): Name {
     return this.#opts.instance.constructor.tableName as Name;
+  }
+
+  get database() {
+    return this.#opts.instance.constructor.database;
   }
 
   @expose(fn.returns(z.custom<any>((v) => isRowType(v))))
@@ -106,28 +111,28 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
     });
   }
 
-  bind(): BoundSql {
+  bind(ctx: CompileContext): BoundSql {
     const t = this.#opts.instance.constructor.transformer?.insert;
-    return (t ? t(this) : this.finalize()).bind();
+    return (t ? t(this) : this.finalize()).bind(ctx);
   }
 
   override children() {
     return [this.finalize()];
   }
 
-  @expose(z.lazy(() => z.instanceof(Database)))
-  override async execute(db: Database<any>): Promise<RowTypeToTsType<R>[]> {
-    return db.execute(this);
+  @expose(z.lazy(() => z.instanceof(Connection)))
+  override async execute(conn: Connection<any>): Promise<RowTypeToTsType<R>[]> {
+    return conn.execute(this);
   }
 
-  @expose(z.lazy(() => z.instanceof(Database)))
-  async hydrate(db: Database<any>): Promise<R[]> {
-    return db.hydrate<any, any, R>(this);
+  @expose(z.lazy(() => z.instanceof(Connection)))
+  async hydrate(conn: Connection<any>): Promise<R[]> {
+    return conn.hydrate<any, any, R>(this);
   }
 
   @expose()
   debug(): this {
-    const compiled = compile(this, "pg");
+    const compiled = compile(this, { database: this.database });
     console.log("Debugging query:", { sql: compiled.text, parameters: compiled.values });
     return this;
   }

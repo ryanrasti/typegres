@@ -2,7 +2,7 @@ import pg from "pg";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Config } from "../config.ts";
-import { pgNameToClassName } from "../types/introspect.ts";
+import { pgNameToClassName } from "../types/postgres/introspect.ts";
 
 // --- Config ---
 

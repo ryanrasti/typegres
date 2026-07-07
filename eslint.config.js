@@ -57,6 +57,6 @@ export default [
     },
   },
   {
-    ignores: ["dist/", "src/types/generated/"],
+    ignores: ["dist/", "src/types/*/generated/"],
   },
 ];

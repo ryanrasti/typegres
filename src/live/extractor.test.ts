@@ -1,17 +1,21 @@
 import { test, expect } from "vitest";
-import { Int8, Text } from "../types";
-import { Table } from "../table";
+import { Int8, Text } from "../types/postgres";
+import { Database } from "../database";
 import { sql } from "../builder/sql";
 import { expectSqlEqual } from "../test-helpers";
+
+// Local metadata Database — extractor tests don't execute queries, just
+// walk the tree, so no driver / conn needed.
+const db = new Database({ dialect: "postgres" });
 import { buildExtractor, materializePredicateSet, sortAliases, traverse } from "./extractor";
 
-class Users extends Table("users") {
+class Users extends db.Table("users") {
   id = (Int8<1>).column({ nonNull: true, generated: true });
   manager_id = (Int8<0 | 1>).column();
   role = (Text<1>).column({ nonNull: true });
 }
 
-class Dogs extends Table("dogs") {
+class Dogs extends db.Table("dogs") {
   id = (Int8<1>).column({ nonNull: true, generated: true });
   user_id = (Int8<1>).column({ nonNull: true });
   name = (Text<1>).column({ nonNull: true });
@@ -34,7 +38,7 @@ test("join chain: anchor propagates to dependent alias", () => {
 });
 
 test("three-table chain: order", () => {
-  class Toys extends Table("toys") {
+  class Toys extends db.Table("toys") {
     id = (Int8<1>).column({ nonNull: true, generated: true });
     dog_id = (Int8<1>).column({ nonNull: true });
   }
@@ -85,6 +89,7 @@ test("buildExtractor: single-table literal anchor", () => {
       )
       SELECT ${"users"} AS tbl, ${"id"} AS col, CAST(${"5"} AS int8)::text AS value
     `,
+    db,
   );
 });
 
@@ -113,6 +118,7 @@ test("buildExtractor: self-join produces two CTEs both backed by 'users'", () =>
       UNION ALL
       SELECT ${"users"} AS tbl, ${"id"}         AS col, "manager"."id"::text     AS value FROM "manager"
     `,
+    db,
   );
 });
 
@@ -138,6 +144,7 @@ test("buildExtractor: join chain rewrites edge to IN (SELECT … FROM upstream C
       UNION ALL
       SELECT ${"dogs"}  AS tbl, ${"user_id"} AS col, "dogs"."user_id"::text  AS value FROM "dogs"
     `,
+    db,
   );
 });
 
@@ -168,6 +175,7 @@ test("buildExtractor: multiple anchors keep their literal predicates plus join e
       UNION ALL
       SELECT ${"dogs"}  AS tbl, ${"name"}    AS col, CAST(${"Rex"} AS text)::text AS value
     `,
+    db,
   );
 });
 
@@ -176,10 +184,10 @@ test("buildExtractor: multiple anchors keep their literal predicates plus join e
 test("materializePredicateSet: literal anchor flows through equality edge", () => {
   // Users WHERE id=1 JOIN Notes ON notes.user_id = users.id.
   // Even with no rows in `users` or `notes`, notes.user_id watched ⊇ {1}.
-  class Users extends Table("users") {
+  class Users extends db.Table("users") {
     id = (Int8<1>).column({ nonNull: true, generated: true });
   }
-  class Notes extends Table("notes") {
+  class Notes extends db.Table("notes") {
     id = (Int8<1>).column({ nonNull: true, generated: true });
     user_id = (Int8<1>).column({ nonNull: true });
   }
@@ -199,10 +207,10 @@ test("materializePredicateSet: literal anchor flows through equality edge", () =
 });
 
 test("materializePredicateSet: data values propagate both directions across edge", () => {
-  class Users extends Table("users") {
+  class Users extends db.Table("users") {
     id = (Int8<1>).column({ nonNull: true, generated: true });
   }
-  class Notes extends Table("notes") {
+  class Notes extends db.Table("notes") {
     user_id = (Int8<1>).column({ nonNull: true });
   }
   const q = Users.from()
@@ -231,16 +239,16 @@ test("materializePredicateSet: cross-edge merges two pre-existing groups", () =>
   // B.c_id = C.id then forces those classes to merge — every column in
   // the chain ends up with the same value set. Without the merge walk,
   // C.id would orphan from the survivor.
-  class A extends Table("a") {
+  class A extends db.Table("a") {
     id = (Int8<1>).column({ nonNull: true, generated: true });
     b_id = (Int8<1>).column({ nonNull: true });
     c_id = (Int8<1>).column({ nonNull: true });
   }
-  class B extends Table("b") {
+  class B extends db.Table("b") {
     id = (Int8<1>).column({ nonNull: true, generated: true });
     c_id = (Int8<1>).column({ nonNull: true });
   }
-  class C extends Table("c") {
+  class C extends db.Table("c") {
     id = (Int8<1>).column({ nonNull: true, generated: true });
   }
   const q = A.from()
@@ -271,7 +279,7 @@ test("materializePredicateSet: cross-edge merges two pre-existing groups", () =>
 });
 
 test("materializePredicateSet: drops null values", () => {
-  class Users extends Table("users") {
+  class Users extends db.Table("users") {
     id = (Int8<1>).column({ nonNull: true, generated: true });
     role = (Text<1>).column({ nonNull: true });
   }

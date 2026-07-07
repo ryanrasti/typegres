@@ -57,6 +57,30 @@
     template, generated/ outputs, schema files, demo, README, and site
     copy all updated.
 
+11. **Shared `Bool<N>` interface is a nominal-only marker.** Defined
+    as `export interface Bool<N extends number> extends SqlValue<N> {}`
+    in `src/types/bool.ts` — no declared method surface. The file
+    comment explains why: concrete Bool classes (PG's and SQLite's)
+    each ship `and`/`or`/`not` methods whose arg is their own concrete
+    Bool, so requiring those methods on the shared interface creates a
+    TS variance mismatch when a concrete class is assigned to
+    `Bool<N>`. Fallout: any `SqlValue` satisfies `Bool<N>` at the
+    type level, so misuse only surfaces as a `zBool` runtime error at
+    the RPC boundary. Fix would need TS to gain a way to say
+    "structurally-compatible up to the dialect's own concrete class"
+    — or a redesign that gives up shared-Bool chaining.
+
+12. **`stripMatchedOuterParens` shouldn't be necessary.** SQLite refuses
+    to prepare a top-level parenthesized statement (`(SELECT …)`), but
+    `FinalizedQuery.bind()` wraps its output in `(...)` unconditionally
+    so the same shape can be spliced as a subquery inside a larger
+    template. The `SqliteDriver.execute` path strips a matched outer
+    pair as a driver-side affordance
+    (`src/driver.ts:stripMatchedOuterParens`), which is a hack. The
+    right fix is to distinguish "top-level compile" from "spliced as a
+    subquery" at the bind level: only the subquery form emits the
+    outer parens, and `SqliteDriver` stops rewriting SQL text.
+
 ## Missing features
 
 9. **Subselects / correlated subqueries in `.select(...)`** — requires

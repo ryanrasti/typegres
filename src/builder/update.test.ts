@@ -1,5 +1,5 @@
 import { test, expect, expectTypeOf } from "vitest";
-import { Int8, Text } from "../types";
+import { Int8, Text } from "../types/postgres";
 import { sql } from "./sql";
 import { setupDb, db, withinTransaction } from "../test-helpers";
 setupDb();
@@ -53,6 +53,46 @@ test("update all with where(true)", async () => {
     );
 
     expect(rows).toEqual([{ active: "no" }, { active: "no" }]);
+  });
+});
+
+test("update: where(true) after a real .where() is a no-op", async () => {
+  // Regression guard: matchAll (from .where(true)) and a real predicate
+  // are stored separately; if both are set, the predicate must win. A
+  // bug that let matchAll clobber the predicate would silently update
+  // every row.
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE guards (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL,
+      active text NOT NULL DEFAULT 'yes'
+    )`);
+    await tx.execute(sql`INSERT INTO guards (name) VALUES ('touch'), ('leave'), ('leave2')`);
+
+    class Guards extends db.Table("guards") {
+      id = (Int8<1>).column({ nonNull: true, generated: true });
+      name = (Text<1>).column({ nonNull: true });
+      active = (Text<1>).column({ nonNull: true, default: sql`'yes'` });
+    }
+
+    await tx.execute(
+      Guards.update()
+        .where(({ guards }) => guards.name["="]("touch"))
+        .where(true)
+        .set(() => ({ active: "no" })),
+    );
+
+    const rows = await tx.execute(
+      Guards.from()
+        .select(({ guards }) => ({ name: guards.name, active: guards.active }))
+        .orderBy(({ guards }) => guards.name),
+    );
+
+    expect(rows).toEqual([
+      { name: "leave", active: "yes" },
+      { name: "leave2", active: "yes" },
+      { name: "touch", active: "no" },
+    ]);
   });
 });
 

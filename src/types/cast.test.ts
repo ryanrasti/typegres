@@ -1,5 +1,5 @@
 import { test, expectTypeOf } from "vitest";
-import { Int4, Text } from "./index";
+import { Int4, Text } from "./postgres";
 import { sql } from "../builder/sql";
 
 // .cast(cls) must preserve the source's nullability class when producing

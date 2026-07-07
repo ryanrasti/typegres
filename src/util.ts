@@ -1,5 +1,5 @@
 import type { RowType } from "./builder/query";
-import {Any} from './types/index';
+import { SqlValue } from "./types/sql-value";
 import { exposedFieldsOf } from "./exoeval/tool";
 
 // Plain-data check, recursive. Is this a value that's JSON-safe all
@@ -9,12 +9,12 @@ import { exposedFieldsOf } from "./exoeval/tool";
 //   - plain objects (Object.prototype or null-proto), recursively
 //   - arrays, recursively
 // Rejects any class instance at any depth — Date, Map, Set, custom
-// classes, typegres `Any` expressions, etc.
+// classes, typegres typed values (SqlValue), etc.
 //
 // Used as a security boundary at serialization (RPC wire) and at
-// type-level wrapping (Any.from, Any.in). A class instance buried
-// three levels deep is just as bad as one at the top, so the check
-// recurses.
+// type-level wrapping (SqlValue.from, SqlValue.in). A class instance
+// buried three levels deep is just as bad as one at the top, so the
+// check recurses.
 //
 // Cycles aren't handled — typegres callers don't pass cyclic data;
 // JSON.stringify would fail downstream anyway. A cyclic input here
@@ -69,10 +69,10 @@ export const deserializeRows = <R>(
         .filter(([k]) => !exposed || exposed.has(k))
         .map(([k, v]) => {
           const type = (shape as { [k: string]: unknown })[k];
-          if (!(type instanceof Any)) {
+          if (!(type instanceof SqlValue)) {
             throw new Error(
-              `deserializeRows: output column '${k}' is not a typed pg expression (got ${JSON.stringify(type)}). ` +
-                `The select callback must return an object whose values are Any instances.`,
+              `deserializeRows: output column '${k}' is not a typed expression (got ${JSON.stringify(type)}). ` +
+                `The select callback must return an object whose values are typegres SqlValue instances.`,
             );
           }
           if (v == null) {

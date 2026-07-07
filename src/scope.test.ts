@@ -1,7 +1,7 @@
 import { describe, test, expect, expectTypeOf } from "vitest";
-import { sql, Int8, Text, Table } from ".";
+import { sql, Int8, Text } from ".";
 import { compile } from "./builder/sql";
-import { setupDb, withinTransaction } from "./test-helpers";
+import { setupDb, withinTransaction, db } from "./test-helpers";
 setupDb();
 
 // Spike: `Table.scope(ctx)` carries an arbitrary tag through the chain
@@ -15,7 +15,7 @@ describe("Table.scope(ctx)", () => {
       await tx.execute(sql`INSERT INTO foos (name) VALUES ('a'), ('b')`);
 
       type Principal = { user: string; role: string };
-      class Foos extends Table<"foos", Principal>("foos") {
+      class Foos extends db.Table<"foos", Principal>("foos") {
         id   = (Int8<1>).column({ nonNull: true, generated: true });
         name = (Text<1>).column({ nonNull: true });
       }
@@ -36,7 +36,7 @@ describe("Table.scope(ctx)", () => {
       await tx.execute(sql`CREATE TABLE bars (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name text NOT NULL)`);
       await tx.execute(sql`INSERT INTO bars (name) VALUES ('x')`);
 
-      class Bars extends Table("bars") {
+      class Bars extends db.Table("bars") {
         id   = (Int8<1>).column({ nonNull: true, generated: true });
         name = (Text<1>).column({ nonNull: true });
       }
@@ -51,7 +51,7 @@ describe("Table.scope(ctx)", () => {
       await tx.execute(sql`CREATE TABLE bazs (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)`);
       await tx.execute(sql`INSERT INTO bazs DEFAULT VALUES`);
 
-      class Bazs extends Table<"bazs", string>("bazs") {
+      class Bazs extends db.Table<"bazs", string>("bazs") {
         id = (Int8<1>).column({ nonNull: true, generated: true });
       }
 
@@ -61,10 +61,12 @@ describe("Table.scope(ctx)", () => {
   });
 
   test("emitted SQL is identical for Foos.from() and Foos.scope(...)", () => {
-    class Things extends Table<"things", { p: number }>("things") {
+    class Things extends db.Table<"things", { p: number }>("things") {
       id = (Int8<1>).column({ nonNull: true, generated: true });
     }
-    expect(compile(Things.scope({ p: 1 }) as any).text).toBe(compile(Things.from() as any).text);
+    const ctx = { database: db };
+    expect(compile(Things.scope({ p: 1 }) as any, ctx).text)
+      .toBe(compile(Things.from() as any, ctx).text);
   });
 
   test("a column literally named 'context' does not collide with the scope tag", async () => {
@@ -76,7 +78,7 @@ describe("Table.scope(ctx)", () => {
       await tx.execute(sql`INSERT INTO notes (context) VALUES ('hello world')`);
 
       type P = { user: string };
-      class Notes extends Table<"notes", P>("notes") {
+      class Notes extends db.Table<"notes", P>("notes") {
         id      = (Int8<1>).column({ nonNull: true, generated: true });
         // Column literally named "context" — would collide with an
         // *instance* getter, but `static context` lives in a separate
@@ -96,7 +98,7 @@ describe("Table.scope(ctx)", () => {
   test("Table<Name, C> pins context type — scope() narrows, contextOf() returns C", () => {
     type Principal = { user: string; role: "admin" | "viewer" };
 
-    class Resources extends Table<"resources", Principal>("resources") {
+    class Resources extends db.Table<"resources", Principal>("resources") {
       id = (Int8<1>).column({ nonNull: true, generated: true });
     }
 
@@ -129,11 +131,11 @@ describe("Table.scope(ctx)", () => {
       await tx.execute(sql`INSERT INTO books (title, author_id) VALUES ('Foundation', 1)`);
 
       type P = { user: string };
-      class Authors extends Table<"authors", P>("authors") {
+      class Authors extends db.Table<"authors", P>("authors") {
         id   = (Int8<1>).column({ nonNull: true, generated: true });
         name = (Text<1>).column({ nonNull: true });
       }
-      class Books extends Table<"books", P>("books") {
+      class Books extends db.Table<"books", P>("books") {
         id        = (Int8<1>).column({ nonNull: true, generated: true });
         title     = (Text<1>).column({ nonNull: true });
         author_id = (Int8<1>).column({ nonNull: true });
@@ -170,11 +172,11 @@ describe("Table.scope(ctx)", () => {
       await tx.execute(sql`INSERT INTO bks   (title, auth_id) VALUES ('Foundation', 1)`);
 
       type P = { user: string };
-      class Pubs extends Table<"pubs", P>("pubs") {
+      class Pubs extends db.Table<"pubs", P>("pubs") {
         id   = (Int8<1>).column({ nonNull: true, generated: true });
         name = (Text<1>).column({ nonNull: true });
       }
-      class Auths extends Table<"auths", P>("auths") {
+      class Auths extends db.Table<"auths", P>("auths") {
         id     = (Int8<1>).column({ nonNull: true, generated: true });
         name   = (Text<1>).column({ nonNull: true });
         pub_id = (Int8<1>).column({ nonNull: true });
@@ -184,7 +186,7 @@ describe("Table.scope(ctx)", () => {
             .cardinality("one");
         }
       }
-      class Bks extends Table<"bks", P>("bks") {
+      class Bks extends db.Table<"bks", P>("bks") {
         id      = (Int8<1>).column({ nonNull: true, generated: true });
         title   = (Text<1>).column({ nonNull: true });
         auth_id = (Int8<1>).column({ nonNull: true });
@@ -217,7 +219,7 @@ describe("Table.scope(ctx)", () => {
       await tx.execute(sql`INSERT INTO widgets DEFAULT VALUES`);
 
       type P = { user: string };
-      class Widgets extends Table<"widgets", P>("widgets") {
+      class Widgets extends db.Table<"widgets", P>("widgets") {
         id = (Int8<1>).column({ nonNull: true, generated: true });
 
         whoCalledMe(): string {

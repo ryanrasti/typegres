@@ -1,6 +1,7 @@
-import { Any, Int8, Jsonb, Text, Timestamptz, Xid8 } from "../types";
-import { Table, type QueryTransformer } from "../table";
-import { sql, type Sql } from "../builder/sql";
+import { Any, Jsonb } from "../types/postgres";
+import type { QueryTransformer } from "../table";
+import { sql, Ident, type Sql } from "../builder/sql";
+import type { Database } from "../database";
 import type { InsertBuilder } from "../builder/insert";
 import type { DeleteBuilder } from "../builder/delete";
 import type { UpdateBuilder} from "../builder/update";
@@ -10,25 +11,15 @@ import { EVENTS_TABLE_NAME, eventsTableSqlStatements } from "./events-ddl";
 
 // Shadow table that captures every mutation against a "live"-enabled table.
 // `makeTransformer` returns the per-op hook other tables opt in to:
-//   class Foos extends Table("foos", { transformer: TypegresLiveEvents.makeTransformer() })
-// The events class itself carries no transformer (would recurse).
-export class TypegresLiveEvents extends Table(EVENTS_TABLE_NAME) {
-  private id = (Int8<1>).column({ nonNull: true, generated: true });
-  private xid = (Xid8<1>).column({ nonNull: true });
-  private table = (Text<1>).column({ nonNull: true });
-  private before = (Jsonb<0 | 1>).column();
-  private after = (Jsonb<0 | 1>).column();
-  private inserted_at = (Timestamptz<1>).column({ nonNull: true });
+//   class Foos extends db.Table("foos", { transformer: TypegresLiveEvents.makeTransformer() })
+export class TypegresLiveEvents {
+  static readonly tableName = EVENTS_TABLE_NAME;
 
-  // The DDL itself lives in `./events-ddl.ts` so it can be imported
-  // without dragging the full Table → builder cycle through. Re-
-  // exported here for backwards compatibility with consumers that
-  // already call `TypegresLiveEvents.createTableSql{,Statements}`.
-  static createTableSql(): Sql {
-    return sql.join(eventsTableSqlStatements(), sql`; `);
+  static createTableSql(database: Database): Sql {
+    return sql.join(eventsTableSqlStatements(database), sql`; `);
   }
-  static createTableSqlStatements(): Sql[] {
-    return eventsTableSqlStatements();
+  static createTableSqlStatements(database: Database): Sql[] {
+    return eventsTableSqlStatements(database);
   }
 
   static makeTransformer(): QueryTransformer {
@@ -71,7 +62,7 @@ const liveAfterReturning =
 // enough — Database.execute discards rows since rowType() is undefined.
 const userReturningProjection = (returning: RowType, ...internalKeys: readonly string[]): Sql => {
   const userKeys = Object.keys(returning).filter((k) => !internalKeys.includes(k));
-  return userKeys.length > 0 ? sql.join(userKeys.map((k) => sql.ident(k))) : sql`1`;
+  return userKeys.length > 0 ? sql.join(userKeys.map((k) => new Ident(k))) : sql`1`;
 };
 
 // All internal CTE names + RETURNING aliases use the __typegres_ prefix so
@@ -85,8 +76,8 @@ const T_LIVE_AFTER = "__typegres_live_after";
 
 // `INSERT INTO _typegres_live_events (xid, "table", before, after) SELECT ... FROM __typegres_cte`.
 // Used by both the insert/delete and update wraps.
-const eventsInsertCte = (tableName: string, before: Sql, after: Sql): Sql =>
-  sql`INSERT INTO ${sql.ident(TypegresLiveEvents.tableName)} (${sql.ident("xid")}, ${sql.ident("table")}, ${sql.ident("before")}, ${sql.ident("after")}) SELECT pg_current_xact_id(), ${sql.param(tableName)}::text, ${before}, ${after} FROM ${sql.ident(T_CTE)}`;
+const eventsInsertCte = (tableName: string, before: Sql, after: Sql, database: Database): Sql =>
+  sql`INSERT INTO ${database.scopedIdent(TypegresLiveEvents.tableName)} (${database.scopedIdent("xid")}, ${database.scopedIdent("table")}, ${database.scopedIdent("before")}, ${database.scopedIdent("after")}) SELECT pg_current_xact_id(), ${sql.param(tableName)}::text, ${before}, ${after} FROM ${new Ident(T_CTE)}`;
 
 // Wrap an INSERT or DELETE in the events-emitting CTE chain. The two ops
 // are mirror images — INSERT captures the post-image as `after`, DELETE
@@ -101,6 +92,7 @@ const wrapInsertOrDelete = (
   side: "before" | "after",
 ): Sql => {
   const tableName = builder.tableName;
+  const database = builder.database;
   const liveKey = side === "before" ? T_LIVE_BEFORE : T_LIVE_AFTER;
 
   // returningMerge() has the same shape on both InsertBuilder and
@@ -110,11 +102,11 @@ const wrapInsertOrDelete = (
     .returningMerge(liveAfterReturning(tableName, side))
     .finalize();
 
-  const beforeRef = side === "before" ? sql.ident(liveKey) : sql`NULL::jsonb`;
-  const afterRef = side === "after" ? sql.ident(liveKey) : sql`NULL::jsonb`;
-  const events = eventsInsertCte(tableName, beforeRef, afterRef);
+  const beforeRef = side === "before" ? new Ident(liveKey) : sql`NULL::jsonb`;
+  const afterRef = side === "after" ? new Ident(liveKey) : sql`NULL::jsonb`;
+  const events = eventsInsertCte(tableName, beforeRef, afterRef, database);
   const projection = userReturningProjection(innerFinalized.opts.returning ?? {}, liveKey);
-  return sql`WITH ${sql.ident(T_CTE)} AS (${innerFinalized}), ${sql.ident(T_EVENTS)} AS (${events}) SELECT ${projection} FROM ${sql.ident(T_CTE)}`;
+  return sql`WITH ${new Ident(T_CTE)} AS (${innerFinalized}), ${new Ident(T_EVENTS)} AS (${events}) SELECT ${projection} FROM ${new Ident(T_CTE)}`;
 };
 
 // Wrap an UPDATE with ctid-paired before/after capture:
@@ -138,6 +130,7 @@ const wrapInsertOrDelete = (
 // we capture both images in one statement.
 const wrapUpdate = (builder: UpdateBuilder<any, any, any>): Sql => {
   const tableName = builder.tableName;
+  const database = builder.database;
 
   // Add both __typegres_live_before and __typegres_live_after to RETURNING.
   // After uses the post-update namespace refs (same as INSERT/DELETE); the
@@ -147,7 +140,7 @@ const wrapUpdate = (builder: UpdateBuilder<any, any, any>): Sql => {
     const tableInstance = (ns as { [k: string]: object })[tableName] as { [c: string]: Any<any> };
     return {
       [T_LIVE_BEFORE]: Jsonb.from(
-        buildLiveJsonb(tableInstance, (c) => sql`${sql.ident(T_BEFORE)}.${sql.ident(c)}::text`),
+        buildLiveJsonb(tableInstance, (c) => sql`${new Ident(T_BEFORE)}.${database.scopedIdent(c)}::text`),
       ),
       [T_LIVE_AFTER]: Jsonb.from(buildLiveJsonb(tableInstance)),
     };
@@ -159,15 +152,20 @@ const wrapUpdate = (builder: UpdateBuilder<any, any, any>): Sql => {
   // FinalizedUpdate.bind() can't be reused: the live wrap needs
   // `FROM __typegres_before WHERE <foos>.ctid = __typegres_before.ctid`
   // instead of the user's WHERE inline.
-  const beforeCte = sql`SELECT *, ctid FROM ${sql.ident(tableName)} AS ${alias} WHERE ${where.toSql()} FOR UPDATE`;
-  const ctidJoin = sql`${sql.column(alias, sql.ident("ctid"))} = ${sql.ident(T_BEFORE)}.${sql.ident("ctid")}`;
-  const updateCte = sql`UPDATE ${sql.ident(tableName)} AS ${alias} SET ${sql.join(compileSetClauses(instance, setRow))} FROM ${sql.ident(T_BEFORE)} WHERE ${ctidJoin} RETURNING ${compileSelectList(returning)}`;
+  // `.where(true)` on a live-tracked update leaves `where` undefined
+  // (matchAll semantics). Live-events still needs a WHERE for the
+  // before-CTE `FOR UPDATE` snapshot, so emit `WHERE TRUE` explicitly
+  // — always PG here since live is PG-only.
+  const whereClause = where ? where.toSql() : sql`TRUE`;
+  const beforeCte = sql`SELECT *, ctid FROM ${database.scopedIdent(tableName)} AS ${alias} WHERE ${whereClause} FOR UPDATE`;
+  const ctidJoin = sql`${sql.column(alias, database.scopedIdent("ctid"))} = ${new Ident(T_BEFORE)}.${database.scopedIdent("ctid")}`;
+  const updateCte = sql`UPDATE ${database.scopedIdent(tableName)} AS ${alias} SET ${sql.join(compileSetClauses(instance, setRow))} FROM ${new Ident(T_BEFORE)} WHERE ${ctidJoin} RETURNING ${compileSelectList(returning)}`;
 
-  const events = eventsInsertCte(tableName, sql.ident(T_LIVE_BEFORE), sql.ident(T_LIVE_AFTER));
+  const events = eventsInsertCte(tableName, new Ident(T_LIVE_BEFORE), new Ident(T_LIVE_AFTER), database);
   const projection = userReturningProjection(returning ?? {}, T_LIVE_BEFORE, T_LIVE_AFTER);
 
   return sql.withScope(
     [alias],
-    sql`WITH ${sql.ident(T_BEFORE)} AS (${beforeCte}), ${sql.ident(T_CTE)} AS (${updateCte}), ${sql.ident(T_EVENTS)} AS (${events}) SELECT ${projection} FROM ${sql.ident(T_CTE)}`,
+    sql`WITH ${new Ident(T_BEFORE)} AS (${beforeCte}), ${new Ident(T_CTE)} AS (${updateCte}), ${new Ident(T_EVENTS)} AS (${events}) SELECT ${projection} FROM ${new Ident(T_CTE)}`,
   );
 };

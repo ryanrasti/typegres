@@ -1,0 +1,103 @@
+// Auto-generated — do not edit
+import * as runtime from "../../runtime";
+import { meta } from "../../sql-value";
+import { expose } from "../../../exoeval/tool";
+import { Anynonarray } from "../generated/anynonarray";
+import * as types from "../index";
+
+export class Bit<in out N extends number> extends Anynonarray<N> {
+  declare [meta]: {
+    __class: typeof Bit;
+    __raw: runtime.Sql;
+    __nullability: N;
+    __nullable: Bit<0 | 1>;
+    __nonNullable: Bit<1>;
+    __aggregate: Bit<number>;
+    __any: Bit<any>;
+  };
+  static __typname = runtime.sql`bit`;
+  static __typnameText = "bit";
+  declare deserialize: (raw: string) => string;
+  @expose.unchecked()
+  bit<M0 extends types.Int4<any> | number, M1 extends types.Bool<any> | boolean>(arg0: M0, arg1: M1): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>> { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }, { type: types.Bool, allowPrimitive: true }], types.Bit]]); return runtime.funcCall("bit", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  bitCount(): types.Int8<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int8]]); return runtime.funcCall("bit_count", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  bitLength(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.funcCall("bit_length", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  bitSend(): types.Bytea<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bytea]]); return runtime.funcCall("bit_send", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  bitand<M0 extends types.Bit<any> | string>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bit]]); return runtime.funcCall("bitand", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  bitnot(): types.Bit<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bit]]); return runtime.funcCall("bitnot", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  bitor<M0 extends types.Bit<any> | string>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bit]]); return runtime.funcCall("bitor", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  bitshiftleft<M0 extends types.Int4<any> | number>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.funcCall("bitshiftleft", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  bitshiftright<M0 extends types.Int4<any> | number>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.funcCall("bitshiftright", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  bitxor<M0 extends types.Bit<any> | string>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bit]]); return runtime.funcCall("bitxor", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  getBit<M0 extends types.Int4<any> | number>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Int4]]); return runtime.funcCall("get_bit", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  int4(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.funcCall("int4", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  int8(): types.Int8<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int8]]); return runtime.funcCall("int8", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  length(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.funcCall("length", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  octetLength(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.funcCall("octet_length", [this, ...__rest], __rt) as any; }
+  overlay<M0 extends types.Bit<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
+  overlay<M0 extends types.Bit<any> | string, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  @expose.unchecked()
+  overlay(arg0: unknown, arg1: unknown, arg2?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Bit, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bit], [[{ type: types.Bit, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.funcCall("overlay", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  position<M0 extends types.Bit<any> | string>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Int4]]); return runtime.funcCall("position", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  setBit<M0 extends types.Int4<any> | number, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>> { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.funcCall("set_bit", [this, ...__rest], __rt) as any; }
+  substring<M0 extends types.Int4<any> | number>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  substring<M0 extends types.Int4<any> | number, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  @expose.unchecked()
+  substring(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }], types.Bit], [[{ type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.funcCall("substring", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  bitAnd(): types.Bit<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bit]]); return runtime.funcCall("bit_and", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  bitOr(): types.Bit<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bit]]); return runtime.funcCall("bit_or", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  bitXor(): types.Bit<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bit]]); return runtime.funcCall("bit_xor", [this, ...__rest], __rt) as any; }
+  @expose.unchecked()
+  ['#']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bit]]); return runtime.opCall(runtime.sql`#`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['&']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bit]]); return runtime.opCall(runtime.sql`&`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['<']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  lt<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['<<']<M0 extends types.Int4<any> | number>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.opCall(runtime.sql`<<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['<=']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  lte<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['<>']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ne<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['=']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  eq<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['>']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  gt<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['>=']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  gte<M0 extends types.Bit<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['>>']<M0 extends types.Int4<any> | number>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.opCall(runtime.sql`>>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ['|']<M0 extends types.Bit<any> | string>(arg0: M0): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Bit]]); return runtime.opCall(runtime.sql`|`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+}

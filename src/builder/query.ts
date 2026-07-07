@@ -1,9 +1,17 @@
-import type { BoundSql } from "./sql";
-import { sql, Sql, Alias, compile } from "./sql";
-import { Database } from "../database";
-import { Bool } from "../types";
-import { Any, Anyarray, Record } from "../types";
-import { type TsTypeOf, type Nullable, type AggregateRow, meta } from "../types/runtime";
+import type { BoundSql, CompileContext } from "./sql";
+import type { Database } from "../database";
+import { sql, Sql, Alias, Ident, compile } from "./sql";
+import { Connection } from "../database";
+// Anyarray / Record stay pinned to PG — scalar() below emits ROW() /
+// array_agg / COALESCE which are PG-specific. When the Scalar AST node
+// dispatches per-dialect (Phase 2.1) these will be gated by ctx.dialect.
+import { Anyarray, Record } from "../types/postgres";
+// Dialect-agnostic base for shape/predicate/instanceof checks — accepts
+// PG's Any or SQLite's SqliteValue uniformly.
+import { SqlValue } from "../types/sql-value";
+import { zBool, type Bool } from "../types/bool";
+import { type TsTypeOf, type Nullable, type AggregateRow } from "../types/runtime";
+import { meta } from "../types/sql-value";
 import { fn, expose } from "../exoeval/tool";
 import { isTableClass, TableBase } from "../table";
 import z from "zod";
@@ -13,9 +21,9 @@ import { Values } from "./values";
 export const compileSelectList = (output: RowType, omitAliases = false): Sql => {
   return sql.join(
     Object.entries(output).flatMap(([k, v]) =>
-      v instanceof Any ? [
+      v instanceof SqlValue ? [
         omitAliases ? v.toSql() :
-        sql`${v.toSql()} as ${sql.ident(k)}`] : [],
+        sql`${v.toSql()} as ${new Ident(k)}`] : [],
     ),
   );
 };
@@ -24,15 +32,19 @@ export const reAlias = <R extends RowType>(row: R, alias: Alias): R => {
   // Preserve the prototype so Table-subclass methods, instanceof checks,
   // and isRowType all behave the same as on the source. Copy every own
   // descriptor — including symbol-keyed ones like toolFieldsSymbol —
-  // generically, replacing Any-typed columns with an alias-qualified
+  // generically, replacing typed columns with an alias-qualified
   // reference along the way.
   const out = Object.create(Object.getPrototypeOf(row));
   for (const key of Reflect.ownKeys(row)) {
     const desc = Object.getOwnPropertyDescriptor(row, key)!;
-    if (desc.value instanceof Any) {
+    if (desc.value instanceof SqlValue) {
       Object.defineProperty(out, key, {
         ...desc,
-        value: desc.value[meta].__class.from(sql.column(alias, sql.ident(key as string))),
+        // Untagged: the column-name Ident inside Column(alias, name)
+        // is resolved through the alias's scope binding — the alias is
+        // what carries the schema provenance (its Fromable's tagged
+        // Idents got emitted at the FROM clause).
+        value: desc.value[meta].__class.from(sql.column(alias, new Ident(key as string))),
       });
     } else {
       Object.defineProperty(out, key, desc);
@@ -42,9 +54,10 @@ export const reAlias = <R extends RowType>(row: R, alias: Alias): R => {
 };
 
 // Hydrate raw rows into typed instances that share the shape's prototype.
-// Each column field is an Any wrapping a CAST(param) of the deserialized
-// value — so methods on the class that reference `this.col` can compose
-// into follow-up queries (operator methods accept Any via match()).
+// Each column field is a SqlValue wrapping a CAST(param) of the
+// deserialized value — so methods on the class that reference `this.col`
+// can compose into follow-up queries (operator methods accept SqlValue
+// via match()).
 //
 // This is the materializing counterpart to deserializeRows: instead of
 // plain JS primitives, you get class instances with callable methods.
@@ -61,7 +74,7 @@ export const hydrateRows = <R>(
     for (const [k, raw] of Object.entries(row)) {
       const col = shape[k];
       let value: unknown;
-      if (col instanceof Any) {
+      if (col instanceof SqlValue) {
         const deserialized =
           raw === null || raw === undefined ? null : col.deserialize(String(raw));
         value = col[meta].__class.from(deserialized);
@@ -75,7 +88,7 @@ export const hydrateRows = <R>(
 };
 
 // Mapping of row name to type (class instance)
-export type RowType = TableBase | { [k: string]: Any<any> };
+export type RowType = TableBase | { [k: string]: SqlValue<any> };
 export const isRowType = (obj: unknown): obj is RowType => {
   if (obj === null || typeof obj !== "object") {
     return false;
@@ -87,7 +100,7 @@ export const isRowType = (obj: unknown): obj is RowType => {
   if (proto !== Object.prototype && proto !== null) {
     return false;
   }
-  return Object.entries(obj).every(([_, v]) => v instanceof Any);
+  return Object.entries(obj).every(([_, v]) => v instanceof SqlValue);
 };
 
 // All of the row types in the current namespace
@@ -124,12 +137,16 @@ export const sortRowColumns = <R extends RowType>(row: R): R => {
 //
 // Two shapes satisfy this structurally:
 //   - Table *classes* via statics (`Users.tsAlias`, `Users.rowType()`, `Users.bind()`)
-//   - Instance-based sources (Values, PgSrf, QB subqueries) via instance
+//   - Instance-based sources (Values, Srf, QB subqueries) via instance
 //     fields/methods of the same names.
 export type Fromable<R extends RowType = RowType, A extends string = string> = {
   readonly tsAlias: A;
   rowType(): R;
-  bind(): BoundSql;
+  // Fromables may optionally consume the compile ctx (Srf uses it to
+  // check dialect + tag its function-name Ident); Table.bind() ignores
+  // it, and TS allows the wider-parameter signature to satisfy the
+  // narrower typedef.
+  bind(ctx?: CompileContext): BoundSql;
   emitColumnNamesWithAlias?: boolean; // default false; if true, emit column names in FROM clause (e.g. VALUES)
 };
 
@@ -142,6 +159,10 @@ const isFromable = (obj: unknown): obj is Fromable => {
   );
 };
 
+// The concrete Bool has `.and()`; the shared marker interface does not
+// (see src/types/bool.ts — omitted for variance reasons). Cast through
+// `any` for chaining; the runtime call succeeds on the concrete class.
+type Chainable = { and(other: Bool<any>): Bool<any> };
 export const combinePredicates = <N extends Namespace>(
   left: ((ns: N) => Bool<any>) | undefined,
   right: (ns: N) => Bool<any>,
@@ -149,13 +170,13 @@ export const combinePredicates = <N extends Namespace>(
   if (!left) {
     return right;
   }
-  return (ns: N) => left(ns).and(right(ns));
+  return (ns: N) => (left(ns) as unknown as Chainable).and(right(ns));
 };
 
 // Bool-valued predicate combine (used by UPDATE/DELETE where the predicate
 // has already been evaluated against the single-table namespace).
 export const combineBoolPredicates = (left: Bool<any> | undefined, right: Bool<any>): Bool<any> =>
-  left ? left.and(right) : right;
+  left ? (left as unknown as Chainable).and(right) : right;
 
 // Compose two RETURNING callbacks into one that returns their merged
 // shape. Throws on key conflict — used by mutation builders' returningMerge
@@ -180,18 +201,23 @@ export const mergeReturning = <N extends Namespace, A extends RowType, B extends
 };
 
 type OrderDirection = "asc" | "desc";
-type OrderByEntry = Any<any> | [Any<any>, OrderDirection];
+type OrderByEntry = SqlValue<any> | [SqlValue<any>, OrderDirection];
 const isOrderByEntry = (obj: unknown): obj is OrderByEntry =>
-  obj instanceof Any ||
+  obj instanceof SqlValue ||
   (Array.isArray(obj) &&
     obj.length === 2 &&
-    obj[0] instanceof Any &&
+    obj[0] instanceof SqlValue &&
     (obj[1] === "asc" || obj[1] === "desc"));
 
 type Cardinality = "one" | "maybe" | "many";
 const ZCardinality = z.union([z.literal("one"), z.literal("maybe"), z.literal("many")]);
 
-export type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends Any<any>[]> = {
+export type QueryBuilderOptions<N extends Namespace, O extends RowType, GB extends SqlValue<any>[]> = {
+  // Provenance handle — the Database this query is scoped to. Threaded
+  // from `Table.from` / `db.from` / `db.values` at construction and
+  // spread through every chained builder. Used at compile-entry
+  // (debug/execute) to synthesize the outer ctx.
+  database: Database;
   // Preferred name only. The QueryBuilder ctor creates its own fresh Alias
   // identity from this string, so every builder instance in a chain — and
   // each reuse — registers independently.
@@ -216,7 +242,7 @@ export type QueryBuilderOptions<N extends Namespace, O extends RowType, GB exten
 export class QueryBuilder<
   N extends Namespace,
   O extends RowType,
-  GB extends Any<any>[],
+  GB extends SqlValue<any>[],
   Card extends Cardinality = "many",
 > extends Sql {
   public readonly opts: QueryBuilderOptions<N, O, GB>;
@@ -239,7 +265,7 @@ export class QueryBuilder<
   }
 
   // Multiple `where` calls are combined with AND
-  @expose(fn.returns(z.lazy(() => z.instanceof(Bool))))
+  @expose(fn.returns(zBool))
   where(where: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
     return new QueryBuilder({
       ...this.opts,
@@ -272,7 +298,7 @@ export class QueryBuilder<
     from: Fromable<R, A>,
     on: (ns: N & { [k in A]: R }) => Bool<any>,
   ): QueryBuilder<N & { [k in A]: R }, O, GB>;
-  @expose(z.custom<any>(isFromable), fn.returns(z.lazy(() => z.instanceof(Bool))))
+  @expose(z.custom<any>(isFromable), fn.returns(zBool))
   join(from: Fromable, on: (ns: any) => Bool<any>): any {
     this.#assertNotInNamespace(from.tsAlias);
     return new QueryBuilder({
@@ -289,7 +315,7 @@ export class QueryBuilder<
     from: Fromable<R, A>,
     onFn: (ns: N & { [k in A]: RowTypeToNullable<R> }) => Bool<any>,
   ): QueryBuilder<N & { [k in A]: RowTypeToNullable<R> }, O, GB>;
-  @expose(z.custom<Fromable>(isFromable), fn.returns(z.lazy(() => z.instanceof(Bool))))
+  @expose(z.custom<Fromable>(isFromable), fn.returns(zBool))
   leftJoin(from: Fromable, onFn: (ns: any) => Bool<any>): any {
     this.#assertNotInNamespace(from.tsAlias);
     return new QueryBuilder({
@@ -304,11 +330,11 @@ export class QueryBuilder<
   // No args = whole-table aggregate (no GROUP BY clause emitted).
   // Multiple groupBy calls are concatenated (GROUP BY a, b, c).
   groupBy(): QueryBuilder<{ [K in keyof N]: AggregateRow<N[K]> }, {}, GB, Card>;
-  groupBy<G extends Any<any>[]>(
+  groupBy<G extends SqlValue<any>[]>(
     groupBy: (n: N) => [...G],
   ): QueryBuilder<{ [K in keyof N]: AggregateRow<N[K]> } & G, {}, [...GB, ...G], Card>;
-  @expose(fn.returns(z.array(z.lazy(() => z.instanceof(Any)))).optional())
-  groupBy(groupBy?: (n: N) => Any<any>[]): any {
+  @expose(fn.returns(z.array(z.lazy(() => z.instanceof(SqlValue)))).optional())
+  groupBy(groupBy?: (n: N) => SqlValue<any>[]): any {
     const { select: _, ...opts } = this.opts;
     if (!groupBy) {
       // Whole-table aggregate: clear output, don't modify groupBy
@@ -317,13 +343,13 @@ export class QueryBuilder<
 
     const prev = this.opts.groupBy;
     const mergedGroupBy = (ns: N) =>
-      [...(prev?.(ns) ?? []), ...groupBy(ns)] as [...GB, ...Any<any>[]];
+      [...(prev?.(ns) ?? []), ...groupBy(ns)] as [...GB, ...SqlValue<any>[]];
 
     return new QueryBuilder({ ...opts, groupBy: mergedGroupBy } as any, this.card);
   }
 
   // Multiple `having` calls are combined with AND
-  @expose(fn.returns(z.lazy(() => z.instanceof(Bool))))
+  @expose(fn.returns(zBool))
   having(having: (n: N) => Bool<any>): QueryBuilder<N, O, GB> {
     return new QueryBuilder({
       ...this.opts,
@@ -345,8 +371,8 @@ export class QueryBuilder<
       const result = orderBy(ns);
       // Normalize: single entry → array
       const entries: OrderByEntry[] =
-        result instanceof Any ||
-        (Array.isArray(result) && result[0] instanceof Any && typeof result[1] === "string")
+        result instanceof SqlValue ||
+        (Array.isArray(result) && result[0] instanceof SqlValue && typeof result[1] === "string")
           ? [result as OrderByEntry]
           : (result as OrderByEntry[]);
       return [...(prev?.(ns) ?? []), ...entries];
@@ -369,42 +395,43 @@ export class QueryBuilder<
   // Fluent terminators. Narrow the Sql.execute() return type from
   // QueryResult to a row array, and expose the hydrated / single-row
   // variants as chainable terminators too.
-  @expose(z.lazy(() => z.instanceof(Database)))
-  override async execute(db: Database<any>): Promise<RowTypeToTsType<O>[]> {
-    return db.execute(this);
+  @expose(z.lazy(() => z.instanceof(Connection)))
+  override async execute(conn: Connection<any>): Promise<RowTypeToTsType<O>[]> {
+    return conn.execute(this);
   }
 
   // Streaming terminator. Mirrors `execute` but yields the rowset on
   // every committed mutation that touches one of the live-tagged
   // tables this query reads from. Caller iterates with `for await`.
-  @expose(z.lazy(() => z.instanceof(Database)))
-  live(db: Database<any>): AsyncIterable<RowTypeToTsType<O>[]> {
-    return db.live(this) as AsyncIterable<RowTypeToTsType<O>[]>;
+  @expose(z.lazy(() => z.instanceof(Connection)))
+  live(conn: Connection<any>): AsyncIterable<RowTypeToTsType<O>[]> {
+    return conn.live(this) as AsyncIterable<RowTypeToTsType<O>[]>;
   }
 
-  @expose(z.lazy(() => z.instanceof(Database)))
-  async hydrate(db: Database<any>): Promise<O[]> {
-    return db.hydrate<O, GB, Card>(this);
+  @expose(z.lazy(() => z.instanceof(Connection)))
+  async hydrate(conn: Connection<any>): Promise<O[]> {
+    return conn.hydrate<O, GB, Card>(this);
   }
 
-  @expose(z.lazy(() => z.instanceof(Database)))
-  async one(db: Database<any>): Promise<O> {
-    const [row] = await db.hydrate(this.limit(1));
+  @expose(z.lazy(() => z.instanceof(Connection)))
+  async one(conn: Connection<any>): Promise<O> {
+    const [row] = await conn.hydrate(this.limit(1));
     if (!row) {
       throw new Error("QueryBuilder.one(): query returned no rows");
     }
     return row;
   }
 
-  @expose(z.lazy(() => z.instanceof(Database)))
-  async maybeOne(db: Database<any>): Promise<O | null> {
-    const [row] = await db.hydrate(this.limit(1));
+  @expose(z.lazy(() => z.instanceof(Connection)))
+  async maybeOne(conn: Connection<any>): Promise<O | null> {
+    const [row] = await conn.hydrate(this.limit(1));
     return row ?? null;
   }
 
-  // TODO: ROW(), array_agg(), COALESCE should be regular typed ops once we support them
-  // Conditional return type avoids overload resolution quirks: TS's `this:`
-  // overloads can pick the wrong branch when the Card type is already narrowed.
+  // Currently PG-only: emits ROW() + array_agg + COALESCE(..., '{}'). SQLite
+  // needs json_object + json_group_array (Phase 2.1 Scalar AST node).
+  // Detected here via the first source Table's database dialect —
+  // callers get a clear error before the malformed SQL reaches the driver.
   scalar(): [Card] extends ["one"]
     ? Record<O, 1>
     : [Card] extends ["maybe"]
@@ -412,6 +439,17 @@ export class QueryBuilder<
       : Anyarray<Record<O, 1>, 1>;
   @expose()
   scalar(): any {
+    // .scalar() emits ROW()/array_agg — PG-only syntax. Fail closed
+    // for any non-PG dialect (rather than only guarding against the
+    // currently-known SQLite case) so a new dialect can't silently
+    // slip through with broken output.
+    if (this.opts.database.dialect !== "postgres") {
+      throw new Error(
+        `.scalar() is not yet supported on ${this.opts.database.dialect} — the Phase 2.1 Scalar AST ` +
+        "node will dispatch ROW()/array_agg → dialect-specific json aggregation. " +
+        "For now, build the JSON aggregation directly via a raw sql template.",
+      );
+    }
     const RecordClass = Record.of(this.rowType());
 
     // Wrap as a subquery: (SELECT ROW(...) FROM ... WHERE ...)
@@ -495,8 +533,8 @@ export class QueryBuilder<
     });
   }
 
-  bind(): BoundSql {
-    return this.finalize().bind();
+  bind(ctx: CompileContext): BoundSql {
+    return this.finalize().bind(ctx);
   }
 
   children() {
@@ -510,7 +548,7 @@ export class QueryBuilder<
 
   @expose()
   debug(): this {
-    const compiled = compile(this, "pg");
+    const compiled = compile(this, { database: this.opts.database });
     console.log("Debugging query:", { sql: compiled.text, parameters: compiled.values });
     return this;
   }
@@ -519,7 +557,7 @@ export class QueryBuilder<
 type AppliedOpts = {
   select: RowType;
   where?: Bool<any> | undefined;
-  groupBy?: Any<any>[] | undefined;
+  groupBy?: SqlValue<any>[] | undefined;
   having?: Bool<any> | undefined;
   orderBy?: OrderByEntry[] | undefined;
   tables: [
@@ -550,19 +588,19 @@ export class FinalizedQuery extends Sql {
       ...(this.opts.groupBy?.map((g) => g.toSql()) ?? []),
       this.opts.having?.toSql(),
       ...(this.opts.orderBy?.flatMap((entry) =>
-        entry instanceof Any ? [entry.toSql()] : [entry[0].toSql()],
+        entry instanceof SqlValue ? [entry.toSql()] : [entry[0].toSql()],
       ) ?? []),
     ].filter((x) => x instanceof Sql);
   }
 
-  bind(): BoundSql {
+  bind(ctx: CompileContext): BoundSql {
     const tableSql: Sql[] = [];
 
     for (const t of this.opts.tables) {
       const alias = t.alias;
-      const sourceSql = t.source.bind();
+      const sourceSql = t.source.bind(ctx);
       const asClause = t.source.emitColumnNamesWithAlias
-        ? sql`AS ${alias}(${sql.join(Object.keys(t.source.rowType()).map((col) => sql.ident(col)))})`
+        ? sql`AS ${alias}(${sql.join(Object.keys(t.source.rowType()).map((col) => new Ident(col)))})`
         : sql`AS ${alias}`;
       if (t.type === "from") {
         tableSql.push(sql`FROM ${sourceSql} ${asClause}`);
@@ -583,7 +621,7 @@ export class FinalizedQuery extends Sql {
         this.opts.orderBy &&
           sql`ORDER BY ${sql.join(
             this.opts.orderBy.map((entry) => {
-              if (entry instanceof Any) {
+              if (entry instanceof SqlValue) {
                 return entry.toSql();
               }
               const [expr, dir] = entry;
