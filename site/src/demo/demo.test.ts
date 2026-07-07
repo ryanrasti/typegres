@@ -20,7 +20,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
       const user = await api.currentUser();
       return user.orders()
         .select(({ orders }) => ({ id: orders.id, org: orders.organization_id }))
-        .execute(api.db);
+        .execute(api.conn);
     });
     expect(alice.length).toBeGreaterThan(0);
     expect(new Set(alice.map((r) => r.org))).toEqual(new Set(["1"]));
@@ -30,7 +30,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
       const user = await api.currentUser();
       return user.orders()
         .select(({ orders }) => ({ id: orders.id, org: orders.organization_id }))
-        .execute(api.db);
+        .execute(api.conn);
     });
     expect(dave.length).toBeGreaterThan(0);
     expect(new Set(dave.map((r) => r.org))).toEqual(new Set(["2"]));
@@ -42,7 +42,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
       return user.orders()
         .where(({ orders }) => orders.status.in("packed", "shipped"))
         .select(({ orders }) => ({ id: orders.id, status: orders.status }))
-        .execute(api.db);
+        .execute(api.conn);
     });
     for (const row of result) {
       expect(["packed", "shipped"]).toContain(row.status);
@@ -57,7 +57,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
           id: orders.id,
           customer: orders.customer().select(({ customers }) => ({ name: customers.name })).scalar(),
         }))
-        .execute(api.db);
+        .execute(api.conn);
     });
     expect(result.length).toBeGreaterThan(0);
     for (const row of result) {
@@ -74,7 +74,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
           status: orders.status,
           count: orders.id.count(),
         }))
-        .execute(api.db);
+        .execute(api.conn);
     });
     expect(result.length).toBeGreaterThan(0);
     for (const row of result) {
@@ -90,7 +90,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
       return user.orders()
         .where(({ orders }) => orders.status["="]("draft"))
         .select(({ orders }) => ({ id: orders.id }))
-        .live(api.db);
+        .live(api.conn);
     });
     const it = (iter as AsyncIterable<{ id: string }[]>)[Symbol.asyncIterator]();
 
@@ -104,7 +104,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
     // iterator yields again with the new row included.
     const inserted = await rpc(async (api) => {
       const user = await api.currentUser();
-      return (await user.insertDraftOrder(api.db)).id;
+      return (await user.insertDraftOrder(api.conn)).id;
     });
 
     const second = await it.next();
@@ -120,7 +120,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
       const user = await api.currentUser();
       return user.orders()
         .select(({ orders }) => ({ id: orders.id, status: orders.status }))
-        .live(api.db);
+        .live(api.conn);
     });
     const it = (iter as AsyncIterable<{ id: string; status: string }[]>)[Symbol.asyncIterator]();
     const first = await it.next();
@@ -135,7 +135,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
       const user = await api.currentUser();
       return user.orders()
         .select(({ orders }) => ({ id: orders.id }))
-        .live(api.db);
+        .live(api.conn);
     });
     const it = (iter as AsyncIterable<{ id: string }[]>)[Symbol.asyncIterator]();
 
@@ -169,7 +169,7 @@ describe("playground demo: cap-rooted API over exoeval RPC", () => {
         return u.orders()
           .select(({ orders }) => ({ id: orders.id }))
           .debug()
-          .execute(api.db);
+          .execute(api.conn);
       });
       expect(Array.isArray(result)).toBe(true);
     } finally {

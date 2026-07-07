@@ -10,10 +10,10 @@
 // downstream methods on the row can reach the principal via
 // `Orders.contextOf(this)` without re-threading.
 
-import { Database, RpcClient, inMemoryChannel, expose } from "typegres";
+import { Connection, RpcClient, inMemoryChannel, expose } from "typegres";
 import type { RawChannel } from "typegres";
 import { z } from "zod";
-import { db } from "../runtime";
+import { conn } from "../runtime";
 import { wireLog } from "../wire-log";
 import { Users } from "../schema/users";
 import { Customers } from "../schema/customers";
@@ -78,37 +78,37 @@ export class UserRoot {
   // Demo mutation. Picks a non-terminal order in this user's tenant
   // and runs its `.advance()` lifecycle step. Returns null if there's
   // nothing advanceable. Role gate happens inside Orders.advance().
-  @expose(z.lazy(() => z.instanceof(Database)))
-  async advanceRandom(db: Database<any>): Promise<{ id: string; status: string } | null> {
+  @expose(z.lazy(() => z.instanceof(Connection)))
+  async advanceRandom(conn: Connection<any>): Promise<{ id: string; status: string } | null> {
     const [row] = await this.orders()
       .where(({ orders }) => orders.status["<>"]("delivered"))
       .limit(1)
-      .hydrate(db);
+      .hydrate(conn);
     if (!row) return null;
-    return row.advance(db);
+    return row.advance(conn);
   }
 
   // Demo mutation. Picks a random inventory position in this user's
   // tenant and bumps its on_hand by a small random amount. Role-
   // gated to inventory_control — Bob can do this; Alice can't.
-  @expose(z.lazy(() => z.instanceof(Database)))
-  async restockRandom(db: Database<any>): Promise<{ id: string; on_hand: string } | null> {
+  @expose(z.lazy(() => z.instanceof(Connection)))
+  async restockRandom(conn: Connection<any>): Promise<{ id: string; on_hand: string } | null> {
     if (this.role !== "inventory_control") {
       throw new Error(`role '${this.role}' cannot restock (inventory_control required)`);
     }
     const [pos] = await this.inventory()
       .limit(1)
-      .hydrate(db);
+      .hydrate(conn);
     if (!pos) return null;
     const delta = 1 + Math.floor(Math.random() * 5);
-    return pos.adjust(db, delta);
+    return pos.adjust(conn, delta);
   }
 
   // Demo mutation. Inserts a fresh `draft` order for one of this
   // user's customers. Role-gated like the other writes; tenant comes
   // from the principal — no free-form `organization_id` from the wire.
-  @expose(z.lazy(() => z.instanceof(Database)))
-  async insertDraftOrder(db: Database<any>): Promise<{ id: string }> {
+  @expose(z.lazy(() => z.instanceof(Connection)))
+  async insertDraftOrder(conn: Connection<any>): Promise<{ id: string }> {
     if (this.role !== "ops_lead") {
       throw new Error(`role '${this.role}' cannot insert orders (ops_lead required)`);
     }
@@ -117,7 +117,7 @@ export class UserRoot {
     // demo action.
     const [cust] = await this.customers()
       .select(({ customers }) => ({ id: customers.id }))
-      .execute(db);
+      .execute(conn);
     if (!cust) throw new Error("no customers in this tenant");
     const [row] = await Orders.insert({
       organization_id: this.organizationId,
@@ -126,13 +126,13 @@ export class UserRoot {
       priority: "0",
     })
       .returning(({ orders }) => ({ id: orders.id }))
-      .execute(db);
+      .execute(conn);
     return row!;
   }
 }
 
 export class Api {
-  @expose() db: Database<UserRoot>;
+  @expose() conn: Connection<UserRoot>;
 
   // Server-side ambient: who's "logged in" for this RPC. In the
   // playground the right-pane user dropdown writes here; in a
@@ -140,8 +140,8 @@ export class Api {
   // cookie / bearer token. Widgets read it via `api.currentUser()`.
   #currentUserToken: string | null = null;
 
-  constructor(db: Database<UserRoot>) {
-    this.db = db;
+  constructor(conn: Connection<UserRoot>) {
+    this.conn = conn;
   }
 
   setCurrentUserToken(token: string | null): void {
@@ -156,8 +156,8 @@ export class Api {
   // because the demo only ever has one iter at a time.
   @expose()
   async resetLive(): Promise<void> {
-    await this.db.stopLive();
-    await this.db.startLive();
+    await this.conn.stopLive();
+    await this.conn.startLive();
   }
 
   // The principal for this RPC, resolved from the ambient
@@ -176,7 +176,7 @@ export class Api {
         name: users.name,
         role: users.role,
       }))
-      .execute(this.db);
+      .execute(this.conn);
     if (!u) {
       throw new Error("invalid token");
     }
@@ -196,10 +196,10 @@ export class Api {
 //
 // Widgets call `client.run(async (api) => ...)`; the closure is
 // stringified, shipped through `inMemoryChannel`, parsed by exoEval
-// on the server end with `api` bound to a fresh `Api(db)`, and the
+// on the server end with `api` bound to a fresh `Api(conn)`, and the
 // JSON-serialized result(s) come back as AsyncIterable<string>.
 // Real deployments swap inMemoryChannel for a wire transport.
-const apiInstance = new Api(db);
+const apiInstance = new Api(conn);
 
 // Logging channel wrapper: mirrors `inMemoryChannel` but pushes a
 // wire-log entry on every closure shipped + every chunk received.

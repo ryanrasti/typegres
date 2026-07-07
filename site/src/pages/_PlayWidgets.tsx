@@ -282,7 +282,7 @@ function generateOrdersBlock(opts: {
   return user.orders()${statusLine}${groupByLine}${orderByLine}
     .select(({ orders }) => (${selectBody}))
     .debug()
-    .${terminator}(api.db);
+    .${terminator}(api.conn);
 });
 
 // Render the result in the table on the right:
@@ -309,7 +309,7 @@ export const OrdersWidget = (props: WidgetProps) => {
   // entry points report through setInsertError / setAdvanceError.
   const fireInsert = async () => {
     try {
-      await rpc(async (api) => (await api.currentUser()).insertDraftOrder(api.db));
+      await rpc(async (api) => (await api.currentUser()).insertDraftOrder(api.conn));
       return null;
     } catch (e) {
       return e instanceof Error ? e.message : String(e);
@@ -317,7 +317,7 @@ export const OrdersWidget = (props: WidgetProps) => {
   };
   const fireAdvance = async () => {
     try {
-      await rpc(async (api) => (await api.currentUser()).advanceRandom(api.db));
+      await rpc(async (api) => (await api.currentUser()).advanceRandom(api.conn));
       return null;
     } catch (e) {
       return e instanceof Error ? e.message : String(e);
@@ -430,7 +430,7 @@ function generateInventoryBlock(opts: { threshold: number; live: boolean }): str
     }))
     .orderBy(({ inventory_positions: p }) => p.on_hand)
     .debug()
-    .${terminator}(api.db);
+    .${terminator}(api.conn);
 });
 
 // Render the result in the table on the right:
@@ -451,7 +451,7 @@ export const InventoryWidget = (props: WidgetProps) => {
     [7500, 22500],
     async () => {
       try {
-        await rpc(async (api) => (await api.currentUser()).restockRandom(api.db));
+        await rpc(async (api) => (await api.currentUser()).restockRandom(api.conn));
         return null;
       } catch (e) {
         return e instanceof Error ? e.message : String(e);

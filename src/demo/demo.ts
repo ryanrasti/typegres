@@ -1,4 +1,5 @@
-import { typegres, sql, Int8, Text } from "typegres";
+import { typegres, sql } from "typegres";
+import { Int8, Text } from "typegres/postgres";
 
 const { db, conn } = await typegres({ type: "pglite" });
 

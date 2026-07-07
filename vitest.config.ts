@@ -9,7 +9,11 @@ const src = fileURLToPath(new URL("./src", import.meta.url));
 
 export default defineConfig({
   resolve: {
+    // Order matters — Vite matches aliases longest-first, so subpath
+    // entries come before the bare `typegres` root.
     alias: {
+      "typegres/postgres": `${src}/types/postgres/index.ts`,
+      "typegres/sqlite": `${src}/types/sqlite/index.ts`,
       typegres: `${src}/index.ts`,
     },
   },

@@ -1,4 +1,5 @@
-import { Int8, Text, TypegresLiveEvents, expose } from "typegres";
+import { TypegresLiveEvents, expose } from "typegres";
+import { Int8, Text } from "typegres/postgres";
 import { db } from "../runtime";
 import { Organizations } from "./organizations";
 export class Users extends db.Table("users", { transformer: TypegresLiveEvents.makeTransformer() }) {

@@ -78,7 +78,8 @@ describe("generateTable — new file", async () => {
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { Int8, Text, expose } from "typegres";
+      import { expose } from "typegres";
+      import { Int8, Text } from "typegres/postgres";
       import { Teams } from "./teams";
 
       export class Dogs extends db.Table("dogs") {
@@ -107,7 +108,8 @@ describe("generateTable — new file", async () => {
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { Int8, Text, Timestamptz, expose, sql } from "typegres";
+      import { expose, sql } from "typegres";
+      import { Int8, Text, Timestamptz } from "typegres/postgres";
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start

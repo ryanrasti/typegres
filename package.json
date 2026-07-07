@@ -13,13 +13,17 @@
       "import": "./dist/config.mjs",
       "types": "./dist/config.d.mts"
     },
-    "./types": {
-      "import": "./dist/types/index.mjs",
-      "types": "./dist/types/index.d.mts"
-    },
     "./sql-builder": {
       "import": "./dist/builder/sql.mjs",
       "types": "./dist/builder/sql.d.mts"
+    },
+    "./postgres": {
+      "import": "./dist/types/postgres/index.mjs",
+      "types": "./dist/types/postgres/index.d.mts"
+    },
+    "./sqlite": {
+      "import": "./dist/types/sqlite/index.mjs",
+      "types": "./dist/types/sqlite/index.d.mts"
     },
     "./exoeval": {
       "import": "./dist/exoeval/index.mjs",

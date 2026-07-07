@@ -1,5 +1,6 @@
 import { describe, test, expect, expectTypeOf, beforeAll } from "vitest";
-import { typegres, sql, Int8, Text, Bool, expose } from "typegres";
+import { typegres, sql, expose } from "typegres";
+import { Int8, Text, Bool } from "typegres/postgres";
 import type { Connection, Database, QueryBuilder } from "typegres";
 
 // End-to-end tests for conn.hydrate(): materialize query rows as class

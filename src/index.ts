@@ -31,4 +31,3 @@ export const typegres = async <C = undefined>(
   return { db, conn };
 };
 
-export * from "./types/postgres";

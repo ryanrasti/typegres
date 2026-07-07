@@ -1,5 +1,6 @@
 import { describe, test, expect, expectTypeOf } from "vitest";
-import { sql, Int8, Text, Record, Anyarray } from "typegres";
+import { sql } from "typegres";
+import { Int8, Text, Record, Anyarray } from "typegres/postgres";
 import type { Connection } from "typegres";
 import { expose } from "./exoeval/tool";
 import { RpcClient, inMemoryChannel } from "./exoeval/rpc";

@@ -1,4 +1,5 @@
-import { Int8, Text, Timestamptz, TypegresLiveEvents, sql, expose } from "typegres";
+import { TypegresLiveEvents, sql, expose } from "typegres";
+import { Int8, Text, Timestamptz } from "typegres/postgres";
 import { db } from "../runtime";
 import { Orders } from "./orders";
 import { Organizations } from "./organizations";

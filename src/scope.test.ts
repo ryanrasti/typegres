@@ -1,5 +1,6 @@
 import { describe, test, expect, expectTypeOf } from "vitest";
-import { sql, Int8, Text } from ".";
+import { sql } from ".";
+import { Int8, Text } from "./types/postgres";
 import { compile } from "./builder/sql";
 import { setupDb, withinTransaction, db } from "./test-helpers";
 setupDb();

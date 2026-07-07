@@ -19,7 +19,8 @@ npm install typegres pg
 ```
 
 ```typescript
-import { typegres, Int8, Text, expose } from "typegres";
+import { typegres, expose } from "typegres";
+import { Int8, Text } from "typegres/postgres";
 
 const { db, conn } = await typegres({
   type: "pg",
