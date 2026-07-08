@@ -8,3 +8,5 @@ public/typegres.js
 public/typegres.d.ts
 public/demo.ts.static
 public/events-*.js
+public/chunk-*.js
+public/lib-*.js

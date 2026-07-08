@@ -1,66 +1,42 @@
-import pg from "pg";
+// Dialect-neutral table codegen orchestrator. Introspection + type-name
+// mapping live in per-dialect modules (`postgres.ts`, `sqlite.ts`); this
+// file owns config loading, per-entry `@expose()` preservation, the
+// `@generated-start` / `@generated-end` marker handling, and the file-
+// emission shape.
+
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 import type { Config } from "../config.ts";
 import { pgNameToClassName } from "../types/postgres/introspect.ts";
 
-// --- Config ---
+// --- Public types ---
 
-const findConfig = async (): Promise<Config> => {
-  // Walk up from cwd looking for typegres.config.ts
-  let dir = process.cwd();
-  while (true) {
-    const configPath = path.join(dir, "typegres.config.ts");
-    if (fs.existsSync(configPath)) {
-      // eslint-disable-next-line no-restricted-syntax -- runtime config loaded from user's project
-      const config = await import(configPath);
-      return { db: config.default.db, tables: path.resolve(dir, config.default.tables), dbImport: config.default.dbImport };
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) {
-      throw new Error("typegres.config.ts not found");
-    }
-    dir = parent;
-  }
-};
-
-// --- PG type name → TS class name (shared with types/generate.ts) ---
-const pgTypeToClass = pgNameToClassName;
-
-// --- Introspect ---
-
+// Shared column shape — the contract between introspectors and
+// codegen, expressed in codegen's vocabulary (exactly the facts
+// `generateColumnLine` needs), not any dialect's catalog-ese. Each
+// introspector translates its native facts at the boundary: PG maps
+// information_schema rows (`is_nullable === "YES"`, identity /
+// stored-generated columns); SQLite maps PRAGMA `table_info` rows
+// (`notnull`, rowid-alias detection).
 export interface ColumnInfo {
-  column_name: string;
-  udt_name: string;
-  is_nullable: string;
-  column_default: string | null;
-  is_generated: string;
-  identity_generation: string | null;
+  name: string;
+  // Resolved TS class name for the type (e.g. "Int8", "Text",
+  // "Integer", "Bool", "SqliteValue"). The introspector resolves this
+  // at introspection time — shared codegen doesn't know how PG
+  // typnames vs SQLite affinity resolve.
+  className: string;
+  nullable: boolean;
+  // Raw SQL default expression, spliced into `default: sql`...``.
+  default: string | null;
+  // DB assigns the value (identity, stored generated, SQLite rowid
+  // alias). PG's ALWAYS vs BY DEFAULT distinction is deliberately
+  // collapsed — both emit `generated: true`; widen to a union if
+  // typegres ever wants "insertable but defaulted" semantics.
+  generated: boolean;
 }
 
-const introspectTable = async (client: pg.Client, tableName: string): Promise<ColumnInfo[]> => {
-  const { rows } = await client.query<ColumnInfo>(
-    `SELECT column_name, udt_name, is_nullable, column_default, is_generated, identity_generation
-     FROM information_schema.columns
-     WHERE table_schema = 'public' AND table_name = $1
-     ORDER BY ordinal_position`,
-    [tableName],
-  );
-  return rows;
-};
-
-const getTables = async (client: pg.Client): Promise<string[]> => {
-  const { rows } = await client.query<{ table_name: string }>(
-    `SELECT table_name FROM information_schema.tables
-     WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-     ORDER BY table_name`,
-  );
-  return rows.map((r) => r.table_name);
-};
-
-// --- FK introspection ---
-
-interface FkInfo {
+export interface FkInfo {
   from_table: string;
   from_column: string;
   to_table: string;
@@ -68,32 +44,6 @@ interface FkInfo {
   is_unique: boolean;
   is_nullable: boolean;
 }
-
-const introspectFks = async (client: pg.Client): Promise<FkInfo[]> => {
-  const { rows } = await client.query<FkInfo>(`
-    SELECT
-      cl_from.relname AS from_table,
-      att_from.attname AS from_column,
-      cl_to.relname AS to_table,
-      att_to.attname AS to_column,
-      EXISTS (
-        SELECT 1 FROM pg_index
-        WHERE indrelid = con.conrelid
-          AND indkey::int[] @> ARRAY[att_from.attnum::int]
-          AND indisunique
-      ) AS is_unique,
-      NOT att_from.attnotnull AS is_nullable
-    FROM pg_constraint con
-    JOIN pg_class cl_from ON con.conrelid = cl_from.oid
-    JOIN pg_class cl_to ON con.confrelid = cl_to.oid
-    JOIN pg_attribute att_from ON att_from.attrelid = con.conrelid AND att_from.attnum = ANY(con.conkey)
-    JOIN pg_attribute att_to ON att_to.attrelid = con.confrelid AND att_to.attnum = ANY(con.confkey)
-    JOIN pg_namespace ns ON cl_from.relnamespace = ns.oid
-    WHERE con.contype = 'f' AND ns.nspname = 'public'
-    ORDER BY cl_from.relname, att_from.attname
-  `);
-  return rows;
-};
 
 export type Cardinality = "one" | "maybe" | "many";
 
@@ -105,7 +55,50 @@ export interface Relation {
   toColumn: string;
 }
 
-const deriveRelations = (tableName: string, allFks: FkInfo[]): Relation[] => {
+// A snapshot of the schema — pure data, no methods, no DB handle.
+export interface TableIntrospection {
+  columns: ColumnInfo[];
+  fks: FkInfo[];
+}
+
+export interface Introspection {
+  tables: Map<string, TableIntrospection>;
+}
+
+// Small factory that knows how to connect + read the schema for its
+// dialect and produce the pure-data `Introspection`. `typeImportPath`
+// lives here because it's a codegen concern tied to the dialect, not
+// a schema fact.
+export interface Introspector {
+  typeImportPath: string;
+  introspect(): Promise<Introspection>;
+}
+
+// --- Config ---
+
+const findConfig = async (): Promise<Config> => {
+  let dir = process.cwd();
+  while (true) {
+    const configPath = path.join(dir, "typegres.config.ts");
+    if (fs.existsSync(configPath)) {
+      // file URL, not the raw path — Windows paths (`C:\...`) aren't
+      // valid ESM specifiers.
+      // eslint-disable-next-line no-restricted-syntax -- runtime config loaded from user's project
+      const config = await import(pathToFileURL(configPath).href);
+      const c = config.default;
+      return { dialect: c.dialect, db: c.db, tables: path.resolve(dir, c.tables), dbImport: c.dbImport };
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      throw new Error("typegres.config.ts not found");
+    }
+    dir = parent;
+  }
+};
+
+// --- Relations ---
+
+export const deriveRelations = (tableName: string, allFks: FkInfo[]): Relation[] => {
   const relations: Relation[] = [];
   const usedNames = new Set<string>();
 
@@ -114,7 +107,6 @@ const deriveRelations = (tableName: string, allFks: FkInfo[]): Relation[] => {
       usedNames.add(base);
       return base;
     }
-    // Disambiguate: e.g., dogs_rival_id
     let candidate = base;
     let i = 2;
     while (usedNames.has(candidate)) {
@@ -153,42 +145,39 @@ const deriveRelations = (tableName: string, allFks: FkInfo[]): Relation[] => {
   return relations;
 };
 
-// --- Generate ---
+// --- Column / relation emission ---
 
 const generateColumnLine = (col: ColumnInfo, withTool: boolean): string => {
-  const cls = pgTypeToClass(col.udt_name);
-  const nullable = col.is_nullable === "YES" ? "0 | 1" : "1";
+  const cls = col.className;
+  const nullable = col.nullable ? "0 | 1" : "1";
   const opts: string[] = [];
-  if (col.is_nullable === "NO") {
+  if (!col.nullable) {
     opts.push("nonNull: true");
   }
-  if (col.column_default !== null) {
-    opts.push(`default: sql\`${col.column_default}\``);
+  if (col.default !== null) {
+    opts.push(`default: sql\`${col.default}\``);
   }
-  if (col.identity_generation !== null) {
+  if (col.generated) {
     opts.push("generated: true");
   }
   const optsArg = opts.length > 0 ? `{ ${opts.join(", ")} }` : "";
   const prefix = withTool ? "@expose() " : "";
-  return `  ${prefix}${col.column_name} = (${cls}<${nullable}>).column(${optsArg});`;
+  return `  ${prefix}${col.name} = (${cls}<${nullable}>).column(${optsArg});`;
 };
 
 const generateRelationLine = (rel: Relation, currentTable: string, withTool: boolean): string => {
   const targetClass = pgNameToClassName(rel.targetTable);
   const currentClass = pgNameToClassName(currentTable);
   const prefix = withTool ? "@expose() " : "";
-  // `Target.scope(Current.contextOf(this))` propagates the row's
-  // scope tag through every relation traversal — joins n-deep stay
-  // bound to the same principal. For unscoped rows, contextOf
-  // returns undefined and scope(undefined) behaves like from().
-  return `  ${prefix}${rel.name}() { return ${targetClass}.scope(${currentClass}.contextOf(this)).where(({ ${rel.targetTable} }) => ${rel.targetTable}.${rel.toColumn}["="](this.${rel.fromColumn})).cardinality("${rel.cardinality}"); }`;
+  // `Target.scope(Current.contextOf(this))` propagates the row's scope
+  // tag through every relation traversal — joins n-deep stay bound to
+  // the same principal. Dialect-neutral (uses names + cardinality only).
+  return `  ${prefix}${rel.name}() { return ${targetClass}.scope(${currentClass}.contextOf(this)).where(({ ${rel.targetTable} }) => ${rel.targetTable}.${rel.toColumn}.eq(this.${rel.fromColumn})).cardinality("${rel.cardinality}"); }`;
 };
 
-// Scan the existing @generated block to learn which columns/relations the
-// user opted out of `@expose()` decoration on. Default for new entries is
-// decorated; existing entries keep whatever decoration state they had so
-// hand-removed `@expose()`s aren't re-added on regenerate (same spirit as
-// `// @generated-start` preserving the file's surrounding code).
+// Scan the existing @generated block to learn which columns/relations
+// the user opted out of `@expose()` on. New entries default decorated;
+// existing entries preserve their state.
 const parseExistingDecorations = (
   block: string,
 ): { cols: Map<string, boolean>; rels: Map<string, boolean> } => {
@@ -229,39 +218,43 @@ export const generateTable = (
   tableName: string,
   columns: ColumnInfo[],
   relations: Relation[],
-  opts: { dbImport: string; existing?: string },
+  opts: { typeImportPath: string; dbImport: string; existing?: string },
 ): string => {
   if (opts.existing !== undefined) {
     return updateBlock(opts.existing, tableName, columns, relations);
   }
-  return newFile(tableName, columns, relations, opts.dbImport);
+  return newFile(tableName, columns, relations, opts.typeImportPath, opts.dbImport);
 };
 
-const newFile = (tableName: string, columns: ColumnInfo[], relations: Relation[], dbImport: string): string => {
-  // Collect unique type imports
-  const typeClasses = [...new Set(columns.map((c) => pgTypeToClass(c.udt_name)))];
-  const hasDefault = columns.some((c) => c.column_default !== null);
+const newFile = (
+  tableName: string,
+  columns: ColumnInfo[],
+  relations: Relation[],
+  typeImportPath: string,
+  dbImport: string,
+): string => {
+  const typeClasses = [...new Set(columns.map((c) => c.className))];
+  const hasDefault = columns.some((c) => c.default !== null);
 
-  // Collect relation target imports
   const relationTargets = [...new Set(relations.map((r) => r.targetTable))];
   const relImports = relationTargets
     .filter((t) => t !== tableName)
     .map((t) => `import { ${pgNameToClassName(t)} } from "./${t}";`);
 
-  // Split imports: PG-specific type classes come from `typegres/postgres`;
-  // dialect-agnostic runtime helpers (`expose`, `sql`) come from the top
-  // `typegres` barrel. Symbols within each group sorted for stable diffs.
+  // Split imports: dialect-specific type classes come from
+  // `typeImportPath`; dialect-agnostic runtime helpers (`expose`,
+  // `sql`) come from the top `typegres` barrel. Symbols within each
+  // group sorted for stable diffs.
   const runtimeSyms = ["expose", ...(hasDefault ? ["sql"] : [])].sort();
   const typeSyms = [...typeClasses].sort();
   const imports = [
     `import { db } from "${dbImport}";`,
     `import { ${runtimeSyms.join(", ")} } from "typegres";`,
-    `import { ${typeSyms.join(", ")} } from "typegres/postgres";`,
+    `import { ${typeSyms.join(", ")} } from "${typeImportPath}";`,
     ...relImports,
   ];
 
-  // New file: every column/relation gets `@expose()` by default. Users can
-  // strip individual decorators in-place; updateBlock will respect that.
+  // New file: every column/relation gets `@expose()` by default.
   const colLines = columns.map((c) => generateColumnLine(c, true));
   const relLines = relations.map((r) => generateRelationLine(r, tableName, true));
   const allLines = relLines.length > 0
@@ -278,7 +271,12 @@ ${allLines.join("\n")}
 `;
 };
 
-const updateBlock = (existing: string, tableName: string, columns: ColumnInfo[], relations: Relation[]): string => {
+const updateBlock = (
+  existing: string,
+  tableName: string,
+  columns: ColumnInfo[],
+  relations: Relation[],
+): string => {
   const startIdx = existing.indexOf(START_MARKER);
   const endIdx = existing.indexOf(END_MARKER);
 
@@ -286,13 +284,10 @@ const updateBlock = (existing: string, tableName: string, columns: ColumnInfo[],
     throw new Error("Missing @generated-start or @generated-end markers");
   }
 
-  // Preserve per-entry decoration state from the existing block. New
-  // entries (introduced by a schema migration) default to `@expose()`;
-  // entries the user has stripped stay stripped.
   const blockContent = existing.slice(startIdx + START_MARKER.length, endIdx);
   const prior = parseExistingDecorations(blockContent);
 
-  const colLines = columns.map((c) => generateColumnLine(c, prior.cols.get(c.column_name) ?? true));
+  const colLines = columns.map((c) => generateColumnLine(c, prior.cols.get(c.name) ?? true));
   const relLines = relations.map((r) => generateRelationLine(r, tableName, prior.rels.get(r.name) ?? true));
   const allLines = relLines.length > 0
     ? [...colLines, "  // relations", ...relLines]
@@ -305,41 +300,59 @@ const updateBlock = (existing: string, tableName: string, columns: ColumnInfo[],
 
 // --- Main ---
 
-export const main = async () => {
-  const config = await findConfig();
-  const client = new pg.Client(config.db);
-  await client.connect();
+const runGeneration = async (
+  introspector: Introspector,
+  tablesDir: string,
+  dbImport: string,
+): Promise<void> => {
+  const intro = await introspector.introspect();
+  if (intro.tables.size === 0) {
+    console.log("No tables found.");
+    return;
+  }
+  fs.mkdirSync(tablesDir, { recursive: true });
 
-  try {
-    const tables = await getTables(client);
-    if (tables.length === 0) {
-      console.log("No tables found in public schema.");
-      return;
+  // FK list flattened once so `deriveRelations` can scan
+  // outbound + inbound in the shared shape.
+  const allFks = [...intro.tables.values()].flatMap((t) => t.fks);
+
+  for (const [tableName, tableData] of intro.tables) {
+    const relations = deriveRelations(tableName, allFks);
+    const filePath = path.join(tablesDir, `${tableName}.ts`);
+
+    const existing = fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf-8") : undefined;
+    if (existing !== undefined && !existing.includes(START_MARKER)) {
+      console.log(`Skipped ${filePath} (no @generated markers)`);
+      continue;
     }
-
-    const allFks = await introspectFks(client);
-    fs.mkdirSync(config.tables, { recursive: true });
-
-    for (const tableName of tables) {
-      const columns = await introspectTable(client, tableName);
-      const relations = deriveRelations(tableName, allFks);
-      const filePath = path.join(config.tables, `${tableName}.ts`);
-
-      const existing = fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf-8") : undefined;
-      if (existing !== undefined && !existing.includes(START_MARKER)) {
-        console.log(`Skipped ${filePath} (no @generated markers)`);
-        continue;
-      }
-      const content = generateTable(tableName, columns, relations,
-        existing === undefined
-          ? { dbImport: config.dbImport }
-          : { dbImport: config.dbImport, existing },
-      );
-      fs.writeFileSync(filePath, content);
-      console.log(`${existing ? "Updated" : "Created"} ${filePath}`);
-    }
-  } finally {
-    await client.end();
+    const content = generateTable(tableName, tableData.columns, relations,
+      existing === undefined
+        ? { typeImportPath: introspector.typeImportPath, dbImport }
+        : { typeImportPath: introspector.typeImportPath, dbImport, existing },
+    );
+    fs.writeFileSync(filePath, content);
+    console.log(`${existing ? "Updated" : "Created"} ${filePath}`);
   }
 };
 
+export const main = async (): Promise<void> => {
+  const config = await findConfig();
+  if (config.dialect === "postgres") {
+    // eslint-disable-next-line no-restricted-syntax -- lazy so SQLite users don't pay the `pg` peer-dep cost
+    const { postgresIntrospector } = await import("./postgres.ts");
+    await runGeneration(postgresIntrospector(config.db), config.tables, config.dbImport);
+  } else if (config.dialect === "sqlite") {
+    // eslint-disable-next-line no-restricted-syntax -- lazy so PG users don't pay the `better-sqlite3` peer-dep cost
+    const { sqliteIntrospector } = await import("./sqlite.ts");
+    await runGeneration(await sqliteIntrospector(config.db), config.tables, config.dbImport);
+  } else {
+    // Exhaustive over Config["dialect"]. Extend when a new dialect
+    // lands in the config union.
+    const _exhaustive: never = config;
+    throw new Error(`Unknown dialect: ${String((_exhaustive as { dialect: string }).dialect)}`);
+  }
+};
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await main();
+}

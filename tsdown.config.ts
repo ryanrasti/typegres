@@ -15,10 +15,15 @@ const swcPlugin = () =>
 
 export default defineConfig([
   // Library: multi-entry ESM + per-entry .d.ts for npm consumers.
+  // Optional peer deps (`pg`, `@electric-sql/pglite`, `better-sqlite3`)
+  // stay external so the bundler doesn't try to include their native
+  // loaders — those use `require` / `__filename` and would trip Node's
+  // CJS/ESM mixed-mode check when a consumer runs the CLI.
   {
     entry: ["src/index.ts", "src/config.ts", "src/builder/sql.ts", "src/types/postgres/index.ts", "src/types/sqlite/index.ts", "src/cli.ts", "src/exoeval/index.ts"],
     format: ["esm"],
     clean: true,
+    deps: { neverBundle: ["pg", "@electric-sql/pglite", "better-sqlite3"] },
     plugins: [swcPlugin()],
   },
   // Playground single-file bundle for the site's Monaco + esbuild-wasm

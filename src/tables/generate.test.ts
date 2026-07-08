@@ -1,57 +1,18 @@
 import { describe, test, expect } from "vitest";
-import * as swc from "@swc/core";
 import { generateTable, type ColumnInfo, type Relation } from "./generate";
-
-// Validate generated code: (1) syntactically valid TS that swc can
-// transform with the same decorator config typegres' build uses;
-// (2) every `@<name>` decorator referenced in the body has a matching
-// import. swc alone catches syntax/transform errors but happily emits
-// `(0, expose)()` even when `expose` isn't imported — the import
-// check closes that gap (caught a rename-drift bug otherwise invisible
-// to inline snapshot tests).
-const validate = async (out: string): Promise<void> => {
-  await swc.transform(out, {
-    filename: "generated.ts",
-    jsc: {
-      target: "es2022",
-      parser: { syntax: "typescript", decorators: true },
-      transform: { decoratorVersion: "2022-03" },
-    },
-    module: { type: "es6" },
-    isModule: true,
-  });
-
-  const decorators = new Set(
-    [...out.matchAll(/@(\w+)(?:\.\w+)?\(/g)].map((m) => m[1]!),
-  );
-  const imported = new Set<string>();
-  for (const m of out.matchAll(/import\s*\{([^}]*)\}/g)) {
-    for (const raw of m[1]!.split(",")) {
-      const id = raw.trim().split(/\s+as\s+/)[0]!.replace(/^type\s+/, "").trim();
-      if (id) {imported.add(id);}
-    }
-  }
-  for (const d of decorators) {
-    if (!imported.has(d)) {
-      throw new Error(
-        `generated code uses @${d}() but doesn't import \`${d}\`. Imports: [${[...imported].join(", ")}]`,
-      );
-    }
-  }
-};
+import { validateGenerated as validate } from "./validate-generated";
 
 // Helpers — terse fixtures so each test reads as a single intent.
 const col = (
-  column_name: string,
-  udt_name: string,
+  name: string,
+  className: string,
   overrides: Partial<ColumnInfo> = {},
 ): ColumnInfo => ({
-  column_name,
-  udt_name,
-  is_nullable: "NO",
-  column_default: null,
-  is_generated: "NEVER",
-  identity_generation: null,
+  name,
+  className,
+  nullable: false,
+  default: null,
+  generated: false,
   ...overrides,
 });
 
@@ -69,11 +30,11 @@ describe("generateTable — new file", async () => {
     const out = generateTable(
       "dogs",
       [
-        col("id", "int8", { identity_generation: "ALWAYS" }),
-        col("name", "text"),
+        col("id", "Int8", { generated: true }),
+        col("name", "Text"),
       ],
       [rel("teams", "teams", { cardinality: "one", fromColumn: "team_id", toColumn: "id" })],
-      { dbImport: "../db" },
+      { typeImportPath: "typegres/postgres", dbImport: "../db" },
     );
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
@@ -87,7 +48,7 @@ describe("generateTable — new file", async () => {
         @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
         @expose() name = (Text<1>).column({ nonNull: true });
         // relations
-        @expose() teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id["="](this.team_id)).cardinality("one"); }
+        @expose() teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
         // @generated-end
       }
       "
@@ -98,12 +59,12 @@ describe("generateTable — new file", async () => {
     const out = generateTable(
       "dogs",
       [
-        col("id", "int8", { identity_generation: "ALWAYS" }),
-        col("breed", "text", { is_nullable: "YES" }),
-        col("created_at", "timestamptz", { column_default: "now()" }),
+        col("id", "Int8", { generated: true }),
+        col("breed", "Text", { nullable: true }),
+        col("created_at", "Timestamptz", { default: "now()" }),
       ],
       [],
-      { dbImport: "../db" },
+      { typeImportPath: "typegres/postgres", dbImport: "../db" },
     );
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
@@ -124,7 +85,7 @@ describe("generateTable — new file", async () => {
 });
 
 describe("generateTable — update mode preserves @expose() state", async () => {
-  const cols: ColumnInfo[] = [col("id", "int8", { identity_generation: "ALWAYS" }), col("name", "text")];
+  const cols: ColumnInfo[] = [col("id", "Int8", { generated: true }), col("name", "Text")];
   const rels: Relation[] = [rel("teams", "teams", { cardinality: "one", fromColumn: "team_id", toColumn: "id" })];
 
   test("entries the user stripped stay stripped on regen", async () => {
@@ -140,7 +101,7 @@ export class Dogs extends db.Table("dogs") {
   // @generated-end
 }
 `;
-    const out = generateTable("dogs", cols, rels, { dbImport: "../db", existing });
+    const out = generateTable("dogs", cols, rels, { typeImportPath: "typegres/postgres", dbImport: "../db", existing });
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
@@ -151,7 +112,7 @@ export class Dogs extends db.Table("dogs") {
         id = (Int8<1>).column({ nonNull: true, generated: true });
         name = (Text<1>).column({ nonNull: true });
         // relations
-        teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id["="](this.team_id)).cardinality("one"); }
+        teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
         // @generated-end
       }
       "
@@ -172,7 +133,7 @@ export class Dogs extends db.Table("dogs") {
   // @generated-end
 }
 `;
-    const out = generateTable("dogs", cols, rels, { dbImport: "../db", existing });
+    const out = generateTable("dogs", cols, rels, { typeImportPath: "typegres/postgres", dbImport: "../db", existing });
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
@@ -184,7 +145,7 @@ export class Dogs extends db.Table("dogs") {
         @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
         @expose() name = (Text<1>).column({ nonNull: true });
         // relations
-        @expose() teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id["="](this.team_id)).cardinality("one"); }
+        @expose() teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
         // @generated-end
       }
       "
@@ -204,7 +165,7 @@ export class Dogs extends db.Table("dogs") {
   // @generated-end
 }
 `;
-    const out = generateTable("dogs", cols, rels, { dbImport: "../db", existing });
+    const out = generateTable("dogs", cols, rels, { typeImportPath: "typegres/postgres", dbImport: "../db", existing });
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
@@ -215,7 +176,7 @@ export class Dogs extends db.Table("dogs") {
         @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
         name = (Text<1>).column({ nonNull: true });
         // relations
-        teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id["="](this.team_id)).cardinality("one"); }
+        teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
         // @generated-end
       }
       "
@@ -234,7 +195,8 @@ export class Dogs extends db.Table("dogs") {
   // @generated-end
 }
 `;
-    const out = generateTable("dogs", [col("id", "int8", { identity_generation: "ALWAYS" }), col("name", "text")], [], {
+    const out = generateTable("dogs", [col("id", "Int8", { generated: true }), col("name", "Text")], [], {
+      typeImportPath: "typegres/postgres",
       dbImport: "../db",
       existing,
     });
@@ -265,9 +227,9 @@ export class Dogs extends db.Table("dogs") {
 `;
     const out = generateTable(
       "dogs",
-      [col("id", "int8", { identity_generation: "ALWAYS" }), col("breed", "text", { is_nullable: "YES" })],
+      [col("id", "Int8", { generated: true }), col("breed", "Text", { nullable: true })],
       [],
-      { dbImport: "../db", existing: existingNoTool },
+      { typeImportPath: "typegres/postgres", dbImport: "../db", existing: existingNoTool },
     );
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
@@ -295,7 +257,8 @@ export class Dogs extends db.Table("dogs") {
   // @generated-end
 }
 `;
-    const out = generateTable("dogs", [col("id", "int8", { identity_generation: "ALWAYS" })], [], {
+    const out = generateTable("dogs", [col("id", "Int8", { generated: true })], [], {
+      typeImportPath: "typegres/postgres",
       dbImport: "../db",
       existing,
     });
@@ -316,7 +279,7 @@ export class Dogs extends db.Table("dogs") {
 
   test("missing markers throws", async () => {
     const existing = `export class Dogs extends db.Table("dogs") {}\n`;
-    expect(() => generateTable("dogs", cols, rels, { dbImport: "../db", existing })).toThrow(
+    expect(() => generateTable("dogs", cols, rels, { typeImportPath: "typegres/postgres", dbImport: "../db", existing })).toThrow(
       /Missing @generated-start/,
     );
   });

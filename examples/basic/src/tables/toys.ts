@@ -1,13 +1,14 @@
-import { Int8, Text } from "typegres/postgres";
 import { db } from "../db";
+import { expose } from "typegres";
+import { Int8, Text } from "typegres/postgres";
 import { Dogs } from "./dogs";
 
 export class Toys extends db.Table("toys") {
   // @generated-start
-  id = (Int8<1>).column({ nonNull: true, generated: true });
-  name = (Text<1>).column({ nonNull: true });
-  dog_id = (Int8<1>).column({ nonNull: true });
+  @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
+  @expose() name = (Text<1>).column({ nonNull: true });
+  @expose() dog_id = (Int8<1>).column({ nonNull: true });
   // relations
-  dog() { return Dogs.from().where(({ dogs }) => dogs.id["="](this.dog_id)).cardinality("one"); }
+  @expose() dog() { return Dogs.scope(Toys.contextOf(this)).where(({ dogs }) => dogs.id.eq(this.dog_id)).cardinality("one"); }
   // @generated-end
 }

@@ -1,5 +1,5 @@
 {
-  "name": "typegres-example-basic",
+  "name": "typegres-example-sqlite",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -11,12 +11,12 @@
     "check": "npm run typecheck && npm run test"
   },
   "dependencies": {
-    "pg": "^8.20.0",
+    "better-sqlite3": "^12.11.1",
     "typegres": "file:../.."
   },
   "devDependencies": {
     "@swc/core": "^1.15.43",
-    "@types/pg": "^8.20.0",
+    "@types/better-sqlite3": "^7.6.13",
     "unplugin-swc": "^1.5.9",
     "vitest": "^4.1.5"
   }

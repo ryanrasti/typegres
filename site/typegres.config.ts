@@ -12,6 +12,7 @@
 import type { Config } from "typegres";
 
 export default {
+  dialect: "postgres",
   db: process.env["DATABASE_URL"] ?? "postgres://localhost/postgres",
   tables: "src/demo/schema",
   dbImport: "../runtime",

@@ -38,18 +38,53 @@ export class FinalizedInsert<Name extends string, T extends TableBase, R extends
   bind(): BoundSql {
     const { tableName, alias, columnNames, rows, returning, instance } = this.opts;
     const tableCls = instance.constructor;
-    const columns = columnNames.map((k) => tableCls.database.scopedIdent(k));
+    // Columns no row provides are omitted from the column list entirely,
+    // so the DB applies its own semantics (identity/rowid autoincrement,
+    // declared DEFAULTs, NULL) — what a hand-written INSERT would do.
+    // `column()` keeps no runtime opts, so this is also the only way to
+    // defer to per-column defaults without knowing them.
+    const usedColumns = columnNames.filter((k) => rows.some((row) => row[k] !== undefined));
     const rowSqls = rows.map((row) => {
-      const vals = columnNames.map((k) => {
+      const vals = usedColumns.map((k) => {
         const v = row[k];
-        if (v === undefined) { return sql`DEFAULT`; }
+        if (v === undefined) {
+          // Some other row provides this column, this one doesn't.
+          // Only PG is known to spell that `DEFAULT`; for any other
+          // dialect (SQLite has no per-row spelling for it), silently
+          // inserting NULL would diverge from what omitting the column
+          // means (rowid auto-fill, declared DEFAULT) — make the
+          // caller decide.
+          if (tableCls.database.dialect === "postgres") {
+            return sql`DEFAULT`;
+          }
+          throw new Error(
+            `Insert into '${tableName}': column '${k}' is set in some rows but not others. ` +
+            `The '${tableCls.database.dialect}' dialect cannot express "use the column default" per row — ` +
+            `provide '${k}' in every row or in none.`,
+          );
+        }
         const col = getColumn(instance, k);
         return col[meta].__class.from(v).toSql();
       });
       return sql`(${sql.join(vals)})`;
     });
+    // Zero provided columns can't be spelled `(cols) VALUES (...)`;
+    // both dialects use `DEFAULT VALUES`, which is single-row only.
+    let body: Sql;
+    if (usedColumns.length === 0) {
+      if (rows.length > 1) {
+        throw new Error(
+          `Insert into '${tableName}': multi-row insert with no columns provided. ` +
+          `Use one .insert({}) call per row for all-default rows.`,
+        );
+      }
+      body = sql`DEFAULT VALUES`;
+    } else {
+      const columns = usedColumns.map((k) => tableCls.database.scopedIdent(k));
+      body = sql`(${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`;
+    }
     const inner = sql.join([
-      sql`INSERT INTO ${tableCls.ident(tableName)} AS ${alias} (${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`,
+      sql`INSERT INTO ${tableCls.ident(tableName)} AS ${alias} ${body}`,
       returning && sql`RETURNING ${compileSelectList(returning)}`,
     ], sql` `);
     return sql.withScope([alias], inner);
