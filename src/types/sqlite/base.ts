@@ -11,6 +11,7 @@
 // without resolving the cyclic references at import time. Property
 // access happens at method-call time.
 //
+import z from "zod";
 import { SqlValue, type Dialect } from "../sql-value";
 import { meta } from "../sql-value";
 import * as types from "./index";
@@ -39,6 +40,21 @@ export class SqliteValue<in out N extends number> extends SqlValue<N> {
 
   isNotNull(): types.Bool<1> {
     return types.Bool.from(sql`(${this.toSql()} IS NOT NULL)`) as types.Bool<1>;
+  }
+
+  // Equality against another SqliteValue instance or a JS primitive.
+  // SQLite is manifest-typed at runtime, so no per-class overload
+  // narrowing — the shared surface takes any comparable value.
+  // Primitives get parameterized as-is via sql.param; instances
+  // splice their .toSql().
+  //
+  // @expose so exoeval-sandboxed predicates (RPC/tool-driven .where()
+  // callbacks) can call it — parity with PG's codegen'd operator
+  // methods, which are all exposed.
+  @expose(z.union([z.custom<SqliteValue<any>>((v) => v instanceof SqliteValue), z.boolean(), z.number(), z.string()]))
+  eq(other: SqliteValue<any> | boolean | number | string): types.Bool<any> {
+    const rhs = other instanceof SqliteValue ? other.toSql() : sql.param(other);
+    return types.Bool.from(sql`(${this.toSql()} = ${rhs})`) as types.Bool<any>;
   }
 
   // Non-generic `.in()` — SQLite's shallow class hierarchy (SqlValue →
