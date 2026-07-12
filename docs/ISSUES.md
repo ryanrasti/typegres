@@ -119,3 +119,18 @@
 
 14. ~~**`.live()` subscriptions**~~ — done (PR #72). Predicate extraction,
     reverse-index bus, MVCC-snapshot-aware re-iteration.
+
+## SQLite: results stringified, then re-parsed by deserializers
+
+better-sqlite3 already returns typed JS values (number, bigint,
+string, Buffer, null), but `SqliteDriver.normalizeRow` stringifies
+them all (`String(v)`, blobs → `\x`-hex) to satisfy `deserialize`'s
+PG text-protocol contract (`raw: string`) — and the sqlite
+deserializers immediately parse them back (`parseInt`, `parseFloat`,
+hex → Uint8Array). A pointless double conversion, plus hazards:
+int64 values > 2^53 stringify exactly but `parseInt` collapses them
+to a lossy double, and blobs copy twice.
+
+Likely fix: widen the deserialize contract to `raw: unknown` (or
+per-dialect raw types) so the sqlite driver can pass native values
+through and deserializers just narrow/validate.

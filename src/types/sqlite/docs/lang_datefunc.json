@@ -1,0 +1,175 @@
+{
+  "page": "lang_datefunc.html",
+  "functions": [
+    {
+      "sql": "date",
+      "kind": "scalar",
+      "doc": "YYYY-MM-DD for the given time value + modifiers.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any",
+              "hint": "datetime"
+            },
+            {
+              "type": "text",
+              "hint": "datetime-modifier",
+              "optional": true
+            }
+          ],
+          "variadic": true,
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "time",
+      "kind": "scalar",
+      "doc": "HH:MM:SS for the given time value + modifiers.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any",
+              "hint": "datetime"
+            },
+            {
+              "type": "text",
+              "hint": "datetime-modifier",
+              "optional": true
+            }
+          ],
+          "variadic": true,
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "datetime",
+      "kind": "scalar",
+      "doc": "YYYY-MM-DD HH:MM:SS for the given time value + modifiers.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any",
+              "hint": "datetime"
+            },
+            {
+              "type": "text",
+              "hint": "datetime-modifier",
+              "optional": true
+            }
+          ],
+          "variadic": true,
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "julianday",
+      "kind": "scalar",
+      "doc": "Julian day number (REAL).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any",
+              "hint": "datetime"
+            },
+            {
+              "type": "text",
+              "hint": "datetime-modifier",
+              "optional": true
+            }
+          ],
+          "variadic": true,
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "unixepoch",
+      "kind": "scalar",
+      "doc": "Unix timestamp (INTEGER; add 'subsec' for REAL).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any",
+              "hint": "datetime"
+            },
+            {
+              "type": "text",
+              "hint": "datetime-modifier",
+              "optional": true
+            }
+          ],
+          "variadic": true,
+          "returns": "integer",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "strftime",
+      "kind": "scalar",
+      "doc": "Format a time value per the %-substitution string.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "strftime-format"
+            },
+            {
+              "type": "any",
+              "hint": "datetime"
+            },
+            {
+              "type": "text",
+              "hint": "datetime-modifier",
+              "optional": true
+            }
+          ],
+          "variadic": true,
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "timediff",
+      "kind": "scalar",
+      "doc": "Human-readable A \u2212 B duration (3.43+).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any",
+              "hint": "datetime"
+            },
+            {
+              "type": "any",
+              "hint": "datetime"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    }
+  ]
+}

@@ -33,13 +33,13 @@ describe("affinityToClass — SQLite type affinity rules", () => {
   test("BOOLEAN → Bool (overlay before affinity)", () => { expect(affinityToClass("BOOLEAN")).toBe("Bool"); });
   test("bool → Bool (case-insensitive)", () => { expect(affinityToClass("bool")).toBe("Bool"); });
 
-  // NUMERIC affinity fall-through → SqliteValue (no narrow view).
-  test("DATE → SqliteValue (NUMERIC affinity, no domain type)", () => {
-    expect(affinityToClass("DATE")).toBe("SqliteValue");
+  // NUMERIC affinity fall-through → Any (no narrow view).
+  test("DATE → Any (NUMERIC affinity, no domain type)", () => {
+    expect(affinityToClass("DATE")).toBe("Any");
   });
-  test("DATETIME → SqliteValue", () => { expect(affinityToClass("DATETIME")).toBe("SqliteValue"); });
-  test("DECIMAL(10,2) → SqliteValue", () => { expect(affinityToClass("DECIMAL(10,2)")).toBe("SqliteValue"); });
-  test("NUMERIC → SqliteValue", () => { expect(affinityToClass("NUMERIC")).toBe("SqliteValue"); });
+  test("DATETIME → Any", () => { expect(affinityToClass("DATETIME")).toBe("Any"); });
+  test("DECIMAL(10,2) → Any", () => { expect(affinityToClass("DECIMAL(10,2)")).toBe("Any"); });
+  test("NUMERIC → Any", () => { expect(affinityToClass("NUMERIC")).toBe("Any"); });
 
   // Classic SQLite affinity gotchas — we match SQLite's own behavior.
   test("FLOATING POINT → Integer (rule 1 catches 'POINT' → 'INT')", () => {
@@ -48,8 +48,8 @@ describe("affinityToClass — SQLite type affinity rules", () => {
   test("CHARINT → Integer (rule 1 beats rule 2)", () => {
     expect(affinityToClass("CHARINT")).toBe("Integer");
   });
-  test("STRING → SqliteValue (no matching affinity rule)", () => {
-    expect(affinityToClass("STRING")).toBe("SqliteValue");
+  test("STRING → Any (no matching affinity rule)", () => {
+    expect(affinityToClass("STRING")).toBe("Any");
   });
 });
 
@@ -109,7 +109,7 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
     expect(files.get("dogs")).toMatchInlineSnapshot(`
       "import { db } from "../db";
       import { expose, sql } from "typegres";
-      import { Bool, Integer, SqliteValue, Text } from "typegres/sqlite";
+      import { Any, Bool, Integer, Text } from "typegres/sqlite";
       import { Teams } from "./teams";
 
       export class Dogs extends db.Table("dogs") {
@@ -119,7 +119,7 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
         @expose() breed = (Text<0 | 1>).column();
         @expose() team_id = (Integer<1>).column({ nonNull: true });
         @expose() active = (Bool<1>).column({ nonNull: true, default: sql\`0\` });
-        @expose() seen_at = (SqliteValue<0 | 1>).column();
+        @expose() seen_at = (Any<0 | 1>).column();
         // relations
         @expose() team() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
         // @generated-end

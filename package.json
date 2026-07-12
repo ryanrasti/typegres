@@ -53,8 +53,8 @@
   },
   "scripts": {
     "build": "tsdown",
-    "codegen": "node --experimental-strip-types src/types/postgres/generate.ts && node --experimental-strip-types src/types/sqlite/generate.ts",
-    "codegen:check": "tmp=$(mktemp -d) && node --experimental-strip-types src/types/postgres/generate.ts --out-dir \"$tmp/pg\" && { diff -r \"$tmp/pg\" src/types/postgres/generated || { echo 'src/types/postgres/generated is stale — run `npm run codegen` and commit.' >&2; rm -rf \"$tmp\"; exit 1; }; } && node --experimental-strip-types src/types/sqlite/generate.ts --out-dir \"$tmp/sqlite\" && { diff -r \"$tmp/sqlite/generated\" src/types/sqlite/generated || { echo 'src/types/sqlite/generated is stale — run `npm run codegen` and commit.' >&2; rm -rf \"$tmp\"; exit 1; }; } && rm -rf \"$tmp\"",
+    "codegen": "node --experimental-strip-types src/types/postgres/emit.ts && node --experimental-strip-types src/types/sqlite/emit.ts",
+    "codegen:check": "tmp=$(mktemp -d) && node --experimental-strip-types src/types/postgres/emit.ts --out-dir \"$tmp/pg\" && { diff -r \"$tmp/pg\" src/types/postgres/generated || { echo 'src/types/postgres/generated is stale — run `npm run codegen` and commit.' >&2; rm -rf \"$tmp\"; exit 1; }; } && node --experimental-strip-types src/types/sqlite/emit.ts --out-dir \"$tmp/sqlite\" && { diff -r \"$tmp/sqlite/generated\" src/types/sqlite/generated || { echo 'src/types/sqlite/generated is stale — run `npm run codegen` and commit.' >&2; rm -rf \"$tmp\"; exit 1; }; } && rm -rf \"$tmp\"",
     "lint": "eslint src",
     "typecheck": "tsgo --noEmit",
     "format": "prettier --write src",
@@ -76,6 +76,7 @@
     "acorn": "^8.16.0",
     "better-sqlite3": "^12.11.1",
     "eslint": "^10.2.1",
+    "fast-check": "^4.9.0",
     "pg": "^8.20.0",
     "prettier": "^3.8.3",
     "secure-json-parse": "^4.1.0",

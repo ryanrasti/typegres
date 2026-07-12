@@ -1,0 +1,4 @@
+# Fetched doc pages — reproduce with ./fetch.sh (see VERSION for the
+# snapshot stamp). Committed: fetch.sh, VERSION, index.ts (schema +
+# extraction prompt), and the *.json extraction artifacts.
+*.html

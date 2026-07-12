@@ -1,0 +1,157 @@
+{
+  "page": "lang_aggfunc.html",
+  "functions": [
+    {
+      "sql": "avg",
+      "kind": "aggregate",
+      "doc": "Mean of non-NULL values; NULL over the empty set.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "real",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "count",
+      "kind": "aggregate",
+      "doc": "Count of non-NULL values.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "group_concat",
+      "kind": "aggregate",
+      "doc": "Concatenation of non-NULL values with separator (default ',').",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "text",
+              "optional": true
+            }
+          ],
+          "returns": "text",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "string_agg",
+      "kind": "aggregate",
+      "doc": "Alias of group_concat(X, SEP) (3.44+).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "text"
+            }
+          ],
+          "returns": "text",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "max",
+      "kind": "aggregate",
+      "doc": "Maximum value; NULL over the empty set.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "arg0",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "min",
+      "kind": "aggregate",
+      "doc": "Minimum value; NULL over the empty set.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "arg0",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "sum",
+      "kind": "aggregate",
+      "doc": "Sum; NULL over the empty set; integer overflow throws.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "always"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "total",
+      "kind": "aggregate",
+      "doc": "Sum as REAL; 0.0 over the empty set, never NULL.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "real",
+          "nullability": "never"
+        }
+      ]
+    }
+  ]
+}

@@ -72,6 +72,14 @@ export class SqlValue<in out N extends number> {
   // set this to `"number"` / `"boolean"` (int4, bool, ...).
   static primitiveTs: string = "string";
 
+  // Whether `v` is an acceptable JS-side primitive for this class.
+  // The default is the historical typeof check; classes whose
+  // primitive has no distinct typeof override it (sqlite Blob →
+  // Uint8Array, sqlite Any → any plain data).
+  static acceptsPrimitive(v: unknown): boolean {
+    return typeof v === this.primitiveTs;
+  }
+
   // Default: identity. Overrides on the ~6 non-string typed classes
   // (Bool → boolean, Int2/Int4/Oid → parseInt, Float4/Float8 → parseFloat)
   // return the parsed value. Return-typed as `unknown` here so subclass
@@ -127,8 +135,9 @@ export class SqlValue<in out N extends number> {
       // silently wraps it as `Param(anAny)` which serializes as `{}`,
       // producing either invalid SQL or a confusing cast error far
       // from the call site. Plain objects (jsonb), arrays, nulls,
-      // and primitives are fine.
-      if (!isPlainData(v)) {
+      // and primitives are fine — as is Uint8Array, the one class
+      // instance that IS a bindable SQL value (blob/bytea).
+      if (!(v instanceof Uint8Array) && !isPlainData(v)) {
         const name = (Object.getPrototypeOf(v) as { constructor?: { name?: string } } | null)?.constructor?.name ?? "anonymous";
         throw new TypeError(
           `${this.__typnameText}.from: cannot wrap ${name} instance as a typegres parameter. ` +
@@ -136,7 +145,14 @@ export class SqlValue<in out N extends number> {
             `otherwise extract the primitive value first.`,
         );
       }
-      __raw = new TypedParam(new Param(v), this.__typname, this.dialect.name);
+      // `any` is a placeholder, not a castable type name — a TypedParam
+      // would compile to CAST(? AS any), which SQLite resolves to
+      // NUMERIC affinity (mangling '!' → 0) and PG rejects. Root
+      // classes bind bare params; concrete classes keep the forced
+      // cast that makes their type claims true.
+      __raw = this.__typnameText === "any"
+        ? new Param(v)
+        : new TypedParam(new Param(v), this.__typname, this.dialect.name);
     }
     // Set [meta] at runtime — subclasses' `declare [meta]` narrows the type only
     Object.defineProperty(instance, meta, {
@@ -150,10 +166,9 @@ export class SqlValue<in out N extends number> {
   // Used by match() for runtime overload dispatch.
   static serialize(v: unknown): SqlValue<any> {
     if (v instanceof this) { return v; }
-    const expected = this.primitiveTs;
-    if (typeof v === expected) { return this.from(v); }
+    if (this.acceptsPrimitive(v)) { return this.from(v); }
     throw new Error(
-      `${this.__typnameText}.serialize: expected a ${this.__typnameText} instance or ${expected} primitive, got ${typeof v} (${String(v).slice(0, 60)}).`,
+      `${this.__typnameText}.serialize: expected a ${this.__typnameText} instance or an accepted primitive, got ${typeof v} (${String(v).slice(0, 60)}).`,
     );
   }
 

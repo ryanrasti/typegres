@@ -45,7 +45,7 @@ interface IndexInfoRow {
 // "affinity" via ordered substring rules (§ 3.1 of the SQLite type
 // docs). We follow those rules 1:1 plus a small overlay for BOOLEAN
 // (a strong-enough convention to surface as our `Bool`). NUMERIC
-// affinity resolves to `SqliteValue` — the base class with no narrow
+// affinity resolves to `Any` — the base class with no narrow
 // method surface, which honestly reflects SQLite's dynamic typing.
 export const affinityToClass = (declaredType: string): string => {
   // BOOL/BOOLEAN overlay first — affinity rules would send this to
@@ -63,10 +63,10 @@ export const affinityToClass = (declaredType: string): string => {
   if (/REAL|FLOA|DOUB/.test(t)) { return "Real"; }
 
   // NUMERIC fallback — DATE, DATETIME, TIMESTAMP, DECIMAL, MONEY, and
-  // custom names all land here. Bare SqliteValue<N>: no narrow
+  // custom names all land here. Bare Any<N>: no narrow
   // methods, `unknown` on hydration. User asserts intent at the call
   // site when treating it as a specific type.
-  return "SqliteValue";
+  return "Any";
 };
 
 // `INTEGER PRIMARY KEY` (that exact declared type, not "INT") in a

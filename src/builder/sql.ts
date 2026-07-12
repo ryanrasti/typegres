@@ -375,7 +375,20 @@ export const compile = (root: Sql, ctx: CompileContext): CompiledSql => {
     } else if (atom instanceof Ident) {
       out.push(quoteIdent(atom.name));
     } else if (atom instanceof Param) {
-      values.push(atom.value);
+      // Raw-param semantics for sqlite are the JS ones: a JS number IS
+      // a double, so it binds as REAL (`sql\`${7} / ${2}\`` is 3.5, and
+      // typeof(${7}) is 'real'); BigInt binds as INTEGER. Typed
+      // positions are different — methods and table columns serialize
+      // through their class (CAST(? AS INTEGER/...)), so storage
+      // classes there follow the claim, not the binding.
+      // Booleans: SQLite has no boolean type — the convention is 0/1
+      // INTEGER (BigInt so it binds as INTEGER, not REAL). A dialect
+      // fact, so it lives here in compilation rather than in any one
+      // driver.
+      const value = ctx.database.dialect === "sqlite" && typeof atom.value === "boolean"
+        ? (atom.value ? 1n : 0n)
+        : atom.value;
+      values.push(value);
       out.push(paramForDialect(ctx.database.dialect, values.length));
     } else if (atom instanceof Alias) {
       const resolved = scope.resolve(atom);

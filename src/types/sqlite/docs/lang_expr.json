@@ -1,0 +1,652 @@
+{
+  "page": "lang_expr.html",
+  "functions": [
+    {
+      "sql": "=",
+      "kind": "binop",
+      "doc": "Equality (SQL three-valued).",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "<>",
+      "kind": "binop",
+      "doc": "Inequality (SQL three-valued).",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "<",
+      "kind": "binop",
+      "doc": "Less-than under SQLite's cross-type ordering.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "<=",
+      "kind": "binop",
+      "doc": "Less-or-equal.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": ">",
+      "kind": "binop",
+      "doc": "Greater-than.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": ">=",
+      "kind": "binop",
+      "doc": "Greater-or-equal.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "IS",
+      "kind": "binop",
+      "doc": "NULL-safe equality \u2014 never NULL.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "IS NOT",
+      "kind": "binop",
+      "doc": "NULL-safe inequality \u2014 never NULL.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "IS DISTINCT FROM",
+      "kind": "binop",
+      "doc": "Synonym for IS NOT.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "IS NOT DISTINCT FROM",
+      "kind": "binop",
+      "doc": "Synonym for IS.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "+",
+      "kind": "binop",
+      "doc": "Addition.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "-",
+      "kind": "binop",
+      "doc": "Subtraction.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "*",
+      "kind": "binop",
+      "doc": "Multiplication.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "/",
+      "kind": "binop",
+      "doc": "Division \u2014 INTEGER/INTEGER truncates; \u00f70 \u2192 NULL.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "%",
+      "kind": "binop",
+      "doc": "Remainder (integer semantics) \u2014 %0 \u2192 NULL.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "||",
+      "kind": "binop",
+      "doc": "String concatenation.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "text",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "&",
+      "kind": "binop",
+      "doc": "Bitwise AND (operands coerced to INTEGER).",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "|",
+      "kind": "binop",
+      "doc": "Bitwise OR.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "<<",
+      "kind": "binop",
+      "doc": "Left shift.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": ">>",
+      "kind": "binop",
+      "doc": "Right shift.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "->",
+      "kind": "binop",
+      "doc": "JSON subcomponent at path, as JSON text; NULL if absent.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "->>",
+      "kind": "binop",
+      "doc": "JSON subcomponent at path, as SQL value; NULL if absent.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            }
+          ],
+          "returns": "any",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            }
+          ],
+          "returns": "any",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "-",
+      "kind": "unaryop",
+      "doc": "Arithmetic negation.",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "~",
+      "kind": "unaryop",
+      "doc": "Bitwise NOT (operand coerced to INTEGER).",
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        }
+      ]
+    }
+  ]
+}

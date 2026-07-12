@@ -7,7 +7,7 @@ import { Connection } from "../database";
 // dispatches per-dialect (Phase 2.1) these will be gated by ctx.dialect.
 import { Anyarray, Record } from "../types/postgres";
 // Dialect-agnostic base for shape/predicate/instanceof checks — accepts
-// PG's Any or SQLite's SqliteValue uniformly.
+// PG's Any or SQLite's Any uniformly.
 import { SqlValue } from "../types/sql-value";
 import { zBool, type Bool } from "../types/bool";
 import { type TsTypeOf, type Nullable, type AggregateRow } from "../types/runtime";

@@ -79,7 +79,7 @@ test("serialize: instance passes through", () => {
 });
 
 test("serialize: wrong type throws", () => {
-  expect(() => Int4.serialize("hello")).toThrow("int4.serialize: expected a int4 instance or number primitive");
+  expect(() => Int4.serialize("hello")).toThrow("int4.serialize: expected a int4 instance or an accepted primitive");
 });
 
 test("serialize: null throws", () => {
@@ -92,5 +92,5 @@ test("serialize: string for Int8 passes", () => {
 });
 
 test("serialize: number for Int8 throws", () => {
-  expect(() => Int8.serialize(42)).toThrow("int8.serialize: expected a int8 instance or string primitive");
+  expect(() => Int8.serialize(42)).toThrow("int8.serialize: expected a int8 instance or an accepted primitive");
 });

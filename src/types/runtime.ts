@@ -1,7 +1,7 @@
 export type { Sql } from "../builder/sql";
 export { sql, Srf } from "../builder/sql";
 import type { Raw } from "../builder/sql";
-import { Func, Op, argToSql } from "../builder/sql";
+import { Func, Op, UnaryOp, argToSql } from "../builder/sql";
 import { SqlValue, meta } from "./sql-value";
 import type { Any } from "./postgres";
 import { isPlainData } from "../util";
@@ -93,7 +93,7 @@ export const isSetRow = (row: unknown): row is SetRow<any> => {
     return false;
   }
   // Each value must be either a typegres expression (any dialect —
-  // PG's Any or SQLite's SqliteValue both extend SqlValue) OR plain
+  // PG's Any or SQLite's Any both extend SqlValue) OR plain
   // data (recursively — no other class instances at any depth).
   return Object.values(row).every(
     (v) => v instanceof SqlValue || isPlainData(v),
@@ -101,8 +101,9 @@ export const isSetRow = (row: unknown): row is SetRow<any> => {
 };
 
 // Runtime type resolution
-// pgType(expr) — returns the constructor via [meta].__class (set once in Any, narrowed by subclasses)
-export const pgType = (expr: Any<any>): typeof Any => expr[meta].__class as typeof Any;
+// pgType(expr) — returns the constructor via [meta].__class (set once
+// in SqlValue, narrowed by subclasses). Dialect-agnostic: any SqlValue.
+export const pgType = (expr: SqlValue<any>): typeof SqlValue => expr[meta].__class as typeof SqlValue;
 // pgElement(expr) — returns the element type constructor from a container's __element
 export const pgElement = (expr: Any<any>): typeof Any => (expr[meta].__class as any).__element;
 
@@ -111,36 +112,35 @@ export const pgElement = (expr: Any<any>): typeof Any => (expr[meta].__class as 
 // allowPrimitive: true if the corresponding TS primitive is accepted for this arg.
 // `type` is widened to `typeof SqlValue` so both PG- and SQLite-codegen
 // call sites typecheck (both dialects' classes descend from SqlValue).
-type ArgMatcher = { type: typeof SqlValue; allowPrimitive?: boolean };
+type ArgMatcher = {
+  type: typeof SqlValue;
+  allowPrimitive?: boolean;
+  // Last matcher only: every argument beyond the fixed prefix is
+  // validated/serialized against this matcher (variadic tails).
+  rest?: boolean;
+};
 type MatchCase = [args: ArgMatcher[], retType: typeof SqlValue];
 
 // Validates args, serializes primitives, and returns [retType, ...serializedArgs].
 // The caller destructures: const [retType, ...args] = match(...)
 export const match = (args: unknown[], cases: MatchCase[]): [typeof SqlValue, ...unknown[]] => {
+  // Trailing undefined = optional args the caller omitted (fixed-arity
+  // impl signatures forward them as explicit undefined).
+  const given = [...args];
+  while (given.length > 0 && given[given.length - 1] === undefined) { given.pop(); }
+
   for (const [matchers, retType] of cases) {
-    const matched = matchers.every((m, i) => {
-      const arg = args[i];
-      if (arg instanceof m.type) {
-        return true;
-      }
-      if (m.allowPrimitive) {
-        if (typeof arg === m.type.primitiveTs) {
-          return true;
-        }
-      }
-      return false;
-    });
-    if (matched) {
-      const serialized = matchers.map((m, i) => {
-        if (args[i] instanceof m.type) {
-          return args[i];
-        }
-        return m.type.serialize(args[i]);
-      });
-      return [retType, ...serialized];
-    }
+    // Assign each given arg its matcher: positional, with a trailing
+    // rest matcher repeating over any surplus. No assignment for every
+    // arg (or leftover required matchers) ⇒ the case is out.
+    const rest = matchers.at(-1)?.rest ? matchers.at(-1) : undefined;
+    const fixed = rest ? matchers.slice(0, -1) : matchers;
+    if (given.length < fixed.length || (given.length > fixed.length && !rest)) { continue; }
+    const slots = given.map((_, i) => fixed[i] ?? rest!);
+    if (!slots.every((m, i) => given[i] instanceof m.type || (!!m.allowPrimitive && m.type.acceptsPrimitive(given[i])))) { continue; }
+    return [retType, ...given.map((arg, i) => (arg instanceof slots[i]!.type ? arg : slots[i]!.type.serialize(arg)))];
   }
-  throw new Error(`No matching overload for args: [${args.map((a) => typeof a).join(", ")}]`);
+  throw new Error(`No matching overload for args: [${given.map((a) => typeof a).join(", ")}]`);
 };
 
 // Expression node builders — construct real typed instances via
@@ -157,4 +157,8 @@ export const funcCall = (name: string, args: unknown[], type: typeof SqlValue) =
 
 export const opCall = (op: Raw, args: [unknown, unknown], type: typeof SqlValue) => {
   return type.from(new Op(op, argToSql(args[0]), argToSql(args[1]), type.dialect.name));
+};
+
+export const unaryOpCall = (op: Raw, arg: unknown, type: typeof SqlValue) => {
+  return type.from(new UnaryOp(op, argToSql(arg), type.dialect.name));
 };

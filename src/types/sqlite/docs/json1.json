@@ -1,0 +1,1122 @@
+{
+  "page": "json1.html",
+  "functions": [
+    {
+      "sql": "json",
+      "kind": "scalar",
+      "doc": "Validate + minify JSON (jsonb \u2192 binary).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "jsonb",
+      "kind": "scalar",
+      "doc": "Validate + minify JSON (jsonb \u2192 binary).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "json_array",
+      "kind": "scalar",
+      "doc": "JSON array from the arguments.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "variadic": true,
+          "returns": "text",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "jsonb_array",
+      "kind": "scalar",
+      "doc": "JSON array from the arguments.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "variadic": true,
+          "returns": "blob",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "json_array_length",
+      "kind": "scalar",
+      "doc": "Array length at path (default '$').",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath",
+              "optional": true
+            }
+          ],
+          "returns": "integer",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath",
+              "optional": true
+            }
+          ],
+          "returns": "integer",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "json_error_position",
+      "kind": "scalar",
+      "doc": "0 if well-formed, else 1-based position of the first error.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "json_extract",
+      "kind": "scalar",
+      "doc": "Extract value(s) at path(s) \u2014 SQL value for scalars, JSON text otherwise.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            }
+          ],
+          "variadic": true,
+          "returns": "any",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            }
+          ],
+          "variadic": true,
+          "returns": "any",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "jsonb_extract",
+      "kind": "scalar",
+      "doc": "Extract at path(s) \u2014 JSONB for objects/arrays, SQL value for scalars.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            }
+          ],
+          "variadic": true,
+          "returns": "any",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            }
+          ],
+          "variadic": true,
+          "returns": "any",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "json_insert",
+      "kind": "scalar",
+      "doc": "Insert value at path if absent (more path/value pairs may follow).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "jsonb_insert",
+      "kind": "scalar",
+      "doc": "Insert value at path if absent (more path/value pairs may follow).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "json_array_insert",
+      "kind": "scalar",
+      "doc": "Insert value into array at element path, shifting later elements (3.51+).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json-array"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath-element"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json-array"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath-element"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "jsonb_array_insert",
+      "kind": "scalar",
+      "doc": "Insert value into array at element path, shifting later elements (3.51+).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json-array"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath-element"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json-array"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath-element"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "json_object",
+      "kind": "scalar",
+      "doc": "JSON object from alternating key/value args (label args must be TEXT).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "text",
+          "nullability": "never",
+          "nullPositions": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "sql": "jsonb_object",
+      "kind": "scalar",
+      "doc": "JSON object from alternating key/value args (label args must be TEXT).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "never",
+          "nullPositions": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "sql": "json_patch",
+      "kind": "scalar",
+      "doc": "RFC-7396 MergePatch of Y into X.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "any",
+              "hint": "json"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "any",
+              "hint": "json"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "jsonb_patch",
+      "kind": "scalar",
+      "doc": "RFC-7396 MergePatch of Y into X.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "any",
+              "hint": "json"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "any",
+              "hint": "json"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "json_pretty",
+      "kind": "scalar",
+      "doc": "Pretty-print JSON (3.46+).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "optional": true
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "optional": true
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "json_quote",
+      "kind": "scalar",
+      "doc": "SQL value \u2192 JSON representation.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "text",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "json_remove",
+      "kind": "scalar",
+      "doc": "Remove the value(s) at path(s).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            }
+          ],
+          "variadic": true,
+          "returns": "text",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            }
+          ],
+          "variadic": true,
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "jsonb_remove",
+      "kind": "scalar",
+      "doc": "Remove the value(s) at path(s).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            }
+          ],
+          "variadic": true,
+          "returns": "blob",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            }
+          ],
+          "variadic": true,
+          "returns": "blob",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "json_replace",
+      "kind": "scalar",
+      "doc": "Replace value at path if present (more path/value pairs may follow).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "jsonb_replace",
+      "kind": "scalar",
+      "doc": "Replace value at path if present (more path/value pairs may follow).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "json_set",
+      "kind": "scalar",
+      "doc": "Set value at path \u2014 insert or replace (more path/value pairs may follow).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "jsonb_set",
+      "kind": "scalar",
+      "doc": "Set value at path \u2014 insert or replace (more path/value pairs may follow).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "json_type",
+      "kind": "scalar",
+      "doc": "'object'|'array'|'integer'|... at path; NULL if path absent.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath",
+              "optional": true
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath",
+              "optional": true
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "json_valid",
+      "kind": "scalar",
+      "doc": "1 if X is well-formed RFC-8259 JSON text.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "json_group_array",
+      "kind": "aggregate",
+      "doc": "Aggregate values into a JSON array ('[]' for empty).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "text",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "jsonb_group_array",
+      "kind": "aggregate",
+      "doc": "Aggregate values into a JSONB array.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "json_group_object",
+      "kind": "aggregate",
+      "doc": "Aggregate key/value pairs into a JSON object.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "text",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "jsonb_group_object",
+      "kind": "aggregate",
+      "doc": "Aggregate key/value pairs into a JSONB object.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "any",
+              "hint": "plain"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "json_each",
+      "kind": "scalar",
+      "isSrf": true,
+      "doc": "Table-valued: one row per element of the top-level array/object (or of the value at PATH).",
+      "deterministic": true,
+      "outColumns": [
+        {
+          "name": "key",
+          "type": "any"
+        },
+        {
+          "name": "value",
+          "type": "any"
+        },
+        {
+          "name": "type",
+          "type": "text"
+        },
+        {
+          "name": "atom",
+          "type": "any"
+        },
+        {
+          "name": "id",
+          "type": "integer"
+        },
+        {
+          "name": "parent",
+          "type": "integer"
+        },
+        {
+          "name": "fullkey",
+          "type": "text"
+        },
+        {
+          "name": "path",
+          "type": "text"
+        }
+      ],
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath",
+              "optional": true
+            }
+          ],
+          "returns": null,
+          "nullability": "never"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath",
+              "optional": true
+            }
+          ],
+          "returns": null,
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "json_tree",
+      "kind": "scalar",
+      "isSrf": true,
+      "doc": "Table-valued: recursive walk of the whole JSON tree, one row per container and leaf.",
+      "deterministic": true,
+      "outColumns": [
+        {
+          "name": "key",
+          "type": "any"
+        },
+        {
+          "name": "value",
+          "type": "any"
+        },
+        {
+          "name": "type",
+          "type": "text"
+        },
+        {
+          "name": "atom",
+          "type": "any"
+        },
+        {
+          "name": "id",
+          "type": "integer"
+        },
+        {
+          "name": "parent",
+          "type": "integer"
+        },
+        {
+          "name": "fullkey",
+          "type": "text"
+        },
+        {
+          "name": "path",
+          "type": "text"
+        }
+      ],
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath",
+              "optional": true
+            }
+          ],
+          "returns": null,
+          "nullability": "never"
+        },
+        {
+          "args": [
+            {
+              "type": "blob",
+              "hint": "json"
+            },
+            {
+              "type": "text",
+              "hint": "jsonpath",
+              "optional": true
+            }
+          ],
+          "returns": null,
+          "nullability": "never"
+        }
+      ]
+    }
+  ]
+}

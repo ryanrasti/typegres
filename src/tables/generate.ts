@@ -22,7 +22,7 @@ import { pgNameToClassName } from "../types/postgres/introspect.ts";
 export interface ColumnInfo {
   name: string;
   // Resolved TS class name for the type (e.g. "Int8", "Text",
-  // "Integer", "Bool", "SqliteValue"). The introspector resolves this
+  // "Integer", "Bool", "Any"). The introspector resolves this
   // at introspection time — shared codegen doesn't know how PG
   // typnames vs SQLite affinity resolve.
   className: string;

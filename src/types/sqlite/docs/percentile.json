@@ -1,0 +1,133 @@
+{
+  "page": "percentile.html",
+  "functions": [
+    {
+      "sql": "median",
+      "kind": "aggregate",
+      "doc": "Median (percentile extension). Numeric inputs only.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "always"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "percentile",
+      "kind": "aggregate",
+      "doc": "P-th percentile, P in 0..100 (percentile extension).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "real",
+              "hint": "percent"
+            }
+          ],
+          "returns": "real",
+          "nullability": "always"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "real",
+              "hint": "percent"
+            }
+          ],
+          "returns": "real",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "percentile_cont",
+      "kind": "aggregate",
+      "doc": "Continuous percentile, fraction in 0..1.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "real",
+              "hint": "fraction"
+            }
+          ],
+          "returns": "real",
+          "nullability": "always"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "real",
+              "hint": "fraction"
+            }
+          ],
+          "returns": "real",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "percentile_disc",
+      "kind": "aggregate",
+      "doc": "Discrete percentile, fraction in 0..1.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "real",
+              "hint": "fraction"
+            }
+          ],
+          "returns": "real",
+          "nullability": "always"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "real",
+              "hint": "fraction"
+            }
+          ],
+          "returns": "real",
+          "nullability": "always"
+        }
+      ]
+    }
+  ]
+}
