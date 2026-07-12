@@ -1,28 +1,17 @@
-// SQLite has no native bool type — the storage class is INTEGER 0/1.
-// `__typname = INTEGER` for CAST(...); `__typnameText = "bool"` is the
-// key used for error messages. Codegen doesn't emit a bool.ts under
-// `generated/` (bool isn't a SQLite storage class), so this override
-// stands on its own — extends SqliteValue directly rather than a
-// generated base.
-import { SqliteValue } from "../base";
+// The boolean view's hand-written behavior over the generated surface
+// (../generated/bool.ts — chrome + iif and friends). SQLite has no
+// native bool — the storage class is INTEGER 0/1 (the generated CAST
+// target is INTEGER), so deserialization reads "1"/"0" and the
+// and/or/not connectives build on integer truthiness.
+import { Bool as Generated } from "../generated/bool";
 import { boolAnd, boolOr, boolNot } from "../../bool";
-import { sql, type Sql } from "../../../builder/sql";
-import { meta } from "../../sql-value";
 import type { StrictNull, NullOf } from "../../runtime";
 
-export class Bool<in out N extends number> extends SqliteValue<N> {
-  declare [meta]: {
-    __class: typeof Bool;
-    __raw: Sql;
-    __nullability: N;
-    __nullable: Bool<0 | 1>;
-    __nonNullable: Bool<1>;
-    __aggregate: Bool<number>;
-    __any: Bool<any>;
-  };
-  static override __typname = sql`INTEGER`;
-  static override __typnameText = "bool";
+export class Bool<in out N extends number> extends Generated<N> {
   static override primitiveTs = "boolean";
+  // Restore the typeof narrowing (Any's permissive acceptsPrimitive
+  // override is inherited by statics).
+  static override acceptsPrimitive(v: unknown): boolean { return typeof v === "boolean"; }
   override deserialize(raw: string): boolean { return raw === "1"; }
 
   and<M extends Bool<any>>(other: M): Bool<StrictNull<N | NullOf<M>>> {

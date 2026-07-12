@@ -1,0 +1,866 @@
+{
+  "page": "lang_mathfunc.html",
+  "functions": [
+    {
+      "sql": "acos",
+      "kind": "scalar",
+      "doc": "Arccosine in radians.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "acosh",
+      "kind": "scalar",
+      "doc": "Inverse hyperbolic cosine.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "asin",
+      "kind": "scalar",
+      "doc": "Arcsine in radians.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "asinh",
+      "kind": "scalar",
+      "doc": "Inverse hyperbolic sine.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "atan",
+      "kind": "scalar",
+      "doc": "Arctangent in radians.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "atan2",
+      "kind": "scalar",
+      "doc": "atan2(Y, X) \u2014 arctangent of Y/X in radians.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "atanh",
+      "kind": "scalar",
+      "doc": "Inverse hyperbolic tangent.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "ceil",
+      "kind": "scalar",
+      "doc": "Smallest integer \u2265 X.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "ceiling",
+      "kind": "scalar",
+      "doc": "Alias of ceil().",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "cos",
+      "kind": "scalar",
+      "doc": "Cosine of X (radians).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "cosh",
+      "kind": "scalar",
+      "doc": "Hyperbolic cosine.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "degrees",
+      "kind": "scalar",
+      "doc": "Radians \u2192 degrees.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "exp",
+      "kind": "scalar",
+      "doc": "e raised to X.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "floor",
+      "kind": "scalar",
+      "doc": "Largest integer \u2264 X.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "ln",
+      "kind": "scalar",
+      "doc": "Natural logarithm; NULL for X \u2264 0.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "log",
+      "kind": "scalar",
+      "doc": "log(X) base-10 log; log(B, X) base-B log. NULL for non-positive X.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "log10",
+      "kind": "scalar",
+      "doc": "Base-10 logarithm; NULL for X \u2264 0.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "log2",
+      "kind": "scalar",
+      "doc": "Base-2 logarithm; NULL for X \u2264 0.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "mod",
+      "kind": "scalar",
+      "doc": "mod(X, Y) \u2014 remainder of X/Y (C fmod semantics; result is REAL).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "pi",
+      "kind": "scalar",
+      "doc": "\u03c0 as a REAL.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [],
+          "returns": "real",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "pow",
+      "kind": "scalar",
+      "doc": "pow(X, Y) \u2014 X raised to Y.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "power",
+      "kind": "scalar",
+      "doc": "Alias of pow().",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "radians",
+      "kind": "scalar",
+      "doc": "Degrees \u2192 radians.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "sin",
+      "kind": "scalar",
+      "doc": "Sine of X (radians).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "sinh",
+      "kind": "scalar",
+      "doc": "Hyperbolic sine.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "sqrt",
+      "kind": "scalar",
+      "doc": "Square root; NULL for X < 0.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "tan",
+      "kind": "scalar",
+      "doc": "Tangent of X (radians).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "tanh",
+      "kind": "scalar",
+      "doc": "Hyperbolic tangent.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "trunc",
+      "kind": "scalar",
+      "doc": "Truncate toward zero.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    }
+  ]
+}

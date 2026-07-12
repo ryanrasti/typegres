@@ -12,3 +12,4 @@ site/public/demo.ts.static
 site/public/typegres.js
 site/public/typegres.d.ts
 packages/
+.claude/

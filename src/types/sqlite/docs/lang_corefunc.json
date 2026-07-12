@@ -1,0 +1,947 @@
+{
+  "page": "lang_corefunc.html",
+  "functions": [
+    {
+      "sql": "abs",
+      "kind": "scalar",
+      "doc": "Absolute value. INTEGER in \u2192 INTEGER out; throws on INT64_MIN.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "char",
+      "kind": "scalar",
+      "doc": "String from unicode code points.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "variadic": true,
+          "returns": "text",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "concat",
+      "kind": "scalar",
+      "doc": "Concatenation of all non-NULL args (3.44+).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            }
+          ],
+          "variadic": true,
+          "returns": "text",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "concat_ws",
+      "kind": "scalar",
+      "doc": "Concatenation with separator, skipping NULLs (3.44+).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "variadic": true,
+          "returns": "text",
+          "nullability": "propagates",
+          "nullPositions": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "sql": "format",
+      "kind": "scalar",
+      "doc": "printf-style formatting (see printf.html).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "printf-format"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "variadic": true,
+          "returns": "text",
+          "nullability": "propagates",
+          "nullPositions": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "sql": "printf",
+      "kind": "scalar",
+      "doc": "Alias of format().",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "printf-format"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "variadic": true,
+          "returns": "text",
+          "nullability": "propagates",
+          "nullPositions": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "sql": "glob",
+      "kind": "scalar",
+      "doc": "X GLOB pattern \u2014 case-sensitive glob match (glob(P, X) function form).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "like-pattern"
+            },
+            {
+              "type": "text"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "hex",
+      "kind": "scalar",
+      "doc": "Uppercase hex rendering of the blob-coerced value; hex(NULL) = ''.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "text",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "instr",
+      "kind": "scalar",
+      "doc": "1-based position of the first occurrence of Y in X; 0 if absent.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "text"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "blob"
+            },
+            {
+              "type": "blob"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "length",
+      "kind": "scalar",
+      "doc": "Characters for TEXT, bytes for BLOB.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "blob"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "like",
+      "kind": "scalar",
+      "doc": "X LIKE pattern [ESCAPE e] \u2014 case-insensitive (ASCII) pattern match.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "like-pattern"
+            },
+            {
+              "type": "text"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "text",
+              "hint": "like-pattern"
+            },
+            {
+              "type": "text"
+            },
+            {
+              "type": "text",
+              "hint": "escape-char"
+            }
+          ],
+          "returns": "bool",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "lower",
+      "kind": "scalar",
+      "doc": "ASCII lowercase.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            }
+          ],
+          "returns": "text",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "ltrim",
+      "kind": "scalar",
+      "doc": "Trim chars (default whitespace) from the left.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "text",
+              "optional": true
+            }
+          ],
+          "returns": "text",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "max",
+      "kind": "scalar",
+      "doc": "Scalar max of 2+ values (SQLite cross-type ordering).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "variadic": true,
+          "returns": "any",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "min",
+      "kind": "scalar",
+      "doc": "Scalar min of 2+ values (SQLite cross-type ordering).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "variadic": true,
+          "returns": "any",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "octet_length",
+      "kind": "scalar",
+      "doc": "Length in bytes after TEXT encoding.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "blob"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "quote",
+      "kind": "scalar",
+      "doc": "SQL-literal rendering; quote(NULL) = 'NULL'.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "text",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "random",
+      "kind": "scalar",
+      "doc": "Pseudo-random INT64.",
+      "deterministic": false,
+      "overloads": [
+        {
+          "args": [],
+          "returns": "integer",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "randomblob",
+      "kind": "scalar",
+      "doc": "N pseudo-random bytes.",
+      "deterministic": false,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer",
+              "hint": "byte-count"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "replace",
+      "kind": "scalar",
+      "doc": "Replace every occurrence of Y with Z in X. Empty pattern short-circuits NULL propagation from Z.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "text"
+            },
+            {
+              "type": "text"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "round",
+      "kind": "scalar",
+      "doc": "Round to Y digits (default 0). Result is REAL.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer",
+              "optional": true
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            },
+            {
+              "type": "integer",
+              "optional": true
+            }
+          ],
+          "returns": "real",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "sign",
+      "kind": "scalar",
+      "doc": "-1, 0, or +1; NULL for non-numeric.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "real"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "soundex",
+      "kind": "scalar",
+      "doc": "Soundex encoding; '?000' for unmappable input.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            }
+          ],
+          "returns": "text",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "substr",
+      "kind": "scalar",
+      "doc": "Substring from 1-based Y, length Z (to end if omitted). Empty-blob input yields NULL.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer",
+              "optional": true
+            }
+          ],
+          "returns": "text",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "blob"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer",
+              "optional": true
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "substring",
+      "kind": "scalar",
+      "doc": "Alias of substr(). Empty-blob input yields NULL.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer",
+              "optional": true
+            }
+          ],
+          "returns": "text",
+          "nullability": "propagates"
+        },
+        {
+          "args": [
+            {
+              "type": "blob"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer",
+              "optional": true
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "rtrim",
+      "kind": "scalar",
+      "doc": "Trim chars (default whitespace) from the right.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "text",
+              "optional": true
+            }
+          ],
+          "returns": "text",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "trim",
+      "kind": "scalar",
+      "doc": "Trim chars (default whitespace) from both ends.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "text",
+              "optional": true
+            }
+          ],
+          "returns": "text",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "typeof",
+      "kind": "scalar",
+      "doc": "Storage class name: 'integer'|'real'|'text'|'blob'|'null'.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "text",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "unhex",
+      "kind": "scalar",
+      "doc": "Hex string \u2192 BLOB; NULL on non-hex input.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "text",
+              "optional": true
+            }
+          ],
+          "returns": "blob",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "unicode",
+      "kind": "scalar",
+      "doc": "Code point of the first character.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            }
+          ],
+          "returns": "integer",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "unistr",
+      "kind": "scalar",
+      "doc": "Decode \\uXXXX escapes (3.50+).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            }
+          ],
+          "returns": "text",
+          "nullability": "on_error"
+        }
+      ]
+    },
+    {
+      "sql": "unistr_quote",
+      "kind": "scalar",
+      "doc": "quote() but escaping non-ASCII via \\u (3.50+).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "text",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "upper",
+      "kind": "scalar",
+      "doc": "ASCII uppercase.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "text"
+            }
+          ],
+          "returns": "text",
+          "nullability": "propagates"
+        }
+      ]
+    },
+    {
+      "sql": "zeroblob",
+      "kind": "scalar",
+      "doc": "BLOB of N zero bytes.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "integer",
+              "hint": "byte-count"
+            }
+          ],
+          "returns": "blob",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "coalesce",
+      "kind": "scalar",
+      "doc": "First non-NULL argument.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "variadic": true,
+          "returns": "any",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "ifnull",
+      "kind": "scalar",
+      "doc": "coalesce() with exactly two args.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "any",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "iif",
+      "kind": "scalar",
+      "doc": "iif(C, T, F) \u2014 T when C is true, else F.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "bool"
+            },
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "any",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "if",
+      "kind": "scalar",
+      "doc": "Alias of iif() (3.48+).",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "bool"
+            },
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "any",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "nullif",
+      "kind": "scalar",
+      "doc": "NULL when X = Y, else X.",
+      "deterministic": true,
+      "overloads": [
+        {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "returns": "arg0",
+          "nullability": "always"
+        }
+      ]
+    },
+    {
+      "sql": "changes",
+      "kind": "scalar",
+      "doc": "Rows changed by the last statement.",
+      "deterministic": false,
+      "overloads": [
+        {
+          "args": [],
+          "returns": "integer",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "total_changes",
+      "kind": "scalar",
+      "doc": "Rows changed since connection open.",
+      "deterministic": false,
+      "overloads": [
+        {
+          "args": [],
+          "returns": "integer",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "last_insert_rowid",
+      "kind": "scalar",
+      "doc": "rowid of the most recent INSERT.",
+      "deterministic": false,
+      "overloads": [
+        {
+          "args": [],
+          "returns": "integer",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "sqlite_version",
+      "kind": "scalar",
+      "doc": "SQLite library version string.",
+      "deterministic": false,
+      "overloads": [
+        {
+          "args": [],
+          "returns": "text",
+          "nullability": "never"
+        }
+      ]
+    },
+    {
+      "sql": "sqlite_source_id",
+      "kind": "scalar",
+      "doc": "SQLite source check-in id.",
+      "deterministic": false,
+      "overloads": [
+        {
+          "args": [],
+          "returns": "text",
+          "nullability": "never"
+        }
+      ]
+    }
+  ]
+}
