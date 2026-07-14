@@ -47,10 +47,11 @@ const parseComposite = (raw: string): (string | null)[] => {
   return fields;
 };
 
-export class Record<T = unknown, N extends number = number> extends Generated<N> {
-  // Conditional so the declaration tolerates T being filled with a non-row
-  // type (e.g. codegen's `types.Record<0 | 1>` in variant [meta] fields,
-  // where the slot is positionally wrong but inert).
+export class Record<N extends number = number, T = unknown> extends Generated<N> {
+  // N is first so codegen's `types.Record<0 | 1>` / `types.Record<N>` targets
+  // nullability (matching every other Cls<N>); the row type T is the optional
+  // second param, filled via Record.of(). Conditional in case T isn't a row
+  // type.
   declare deserialize: (raw: string) => T extends RowType ? RowTypeToTsType<T> : unknown;
 
   static of<T extends RowType>(rowType: T) {
@@ -67,6 +68,6 @@ export class Record<T = unknown, N extends number = number> extends Generated<N>
       );
       return deserializeRows([namedRow], rowType)[0];
     };
-    return cls as unknown as typeof Record<T, any>;
+    return cls as unknown as typeof Record<any, T>;
   }
 }

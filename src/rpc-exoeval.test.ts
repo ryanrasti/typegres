@@ -327,7 +327,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
         // hydrate returns Any-wrappers, not deserialized JS objects:
         // `row.single` is a Record-typed Any instance.
         expect(rows[0]!.single).toBeInstanceOf(Record);
-        expectTypeOf(rows[0]!.single).toMatchTypeOf<Record<any, 1>>();
+        expectTypeOf(rows[0]!.single).toMatchTypeOf<Record<1, any>>();
       });
     });
 
@@ -349,7 +349,7 @@ describe("typegres over exoeval rpc — in-memory", () => {
         // NOT plain JS values. Both fields are Any-instance subclasses.
         expect(rows[0]!.all).toBeInstanceOf(Anyarray);
         expect(rows[0]!.first).toBeInstanceOf(Record);
-        expectTypeOf(rows[0]!.all).toMatchTypeOf<Anyarray<Record<any, 1>, 1>>();
+        expectTypeOf(rows[0]!.all).toMatchTypeOf<Anyarray<Record<1, any>, 1>>();
         expectTypeOf(rows[0]!.first).toMatchTypeOf<Record<any, any>>();
       });
     });
