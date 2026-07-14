@@ -6,6 +6,18 @@ import type { Fromable } from "./builder/query";
 
 setupDb();
 
+test("column() derives nullability from nonNull (no <N> instantiation needed)", () => {
+  // nonNull: true narrows to <1>; a bare column (or default/generated without
+  // nonNull) stays nullable <0 | 1>. Type-only assertion — the derivation is
+  // what removes the old `(Int8<1>).column(...)` instantiation form.
+  expectTypeOf(Int8.column({ nonNull: true })).toMatchTypeOf<Int8<1>>();
+  expectTypeOf(Text.column({ nonNull: true })).toMatchTypeOf<Text<1>>();
+  expectTypeOf(Int8.column()).toMatchTypeOf<Int8<0 | 1>>();
+  expectTypeOf(Text.column({})).toMatchTypeOf<Text<0 | 1>>();
+  // A nullable column must NOT satisfy a non-null <1> slot.
+  expectTypeOf(Int8.column()).not.toMatchTypeOf<Int8<1>>();
+});
+
 test("Table.from().select()", async () => {
   await withinTransaction(async (tx) => {
     await tx.execute(sql`DROP TABLE IF EXISTS dogs CASCADE`);
@@ -17,7 +29,7 @@ test("Table.from().select()", async () => {
     await tx.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
 
     class Dogs extends db.Table("dogs") {
-      id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });      breed = (Text<0 | 1>).column();    }
+      id = Int8.column({ nonNull: true });      name = Text.column({ nonNull: true });      breed = Text.column();    }
 
     const rows = await tx.execute(Dogs.from()
       .select(({ dogs }) => ({ id: dogs.id, name: dogs.name, breed: dogs.breed }))
@@ -42,7 +54,7 @@ test("Table.as() alias", async () => {
     await tx.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
 
     class Dogs extends db.Table("dogs") {
-      id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });      breed = (Text<0 | 1>).column();    }
+      id = Int8.column({ nonNull: true });      name = Text.column({ nonNull: true });      breed = Text.column();    }
 
     const rows = await tx.execute(Dogs.as("d").from()
       .select(({ d }) => ({ id: d.id, name: d.name, breed: d.breed }))
@@ -76,7 +88,7 @@ test("Table class is a Fromable and self-joins via .as()", async () => {
     `);
 
     class Employees extends db.Table("employees") {
-      id = (Int8<1>).column({ nonNull: true });      name = (Text<1>).column({ nonNull: true });      manager_id = (Int8<0 | 1>).column();    }
+      id = Int8.column({ nonNull: true });      name = Text.column({ nonNull: true });      manager_id = Int8.column();    }
 
     // 1. The class itself has the Fromable-shaped statics.
     expect(Employees.tsAlias).toBe("employees");

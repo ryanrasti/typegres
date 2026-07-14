@@ -16,7 +16,7 @@ test("insert", async () => {
     )`);
 
     class Cats extends db.Table("cats") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });      name = (Text<1>).column({ nonNull: true });      color = (Text<0 | 1>).column();    }
+      id = Int8.column({ nonNull: true, generated: true });      name = Text.column({ nonNull: true });      color = Text.column();    }
 
     // name is required, id and color are optional
     // @ts-expect-error — missing required field 'name'
@@ -43,7 +43,7 @@ test("insert returning", async () => {
     )`);
 
     class Items extends db.Table("items") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });      label = (Text<1>).column({ nonNull: true });    }
+      id = Int8.column({ nonNull: true, generated: true });      label = Text.column({ nonNull: true });    }
 
     const rows = await tx.execute(
       Items.insert({ label: "A" }, { label: "B" })
@@ -67,7 +67,7 @@ test("columns no row provides are pruned so DB defaults apply", async () => {
     )`);
 
     class Tagged extends db.Table("tagged") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });      label = (Text<1>).column({ nonNull: true });      status = (Text<1>).column({ nonNull: true, default: sql`'new'` });    }
+      id = Int8.column({ nonNull: true, generated: true });      label = Text.column({ nonNull: true });      status = Text.column({ nonNull: true, default: sql`'new'` });    }
 
     // `status` appears in no row → pruned from the column list → the
     // DB's DEFAULT 'new' applies (not NULL, not an error).
@@ -91,7 +91,7 @@ test("postgres: column provided in some rows but not others → DEFAULT keyword 
     )`);
 
     class Mixed extends db.Table("mixed") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });      label = (Text<1>).column({ nonNull: true });      status = (Text<1>).column({ nonNull: true, default: sql`'new'` });    }
+      id = Int8.column({ nonNull: true, generated: true });      label = Text.column({ nonNull: true });      status = Text.column({ nonNull: true, default: sql`'new'` });    }
 
     const rows = await tx.execute(
       Mixed.insert({ label: "A" }, { label: "B", status: "old" })
@@ -157,7 +157,7 @@ test("all-default single row uses DEFAULT VALUES; multi-row raises", async () =>
     )`);
 
     class Counters extends db.Table("counters") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });    }
+      id = Int8.column({ nonNull: true, generated: true });    }
 
     const rows = await tx.execute(
       Counters.insert({}).returning(({ counters }) => ({ id: counters.id })),

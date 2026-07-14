@@ -437,10 +437,10 @@ export class QueryBuilder<
   // Detected here via the first source Table's database dialect —
   // callers get a clear error before the malformed SQL reaches the driver.
   scalar(): [Card] extends ["one"]
-    ? Record<O, 1>
+    ? Record<1, O>
     : [Card] extends ["maybe"]
-      ? Record<O, 0 | 1>
-      : Anyarray<Record<O, 1>, 1>;
+      ? Record<0 | 1, O>
+      : Anyarray<Record<1, O>, 1>;
   @expose()
   scalar(): any {
     // .scalar() emits ROW()/array_agg — PG-only syntax. Fail closed

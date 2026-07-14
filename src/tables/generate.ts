@@ -149,7 +149,6 @@ export const deriveRelations = (tableName: string, allFks: FkInfo[]): Relation[]
 
 const generateColumnLine = (col: ColumnInfo, withTool: boolean): string => {
   const cls = col.className;
-  const nullable = col.nullable ? "0 | 1" : "1";
   const opts: string[] = [];
   if (!col.nullable) {
     opts.push("nonNull: true");
@@ -162,7 +161,7 @@ const generateColumnLine = (col: ColumnInfo, withTool: boolean): string => {
   }
   const optsArg = opts.length > 0 ? `{ ${opts.join(", ")} }` : "";
   const prefix = withTool ? "@expose() " : "";
-  return `  ${prefix}${col.name} = (${cls}<${nullable}>).column(${optsArg});`;
+  return `  ${prefix}${col.name} = ${cls}.column(${optsArg});`;
 };
 
 const generateRelationLine = (rel: Relation, currentTable: string, withTool: boolean): string => {

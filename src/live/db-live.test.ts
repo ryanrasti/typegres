@@ -26,9 +26,9 @@ const makeNotesTable = async () => {
     body text NOT NULL
   )`);
   return class Notes extends db.Table("notes", { transformer: TypegresLiveEvents.makeTransformer() }) {
-    id = (Int8<1>).column({ nonNull: true, generated: true });
-    user_id = (Int8<1>).column({ nonNull: true });
-    body = (Text<1>).column({ nonNull: true });
+    id = Int8.column({ nonNull: true, generated: true });
+    user_id = Int8.column({ nonNull: true });
+    body = Text.column({ nonNull: true });
   };
 };
 
@@ -132,8 +132,8 @@ test("join: mutation on either side triggers re-yield (literal propagates across
   const Notes = await makeNotesTable();
 
   class Users extends db.Table("users", { transformer: TypegresLiveEvents.makeTransformer() }) {
-    id = (Int8<1>).column({ nonNull: true, generated: true });
-    name = (Text<1>).column({ nonNull: true });
+    id = Int8.column({ nonNull: true, generated: true });
+    name = Text.column({ nonNull: true });
   }
 
   await conn.startLive({ intervalMs: 25 });

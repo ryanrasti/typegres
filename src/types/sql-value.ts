@@ -192,7 +192,9 @@ export class SqlValue<in out N extends number> {
   >(
     this: T,
     _opts?: Opts,
-  ): InstanceType<T> & {
+  ): (Opts extends { nonNull: true }
+    ? InstanceType<T> extends { [meta]: { __nonNullable: infer NN } } ? NN : InstanceType<T>
+    : InstanceType<T> extends { [meta]: { __nullable: infer NL } } ? NL : InstanceType<T>) & {
     [meta]: {
       __required: Opts extends { nonNull: true }
         ? Opts extends { default: any } | { generated: true } ? false : true

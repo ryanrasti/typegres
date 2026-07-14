@@ -17,8 +17,8 @@ describe("Table.scope(ctx)", () => {
 
       type Principal = { user: string; role: string };
       class Foos extends db.Table<"foos", Principal>("foos") {
-        id   = (Int8<1>).column({ nonNull: true, generated: true });
-        name = (Text<1>).column({ nonNull: true });
+        id   = Int8.column({ nonNull: true, generated: true });
+        name = Text.column({ nonNull: true });
       }
 
       const principal: Principal = { user: "alice", role: "admin" };
@@ -38,8 +38,8 @@ describe("Table.scope(ctx)", () => {
       await tx.execute(sql`INSERT INTO bars (name) VALUES ('x')`);
 
       class Bars extends db.Table("bars") {
-        id   = (Int8<1>).column({ nonNull: true, generated: true });
-        name = (Text<1>).column({ nonNull: true });
+        id   = Int8.column({ nonNull: true, generated: true });
+        name = Text.column({ nonNull: true });
       }
 
       const [row] = await tx.hydrate(Bars.from());
@@ -53,7 +53,7 @@ describe("Table.scope(ctx)", () => {
       await tx.execute(sql`INSERT INTO bazs DEFAULT VALUES`);
 
       class Bazs extends db.Table<"bazs", string>("bazs") {
-        id = (Int8<1>).column({ nonNull: true, generated: true });
+        id = Int8.column({ nonNull: true, generated: true });
       }
 
       const [row] = await tx.hydrate(Bazs.scope("ctx"));
@@ -63,7 +63,7 @@ describe("Table.scope(ctx)", () => {
 
   test("emitted SQL is identical for Foos.from() and Foos.scope(...)", () => {
     class Things extends db.Table<"things", { p: number }>("things") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
+      id = Int8.column({ nonNull: true, generated: true });
     }
     const ctx = { database: db };
     expect(compile(Things.scope({ p: 1 }) as any, ctx).text)
@@ -80,11 +80,11 @@ describe("Table.scope(ctx)", () => {
 
       type P = { user: string };
       class Notes extends db.Table<"notes", P>("notes") {
-        id      = (Int8<1>).column({ nonNull: true, generated: true });
+        id      = Int8.column({ nonNull: true, generated: true });
         // Column literally named "context" — would collide with an
         // *instance* getter, but `static context` lives in a separate
         // namespace, so this is fine.
-        context = (Text<1>).column({ nonNull: true });
+        context = Text.column({ nonNull: true });
       }
 
       const principal: P = { user: "carol" };
@@ -100,7 +100,7 @@ describe("Table.scope(ctx)", () => {
     type Principal = { user: string; role: "admin" | "viewer" };
 
     class Resources extends db.Table<"resources", Principal>("resources") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
+      id = Int8.column({ nonNull: true, generated: true });
     }
 
     // scope() requires a Principal — `Resources.scope("string")` would be a TS error.
@@ -133,13 +133,13 @@ describe("Table.scope(ctx)", () => {
 
       type P = { user: string };
       class Authors extends db.Table<"authors", P>("authors") {
-        id   = (Int8<1>).column({ nonNull: true, generated: true });
-        name = (Text<1>).column({ nonNull: true });
+        id   = Int8.column({ nonNull: true, generated: true });
+        name = Text.column({ nonNull: true });
       }
       class Books extends db.Table<"books", P>("books") {
-        id        = (Int8<1>).column({ nonNull: true, generated: true });
-        title     = (Text<1>).column({ nonNull: true });
-        author_id = (Int8<1>).column({ nonNull: true });
+        id        = Int8.column({ nonNull: true, generated: true });
+        title     = Text.column({ nonNull: true });
+        author_id = Int8.column({ nonNull: true });
 
         // Codegen-shape relation: scope+contextOf instead of from().
         author() {
@@ -174,13 +174,13 @@ describe("Table.scope(ctx)", () => {
 
       type P = { user: string };
       class Pubs extends db.Table<"pubs", P>("pubs") {
-        id   = (Int8<1>).column({ nonNull: true, generated: true });
-        name = (Text<1>).column({ nonNull: true });
+        id   = Int8.column({ nonNull: true, generated: true });
+        name = Text.column({ nonNull: true });
       }
       class Auths extends db.Table<"auths", P>("auths") {
-        id     = (Int8<1>).column({ nonNull: true, generated: true });
-        name   = (Text<1>).column({ nonNull: true });
-        pub_id = (Int8<1>).column({ nonNull: true });
+        id     = Int8.column({ nonNull: true, generated: true });
+        name   = Text.column({ nonNull: true });
+        pub_id = Int8.column({ nonNull: true });
         pub() {
           return Pubs.scope(Auths.contextOf(this))
             .where(({ pubs }) => pubs.id["="](this.pub_id))
@@ -188,9 +188,9 @@ describe("Table.scope(ctx)", () => {
         }
       }
       class Bks extends db.Table<"bks", P>("bks") {
-        id      = (Int8<1>).column({ nonNull: true, generated: true });
-        title   = (Text<1>).column({ nonNull: true });
-        auth_id = (Int8<1>).column({ nonNull: true });
+        id      = Int8.column({ nonNull: true, generated: true });
+        title   = Text.column({ nonNull: true });
+        auth_id = Int8.column({ nonNull: true });
         auth() {
           return Auths.scope(Bks.contextOf(this))
             .where(({ auths }) => auths.id["="](this.auth_id))
@@ -221,7 +221,7 @@ describe("Table.scope(ctx)", () => {
 
       type P = { user: string };
       class Widgets extends db.Table<"widgets", P>("widgets") {
-        id = (Int8<1>).column({ nonNull: true, generated: true });
+        id = Int8.column({ nonNull: true, generated: true });
 
         whoCalledMe(): string {
           // `Widgets.contextOf(this)` — typed as P | undefined.

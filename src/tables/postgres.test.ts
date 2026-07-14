@@ -97,12 +97,12 @@ describe("postgres codegen e2e — DDL in, generated TypeScript out", () => {
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
-        @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
-        @expose() name = (Text<1>).column({ nonNull: true });
-        @expose() breed = (Text<0 | 1>).column();
-        @expose() team_id = (Int8<1>).column({ nonNull: true });
-        @expose() created_at = (Timestamptz<1>).column({ nonNull: true, default: sql\`now()\` });
-        @expose() name_upper = (Text<0 | 1>).column({ generated: true });
+        @expose() id = Int8.column({ nonNull: true, generated: true });
+        @expose() name = Text.column({ nonNull: true });
+        @expose() breed = Text.column();
+        @expose() team_id = Int8.column({ nonNull: true });
+        @expose() created_at = Timestamptz.column({ nonNull: true, default: sql\`now()\` });
+        @expose() name_upper = Text.column({ generated: true });
         // relations
         @expose() team() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
         // @generated-end
@@ -117,8 +117,8 @@ describe("postgres codegen e2e — DDL in, generated TypeScript out", () => {
 
       export class Teams extends db.Table("teams") {
         // @generated-start
-        @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
-        @expose() name = (Text<1>).column({ nonNull: true });
+        @expose() id = Int8.column({ nonNull: true, generated: true });
+        @expose() name = Text.column({ nonNull: true });
         // relations
         @expose() dogs() { return Dogs.scope(Teams.contextOf(this)).where(({ dogs }) => dogs.team_id.eq(this.id)).cardinality("many"); }
         // @generated-end
@@ -181,7 +181,7 @@ describe("postgres codegen e2e — DDL in, generated TypeScript out", () => {
 
       export class ParentT extends db.Table("parent_t") {
         // @generated-start
-        @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
+        @expose() id = Int8.column({ nonNull: true, generated: true });
         // relations
         @expose() badge() { return Badge.scope(ParentT.contextOf(this)).where(({ badge }) => badge.parent_id.eq(this.id)).cardinality("maybe"); }
         @expose() joiner() { return Joiner.scope(ParentT.contextOf(this)).where(({ joiner }) => joiner.a.eq(this.id)).cardinality("many"); }
@@ -199,7 +199,7 @@ describe("postgres codegen e2e — DDL in, generated TypeScript out", () => {
 
       export class Profile extends db.Table("profile") {
         // @generated-start
-        @expose() parent_id = (Int8<1>).column({ nonNull: true });
+        @expose() parent_id = Int8.column({ nonNull: true });
         // relations
         @expose() parent() { return ParentT.scope(Profile.contextOf(this)).where(({ parent_t }) => parent_t.id.eq(this.parent_id)).cardinality("one"); }
         // @generated-end
