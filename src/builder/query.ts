@@ -12,7 +12,7 @@ import { SqlValue } from "../types/sql-value";
 import { zBool, type Bool } from "../types/bool";
 import { type TsTypeOf, type Nullable, type AggregateRow } from "../types/runtime";
 import { meta } from "../types/sql-value";
-import { fn, expose } from "../exoeval/tool";
+import { fn, expose, copyToolFields } from "../exoeval/tool";
 import { isTableClass, TableBase } from "../table";
 import z from "zod";
 import { Values } from "./values";
@@ -71,6 +71,10 @@ export const hydrateRows = <R>(
   const proto = Object.getPrototypeOf(shape);
   return rows.map((row) => {
     const instance = Object.create(proto);
+    // Decorator-registered @expose field markers are own symbol properties,
+    // which Object.create(proto) drops — carry them over so the @expose
+    // contract keeps working on hydrated rows.
+    copyToolFields(shape, instance);
     for (const [k, raw] of Object.entries(row)) {
       const col = shape[k];
       let value: unknown;

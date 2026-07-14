@@ -29,11 +29,20 @@ export const isPlainData = (v: unknown): boolean => {
   return true;
 };
 
-const isPlainObject = (v: unknown): v is object => {
+export const isPlainObject = (v: unknown): v is { [key: string]: unknown } => {
   if (v === null || typeof v !== "object") {return false;}
   const proto = Object.getPrototypeOf(v);
   return proto === Object.prototype || proto === null;
-}
+};
+
+export const isThenable = (v: unknown): v is PromiseLike<unknown> => {
+  return (
+    v !== null &&
+    (typeof v === "object" || typeof v === "function") &&
+    "then" in v &&
+    typeof (v as PromiseLike<unknown>).then === "function"
+  );
+};
 
 // --- @expose-aware row deserialization ---
 //

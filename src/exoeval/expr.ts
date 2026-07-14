@@ -1,4 +1,5 @@
 import { toolFieldsSymbol } from './tool'
+import { isPlainObject } from '../util'
 
 const control = Symbol('control')
 export type Control<V extends { value: unknown } = { value: unknown }> = { [control]: V }
@@ -14,14 +15,6 @@ export const isControl = (value: unknown): value is Control => {
 }
 export const makeControl = <T, V extends { value: T }>(obj: V): Control<V> => {
 	return { [control]: obj }
-}
-
-export const isPlainObject = (value: unknown): value is { [key: string]: unknown } => {
-	if (typeof value !== 'object' || value === null) {
-		return false
-	}
-	const proto = Object.getPrototypeOf(value)
-	return proto === null || proto === Object.prototype
 }
 
 export abstract class ExpressionContext<Expr = unknown> {

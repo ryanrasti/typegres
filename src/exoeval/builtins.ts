@@ -2,7 +2,7 @@ import type { ExpressionContext } from './expr'
 import type { IExoArray, IExoBoolean, IExoDate, IExoJSON, IExoMath, IExoNumber, IExoPromise, IExoString } from './lib'
 import sjson from 'secure-json-parse'
 import z from 'zod'
-import { isPlainObject } from './expr'
+import { isPlainObject } from '../util'
 import { expr, fn, expose } from './tool'
 import { disallowedProperties } from './utils'
 

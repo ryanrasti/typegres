@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Start Postgres and run checks
@@ -26,7 +28,7 @@ jobs:
           else
             RUN=(bash -c)
           fi
-          "${RUN[@]}" "cd '$PWD' && nix develop --command bash -c 'set -e; bin/startpg; npm ci; (cd examples/basic && npm ci); (cd site && npm ci); npm run codegen:check; npm run build; npm run check; (cd site && npm run typecheck && npm run test)'"
+          "${RUN[@]}" "cd '$PWD' && nix develop --command bash -c 'set -e; bin/startpg; (cd packages/capnweb && npm ci && npm run build); npm ci; (cd examples/basic && npm ci); (cd site && npm ci); npm run codegen:check; npm run build; npm run check; (cd site && npm run typecheck && npm run test)'"
 
   site:
     needs: check
@@ -41,11 +43,14 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - run: |
           nix develop --command bash -c '
             set -euo pipefail
+            (cd packages/capnweb && npm ci && npm run build)
             npm ci
             (cd site && npm ci && npm run build)
           '
@@ -64,6 +69,8 @@ jobs:
       contents: write   # for pushing the tag
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Decide whether to release
@@ -83,6 +90,7 @@ jobs:
         run: |
           nix develop --command bash -c '
             set -euo pipefail
+            (cd packages/capnweb && npm ci && npm run build)
             npm ci
             npm run build
             npm publish
