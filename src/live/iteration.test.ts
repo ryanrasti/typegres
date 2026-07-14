@@ -27,13 +27,13 @@ test("runLiveIteration: returns rows + cursor + extracted rows from one txn", as
     );
 
     class Users extends db.Table("users") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      role = (Text<1>).column({ nonNull: true });
+      id = Int8.column({ nonNull: true, generated: true });
+      role = Text.column({ nonNull: true });
     }
     class Dogs extends db.Table("dogs") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      user_id = (Int8<1>).column({ nonNull: true });
-      name = (Text<1>).column({ nonNull: true });
+      id = Int8.column({ nonNull: true, generated: true });
+      user_id = Int8.column({ nonNull: true });
+      name = Text.column({ nonNull: true });
     }
 
     const query = Users.from()

@@ -24,10 +24,10 @@ await conn.execute(sql`
 // doubles as the pg column name. Methods on the class compile to SQL.
 
 class Posts extends db.Table("posts") {
-  id = (Int8<1>).column({ nonNull: true, generated: true });
-  author = (Text<1>).column({ nonNull: true });
-  body = (Text<1>).column({ nonNull: true });
-  likes = (Int8<1>).column({ nonNull: true, default: sql`0` });
+  id = Int8.column({ nonNull: true, generated: true });
+  author = Text.column({ nonNull: true });
+  body = Text.column({ nonNull: true });
+  likes = Int8.column({ nonNull: true, default: sql`0` });
 
   // Derived column — not in the schema, part of the API.
   preview() {

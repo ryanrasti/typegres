@@ -28,7 +28,7 @@ test("transaction commits on success", async () => {
   await conn.execute(sql`CREATE TABLE txtest (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name text NOT NULL)`);
 
   class TxTest extends db.Table("txtest") {
-    id = (Int8<1>).column({ nonNull: true, generated: true });    name = (Text<1>).column({ nonNull: true });  }
+    id = Int8.column({ nonNull: true, generated: true });    name = Text.column({ nonNull: true });  }
 
   await conn.transaction(async (tx) => {
     await tx.execute(TxTest.insert({ name: "Alice" }));
@@ -47,7 +47,7 @@ test("transaction rollbacks on error", async () => {
   await conn.execute(sql`CREATE TABLE txtest2 (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name text NOT NULL)`);
 
   class TxTest2 extends db.Table("txtest2") {
-    id = (Int8<1>).column({ nonNull: true, generated: true });    name = (Text<1>).column({ nonNull: true });  }
+    id = Int8.column({ nonNull: true, generated: true });    name = Text.column({ nonNull: true });  }
 
   await expect(
     conn.transaction(async (tx) => {

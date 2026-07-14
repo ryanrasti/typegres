@@ -27,6 +27,8 @@ export class Any<in out N extends number> extends Generated<N> {
     __class: typeof Any;
     __raw: Sql;
     __nullability: N;
+    __nullable: Any<0 | 1>;
+    __nonNullable: Any<1>;
     __aggregate: Any<number>;
   };
   static override dialect: Dialect = {

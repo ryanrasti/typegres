@@ -14,7 +14,7 @@ test("update with where", async () => {
     await tx.execute(sql`INSERT INTO users (name) VALUES ('Alice'), ('Bob')`);
 
     class Users extends db.Table("users") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });      name = (Text<1>).column({ nonNull: true });      active = (Text<1>).column({ nonNull: true, default: sql`'yes'` });    }
+      id = Int8.column({ nonNull: true, generated: true });      name = Text.column({ nonNull: true });      active = Text.column({ nonNull: true, default: sql`'yes'` });    }
 
     await tx.execute(
       Users.update()
@@ -44,7 +44,7 @@ test("update all with where(true)", async () => {
     await tx.execute(sql`INSERT INTO flags (active) VALUES ('yes'), ('yes')`);
 
     class Flags extends db.Table("flags") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });      active = (Text<1>).column({ nonNull: true, default: sql`'yes'` });    }
+      id = Int8.column({ nonNull: true, generated: true });      active = Text.column({ nonNull: true, default: sql`'yes'` });    }
 
     await tx.execute(Flags.update().where(true).set(() => ({ active: "no" })));
 
@@ -70,9 +70,9 @@ test("update: where(true) after a real .where() is a no-op", async () => {
     await tx.execute(sql`INSERT INTO guards (name) VALUES ('touch'), ('leave'), ('leave2')`);
 
     class Guards extends db.Table("guards") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      name = (Text<1>).column({ nonNull: true });
-      active = (Text<1>).column({ nonNull: true, default: sql`'yes'` });
+      id = Int8.column({ nonNull: true, generated: true });
+      name = Text.column({ nonNull: true });
+      active = Text.column({ nonNull: true, default: sql`'yes'` });
     }
 
     await tx.execute(
@@ -106,7 +106,7 @@ test("update returning", async () => {
     await tx.execute(sql`INSERT INTO scores (name) VALUES ('Alice'), ('Bob')`);
 
     class Scores extends db.Table("scores") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });      name = (Text<1>).column({ nonNull: true });      score = (Text<1>).column({ nonNull: true, default: sql`'0'` });    }
+      id = Int8.column({ nonNull: true, generated: true });      name = Text.column({ nonNull: true });      score = Text.column({ nonNull: true, default: sql`'0'` });    }
 
     const rows = await tx.execute(
       Scores.update()
@@ -131,7 +131,7 @@ test("update: multiple where calls AND-combine", async () => {
     await tx.execute(sql`INSERT INTO products (name, price) VALUES ('a', 10), ('b', 10), ('c', 20)`);
 
     class Products extends db.Table("products") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });      name = (Text<1>).column({ nonNull: true });      price = (Int8<1>).column({ nonNull: true, default: sql`0` });      active = (Text<1>).column({ nonNull: true, default: sql`'yes'` });    }
+      id = Int8.column({ nonNull: true, generated: true });      name = Text.column({ nonNull: true });      price = Int8.column({ nonNull: true, default: sql`0` });      active = Text.column({ nonNull: true, default: sql`'yes'` });    }
 
     await tx.execute(
       Products.update()
@@ -170,8 +170,8 @@ test("set: arithmetic on existing column (col = col + 1)", async () => {
     await tx.execute(sql`INSERT INTO counters (n) VALUES (10), (20)`);
 
     class Counters extends db.Table("counters") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });
-      n  = (Int8<1>).column({ nonNull: true });
+      id = Int8.column({ nonNull: true, generated: true });
+      n  = Int8.column({ nonNull: true });
     }
 
     await tx.execute(
@@ -201,8 +201,8 @@ test("set: typegres function call (literal expression via Text.from)", async () 
     await tx.execute(sql`INSERT INTO labels (tag) VALUES ('alpha')`);
 
     class Labels extends db.Table("labels") {
-      id  = (Int8<1>).column({ nonNull: true, generated: true });
-      tag = (Text<1>).column({ nonNull: true });
+      id  = Int8.column({ nonNull: true, generated: true });
+      tag = Text.column({ nonNull: true });
     }
 
     // `tag.upper()` is a typegres expression — should compile to
@@ -228,9 +228,9 @@ test("set: mixing primitive and expression values in one call", async () => {
     await tx.execute(sql`INSERT INTO mixed (n, label) VALUES (1, 'a')`);
 
     class Mixed extends db.Table("mixed") {
-      id    = (Int8<1>).column({ nonNull: true, generated: true });
-      n     = (Int8<1>).column({ nonNull: true });
-      label = (Text<1>).column({ nonNull: true });
+      id    = Int8.column({ nonNull: true, generated: true });
+      n     = Int8.column({ nonNull: true });
+      label = Text.column({ nonNull: true });
     }
 
     // `n` set via expression (n + 100), `label` via primitive ("z").
@@ -255,8 +255,8 @@ test("returning: expression in projection (not just bare columns)", async () => 
     await tx.execute(sql`INSERT INTO notes (tag) VALUES ('hello')`);
 
     class Notes extends db.Table("notes") {
-      id  = (Int8<1>).column({ nonNull: true, generated: true });
-      tag = (Text<1>).column({ nonNull: true });
+      id  = Int8.column({ nonNull: true, generated: true });
+      tag = Text.column({ nonNull: true });
     }
 
     // RETURNING goes through compileSelectList — same path as SELECT
@@ -286,8 +286,8 @@ test("set: expression with returning round-trips the new value", async () => {
     await tx.execute(sql`INSERT INTO balances (cents) VALUES (1000)`);
 
     class Balances extends db.Table("balances") {
-      id    = (Int8<1>).column({ nonNull: true, generated: true });
-      cents = (Int8<1>).column({ nonNull: true });
+      id    = Int8.column({ nonNull: true, generated: true });
+      cents = Int8.column({ nonNull: true });
     }
 
     const [updated] = await tx.execute(
@@ -306,7 +306,7 @@ test("update without where throws", async () => {
     await tx.execute(sql`CREATE TABLE noop (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)`);
 
     class Noop extends db.Table("noop") {
-      id = (Int8<1>).column({ nonNull: true, generated: true });    }
+      id = Int8.column({ nonNull: true, generated: true });    }
 
     await expect(tx.execute(Noop.update().set(() => ({})))).rejects.toThrow("requires .where()");
   });

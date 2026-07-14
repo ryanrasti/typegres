@@ -220,8 +220,8 @@ test("e2e: nested expressions", async () => {
 // --- Column descriptor ---
 
 test("column() returns typed instance with __required brand from opts", () => {
-  const id = (Int4<1>).column({ nonNull: true });
-  const name = (Text<0 | 1>).column();
+  const id = Int4.column({ nonNull: true });
+  const name = Text.column();
 
   // column() returns an Any instance with the __required type brand.
   expectTypeOf(id).toMatchTypeOf<Int4<1>>();

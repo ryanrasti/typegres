@@ -8,12 +8,12 @@ import { Toys } from "./toys";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
-  @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
-  @expose() name = (Text<1>).column({ nonNull: true });
-  @expose() breed = (Text<0 | 1>).column();
-  @expose() created_at = (Timestamptz<1>).column({ nonNull: true, default: sql`now()` });
-  @expose() team_id = (Int8<1>).column({ nonNull: true });
-  @expose() rival_id = (Int8<0 | 1>).column();
+  @expose() id = Int8.column({ nonNull: true, generated: true });
+  @expose() name = Text.column({ nonNull: true });
+  @expose() breed = Text.column();
+  @expose() created_at = Timestamptz.column({ nonNull: true, default: sql`now()` });
+  @expose() team_id = Int8.column({ nonNull: true });
+  @expose() rival_id = Int8.column();
   // relations
   @expose() rival() { return Dogs.scope(Dogs.contextOf(this)).where(({ dogs }) => dogs.id.eq(this.rival_id)).cardinality("maybe"); }
   @expose() team() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }

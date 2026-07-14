@@ -13,8 +13,8 @@ const { db, conn } = await typegres({ type: "pglite" });
 const _typed: [Database, Connection] = [db, conn];
 
 class User extends db.Table("users") {
-  id = (Int8<1>).column({ nonNull: true, generated: true });
-  name = (Text<1>).column({ nonNull: true });
+  id = Int8.column({ nonNull: true, generated: true });
+  name = Text.column({ nonNull: true });
 
   todos(): QueryBuilder<{ todos: Todo }, Todo, []> {
     return Todo.from().where((ns) => ns.todos.user_id["="](this.id));
@@ -23,16 +23,16 @@ class User extends db.Table("users") {
 
 class Todo extends db.Table("todos") {
   @expose()
-  id = (Int8<1>).column({ nonNull: true, generated: true });
+  id = Int8.column({ nonNull: true, generated: true });
 
   @expose()
-  user_id = (Int8<1>).column({ nonNull: true });
+  user_id = Int8.column({ nonNull: true });
 
   @expose()
-  title = (Text<1>).column({ nonNull: true });
+  title = Text.column({ nonNull: true });
 
   @expose()
-  completed = (Bool<1>).column({ nonNull: true });
+  completed = Bool.column({ nonNull: true });
 
   update(fields: { completed?: boolean; title?: string }) {
     return Todo.update()

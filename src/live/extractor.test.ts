@@ -10,15 +10,15 @@ const db = new Database({ dialect: "postgres" });
 import { buildExtractor, materializePredicateSet, sortAliases, traverse } from "./extractor";
 
 class Users extends db.Table("users") {
-  id = (Int8<1>).column({ nonNull: true, generated: true });
-  manager_id = (Int8<0 | 1>).column();
-  role = (Text<1>).column({ nonNull: true });
+  id = Int8.column({ nonNull: true, generated: true });
+  manager_id = Int8.column();
+  role = Text.column({ nonNull: true });
 }
 
 class Dogs extends db.Table("dogs") {
-  id = (Int8<1>).column({ nonNull: true, generated: true });
-  user_id = (Int8<1>).column({ nonNull: true });
-  name = (Text<1>).column({ nonNull: true });
+  id = Int8.column({ nonNull: true, generated: true });
+  user_id = Int8.column({ nonNull: true });
+  name = Text.column({ nonNull: true });
 }
 
 const orderOf = (q: ReturnType<typeof traverse>) =>
@@ -39,8 +39,8 @@ test("join chain: anchor propagates to dependent alias", () => {
 
 test("three-table chain: order", () => {
   class Toys extends db.Table("toys") {
-    id = (Int8<1>).column({ nonNull: true, generated: true });
-    dog_id = (Int8<1>).column({ nonNull: true });
+    id = Int8.column({ nonNull: true, generated: true });
+    dog_id = Int8.column({ nonNull: true });
   }
   const q = Users.from()
     .join(Dogs, ({ users, dogs }) => dogs.user_id.eq(users.id))
@@ -185,11 +185,11 @@ test("materializePredicateSet: literal anchor flows through equality edge", () =
   // Users WHERE id=1 JOIN Notes ON notes.user_id = users.id.
   // Even with no rows in `users` or `notes`, notes.user_id watched ⊇ {1}.
   class Users extends db.Table("users") {
-    id = (Int8<1>).column({ nonNull: true, generated: true });
+    id = Int8.column({ nonNull: true, generated: true });
   }
   class Notes extends db.Table("notes") {
-    id = (Int8<1>).column({ nonNull: true, generated: true });
-    user_id = (Int8<1>).column({ nonNull: true });
+    id = Int8.column({ nonNull: true, generated: true });
+    user_id = Int8.column({ nonNull: true });
   }
   const q = Users.from()
     .join(Notes, ({ users, notes }) => notes.user_id.eq(users.id))
@@ -208,10 +208,10 @@ test("materializePredicateSet: literal anchor flows through equality edge", () =
 
 test("materializePredicateSet: data values propagate both directions across edge", () => {
   class Users extends db.Table("users") {
-    id = (Int8<1>).column({ nonNull: true, generated: true });
+    id = Int8.column({ nonNull: true, generated: true });
   }
   class Notes extends db.Table("notes") {
-    user_id = (Int8<1>).column({ nonNull: true });
+    user_id = Int8.column({ nonNull: true });
   }
   const q = Users.from()
     .join(Notes, ({ users, notes }) => notes.user_id.eq(users.id))
@@ -240,16 +240,16 @@ test("materializePredicateSet: cross-edge merges two pre-existing groups", () =>
   // the chain ends up with the same value set. Without the merge walk,
   // C.id would orphan from the survivor.
   class A extends db.Table("a") {
-    id = (Int8<1>).column({ nonNull: true, generated: true });
-    b_id = (Int8<1>).column({ nonNull: true });
-    c_id = (Int8<1>).column({ nonNull: true });
+    id = Int8.column({ nonNull: true, generated: true });
+    b_id = Int8.column({ nonNull: true });
+    c_id = Int8.column({ nonNull: true });
   }
   class B extends db.Table("b") {
-    id = (Int8<1>).column({ nonNull: true, generated: true });
-    c_id = (Int8<1>).column({ nonNull: true });
+    id = Int8.column({ nonNull: true, generated: true });
+    c_id = Int8.column({ nonNull: true });
   }
   class C extends db.Table("c") {
-    id = (Int8<1>).column({ nonNull: true, generated: true });
+    id = Int8.column({ nonNull: true, generated: true });
   }
   const q = A.from()
     .join(B, ({ a, b }) => a.b_id.eq(b.id))
@@ -280,8 +280,8 @@ test("materializePredicateSet: cross-edge merges two pre-existing groups", () =>
 
 test("materializePredicateSet: drops null values", () => {
   class Users extends db.Table("users") {
-    id = (Int8<1>).column({ nonNull: true, generated: true });
-    role = (Text<1>).column({ nonNull: true });
+    id = Int8.column({ nonNull: true, generated: true });
+    role = Text.column({ nonNull: true });
   }
   const q = Users.from().where(({ users }) => users.id.eq("1")).finalize();
   const traversal = traverse(q);

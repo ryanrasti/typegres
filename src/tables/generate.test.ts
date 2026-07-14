@@ -45,8 +45,8 @@ describe("generateTable — new file", async () => {
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
-        @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
-        @expose() name = (Text<1>).column({ nonNull: true });
+        @expose() id = Int8.column({ nonNull: true, generated: true });
+        @expose() name = Text.column({ nonNull: true });
         // relations
         @expose() teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
         // @generated-end
@@ -74,9 +74,9 @@ describe("generateTable — new file", async () => {
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
-        @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
-        @expose() breed = (Text<0 | 1>).column();
-        @expose() created_at = (Timestamptz<1>).column({ nonNull: true, default: sql\`now()\` });
+        @expose() id = Int8.column({ nonNull: true, generated: true });
+        @expose() breed = Text.column();
+        @expose() created_at = Timestamptz.column({ nonNull: true, default: sql\`now()\` });
         // @generated-end
       }
       "
@@ -94,8 +94,8 @@ import { Int8, Text } from "typegres";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
-  id = (Int8<1>).column({ nonNull: true, generated: true });
-  name = (Text<1>).column({ nonNull: true });
+  id = Int8.column({ nonNull: true, generated: true });
+  name = Text.column({ nonNull: true });
   // relations
   teams() { return Teams.from().where(({ teams }) => teams.id["="](this.team_id)).cardinality("one"); }
   // @generated-end
@@ -109,8 +109,8 @@ export class Dogs extends db.Table("dogs") {
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
-        id = (Int8<1>).column({ nonNull: true, generated: true });
-        name = (Text<1>).column({ nonNull: true });
+        id = Int8.column({ nonNull: true, generated: true });
+        name = Text.column({ nonNull: true });
         // relations
         teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
         // @generated-end
@@ -126,8 +126,8 @@ import { expose } from "typegres";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
-  @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
-  @expose() name = (Text<1>).column({ nonNull: true });
+  @expose() id = Int8.column({ nonNull: true, generated: true });
+  @expose() name = Text.column({ nonNull: true });
   // relations
   @expose() teams() { return Teams.from().where(({ teams }) => teams.id["="](this.team_id)).cardinality("one"); }
   // @generated-end
@@ -142,8 +142,8 @@ export class Dogs extends db.Table("dogs") {
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
-        @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
-        @expose() name = (Text<1>).column({ nonNull: true });
+        @expose() id = Int8.column({ nonNull: true, generated: true });
+        @expose() name = Text.column({ nonNull: true });
         // relations
         @expose() teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
         // @generated-end
@@ -158,8 +158,8 @@ import { Int8, Text, expose } from "typegres";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
-  @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
-  name = (Text<1>).column({ nonNull: true });
+  @expose() id = Int8.column({ nonNull: true, generated: true });
+  name = Text.column({ nonNull: true });
   // relations
   teams() { return Teams.from().where(({ teams }) => teams.id["="](this.team_id)).cardinality("one"); }
   // @generated-end
@@ -173,8 +173,8 @@ export class Dogs extends db.Table("dogs") {
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
-        @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
-        name = (Text<1>).column({ nonNull: true });
+        @expose() id = Int8.column({ nonNull: true, generated: true });
+        name = Text.column({ nonNull: true });
         // relations
         teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
         // @generated-end
@@ -190,8 +190,8 @@ import { expose } from "typegres";
 export class Dogs extends db.Table("dogs") {
   // @generated-start
   @expose()
-  id = (Int8<1>).column({ nonNull: true, generated: true });
-  name = (Text<1>).column({ nonNull: true });
+  id = Int8.column({ nonNull: true, generated: true });
+  name = Text.column({ nonNull: true });
   // @generated-end
 }
 `;
@@ -207,8 +207,8 @@ export class Dogs extends db.Table("dogs") {
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
-        @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
-        name = (Text<1>).column({ nonNull: true });
+        @expose() id = Int8.column({ nonNull: true, generated: true });
+        name = Text.column({ nonNull: true });
         // @generated-end
       }
       "
@@ -221,7 +221,7 @@ import { Int8, Text, expose } from "typegres";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
-  id = (Int8<1>).column({ nonNull: true, generated: true });
+  id = Int8.column({ nonNull: true, generated: true });
   // @generated-end
 }
 `;
@@ -238,8 +238,8 @@ export class Dogs extends db.Table("dogs") {
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
-        id = (Int8<1>).column({ nonNull: true, generated: true });
-        @expose() breed = (Text<0 | 1>).column();
+        id = Int8.column({ nonNull: true, generated: true });
+        @expose() breed = Text.column();
         // @generated-end
       }
       "
@@ -253,7 +253,7 @@ import { Int8 } from "typegres";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
-  id = (Int8<1>).column({ nonNull: true, generated: true });
+  id = Int8.column({ nonNull: true, generated: true });
   // @generated-end
 }
 `;
@@ -270,7 +270,7 @@ export class Dogs extends db.Table("dogs") {
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
-        id = (Int8<1>).column({ nonNull: true, generated: true });
+        id = Int8.column({ nonNull: true, generated: true });
         // @generated-end
       }
       "

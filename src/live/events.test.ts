@@ -9,9 +9,9 @@ setupDb();
 setupLiveEvents();
 
 class Foos extends db.Table("foos", { transformer: TypegresLiveEvents.makeTransformer() }) {
-  id = (Int8<1>).column({ nonNull: true, generated: true });
-  name = (Text<1>).column({ nonNull: true });
-  qty = (Int8<0 | 1>).column();
+  id = Int8.column({ nonNull: true, generated: true });
+  name = Text.column({ nonNull: true });
+  qty = Int8.column();
 }
 
 beforeAll(async () => {
