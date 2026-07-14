@@ -87,6 +87,7 @@
     "zod": "^4.3.6"
   },
   "dependencies": {
-    "camelcase": "^9.0.0"
+    "camelcase": "^9.0.0",
+    "capnweb": "file:packages/capnweb"
   }
 }

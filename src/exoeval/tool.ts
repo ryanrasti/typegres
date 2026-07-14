@@ -1,4 +1,5 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec'
+import { isThenable } from '../util'
 import z from 'zod'
 
 export const toolSymbol = Symbol.for('exoeval_tool')
@@ -54,6 +55,20 @@ export const validateArgs = <Schemas extends StandardSchemaV1[]>(methodName: str
 // happy in one place so callers don't each need to.
 const tagToolKind = (target: object, kind: ToolKind): void => {
 	Object.defineProperty(target, toolSymbol, { value: kind, configurable: true, writable: true })
+}
+
+/**
+ * Copy the @expose field registry from one instance to another. The registry
+ * lives as an own symbol property (added by decorator initializers at
+ * construction), so prototype-based cloning (Object.create) silently drops
+ * it — code that rebuilds instances (row hydration, re-aliasing) uses this
+ * to keep the @expose contract (getTool / exposedFieldsOf) intact.
+ */
+export const copyToolFields = (source: object, target: object): void => {
+	const desc = Object.getOwnPropertyDescriptor(source, toolFieldsSymbol)
+	if (desc) {
+		Object.defineProperty(target, toolFieldsSymbol, desc)
+	}
 }
 
 export const registerToolField = (obj: unknown, key: string) => {
@@ -161,7 +176,7 @@ export const fn = {
 			'Expected a function',
 		).transform((cb): (...args: any[]) => I => (...args) => {
 			const res = (cb as (...args: any[]) => unknown)(...args)
-			if (res != null && (typeof res === 'object' || typeof res === 'function') && 'then' in res && typeof (res as Promise<unknown>).then === 'function') {
+			if (isThenable(res)) {
 				throw new TypeError(`${(cb as { name?: string }).name ?? 'anonymous'}: Promise not allowed`)
 			}
 			return retSchema.parse(res)

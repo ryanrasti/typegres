@@ -1,6 +1,6 @@
 import type * as acorn from 'acorn'
 import type { EvalResult, Evaluator } from './evaluator'
-import { isPlainObject } from './expr'
+import { isPlainObject } from '../util'
 
 export class Scope<T> {
 	private readonly bindings: Map<string, T> = new Map()
