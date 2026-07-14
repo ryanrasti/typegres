@@ -11,13 +11,13 @@
     "check": "npm run typecheck && npm run test"
   },
   "dependencies": {
-    "pg": "^8.20.0",
+    "pg": "^8.22.0",
     "typegres": "file:../.."
   },
   "devDependencies": {
     "@swc/core": "^1.15.43",
     "@types/pg": "^8.20.0",
     "unplugin-swc": "^1.5.9",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.10"
   }
 }
