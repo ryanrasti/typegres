@@ -18,6 +18,8 @@ Browser (React)  ──WebSocket / Cap'n Web──▶  Worker ──▶  Durable
 - **`src/capabilities.ts`** — the `@expose` capability graph (`User` → `Room`).
   `@expose` gating is the authorization: you only reach a `Room` you're a member
   of, enforced at grant time. A hostile client can't forge a capability.
+  `allRooms()` lists the public directory (any room is joinable), while a `Room`
+  *capability* is still only handed out once you're a member.
 - **`src/index.ts`** — the Worker + Durable Object; serves the cap graph over a
   WebSocket and the React client as static assets.
 - **`client/`** — the React UI (`api.ts` is the framework-agnostic Cap'n Web glue).

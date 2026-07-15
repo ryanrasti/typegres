@@ -62,6 +62,28 @@ describe("Cap'n Web over WebSocket", () => {
     void room;
   });
 
+  it("allRooms lists the public directory so another user can discover and join", async () => {
+    using alice = await connect("directory", "alice");
+    using room = await doRpc(alice, (u) => u.createRoom("general"));
+    await room.post("hi, anyone here?");
+
+    using bob = await connect("directory", "bob");
+    // bob isn't a member, so rooms() is empty but allRooms() shows the room.
+    const mine = await doRpc(bob, (u) => u.rooms().select(({ rooms }) => ({ id: rooms.id })).execute(u.conn));
+    expect(mine).toEqual([]);
+    const dir = await doRpc(bob, (u) =>
+      u.allRooms().select(({ rooms }) => ({ id: rooms.id, name: rooms.name })).execute(u.conn),
+    );
+    expect(dir).toEqual([{ id: expect.any(Number), name: "general" }]);
+
+    // bob joins the discovered room, then can read its feed.
+    await doRpc(bob, (u) => u.joinRoom(dir[0]!.id));
+    const feed = await doRpc(bob, (u) =>
+      (u.room(dir[0]!.id) as unknown as Room).messages().select(({ messages }) => ({ body: messages.body })).execute(u.conn),
+    );
+    expect(feed).toEqual([{ body: "hi, anyone here?" }]);
+  });
+
   it("@expose gates the surface over the wire: a non-member can't reach a room", async () => {
     using alice = await connect("gating", "alice");
     using room = await doRpc(alice, (u) => u.createRoom("private"));

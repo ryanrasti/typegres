@@ -92,6 +92,14 @@ export class User {
       .where(({ room_members }) => room_members.user_id.eq(this.#id));
   }
 
+  // Client-refinable: the public room directory -- every room is joinable, so
+  // any authenticated user may list them (membership is enforced later, when a
+  // Room capability is actually handed out). The client diffs this against
+  // rooms() to know which ones it still needs to join.
+  @expose() allRooms() {
+    return Rooms.from();
+  }
+
   @expose(z.string().min(1))
   async createRoom(name: string): Promise<Room> {
     const [room] = await Rooms.insert({ name, created_by: this.#id })

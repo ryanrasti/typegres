@@ -4,6 +4,7 @@ import {
   createRoom,
   feed,
   joinRoom,
+  listAllRooms,
   listRooms,
   post,
   type Client,
@@ -41,13 +42,18 @@ export function App() {
 }
 
 function Chat({ client, me }: { client: Client; me: string }) {
-  const [rooms, setRooms] = useState<RoomInfo[]>([]);
+  const [rooms, setRooms] = useState<RoomInfo[]>([]); // the public directory (all rooms)
+  const [mine, setMine] = useState<Set<number>>(new Set()); // ids of rooms I've joined
   const [roomId, setRoomId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [newRoom, setNewRoom] = useState("");
 
-  const refreshRooms = () => listRooms(client).then(setRooms);
+  const refreshRooms = () =>
+    Promise.all([listAllRooms(client), listRooms(client)]).then(([all, joined]) => {
+      setRooms(all);
+      setMine(new Set(joined.map((r) => r.id)));
+    });
   useEffect(() => {
     void refreshRooms();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,10 +72,17 @@ function Chat({ client, me }: { client: Client; me: string }) {
     };
   }, [client, roomId]);
 
-  const open = async (id: number) => {
-    await joinRoom(client, id); // idempotent; makes `me` a member so the feed is authorized
+  // Open a room I'm already a member of (feed/post are authorized by membership).
+  const open = (id: number) => {
     setRoomId(id);
     setMessages([]);
+  };
+
+  // Join a room from the directory, then open it.
+  const join = async (id: number) => {
+    await joinRoom(client, id);
+    await refreshRooms();
+    open(id);
   };
 
   const send = async (e: React.FormEvent) => {
@@ -94,13 +107,22 @@ function Chat({ client, me }: { client: Client; me: string }) {
         <div className="me">signed in as <b>{me}</b></div>
         <h2>rooms</h2>
         <ul>
-          {rooms.map((r) => (
-            <li key={r.id}>
-              <button className={r.id === roomId ? "active" : ""} onClick={() => void open(r.id)}>
-                #{r.name}
-              </button>
-            </li>
-          ))}
+          {rooms.map((r) =>
+            mine.has(r.id) ? (
+              <li key={r.id}>
+                <button className={r.id === roomId ? "active" : ""} onClick={() => open(r.id)}>
+                  #{r.name}
+                </button>
+              </li>
+            ) : (
+              <li key={r.id} className="joinable">
+                <span>#{r.name}</span>
+                <button className="join" onClick={() => void join(r.id)}>
+                  Join
+                </button>
+              </li>
+            ),
+          )}
         </ul>
         <form onSubmit={addRoom}>
           <input value={newRoom} onChange={(e) => setNewRoom(e.target.value)} placeholder="new room" />

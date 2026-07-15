@@ -22,6 +22,12 @@ export const listRooms = (c: Client): Promise<RoomInfo[]> =>
     u.rooms().select(({ rooms }) => ({ id: rooms.id, name: rooms.name })).orderBy(({ rooms }) => rooms.id).execute(u.conn),
   );
 
+// The public room directory (all rooms, joinable or already joined).
+export const listAllRooms = (c: Client): Promise<RoomInfo[]> =>
+  doRpc(c, (u: User) =>
+    u.allRooms().select(({ rooms }) => ({ id: rooms.id, name: rooms.name })).orderBy(({ rooms }) => rooms.id).execute(u.conn),
+  );
+
 export const createRoom = (c: Client, name: string): Promise<unknown> => doRpc(c, (u: User) => u.createRoom(name));
 
 export const joinRoom = (c: Client, id: number): Promise<unknown> => doRpc(c, (u: User) => u.joinRoom(id));
