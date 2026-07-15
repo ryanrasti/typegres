@@ -1,0 +1,2 @@
+# Local wrangler dev state (DO SQLite, caches)
+.wrangler/

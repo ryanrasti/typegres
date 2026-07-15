@@ -105,8 +105,15 @@ export class User {
   async joinRoom(id: number): Promise<Room> {
     const [room] = await Rooms.from().where(({ rooms }) => rooms.id.eq(id)).select(({ rooms }) => ({ name: rooms.name })).execute(this.#conn);
     if (!room) throw new Error(`no such room ${id}`);
-    // INSERT OR IGNORE via the join-table PK; idempotent join.
-    await RoomMembers.insert({ room_id: id, user_id: this.#id }).execute(this.#conn);
+    // Idempotent join: skip the insert if already a member (the DO is
+    // single-threaded, so no membership race). typegres has no ON CONFLICT yet.
+    const [existing] = await RoomMembers.from()
+      .where(({ room_members }) => room_members.room_id.eq(id).and(room_members.user_id.eq(this.#id)))
+      .select(({ room_members }) => ({ room_id: room_members.room_id }))
+      .execute(this.#conn);
+    if (!existing) {
+      await RoomMembers.insert({ room_id: id, user_id: this.#id }).execute(this.#conn);
+    }
     return new Room(this.#conn, this.#id, id, room.name);
   }
 

@@ -23,7 +23,12 @@ export function App() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (name.trim()) setClient(connect(name.trim()));
+            // A capnweb stub is a callable Proxy; React's setState would treat
+            // it as a functional updater and invoke it. Wrap so it's stored, not called.
+            if (name.trim()) {
+              const c = connect(name.trim());
+              setClient(() => c);
+            }
           }}
         >
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="your name" autoFocus />
@@ -122,7 +127,9 @@ function Chat({ client, me }: { client: Client; me: string }) {
 
 function Feed({ messages }: { messages: Msg[] }) {
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView(), [messages]);
+  useEffect(() => {
+    end.current?.scrollIntoView();
+  }, [messages]);
   return (
     <div className="feed">
       {messages.map((m) => (

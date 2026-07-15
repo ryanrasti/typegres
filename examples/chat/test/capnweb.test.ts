@@ -50,6 +50,18 @@ describe("Cap'n Web over WebSocket", () => {
     expect(messages).toEqual([{ body: "hello from alice" }]);
   });
 
+  it("joinRoom is idempotent: re-joining a room you already belong to doesn't throw", async () => {
+    using alice = await connect("rejoin", "alice");
+    using room = await doRpc(alice, (u) => u.createRoom("general"));
+    const [{ id }] = await doRpc(alice, (u) =>
+      u.rooms().select(({ rooms }) => ({ id: rooms.id })).execute(u.conn),
+    );
+    // createRoom already made alice a member; joining again must be a no-op,
+    // not a UNIQUE-constraint failure on room_members.
+    await expect(doRpc(alice, (u) => u.joinRoom(id))).resolves.toBeDefined();
+    void room;
+  });
+
   it("@expose gates the surface over the wire: a non-member can't reach a room", async () => {
     using alice = await connect("gating", "alice");
     using room = await doRpc(alice, (u) => u.createRoom("private"));
