@@ -61,8 +61,22 @@ Optional peers (install only what you need):
    `@generated-start` / `@generated-end`). Generated files import runtime
    helpers from **`typegres/core`** (not the root barrel).
 4. Edit only **outside** markers (or re-apply intentional renames after generate).
-5. Prefer FK columns named `*_id` (e.g. `created_by_user_id`) so the derived
-   relation name (`created_by_user`) does not collide with the column.
+
+### Foreign keys and relation names
+
+Outbound relations are named by stripping a trailing `_id` from the FK column:
+
+| FK column | Relation method | OK? |
+|-----------|-----------------|-----|
+| `team_id` | `team()` | yes |
+| `user_id` | `user()` | yes |
+| `created_by_user_id` | `created_by_user()` | yes |
+| `created_by` | `created_by()` | **no** — same name as the column |
+
+**Always name FK columns `…_id`.** Bare names (`created_by`, `author`, `owner`)
+produce a relation that collides with the column field on the table class.
+Codegen only de-duplicates relation names against other relations, not against
+columns.
 
 ```ts
 // typegres.config.ts

@@ -10,7 +10,7 @@
     "deploy": "npm run build && wrangler deploy",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "generate": "node scripts/generate-schema.mjs"
+    "generate": "node --experimental-strip-types scripts/generate-schema.ts"
   },
   "dependencies": {
     "capnweb": "file:../../packages/capnweb",
@@ -20,13 +20,14 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "better-sqlite3": "^12.11.1",
     "@cloudflare/vitest-pool-workers": "^0.12.21",
     "@cloudflare/workers-types": "^4.20260310.1",
     "@tailwindcss/vite": "^4.3.2",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",
+    "better-sqlite3": "^12.11.1",
     "concurrently": "^9.2.1",
     "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3",
