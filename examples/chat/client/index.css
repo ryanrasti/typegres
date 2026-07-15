@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0f1115;
+  --color-panel: #171a21;
+  --color-line: #262b36;
+  --color-text: #e6e8ee;
+  --color-muted: #8a91a0;
+  --color-accent: #6ea8fe;
+  --color-accent-ink: #06122b;
+}
+
+@layer base {
+  body {
+    @apply m-0 bg-bg text-text antialiased;
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+  input {
+    @apply bg-bg text-text border border-line rounded-lg px-2.5 py-2 outline-none;
+  }
+  button {
+    @apply bg-accent text-accent-ink border-0 rounded-lg px-3 py-2 cursor-pointer font-semibold;
+  }
+  button:hover {
+    filter: brightness(1.08);
+  }
+}

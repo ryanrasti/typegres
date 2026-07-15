@@ -39,7 +39,7 @@ describe("generateTable — new file", async () => {
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose } from "typegres";
+      import { expose } from "typegres/core";
       import { Int8, Text } from "typegres/postgres";
       import { Teams } from "./teams";
 
@@ -69,7 +69,7 @@ describe("generateTable — new file", async () => {
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose, sql } from "typegres";
+      import { expose, sql } from "typegres/core";
       import { Int8, Text, Timestamptz } from "typegres/postgres";
 
       export class Dogs extends db.Table("dogs") {
@@ -90,7 +90,7 @@ describe("generateTable — update mode preserves @expose() state", async () => 
 
   test("entries the user stripped stay stripped on regen", async () => {
     const existing = `import { db } from "../db";
-import { Int8, Text } from "typegres";
+import { Int8, Text } from "typegres/core";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
@@ -105,7 +105,7 @@ export class Dogs extends db.Table("dogs") {
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { Int8, Text } from "typegres";
+      import { Int8, Text } from "typegres/core";
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
@@ -121,8 +121,8 @@ export class Dogs extends db.Table("dogs") {
 
   test("entries the user decorated stay decorated on regen", async () => {
     const existing = `import { db } from "../db";
-import { Int8, Text } from "typegres";
-import { expose } from "typegres";
+import { Int8, Text } from "typegres/core";
+import { expose } from "typegres/core";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
@@ -137,8 +137,8 @@ export class Dogs extends db.Table("dogs") {
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { Int8, Text } from "typegres";
-      import { expose } from "typegres";
+      import { Int8, Text } from "typegres/core";
+      import { expose } from "typegres/core";
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
@@ -154,7 +154,7 @@ export class Dogs extends db.Table("dogs") {
 
   test("mixed: per-entry preservation", async () => {
     const existing = `import { db } from "../db";
-import { Int8, Text, expose } from "typegres";
+import { Int8, Text, expose } from "typegres/core";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
@@ -169,7 +169,7 @@ export class Dogs extends db.Table("dogs") {
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { Int8, Text, expose } from "typegres";
+      import { Int8, Text, expose } from "typegres/core";
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
@@ -185,7 +185,7 @@ export class Dogs extends db.Table("dogs") {
 
   test("decorator on previous line is recognized", async () => {
     const existing = `import { db } from "../db";
-import { expose } from "typegres";
+import { expose } from "typegres/core";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
@@ -203,7 +203,7 @@ export class Dogs extends db.Table("dogs") {
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose } from "typegres";
+      import { expose } from "typegres/core";
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
@@ -217,7 +217,7 @@ export class Dogs extends db.Table("dogs") {
 
   test("schema migration adds new column → new entry decorated by default", async () => {
     const existingNoTool = `import { db } from "../db";
-import { Int8, Text, expose } from "typegres";
+import { Int8, Text, expose } from "typegres/core";
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
@@ -234,7 +234,7 @@ export class Dogs extends db.Table("dogs") {
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { Int8, Text, expose } from "typegres";
+      import { Int8, Text, expose } from "typegres/core";
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
@@ -248,7 +248,7 @@ export class Dogs extends db.Table("dogs") {
 
   test("update mode does not touch imports / preserves custom comments", async () => {
     const existing = `import { db } from "../db";
-import { Int8 } from "typegres";
+import { Int8 } from "typegres/core";
 // my custom comment
 
 export class Dogs extends db.Table("dogs") {
@@ -265,7 +265,7 @@ export class Dogs extends db.Table("dogs") {
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { Int8 } from "typegres";
+      import { Int8 } from "typegres/core";
       // my custom comment
 
       export class Dogs extends db.Table("dogs") {

@@ -108,7 +108,7 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
     expect([...files.keys()]).toEqual(["dogs", "teams"]);
     expect(files.get("dogs")).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose, sql } from "typegres";
+      import { expose, sql } from "typegres/core";
       import { Any, Bool, Integer, Text } from "typegres/sqlite";
       import { Teams } from "./teams";
 
@@ -128,7 +128,7 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
     `);
     expect(files.get("teams")).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose } from "typegres";
+      import { expose } from "typegres/core";
       import { Integer, Text } from "typegres/sqlite";
       import { Dogs } from "./dogs";
 
@@ -199,7 +199,7 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
     `);
     expect(files.get("parent_t")).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose } from "typegres";
+      import { expose } from "typegres/core";
       import { Integer } from "typegres/sqlite";
       import { Badge } from "./badge";
       import { Joiner } from "./joiner";
@@ -223,7 +223,7 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
     // non-null, so the outbound relation must be "one", not "maybe".
     expect(files.get("profile")).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose } from "typegres";
+      import { expose } from "typegres/core";
       import { Integer } from "typegres/sqlite";
       import { ParentT } from "./parent_t";
 
@@ -236,5 +236,32 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
       }
       "
     `);
+
+    // Composite PK: first column gets pk=1 in PRAGMA but is NOT a rowid
+    // alias — both a and b are insert-supplied. Must not emit generated: true.
+    const joiner = files.get("joiner")!;
+    expect(joiner).toContain("@expose() a = Integer.column({ nonNull: true });");
+    expect(joiner).toContain("@expose() b = Integer.column({ nonNull: true });");
+    expect(joiner).not.toMatch(/a = Integer\.column\(\{ nonNull: true, generated: true \}\)/);
+  });
+
+  test("composite INTEGER PRIMARY KEY columns are not rowid aliases (not generated)", async () => {
+    // Regression: isRowidAlias used to treat pk===1 alone as a rowid alias,
+    // so room_id in PRIMARY KEY (room_id, user_id) was wrongly generated: true.
+    const files = await generate(`
+      CREATE TABLE rooms (id INTEGER PRIMARY KEY);
+      CREATE TABLE users (id INTEGER PRIMARY KEY);
+      CREATE TABLE room_members (
+        room_id INTEGER NOT NULL REFERENCES rooms(id),
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        PRIMARY KEY (room_id, user_id)
+      );
+    `);
+    const members = files.get("room_members")!;
+    expect(members).toContain("@expose() room_id = Integer.column({ nonNull: true });");
+    expect(members).toContain("@expose() user_id = Integer.column({ nonNull: true });");
+    expect(members).not.toContain("generated: true");
+    // Single-column INTEGER PK still is a rowid alias.
+    expect(files.get("rooms")).toContain("@expose() id = Integer.column({ nonNull: true, generated: true });");
   });
 });

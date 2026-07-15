@@ -91,7 +91,7 @@ describe("postgres codegen e2e — DDL in, generated TypeScript out", () => {
     expect([...files.keys()]).toEqual(["dogs", "teams"]);
     expect(files.get("dogs")).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose, sql } from "typegres";
+      import { expose, sql } from "typegres/core";
       import { Int8, Text, Timestamptz } from "typegres/postgres";
       import { Teams } from "./teams";
 
@@ -111,7 +111,7 @@ describe("postgres codegen e2e — DDL in, generated TypeScript out", () => {
     `);
     expect(files.get("teams")).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose } from "typegres";
+      import { expose } from "typegres/core";
       import { Int8, Text } from "typegres/postgres";
       import { Dogs } from "./dogs";
 
@@ -172,7 +172,7 @@ describe("postgres codegen e2e — DDL in, generated TypeScript out", () => {
     `);
     expect(files.get("parent_t")).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose } from "typegres";
+      import { expose } from "typegres/core";
       import { Int8 } from "typegres/postgres";
       import { Badge } from "./badge";
       import { Joiner } from "./joiner";
@@ -193,7 +193,7 @@ describe("postgres codegen e2e — DDL in, generated TypeScript out", () => {
     `);
     expect(files.get("profile")).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose } from "typegres";
+      import { expose } from "typegres/core";
       import { Int8 } from "typegres/postgres";
       import { ParentT } from "./parent_t";
 
