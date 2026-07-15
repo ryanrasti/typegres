@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
 import { newWebSocketRpcSession } from "capnweb";
 import { doRpc, type ShimStub } from "typegres/capnweb";
-import type { User } from "../src/capabilities";
+import type { Room, User } from "../src/capabilities";
 
 // Phase 4 -- the end-to-end showcase. A client connects to the DO over a real
 // WebSocket, and authors typegres queries as Cap'n Web closures that replay
@@ -39,8 +39,9 @@ describe("Cap'n Web over WebSocket", () => {
       u.rooms().select(({ rooms }) => ({ id: rooms.id })).execute(u.conn),
     ).then(([r]) =>
       doRpc(alice, (u) =>
-        u
-          .room(r!.id)
+        // room(id) returns Promise<Room> in the type; capnweb pipelines the
+        // call on the eventual Room, so bridge the type with a cast.
+        (u.room(r!.id) as unknown as Room)
           .messages()
           .select(({ messages }) => ({ body: messages.body }))
           .execute(u.conn),

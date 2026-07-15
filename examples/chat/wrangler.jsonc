@@ -8,5 +8,22 @@
   "durable_objects": {
     "bindings": [{ "name": "CHAT", "class_name": "ChatDo" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChatDo"] }]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChatDo"] }],
+  // typegres re-exports node-only drivers (pg / better-sqlite3 / pglite) that
+  // the DO never uses (it goes through DoSqliteDriver). Alias them to an empty
+  // stub so their native/node deps stay out of the workerd bundle.
+  "alias": {
+    "pg": "./src/empty.ts",
+    "better-sqlite3": "./src/empty.ts",
+    "@electric-sql/pglite": "./src/empty.ts"
+  },
+  // The built React client (vite build -> dist/client), served as static
+  // assets. run_worker_first routes every request through the Worker, which
+  // handles the /ws Cap'n Web upgrade and delegates the rest to ASSETS.
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  }
 }

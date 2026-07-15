@@ -39,6 +39,19 @@ export class Room {
       .where(({ room_members }) => room_members.room_id.eq(this.#id));
   }
 
+  // Convenience read for the UI: messages joined with their authors, newest
+  // last. Executes server-side (the client can't reference the Users table to
+  // author the join itself) -- authorized by holding the Room cap.
+  @expose()
+  async feed() {
+    return Messages.from()
+      .join(Users, ({ messages, users }) => messages.user_id.eq(users.id))
+      .where(({ messages }) => messages.room_id.eq(this.#id))
+      .select(({ messages, users }) => ({ id: messages.id, author: users.name, body: messages.body }))
+      .orderBy(({ messages }) => messages.id)
+      .execute(this.#conn);
+  }
+
   // Mutation: post a message as the current user.
   @expose(z.string().min(1))
   async post(body: string) {

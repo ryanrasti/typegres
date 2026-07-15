@@ -8,6 +8,7 @@ import { DoSqliteDriver, type SqlStorageLike } from "./do-sqlite-driver";
 
 export interface Env {
   CHAT: DurableObjectNamespace<ChatDo>;
+  ASSETS: Fetcher;
 }
 
 // The single chat Durable Object. Holds one typegres Connection over its own
@@ -34,8 +35,12 @@ export class ChatDo extends DurableObject<Env> {
 }
 
 export default {
-  // One DO for all rooms; every client routes to it.
   async fetch(req: Request, env: Env): Promise<Response> {
-    return env.CHAT.get(env.CHAT.idFromName("global")).fetch(req);
+    // /ws -> the single chat DO (Cap'n Web WebSocket). Everything else is the
+    // static React client.
+    if (new URL(req.url).pathname === "/ws") {
+      return env.CHAT.get(env.CHAT.idFromName("global")).fetch(req);
+    }
+    return env.ASSETS.fetch(req);
   },
 };
