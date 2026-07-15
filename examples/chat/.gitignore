@@ -1,2 +1,4 @@
 # Local wrangler dev state (DO SQLite, caches)
 .wrangler/
+# Temp sqlite file used by `npm run generate` (tg generate introspection)
+.tg-schema.sqlite

@@ -9,25 +9,29 @@
     "preview": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate": "node scripts/generate-schema.mjs"
   },
   "dependencies": {
     "capnweb": "file:../../packages/capnweb",
-    "typegres": "file:../..",
-    "zod": "^4.4.3",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "typegres": "file:../..",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "better-sqlite3": "^12.11.1",
     "@cloudflare/vitest-pool-workers": "^0.12.21",
     "@cloudflare/workers-types": "^4.20260310.1",
-    "typescript": "^6.0.3",
-    "vitest": "~3.2.4",
-    "@vitejs/plugin-react": "^5.0.4",
+    "@tailwindcss/vite": "^4.3.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^9.2.1",
+    "tailwindcss": "^4.3.2",
+    "typescript": "^6.0.3",
     "vite": "^7.3.6",
-    "wrangler": "^4.72.0",
-    "concurrently": "^9.2.1"
+    "vitest": "~3.2.4",
+    "wrangler": "^4.72.0"
   }
 }

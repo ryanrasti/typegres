@@ -3,19 +3,24 @@ export type { TransactionIsolation, TransactionOptions } from "./database";
 export { Table } from "./table";
 export { sql, Sql } from "./builder/sql";
 export { QueryBuilder } from "./builder/query";
+// Node drivers (optional peers). Prefer subpath `typegres/do-sqlite` for
+// Durable Object / workerd bundles so pg / better-sqlite3 / pglite never
+// enter the module graph.
 export { PgDriver, PgliteDriver, SqliteDriver } from "./driver";
+export { DoSqliteDriver } from "./driver-do-sqlite";
 export { TypegresLiveEvents } from "./live/events";
 export { expose } from "./exoeval/tool";
 export type { ToolFunction } from "./exoeval/tool";
 export { RpcClient, inMemoryChannel, safeStringify } from "./exoeval/rpc";
 export type { RawChannel } from "./exoeval/rpc";
 export type { Config } from "./config";
-export type { Driver } from "./driver";
+export type { Driver } from "./driver-shared";
+export type { SqlStorageLike } from "./driver-do-sqlite";
 
 import type { Connection } from "./database";
 import { Database } from "./database";
 import { PgDriver, PgliteDriver, SqliteDriver } from "./driver";
-import type { Driver } from "./driver";
+import type { Driver } from "./driver-shared";
 import type { DialectName } from "./builder/sql";
 
 // Convenience factory for quick scripts and the playground. Returns

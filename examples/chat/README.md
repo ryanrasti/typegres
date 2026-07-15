@@ -7,28 +7,32 @@ there is no REST anywhere.
 
 ```
 Browser (React)  ──WebSocket / Cap'n Web──▶  Worker ──▶  Durable Object
-   authors queries as closures                            typegres → DoSqliteDriver
-   doRpc(user => user.rooms()                             → ctx.storage.sql
+   connect() → ChatApi                              typegres/core + DoSqliteDriver
+   doRpc(api => api.userByName(name))               → ctx.storage.sql
+   doRpc(user => user.rooms()
       .select(...).execute(user.conn))
 ```
 
-- **`src/do-sqlite-driver.ts`** — a typegres `Driver` over Cloudflare's
-  `SqlStorage`.
-- **`src/schema.ts`** — the tables (users, rooms, room_members, messages).
-- **`src/capabilities.ts`** — the `@expose` capability graph (`User` → `Room`).
-  `@expose` gating is the authorization: you only reach a `Room` you're a member
-  of, enforced at grant time. A hostile client can't forge a capability.
-  `allRooms()` lists the public directory (any room is joinable), while a `Room`
-  *capability* is still only handed out once you're a member.
-- **`src/index.ts`** — the Worker + Durable Object; serves the cap graph over a
-  WebSocket and the React client as static assets.
-- **`client/`** — the React UI (`api.ts` is the framework-agnostic Cap'n Web glue).
+- **`typegres/do-sqlite`** — `DoSqliteDriver` over Cloudflare `SqlStorage`.
+- **`typegres/core`** — schema/SQL/@expose without node driver peers (so the
+  worker never resolves `pg` / `better-sqlite3` / pglite).
+- **`src/tables/`** — generated table classes (`npm run generate`).
+- **`src/migrate.ts`** — DDL applied once per DO on init (and by generate).
+- **`src/capabilities.ts`** — `@expose` graph: `ChatApi` → `User` → `Room`.
+  Reads return query builders the client refines; mutations run server-side.
+  `@expose` gating is authorization: you only get a `Room` cap when you're a
+  member.
+- **`src/index.ts`** — Worker + Durable Object; serves Cap'n Web on `/ws` and
+  the React client as static assets.
+- **`client/`** — React UI. `api.ts` is transport only (`connect`); the UI
+  authors queries inline via `doRpc`.
 
 ## Develop
 
 ```sh
 npm install
-npm run dev      # vite (client, watched) + wrangler dev (worker + DO) 
+npm run generate   # migrate DDL → temp sqlite → tg generate → src/tables
+npm run dev        # vite (client, watched) + wrangler dev (worker + DO)
 ```
 
 Open the printed `wrangler dev` URL, pick a name, create a room, chat.
@@ -57,5 +61,5 @@ round trip over a WebSocket.
 - `SqlStorage` rejects `BigInt` bindings and marshals `INTEGER` results to JS
   `number` (lossy above 2^53) — see `test/sqlstorage.probe.test.ts`. Fine for
   chat-scale ids; the driver down-converts typegres's boolean `0n/1n`.
-- The node-only typegres drivers (pg / better-sqlite3 / pglite) are aliased to an
-  empty stub in `wrangler.jsonc` — the DO only uses `DoSqliteDriver`.
+- Auth is PoC find-or-create via `ChatApi.userByName(name)`. A real app verifies
+  a token in that method and never creates users on login.

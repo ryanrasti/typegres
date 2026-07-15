@@ -1,4 +1,4 @@
-import type { ExecuteFn, Driver, QueryResult } from "./driver";
+import type { ExecuteFn, Driver, QueryResult } from "./driver-shared";
 import type { Fromable, RowType, RowTypeToTsType } from "./builder/query";
 import { QueryBuilder, hydrateRows } from "./builder/query";
 import { deserializeRows } from "./util";

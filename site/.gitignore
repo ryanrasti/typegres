@@ -10,3 +10,4 @@ public/demo.ts.static
 public/events-*.js
 public/chunk-*.js
 public/lib-*.js
+public/rolldown-runtime-*.js

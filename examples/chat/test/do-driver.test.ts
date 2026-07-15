@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { env, runInDurableObject } from "cloudflare:test";
-import { Database, sql } from "typegres";
+import { Database, sql } from "typegres/core";
+import { DoSqliteDriver } from "typegres/do-sqlite";
 import { Integer, Text } from "typegres/sqlite";
 import type { ChatDo } from "../src/index";
-import { DoSqliteDriver } from "../src/do-sqlite-driver";
 
 // Phase 1 -- typegres queries run against the Durable Object's SQLite through
 // the DoSqliteDriver, inside real workerd.

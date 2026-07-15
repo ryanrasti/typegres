@@ -32,6 +32,14 @@
     "./capnweb": {
       "import": "./dist/capnweb/shim.mjs",
       "types": "./dist/capnweb/shim.d.mts"
+    },
+    "./do-sqlite": {
+      "import": "./dist/driver-do-sqlite.mjs",
+      "types": "./dist/driver-do-sqlite.d.mts"
+    },
+    "./core": {
+      "import": "./dist/core.mjs",
+      "types": "./dist/core.d.mts"
     }
   },
   "bin": {
@@ -42,10 +50,14 @@
   ],
   "peerDependencies": {
     "@electric-sql/pglite": "^0.4.4",
+    "better-sqlite3": "^12.11.1",
     "pg": "^8.20.0"
   },
   "peerDependenciesMeta": {
     "@electric-sql/pglite": {
+      "optional": true
+    },
+    "better-sqlite3": {
       "optional": true
     },
     "pg": {

@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { env, runInDurableObject } from "cloudflare:test";
 import type { ChatDo } from "../src/index";
-import { Users, Rooms, RoomMembers, Messages } from "../src/schema";
+import { Users } from "../src/tables/users";
+import { Rooms } from "../src/tables/rooms";
+import { RoomMembers } from "../src/tables/room_members";
+import { Messages } from "../src/tables/messages";
 
 // Phase 2 -- the 4-table chat schema, migrated by the DO on init, exercised
 // through typegres inserts + a multi-table join, all inside the DO's SQLite.

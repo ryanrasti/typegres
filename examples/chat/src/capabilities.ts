@@ -1,12 +1,15 @@
-import { expose, type Connection } from "typegres";
+import { expose, type Connection } from "typegres/core";
 import z from "zod";
-import { Users, Rooms, RoomMembers, Messages } from "./schema";
+import { Users } from "./tables/users";
+import { Rooms } from "./tables/rooms";
+import { RoomMembers } from "./tables/room_members";
+import { Messages } from "./tables/messages";
 
 // The @expose capability graph. @expose gating is the entire authorization
 // story: only exposed members are reachable over Cap'n Web, and a capability
-// is only handed out when the server decides you may have it. Reads return
-// query builders the client refines and runs (the Cap'n Web showcase);
-// mutations execute server-side.
+// is only handed out when the server decides you may have it.
+//   - reads return query builders the client refines and .execute()s
+//   - mutations (createRoom / joinRoom / post) run server-side
 
 // A room the current user is authorized for — you only get one via User.
 export class Room {
@@ -29,7 +32,9 @@ export class Room {
     return this.#name;
   }
 
-  // Client-refinable: messages in this room (authorized by holding the cap).
+  // Client-refinable reads: the browser authors the select/order/limit and
+// .execute()s them. Holding the Room cap is the authorization — no
+// server-side canned read wrappers.
   @expose() messages() {
     return Messages.from().where(({ messages }) => messages.room_id.eq(this.#id));
   }
@@ -37,19 +42,6 @@ export class Room {
     return Users.from()
       .join(RoomMembers, ({ users, room_members }) => users.id.eq(room_members.user_id))
       .where(({ room_members }) => room_members.room_id.eq(this.#id));
-  }
-
-  // Convenience read for the UI: messages joined with their authors, newest
-  // last. Executes server-side (the client can't reference the Users table to
-  // author the join itself) -- authorized by holding the Room cap.
-  @expose()
-  async feed() {
-    return Messages.from()
-      .join(Users, ({ messages, users }) => messages.user_id.eq(users.id))
-      .where(({ messages }) => messages.room_id.eq(this.#id))
-      .select(({ messages, users }) => ({ id: messages.id, author: users.name, body: messages.body }))
-      .orderBy(({ messages }) => messages.id)
-      .execute(this.#conn);
   }
 
   // Mutation: post a message as the current user.
@@ -62,7 +54,8 @@ export class Room {
   }
 }
 
-// The authenticated principal — the Cap'n Web main capability.
+// An authenticated principal. Obtained via ChatApi.userByName() — not the
+// session root itself.
 export class User {
   readonly #conn: Connection;
   readonly #id: number;
@@ -138,10 +131,25 @@ export class User {
   }
 }
 
-// Auth entry: resolve or create a user by name, return their capability.
-// (A real app validates a token; PoC keys off the name.)
-export const authenticate = async (conn: Connection, name: string): Promise<User> => {
-  const [existing] = await Users.from().where(({ users }) => users.name.eq(name)).select(({ users }) => ({ id: users.id })).execute(conn);
-  const id = existing?.id ?? (await Users.insert({ name }).returning(({ users }) => ({ id: users.id })).execute(conn))[0]!.id;
-  return new User(conn, id, name);
-};
+// Cap'n Web session root. Auth is on the graph (`userByName`), not outside
+// it in the DO fetch handler. PoC: find-or-create by name. A real app would
+// verify a token here and never create users on login.
+export class ChatApi {
+  readonly #conn: Connection;
+
+  constructor(conn: Connection) {
+    this.#conn = conn;
+  }
+
+  @expose(z.string().min(1))
+  async userByName(name: string): Promise<User> {
+    const [existing] = await Users.from()
+      .where(({ users }) => users.name.eq(name))
+      .select(({ users }) => ({ id: users.id }))
+      .execute(this.#conn);
+    const id =
+      existing?.id ??
+      (await Users.insert({ name }).returning(({ users }) => ({ id: users.id })).execute(this.#conn))[0]!.id;
+    return new User(this.#conn, id, name);
+  }
+}

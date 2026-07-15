@@ -1,19 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { env, runInDurableObject } from "cloudflare:test";
 import type { ChatDo } from "../src/index";
-import { authenticate } from "../src/capabilities";
+import { ChatApi } from "../src/capabilities";
 
-// Phase 3 -- the capability graph, exercised in-process (no wire yet). Proves
-// the authorization logic: you only reach a Room through User, and only as a
-// member. Cap'n Web (Phase 4) then gates the SAME graph over the wire.
+// The capability graph, exercised in-process (no wire yet). Proves the
+// authorization logic: you only reach a Room through User, and only as a
+// member. Cap'n Web then gates the SAME graph over the wire.
 
 describe("capability graph (in-process)", () => {
   it("createRoom + post + read; a non-member is denied a room cap until they join", async () => {
     const stub = env.CHAT.get(env.CHAT.idFromName("phase3"));
     const result = await runInDurableObject(stub, async (i: ChatDo) => {
       const conn = i.conn;
-      const alice = await authenticate(conn, "alice");
-      const bob = await authenticate(conn, "bob");
+      const api = new ChatApi(conn);
+      const alice = await api.userByName("alice");
+      const bob = await api.userByName("bob");
 
       const room = await alice.createRoom("general");
       await room.post("hi from alice");

@@ -1,10 +1,12 @@
 import { DurableObject } from "cloudflare:workers";
 import { newWorkersWebSocketRpcResponse } from "capnweb";
 import { toRpc } from "typegres/capnweb";
-import type { Connection } from "typegres";
-import { db, migrate } from "./schema";
-import { authenticate } from "./capabilities";
-import { DoSqliteDriver, type SqlStorageLike } from "./do-sqlite-driver";
+// Core + do-sqlite entries: no optional node peers (pg / better-sqlite3 / pglite).
+import type { Connection } from "typegres/core";
+import { DoSqliteDriver, type SqlStorageLike } from "typegres/do-sqlite";
+import { db } from "./db";
+import { migrate } from "./migrate";
+import { ChatApi } from "./capabilities";
 
 export interface Env {
   CHAT: DurableObjectNamespace<ChatDo>;
@@ -23,14 +25,10 @@ export class ChatDo extends DurableObject<Env> {
     ctx.blockConcurrencyWhile(() => migrate(this.conn));
   }
 
-  // WebSocket upgrade -> Cap'n Web session whose main capability is the
-  // authenticated User (the @expose shim gates the reachable surface). Auth is
-  // a ?user= token for the PoC; a real app validates a signed credential.
+  // WebSocket upgrade -> Cap'n Web session whose main capability is ChatApi.
+  // Auth is on the graph (ChatApi.userByName), not a ?user= query param.
   async fetch(req: Request): Promise<Response> {
-    const name = new URL(req.url).searchParams.get("user");
-    if (!name) return new Response("missing ?user", { status: 400 });
-    const user = await authenticate(this.conn, name);
-    return newWorkersWebSocketRpcResponse(req, toRpc(user));
+    return newWorkersWebSocketRpcResponse(req, toRpc(new ChatApi(this.conn)));
   }
 }
 

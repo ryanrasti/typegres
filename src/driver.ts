@@ -2,23 +2,16 @@ import type { CompiledSql } from "./builder/sql";
 import type { DialectName } from "./builder/sql";
 import type pg from "pg";
 import type BetterSqlite3 from "better-sqlite3";
+import {
+  type Driver,
+  type ExecuteFn,
+  type QueryResult,
+  normalizeRow,
+  stripMatchedOuterParens,
+} from "./driver-shared";
 
-// Rows come back as plain objects keyed by column name. Values are
-// strings (every driver's type parser is overridden to return raw text)
-// or null (SQL NULL). Typed coercion happens downstream in
-// QueryBuilder/InsertBuilder/etc.
-export type QueryResult = { rows: { [key: string]: string | null }[] };
-// Drivers receive an already-compiled `CompiledSql`. Compilation happens in
-// Database (which owns the CompileContext); the driver's only job is to
-// hand the query to its underlying pool/wasm and normalize the result rows.
-export type ExecuteFn = (sql: CompiledSql) => Promise<QueryResult>;
-
-export interface Driver {
-  readonly dialect: DialectName;
-  execute: ExecuteFn;
-  runInSingleConnection<T>(cb: (execute: ExecuteFn) => Promise<T>): Promise<T>;
-  close(): Promise<void>;
-}
+export type { Driver, ExecuteFn, QueryResult } from "./driver-shared";
+export { DoSqliteDriver, type SqlStorageLike } from "./driver-do-sqlite";
 
 // pg adapter — returns raw text strings (no driver-side deserialization).
 // `pg` is an *optional* peer dep (see package.json#peerDependenciesMeta):
@@ -117,13 +110,8 @@ export class PgliteDriver implements Driver {
 // Row value normalization: better-sqlite3 returns typed JS values
 // (number, string, Buffer, bigint, null). Typegres' downstream
 // deserialize() expects strings (PG contract). We stringify here so
-// SQLite reads round-trip through the same code path. Details:
-//   - number, bigint → String(v)
-//   - Buffer         → hex ("\xDEADBEEF"-style, mirrors PG's bytea repr)
-//   - null           → null (passthrough — SQL NULL preserved)
-//   - string         → identity
-// Once the SQLite driver picks up bespoke handling for typed values
-// this normalization can move down to just the deserializer layer.
+// SQLite reads round-trip through the same code path.
+// `better-sqlite3` is an optional peer (see package.json).
 export class SqliteDriver implements Driver {
   readonly dialect: DialectName = "sqlite";
 
@@ -170,35 +158,3 @@ export class SqliteDriver implements Driver {
     return Promise.resolve();
   }
 }
-
-// Strip one outer pair of parentheses iff they balance to enclose the
-// entire string. `(SELECT 1)` → `SELECT 1`; `(SELECT 1) UNION (SELECT 2)`
-// stays as-is (the leading `(` closes early and re-opens). This keeps
-// the driver honest about what it's unwrapping.
-const stripMatchedOuterParens = (s: string): string => {
-  const t = s.trim();
-  if (!t.startsWith("(") || !t.endsWith(")")) {return s;}
-  let depth = 0;
-  for (let i = 0; i < t.length; i++) {
-    if (t[i] === "(") {depth++;}
-    else if (t[i] === ")") {
-      depth--;
-      if (depth === 0 && i !== t.length - 1) {return s;}
-    }
-  }
-  return t.slice(1, -1);
-};
-
-const normalizeValue = (v: unknown): string | null => {
-  if (v === null || v === undefined) { return null; }
-  if (typeof v === "string") { return v; }
-  if (typeof v === "number" || typeof v === "bigint" || typeof v === "boolean") { return String(v); }
-  if (v instanceof Uint8Array) {
-    // Match PG bytea repr: \x-prefixed lowercase hex.
-    return "\\x" + Buffer.from(v).toString("hex");
-  }
-  return String(v);
-};
-
-const normalizeRow = (row: { [key: string]: unknown }): { [key: string]: string | null } =>
-  Object.fromEntries(Object.entries(row).map(([k, v]) => [k, normalizeValue(v)]));
