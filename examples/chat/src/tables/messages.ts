@@ -12,7 +12,7 @@ export class Messages extends db.Table("messages") {
   @expose() body = Text.column({ nonNull: true });
   @expose() created_at = Text.column({ nonNull: true, default: sql`datetime('now')` });
   // relations
-  @expose() author() { return Users.scope(Messages.contextOf(this)).where(({ users }) => users.id.eq(this.user_id)).cardinality("one"); }
+  @expose() user() { return Users.scope(Messages.contextOf(this)).where(({ users }) => users.id.eq(this.user_id)).cardinality("one"); }
   @expose() room() { return Rooms.scope(Messages.contextOf(this)).where(({ rooms }) => rooms.id.eq(this.room_id)).cardinality("one"); }
   // @generated-end
 }

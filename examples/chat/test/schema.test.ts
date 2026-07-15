@@ -17,7 +17,7 @@ describe("chat schema in the DO", () => {
 
       const [alice] = await Users.insert({ name: "alice" }).returning(({ users }) => ({ id: users.id })).execute(conn);
       const [bob] = await Users.insert({ name: "bob" }).returning(({ users }) => ({ id: users.id })).execute(conn);
-      const [room] = await Rooms.insert({ name: "general", created_by: alice!.id }).returning(({ rooms }) => ({ id: rooms.id })).execute(conn);
+      const [room] = await Rooms.insert({ name: "general", created_by_user_id: alice!.id }).returning(({ rooms }) => ({ id: rooms.id })).execute(conn);
 
       await RoomMembers.insert({ room_id: room!.id, user_id: alice!.id }, { room_id: room!.id, user_id: bob!.id }).execute(conn);
       await Messages.insert(

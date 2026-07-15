@@ -58,8 +58,11 @@ Optional peers (install only what you need):
 1. **DDL is source of truth** (migrations or `migrate()`).
 2. Apply DDL to a real DB (Postgres URL or a sqlite file).
 3. Run **`tg generate`** (`typegres.config.ts` → table files with
-   `@generated-start` / `@generated-end`).
+   `@generated-start` / `@generated-end`). Generated files import runtime
+   helpers from **`typegres/core`** (not the root barrel).
 4. Edit only **outside** markers (or re-apply intentional renames after generate).
+5. Prefer FK columns named `*_id` (e.g. `created_by_user_id`) so the derived
+   relation name (`created_by_user`) does not collide with the column.
 
 ```ts
 // typegres.config.ts

@@ -95,7 +95,7 @@ export class User {
 
   @expose(z.string().min(1))
   async createRoom(name: string): Promise<Room> {
-    const [room] = await Rooms.insert({ name, created_by: this.#id })
+    const [room] = await Rooms.insert({ name, created_by_user_id: this.#id })
       .returning(({ rooms }) => ({ id: rooms.id }))
       .execute(this.#conn);
     await RoomMembers.insert({ room_id: room!.id, user_id: this.#id }).execute(this.#conn);

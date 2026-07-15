@@ -242,13 +242,14 @@ const newFile = (
 
   // Split imports: dialect-specific type classes come from
   // `typeImportPath`; dialect-agnostic runtime helpers (`expose`,
-  // `sql`) come from the top `typegres` barrel. Symbols within each
+  // `sql`) come from `typegres/core` (no optional node driver peers —
+  // safe for Workers / Durable Object bundles). Symbols within each
   // group sorted for stable diffs.
   const runtimeSyms = ["expose", ...(hasDefault ? ["sql"] : [])].sort();
   const typeSyms = [...typeClasses].sort();
   const imports = [
     `import { db } from "${dbImport}";`,
-    `import { ${runtimeSyms.join(", ")} } from "typegres";`,
+    `import { ${runtimeSyms.join(", ")} } from "typegres/core";`,
     `import { ${typeSyms.join(", ")} } from "${typeImportPath}";`,
     ...relImports,
   ];

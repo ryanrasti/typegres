@@ -12,9 +12,9 @@ export const migrate = async (conn: Connection): Promise<void> => {
     name TEXT NOT NULL
   )`);
   await conn.execute(sql`CREATE TABLE IF NOT EXISTS rooms (
-    id         INTEGER PRIMARY KEY,
-    name       TEXT NOT NULL,
-    created_by INTEGER NOT NULL REFERENCES users(id)
+    id                INTEGER PRIMARY KEY,
+    name              TEXT NOT NULL,
+    created_by_user_id INTEGER NOT NULL REFERENCES users(id)
   )`);
   await conn.execute(sql`CREATE TABLE IF NOT EXISTS room_members (
     room_id INTEGER NOT NULL REFERENCES rooms(id),
@@ -37,9 +37,9 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS rooms (
-  id         INTEGER PRIMARY KEY,
-  name       TEXT NOT NULL,
-  created_by INTEGER NOT NULL REFERENCES users(id)
+  id                 INTEGER PRIMARY KEY,
+  name               TEXT NOT NULL,
+  created_by_user_id INTEGER NOT NULL REFERENCES users(id)
 );
 CREATE TABLE IF NOT EXISTS room_members (
   room_id INTEGER NOT NULL REFERENCES rooms(id),

@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { expose } from "typegres";
+import { expose } from "typegres/core";
 import { Int8, Text } from "typegres/postgres";
 import { Dogs } from "./dogs";
 
