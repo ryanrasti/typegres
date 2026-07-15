@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "capnweb": "file:../../packages/capnweb",
-    "typegres": "file:../.."
+    "typegres": "file:../..",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.12.21",
