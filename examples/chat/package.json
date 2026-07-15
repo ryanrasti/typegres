@@ -1,0 +1,20 @@
+{
+  "name": "typegres-chat",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "capnweb": "file:../../packages/capnweb",
+    "typegres": "file:../.."
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.12.21",
+    "@cloudflare/workers-types": "^4.20260310.1",
+    "typescript": "^6.0.3",
+    "vitest": "~3.2.4"
+  }
+}

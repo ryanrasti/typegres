@@ -1,0 +1,12 @@
+{
+  "name": "typegres-chat",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-02-05",
+  // A single Durable Object holds all chat state; rooms are rows, not
+  // instances. new_sqlite_classes makes it SQLite-backed so ctx.storage.sql
+  // is available (typegres runs against it via DoSqliteDriver).
+  "durable_objects": {
+    "bindings": [{ "name": "CHAT", "class_name": "ChatDo" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChatDo"] }]
+}
