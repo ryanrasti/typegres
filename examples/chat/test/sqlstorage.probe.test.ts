@@ -83,4 +83,33 @@ describe("SqlStorage result value types", () => {
     expect(typeof v).toBe("number");
     expect(v).toBe(1000);
   });
+
+  // int64 precision: SqlStorage always marshals INTEGER results to a JS
+  // number, never bigint -- so values above 2^53 come back LOSSY (a real
+  // footgun, worse than better-sqlite3 which can return bigint). It stores
+  // int64 correctly, though: CAST(col AS TEXT) reads the exact value. So a
+  // full-precision bigint column would need the driver/dialect to select it
+  // as text. Chat ids are small autoincrement, so unaffected -- but pinned
+  // here so the limitation is on record.
+  it("int64 above 2^53 is LOSSY as a number result", async () => {
+    const v = await withSql((sql) => {
+      sql.exec("CREATE TABLE t (v INTEGER)");
+      sql.exec("INSERT INTO t VALUES (9223372036854775807)"); // max int64, SQL literal
+      return one(sql, "SELECT v FROM t").v;
+    });
+    expect(typeof v).toBe("number");
+    // Compare as strings: the true value 9223372036854775807 can't even be
+    // written as a JS number literal (it rounds), so string form shows the loss.
+    expect(String(v)).toBe("9223372036854776000"); // rounded to the nearest double
+    expect(String(v)).not.toBe("9223372036854775807"); // the true int64 is lost
+  });
+
+  it("CAST(col AS TEXT) preserves int64 precision losslessly (the workaround)", async () => {
+    const v = await withSql((sql) => {
+      sql.exec("CREATE TABLE t (v INTEGER)");
+      sql.exec("INSERT INTO t VALUES (9223372036854775807)");
+      return one(sql, "SELECT CAST(v AS TEXT) AS v FROM t").v;
+    });
+    expect(v).toBe("9223372036854775807");
+  });
 });
