@@ -6,6 +6,10 @@ export default defineWorkersConfig({
   test: {
     poolOptions: {
       workers: {
+        // A long-lived Cap'n Web WebSocket keeps the DO's SQLite open, which
+        // the per-test isolated-storage reset can't snapshot. Disable it; each
+        // test uses its own DO id instead, so they stay independent.
+        isolatedStorage: false,
         wrangler: { configPath: "./wrangler.jsonc" },
       },
     },

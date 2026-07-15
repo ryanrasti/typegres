@@ -1,4 +1,4 @@
-import { Database, sql, type Connection } from "typegres";
+import { Database, expose, sql, type Connection } from "typegres";
 import { Integer, Text } from "typegres/sqlite";
 
 // The chat schema. `db` is dialect + table definitions only (no driver) — each
@@ -8,40 +8,40 @@ import { Integer, Text } from "typegres/sqlite";
 export const db = new Database({ dialect: "sqlite" });
 
 export class Users extends db.Table("users") {
-  id = Integer.column({ nonNull: true, generated: true });
-  name = Text.column({ nonNull: true });
+  @expose() id = Integer.column({ nonNull: true, generated: true });
+  @expose() name = Text.column({ nonNull: true });
 }
 
 export class Rooms extends db.Table("rooms") {
-  id = Integer.column({ nonNull: true, generated: true });
-  name = Text.column({ nonNull: true });
-  created_by = Integer.column({ nonNull: true });
+  @expose() id = Integer.column({ nonNull: true, generated: true });
+  @expose() name = Text.column({ nonNull: true });
+  @expose() created_by = Integer.column({ nonNull: true });
 
-  creator() {
+  @expose() creator() {
     return Users.scope(Rooms.contextOf(this)).where(({ users }) => users.id.eq(this.created_by)).cardinality("one");
   }
-  messages() {
+  @expose() messages() {
     return Messages.scope(Rooms.contextOf(this)).where(({ messages }) => messages.room_id.eq(this.id)).cardinality("many");
   }
 }
 
 export class RoomMembers extends db.Table("room_members") {
-  room_id = Integer.column({ nonNull: true });
-  user_id = Integer.column({ nonNull: true });
+  @expose() room_id = Integer.column({ nonNull: true });
+  @expose() user_id = Integer.column({ nonNull: true });
 }
 
 export class Messages extends db.Table("messages") {
-  id = Integer.column({ nonNull: true, generated: true });
-  room_id = Integer.column({ nonNull: true });
-  user_id = Integer.column({ nonNull: true });
-  body = Text.column({ nonNull: true });
+  @expose() id = Integer.column({ nonNull: true, generated: true });
+  @expose() room_id = Integer.column({ nonNull: true });
+  @expose() user_id = Integer.column({ nonNull: true });
+  @expose() body = Text.column({ nonNull: true });
   // DB-defaulted (see the DDL below) → optional on insert.
-  created_at = Text.column({ nonNull: true, default: sql`(datetime('now'))` });
+  @expose() created_at = Text.column({ nonNull: true, default: sql`(datetime('now'))` });
 
-  author() {
+  @expose() author() {
     return Users.scope(Messages.contextOf(this)).where(({ users }) => users.id.eq(this.user_id)).cardinality("one");
   }
-  room() {
+  @expose() room() {
     return Rooms.scope(Messages.contextOf(this)).where(({ rooms }) => rooms.id.eq(this.room_id)).cardinality("one");
   }
 }
