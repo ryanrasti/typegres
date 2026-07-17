@@ -1,6 +1,6 @@
 import { beforeAll, afterAll, expect } from "vitest";
-import { PgDriver } from "./driver";
-import type { Driver } from "./driver";
+import { PgDriver } from "./drivers/pg";
+import type { Driver } from "./drivers/types";
 import { requireDatabaseUrl } from "./pg";
 import { Database } from "./database";
 import { compile, sql } from "./builder/sql";

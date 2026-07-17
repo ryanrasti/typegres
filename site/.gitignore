@@ -10,3 +10,8 @@ public/demo.ts.static
 public/events-*.js
 public/chunk-*.js
 public/lib-*.js
+public/rolldown-runtime-*.js
+# playground driver code-split chunks from dynamic import() in typegres()
+public/pg-*.js
+public/pglite-*.js
+public/sqlite-*.js

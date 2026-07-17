@@ -72,8 +72,12 @@ export const affinityToClass = (declaredType: string): string => {
 // `INTEGER PRIMARY KEY` (that exact declared type, not "INT") in a
 // rowid table aliases the rowid — auto-increments, nulls are replaced.
 // SQLite's own docs are strict about the literal string match.
-const isRowidAlias = (declaredType: string, pk: number): boolean =>
-  pk === 1 && /^\s*INTEGER\s*$/i.test(declaredType);
+//
+// Composite PKs: PRAGMA still assigns `pk = 1` to the first column of
+// `PRIMARY KEY (a, b)`, but that column is NOT a rowid alias — both
+// values are supplied by the inserter. Require a single-column PK.
+const isRowidAlias = (declaredType: string, pk: number, pkColCount: number): boolean =>
+  pkColCount === 1 && pk === 1 && /^\s*INTEGER\s*$/i.test(declaredType);
 
 // --- PRAGMA helpers ---
 
@@ -89,8 +93,8 @@ const readTables = (db: BetterSqlite3.Database): string[] => {
 const readTableInfo = (db: BetterSqlite3.Database, tableName: string): TableInfoRow[] =>
   db.prepare(`PRAGMA table_info(${quoteIdent(tableName)})`).all() as TableInfoRow[];
 
-const toColumnInfo = (r: TableInfoRow): ColumnInfo => {
-  const rowid = isRowidAlias(r.type, r.pk);
+const toColumnInfo = (r: TableInfoRow, pkColCount: number): ColumnInfo => {
+  const rowid = isRowidAlias(r.type, r.pk, pkColCount);
   return {
     name: r.name,
     className: affinityToClass(r.type),
@@ -125,7 +129,13 @@ const readSingleColUniqueSet = (db: BetterSqlite3.Database, tableName: string, i
   return uniq;
 };
 
-const readFksFor = (db: BetterSqlite3.Database, tableName: string, info: TableInfoRow[], uniqueCols: Set<string>): FkInfo[] => {
+const readFksFor = (
+  db: BetterSqlite3.Database,
+  tableName: string,
+  info: TableInfoRow[],
+  uniqueCols: Set<string>,
+  pkColCount: number,
+): FkInfo[] => {
   const fks = db.prepare(`PRAGMA foreign_key_list(${quoteIdent(tableName)})`).all() as FkListRow[];
 
   // A composite FK repeats the same `id` across multiple rows. Group
@@ -151,7 +161,7 @@ const readFksFor = (db: BetterSqlite3.Database, tableName: string, info: TableIn
     // reports notnull=0 but is semantically non-null. Without this,
     // a self-referencing single-col PK-as-FK is wrongly flagged
     // nullable and cardinality drops from "one" to "maybe".
-    const isRowid = localCol ? isRowidAlias(localCol.type, localCol.pk) : false;
+    const isRowid = localCol ? isRowidAlias(localCol.type, localCol.pk, pkColCount) : false;
     out.push({
       from_table: tableName,
       from_column: fk.from,
@@ -178,10 +188,11 @@ export const sqliteIntrospector = async (filename: string): Promise<Introspector
         const tables = new Map<string, TableIntrospection>();
         for (const name of tableNames) {
           const info = readTableInfo(db, name);
+          const pkColCount = info.filter((c) => c.pk > 0).length;
           const uniqueCols = readSingleColUniqueSet(db, name, info);
           tables.set(name, {
-            columns: info.map(toColumnInfo),
-            fks: readFksFor(db, name, info, uniqueCols),
+            columns: info.map((c) => toColumnInfo(c, pkColCount)),
+            fks: readFksFor(db, name, info, uniqueCols, pkColCount),
           });
         }
         return { tables };

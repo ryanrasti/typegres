@@ -9,7 +9,7 @@
 // don't compose, TS fails at build time; if the driver adapter is
 // broken, the runtime throws.
 import { test, expect, beforeAll, afterAll } from "vitest";
-import { SqliteDriver } from "../../driver";
+import { SqliteDriver } from "../../drivers/sqlite";
 import type { Connection } from "../../database";
 import { Database } from "../../database";
 import { compile, sql } from "../../builder/sql";
