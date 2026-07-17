@@ -7,7 +7,7 @@
 // tests are independent and idempotent — no id-numbering assumptions
 // carry across cases.
 import { test, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
-import { SqliteDriver } from "../../driver";
+import { SqliteDriver } from "../../drivers/sqlite";
 import type { Connection } from "../../database";
 import { Database } from "../../database";
 import { sql } from "../../builder/sql";

@@ -1,27 +1,31 @@
+// Root package surface: schema, SQL, tables, @expose — no driver implementations.
+// Backends live under `typegres/drivers/*` so Workers never resolve optional
+// node peers. Prefer:
+//   import { Database, sql, expose } from "typegres";
+//   import { DoSqliteDriver } from "typegres/drivers/do";
+//   import { PgDriver } from "typegres/drivers/pg";
+
 export { Database, Connection } from "./database";
 export type { TransactionIsolation, TransactionOptions } from "./database";
 export { Table } from "./table";
 export { sql, Sql } from "./builder/sql";
 export { QueryBuilder } from "./builder/query";
-export { PgDriver, PgliteDriver, SqliteDriver } from "./driver";
 export { TypegresLiveEvents } from "./live/events";
 export { expose } from "./exoeval/tool";
 export type { ToolFunction } from "./exoeval/tool";
 export { RpcClient, inMemoryChannel, safeStringify } from "./exoeval/rpc";
 export type { RawChannel } from "./exoeval/rpc";
 export type { Config } from "./config";
-export type { Driver } from "./driver";
+export type { Driver, ExecuteFn, QueryResult } from "./drivers/types";
 
 import type { Connection } from "./database";
 import { Database } from "./database";
-import { PgDriver, PgliteDriver, SqliteDriver } from "./driver";
-import type { Driver } from "./driver";
+import type { Driver } from "./drivers/types";
 import type { DialectName } from "./builder/sql";
 
-// Convenience factory for quick scripts and the playground. Returns
-// `{ db, conn }` — the immutable metadata handle and its attached
-// runtime Connection. Real apps typically build these separately at
-// module load / bootstrap.
+// Convenience factory for scripts / playground. Drivers are loaded via
+// dynamic import so a static `import { Database } from "typegres"` does not
+// pull optional peers into Worker bundles that never call typegres().
 export const typegres = async <C = undefined>(
   opts:
     | { type: "pglite" }
@@ -31,12 +35,18 @@ export const typegres = async <C = undefined>(
   let driver: Driver;
   let dialect: DialectName;
   if (opts.type === "pglite") {
+    // eslint-disable-next-line no-restricted-syntax -- optional peer path
+    const { PgliteDriver } = await import("./drivers/pglite");
     driver = await PgliteDriver.create();
     dialect = "postgres";
   } else if (opts.type === "pg") {
+    // eslint-disable-next-line no-restricted-syntax -- optional peer path
+    const { PgDriver } = await import("./drivers/pg");
     driver = await PgDriver.create(opts.connectionString);
     dialect = "postgres";
   } else {
+    // eslint-disable-next-line no-restricted-syntax -- optional peer path
+    const { SqliteDriver } = await import("./drivers/sqlite");
     driver = await SqliteDriver.create(opts.filename ?? ":memory:");
     dialect = "sqlite";
   }
@@ -44,4 +54,3 @@ export const typegres = async <C = undefined>(
   const conn = db.attach(driver);
   return { db, conn };
 };
-

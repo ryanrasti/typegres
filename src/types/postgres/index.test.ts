@@ -5,7 +5,7 @@ import type { Any, Float8, Anyrange, Anymultirange } from "./index";
 import { Int4, Text, Bool, Int8, Record, Anyarray } from "./index";
 import { compile } from "../../builder/sql";
 import { sql } from "../../builder/sql";
-import { PgDriver } from "../../driver";
+import { PgDriver } from "../../drivers/pg";
 import { requireDatabaseUrl } from "../../pg";
 import type { Connection } from "../../database";
 import { Database } from "../../database";

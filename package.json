@@ -28,6 +28,26 @@
     "./exoeval": {
       "import": "./dist/exoeval/index.mjs",
       "types": "./dist/exoeval/index.d.mts"
+    },
+    "./capnweb": {
+      "import": "./dist/capnweb/shim.mjs",
+      "types": "./dist/capnweb/shim.d.mts"
+    },
+    "./drivers/do": {
+      "import": "./dist/drivers/do.mjs",
+      "types": "./dist/drivers/do.d.mts"
+    },
+    "./drivers/pg": {
+      "import": "./dist/drivers/pg.mjs",
+      "types": "./dist/drivers/pg.d.mts"
+    },
+    "./drivers/pglite": {
+      "import": "./dist/drivers/pglite.mjs",
+      "types": "./dist/drivers/pglite.d.mts"
+    },
+    "./drivers/sqlite": {
+      "import": "./dist/drivers/sqlite.mjs",
+      "types": "./dist/drivers/sqlite.d.mts"
     }
   },
   "bin": {
@@ -38,13 +58,17 @@
   ],
   "peerDependencies": {
     "@electric-sql/pglite": "^0.4.4",
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "better-sqlite3": "^12.11.1"
   },
   "peerDependenciesMeta": {
     "@electric-sql/pglite": {
       "optional": true
     },
     "pg": {
+      "optional": true
+    },
+    "better-sqlite3": {
       "optional": true
     }
   },
@@ -54,7 +78,7 @@
   "scripts": {
     "build": "tsdown",
     "codegen": "node --experimental-strip-types src/types/postgres/emit.ts && node --experimental-strip-types src/types/sqlite/emit.ts",
-    "codegen:check": "tmp=$(mktemp -d) && node --experimental-strip-types src/types/postgres/emit.ts --out-dir \"$tmp/pg\" && { diff -r \"$tmp/pg\" src/types/postgres/generated || { echo 'src/types/postgres/generated is stale \u2014 run `npm run codegen` and commit.' >&2; rm -rf \"$tmp\"; exit 1; }; } && node --experimental-strip-types src/types/sqlite/emit.ts --out-dir \"$tmp/sqlite\" && { diff -r \"$tmp/sqlite/generated\" src/types/sqlite/generated || { echo 'src/types/sqlite/generated is stale \u2014 run `npm run codegen` and commit.' >&2; rm -rf \"$tmp\"; exit 1; }; } && rm -rf \"$tmp\"",
+    "codegen:check": "tmp=$(mktemp -d) && node --experimental-strip-types src/types/postgres/emit.ts --out-dir \"$tmp/pg\" && { diff -r \"$tmp/pg\" src/types/postgres/generated || { echo 'src/types/postgres/generated is stale — run `npm run codegen` and commit.' >&2; rm -rf \"$tmp\"; exit 1; }; } && node --experimental-strip-types src/types/sqlite/emit.ts --out-dir \"$tmp/sqlite\" && { diff -r \"$tmp/sqlite/generated\" src/types/sqlite/generated || { echo 'src/types/sqlite/generated is stale — run `npm run codegen` and commit.' >&2; rm -rf \"$tmp\"; exit 1; }; } && rm -rf \"$tmp\"",
     "lint": "eslint src",
     "typecheck": "tsgo --noEmit",
     "format": "prettier --write src",
