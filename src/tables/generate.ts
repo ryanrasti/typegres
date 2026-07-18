@@ -51,8 +51,13 @@ export interface Relation {
   name: string;
   targetTable: string;
   cardinality: Cardinality;
+  // Parent-side column in the emitted FK map (`this.<fromColumn>`).
   fromColumn: string;
+  // Target-side column in the emitted FK map (`{ <toColumn>: ... }`).
   toColumn: string;
+  // Outbound: this table holds the FK (belongsTo). Inbound: the other
+  // table holds the FK (hasOne / hasMaybe / hasMany).
+  direction: "outbound" | "inbound";
 }
 
 // A snapshot of the schema — pure data, no methods, no DB handle.
@@ -127,6 +132,7 @@ export const deriveRelations = (tableName: string, allFks: FkInfo[]): Relation[]
       cardinality: card,
       fromColumn: fk.from_column,
       toColumn: fk.to_column,
+      direction: "outbound",
     });
   }
 
@@ -139,6 +145,7 @@ export const deriveRelations = (tableName: string, allFks: FkInfo[]): Relation[]
       cardinality: card,
       fromColumn: fk.to_column,
       toColumn: fk.from_column,
+      direction: "inbound",
     });
   }
 
@@ -164,14 +171,21 @@ const generateColumnLine = (col: ColumnInfo, withTool: boolean): string => {
   return `  ${prefix}${col.name} = ${cls}.column(${optsArg});`;
 };
 
-const generateRelationLine = (rel: Relation, currentTable: string, withTool: boolean): string => {
+// Outbound → belongsTo (default card "one"); inbound → has (default "many").
+// Only emit `{ card: ... }` when it differs from the helper's default so
+// the common path stays short.
+const generateRelationLine = (rel: Relation, withTool: boolean): string => {
   const targetClass = pgNameToClassName(rel.targetTable);
-  const currentClass = pgNameToClassName(currentTable);
   const prefix = withTool ? "@expose() " : "";
-  // `Target.scope(Current.contextOf(this))` propagates the row's scope
-  // tag through every relation traversal — joins n-deep stay bound to
-  // the same principal. Dialect-neutral (uses names + cardinality only).
-  return `  ${prefix}${rel.name}() { return ${targetClass}.scope(${currentClass}.contextOf(this)).where(({ ${rel.targetTable} }) => ${rel.targetTable}.${rel.toColumn}.eq(this.${rel.fromColumn})).cardinality("${rel.cardinality}"); }`;
+  const helper = rel.direction === "outbound" ? "belongsTo" : "has";
+  const fkMap = `{ ${rel.toColumn}: this.${rel.fromColumn} }`;
+  const defaultCard = helper === "belongsTo" ? "one" : "many";
+  const optsArg =
+    rel.cardinality === defaultCard ? "" : `, { card: "${rel.cardinality}" }`;
+  // `Relation.*(this, Target, { targetCol: this.parentCol }[, { card }])`
+  // — threads parent context via Target.scope(Current.contextOf(this))
+  // under the hood. Single-column FK map (parity with prior emit).
+  return `  ${prefix}${rel.name}() { return Relation.${helper}(this, ${targetClass}, ${fkMap}${optsArg}); }`;
 };
 
 // Scan the existing @generated block to learn which columns/relations
@@ -209,10 +223,14 @@ const parseExistingDecorations = (
 const START_MARKER = "// @generated-start";
 const END_MARKER = "// @generated-end";
 
-// Pure generation entry point — no DB, no fs. `existing` (if provided)
-// must contain @generated-start/@generated-end markers; only content
-// between them is replaced, and per-entry `@expose()` state is preserved.
-// Without `existing`, returns a brand-new full file.
+// Pure generation entry point — no DB, no fs.
+//
+// New file: full skeleton (managed imports + class shell + generated body).
+// Update (`existing`): **only** the interior of @generated-start/end is
+// rewritten (plus per-entry `@expose()` preservation). Header imports,
+// class declaration, and everything after @generated-end are left alone.
+// Callers are responsible for imports when the schema gains types/relations
+// (tsc will fail until they add them — better than clobbering the header).
 export const generateTable = (
   tableName: string,
   columns: ColumnInfo[],
@@ -220,82 +238,105 @@ export const generateTable = (
   opts: { typeImportPath: string; dbImport: string; existing?: string },
 ): string => {
   if (opts.existing !== undefined) {
-    return updateBlock(opts.existing, tableName, columns, relations);
+    return updateBlock(opts.existing, columns, relations);
   }
-  return newFile(tableName, columns, relations, opts.typeImportPath, opts.dbImport);
+  return emitNewFile(
+    tableName,
+    columns,
+    relations,
+    opts.typeImportPath,
+    opts.dbImport,
+  );
 };
 
-const newFile = (
+// Managed imports are pure functions of schema — same lines for new and
+// update. Dialect types from `typeImportPath`; runtime helpers (`expose`,
+// `sql`, `Relation`) from `typegres` (no optional node driver peers).
+const buildImportLines = (
+  tableName: string,
+  columns: ColumnInfo[],
+  relations: Relation[],
+  typeImportPath: string,
+  dbImport: string,
+): string[] => {
+  const typeSyms = [...new Set(columns.map((c) => c.className))].sort();
+  const hasDefault = columns.some((c) => c.default !== null);
+  const runtimeSyms = [
+    "expose",
+    ...(relations.length > 0 ? ["Relation"] : []),
+    ...(hasDefault ? ["sql"] : []),
+  ].sort();
+  const relImports = [...new Set(relations.map((r) => r.targetTable))]
+    .filter((t) => t !== tableName)
+    .sort()
+    .map((t) => `import { ${pgNameToClassName(t)} } from "./${t}";`);
+
+  return [
+    `import { db } from "${dbImport}";`,
+    `import { ${runtimeSyms.join(", ")} } from "typegres";`,
+    `import { ${typeSyms.join(", ")} } from "${typeImportPath}";`,
+    ...relImports,
+  ];
+};
+
+const bodyLines = (
+  columns: ColumnInfo[],
+  relations: Relation[],
+  withTool: (name: string, kind: "col" | "rel") => boolean,
+): string[] => {
+  const colLines = columns.map((c) => generateColumnLine(c, withTool(c.name, "col")));
+  const relLines = relations.map((r) => generateRelationLine(r, withTool(r.name, "rel")));
+  return relLines.length > 0
+    ? [...colLines, "  // relations", ...relLines]
+    : colLines;
+};
+
+// Brand-new table file: managed imports + class shell + empty user tail.
+const emitNewFile = (
   tableName: string,
   columns: ColumnInfo[],
   relations: Relation[],
   typeImportPath: string,
   dbImport: string,
 ): string => {
-  const typeClasses = [...new Set(columns.map((c) => c.className))];
-  const hasDefault = columns.some((c) => c.default !== null);
-
-  const relationTargets = [...new Set(relations.map((r) => r.targetTable))];
-  const relImports = relationTargets
-    .filter((t) => t !== tableName)
-    .map((t) => `import { ${pgNameToClassName(t)} } from "./${t}";`);
-
-  // Split imports: dialect-specific type classes come from
-  // `typeImportPath`; dialect-agnostic runtime helpers (`expose`,
-  // `sql`) come from `typegres` (no optional node driver peers —
-  // safe for Workers / Durable Object bundles). Symbols within each
-  // group sorted for stable diffs.
-  const runtimeSyms = ["expose", ...(hasDefault ? ["sql"] : [])].sort();
-  const typeSyms = [...typeClasses].sort();
-  const imports = [
-    `import { db } from "${dbImport}";`,
-    `import { ${runtimeSyms.join(", ")} } from "typegres";`,
-    `import { ${typeSyms.join(", ")} } from "${typeImportPath}";`,
-    ...relImports,
-  ];
-
-  // New file: every column/relation gets `@expose()` by default.
-  const colLines = columns.map((c) => generateColumnLine(c, true));
-  const relLines = relations.map((r) => generateRelationLine(r, tableName, true));
-  const allLines = relLines.length > 0
-    ? [...colLines, "  // relations", ...relLines]
-    : colLines;
-
+  const imports = buildImportLines(tableName, columns, relations, typeImportPath, dbImport);
+  const body = bodyLines(columns, relations, () => true);
   return `${imports.join("\n")}
 
 export class ${pgNameToClassName(tableName)} extends db.Table("${tableName}") {
   ${START_MARKER}
-${allLines.join("\n")}
+${body.join("\n")}
   ${END_MARKER}
 }
 `;
 };
 
+// Update mode: splice only between the markers. Prefix (imports, comments,
+// class line) and suffix (END_MARKER through EOF, including user methods)
+// are byte-preserved. `@expose` on/off inside the prior block is preserved.
 const updateBlock = (
   existing: string,
-  tableName: string,
   columns: ColumnInfo[],
   relations: Relation[],
 ): string => {
   const startIdx = existing.indexOf(START_MARKER);
   const endIdx = existing.indexOf(END_MARKER);
-
-  if (startIdx === -1 || endIdx === -1) {
+  if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) {
     throw new Error("Missing @generated-start or @generated-end markers");
   }
 
-  const blockContent = existing.slice(startIdx + START_MARKER.length, endIdx);
-  const prior = parseExistingDecorations(blockContent);
+  const prior = parseExistingDecorations(
+    existing.slice(startIdx + START_MARKER.length, endIdx),
+  );
+  const body = bodyLines(columns, relations, (name, kind) =>
+    kind === "col" ? (prior.cols.get(name) ?? true) : (prior.rels.get(name) ?? true),
+  );
 
-  const colLines = columns.map((c) => generateColumnLine(c, prior.cols.get(c.name) ?? true));
-  const relLines = relations.map((r) => generateRelationLine(r, tableName, prior.rels.get(r.name) ?? true));
-  const allLines = relLines.length > 0
-    ? [...colLines, "  // relations", ...relLines]
-    : colLines;
-  const before = existing.slice(0, startIdx + START_MARKER.length);
-  const after = existing.slice(endIdx);
-
-  return `${before}\n${allLines.join("\n")}\n  ${after}`;
+  const prefix = existing.slice(0, startIdx + START_MARKER.length);
+  const suffix = existing.slice(endIdx); // begins with END_MARKER
+  // Normalize interior to "\n" + indented lines + "\n  " before end marker,
+  // matching emitNewFile layout regardless of prior whitespace.
+  return `${prefix}\n${body.join("\n")}\n  ${suffix}`;
 };
 
 // --- Main ---

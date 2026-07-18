@@ -108,7 +108,7 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
     expect([...files.keys()]).toEqual(["dogs", "teams"]);
     expect(files.get("dogs")).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose, sql } from "typegres";
+      import { Relation, expose, sql } from "typegres";
       import { Any, Bool, Integer, Text } from "typegres/sqlite";
       import { Teams } from "./teams";
 
@@ -121,14 +121,14 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
         @expose() active = Bool.column({ nonNull: true, default: sql\`0\` });
         @expose() seen_at = Any.column();
         // relations
-        @expose() team() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
+        @expose() team() { return Relation.belongsTo(this, Teams, { id: this.team_id }); }
         // @generated-end
       }
       "
     `);
     expect(files.get("teams")).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose } from "typegres";
+      import { Relation, expose } from "typegres";
       import { Integer, Text } from "typegres/sqlite";
       import { Dogs } from "./dogs";
 
@@ -137,7 +137,7 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
         @expose() id = Integer.column({ nonNull: true, generated: true });
         @expose() name = Text.column({ nonNull: true });
         // relations
-        @expose() dogs() { return Dogs.scope(Teams.contextOf(this)).where(({ dogs }) => dogs.team_id.eq(this.id)).cardinality("many"); }
+        @expose() dogs() { return Relation.has(this, Dogs, { team_id: this.id }); }
         // @generated-end
       }
       "
@@ -166,8 +166,8 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
       CREATE UNIQUE INDEX expr_uniq ON expr_child (lower(name));
     `);
     const parent = files.get("parent_t")!;
-    expect(parent).toContain(`partial_child() { return PartialChild.scope(ParentT.contextOf(this)).where(({ partial_child }) => partial_child.parent_id.eq(this.id)).cardinality("many"); }`);
-    expect(parent).toContain(`expr_child() { return ExprChild.scope(ParentT.contextOf(this)).where(({ expr_child }) => expr_child.parent_id.eq(this.id)).cardinality("many"); }`);
+    expect(parent).toContain(`partial_child() { return Relation.has(this, PartialChild, { parent_id: this.id }); }`);
+    expect(parent).toContain(`expr_child() { return Relation.has(this, ExprChild, { parent_id: this.id }); }`);
   });
 
   test("cardinality inference: composite PK/UNIQUE don't count as unique; single-column PK/UNIQUE do", async () => {
@@ -199,7 +199,7 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
     `);
     expect(files.get("parent_t")).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose } from "typegres";
+      import { Relation, expose } from "typegres";
       import { Integer } from "typegres/sqlite";
       import { Badge } from "./badge";
       import { Joiner } from "./joiner";
@@ -210,10 +210,10 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
         // @generated-start
         @expose() id = Integer.column({ nonNull: true, generated: true });
         // relations
-        @expose() badge() { return Badge.scope(ParentT.contextOf(this)).where(({ badge }) => badge.parent_id.eq(this.id)).cardinality("maybe"); }
-        @expose() joiner() { return Joiner.scope(ParentT.contextOf(this)).where(({ joiner }) => joiner.a.eq(this.id)).cardinality("many"); }
-        @expose() profile() { return Profile.scope(ParentT.contextOf(this)).where(({ profile }) => profile.parent_id.eq(this.id)).cardinality("one"); }
-        @expose() tagged() { return Tagged.scope(ParentT.contextOf(this)).where(({ tagged }) => tagged.parent_id.eq(this.id)).cardinality("many"); }
+        @expose() badge() { return Relation.has(this, Badge, { parent_id: this.id }, { card: "maybe" }); }
+        @expose() joiner() { return Relation.has(this, Joiner, { a: this.id }); }
+        @expose() profile() { return Relation.has(this, Profile, { parent_id: this.id }, { card: "one" }); }
+        @expose() tagged() { return Relation.has(this, Tagged, { parent_id: this.id }); }
         // @generated-end
       }
       "
@@ -223,7 +223,7 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
     // non-null, so the outbound relation must be "one", not "maybe".
     expect(files.get("profile")).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose } from "typegres";
+      import { Relation, expose } from "typegres";
       import { Integer } from "typegres/sqlite";
       import { ParentT } from "./parent_t";
 
@@ -231,7 +231,7 @@ describe("sqlite codegen e2e — DDL in, generated TypeScript out", () => {
         // @generated-start
         @expose() parent_id = Integer.column({ nonNull: true, generated: true });
         // relations
-        @expose() parent() { return ParentT.scope(Profile.contextOf(this)).where(({ parent_t }) => parent_t.id.eq(this.parent_id)).cardinality("one"); }
+        @expose() parent() { return Relation.belongsTo(this, ParentT, { id: this.parent_id }); }
         // @generated-end
       }
       "

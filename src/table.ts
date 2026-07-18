@@ -77,8 +77,8 @@ export abstract class TableBase {
     return this.database.scopedIdent(name);
   }
 
-  // Entry point for query builders: e.g., `Users.from()` 
-  static from<T extends typeof TableBase & (new () => TableBase)>(this: T) {
+  // Entry point for query builders: e.g., `Users.from()`
+  static from<T extends TableClass>(this: T) {
     return new QueryBuilder<
       { [K in T["tsAlias"]]: InstanceType<T> },
       InstanceType<T>,
@@ -90,7 +90,7 @@ export abstract class TableBase {
     });
   }
 
-  static insert<T extends typeof TableBase & (new () => TableBase)>(
+  static insert<T extends TableClass>(
     this: T,
     ...rows: [InsertRow<InstanceType<T>>, ...InsertRow<InstanceType<T>>[]]
   ): InsertBuilder<T["tableName"], InstanceType<T>> {
@@ -102,13 +102,13 @@ export abstract class TableBase {
     });
   }
 
-  static update<T extends typeof TableBase & (new () => TableBase)>(
+  static update<T extends TableClass>(
     this: T,
   ): UpdateBuilder<T["tableName"], InstanceType<T>> {
     return new UpdateBuilder({ instance: this.rowType() });
   }
 
-  static delete<T extends typeof TableBase & (new () => TableBase)>(
+  static delete<T extends TableClass>(
     this: T,
   ): DeleteBuilder<T["tableName"], InstanceType<T>> {
     return new DeleteBuilder({ instance: this.rowType() });
@@ -134,7 +134,7 @@ export abstract class TableBase {
   // `Database<C>.Table`). Tables declared with the default `C =
   // undefined` accept anything via the `unknown` widening; tables that
   // pin a `C` reject mismatched scopes at compile time.
-  static scope<T extends typeof TableBase & (new () => TableBase)>(
+  static scope<T extends TableClass>(
     this: T,
     ctx: T["context"] | undefined,
   ) {
@@ -194,6 +194,10 @@ export const Table = <Name extends string, C = undefined>(
   return obj[name] as NonNullable<Obj[Name]>;
 };
 
-export const isTableClass = (x: unknown): x is typeof TableBase => {
+// Concrete table class: TableBase statics + constructible row instance.
+// Used by Relation helpers, from/insert/scope, and Fromable checks.
+export type TableClass = typeof TableBase & (new () => TableBase);
+
+export const isTableClass = (x: unknown): x is TableClass => {
   return typeof x === "function" && x.prototype instanceof TableBase;
 };
