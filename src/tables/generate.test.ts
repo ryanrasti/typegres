@@ -22,24 +22,30 @@ const rel = (name: string, targetTable: string, overrides: Partial<Relation> = {
   cardinality: "many",
   fromColumn: "id",
   toColumn: `${targetTable}_id`,
+  direction: "inbound",
   ...overrides,
 });
 
 describe("generateTable — new file", async () => {
-  test("default emit: @expose on every column + relation, scope+contextOf, full file shape", async () => {
+  test("default emit: @expose on every column + relation, Relation helpers, full file shape", async () => {
     const out = generateTable(
       "dogs",
       [
         col("id", "Int8", { generated: true }),
         col("name", "Text"),
       ],
-      [rel("teams", "teams", { cardinality: "one", fromColumn: "team_id", toColumn: "id" })],
+      [rel("teams", "teams", {
+        cardinality: "one",
+        fromColumn: "team_id",
+        toColumn: "id",
+        direction: "outbound",
+      })],
       { typeImportPath: "typegres/postgres", dbImport: "../db" },
     );
     await validate(out);
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
-      import { expose } from "typegres";
+      import { Relation, expose } from "typegres";
       import { Int8, Text } from "typegres/postgres";
       import { Teams } from "./teams";
 
@@ -48,11 +54,45 @@ describe("generateTable — new file", async () => {
         @expose() id = Int8.column({ nonNull: true, generated: true });
         @expose() name = Text.column({ nonNull: true });
         // relations
-        @expose() teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
+        @expose() teams() { return Relation.belongsTo(this, Teams, { id: this.team_id }); }
         // @generated-end
       }
       "
     `);
+  });
+
+  test("inbound has + outbound belongsTo emit card opts only when non-default", async () => {
+    const out = generateTable(
+      "teams",
+      [col("id", "Int8", { generated: true })],
+      [
+        rel("dogs", "dogs", { cardinality: "many", fromColumn: "id", toColumn: "team_id", direction: "inbound" }),
+        rel("collars", "collars", { cardinality: "one", fromColumn: "id", toColumn: "team_id", direction: "inbound" }),
+        rel("badge", "badge", { cardinality: "maybe", fromColumn: "id", toColumn: "team_id", direction: "inbound" }),
+        rel("owner", "users", {
+          cardinality: "maybe",
+          fromColumn: "owner_id",
+          toColumn: "id",
+          direction: "outbound",
+        }),
+        rel("captain", "users", {
+          cardinality: "one",
+          fromColumn: "captain_id",
+          toColumn: "id",
+          direction: "outbound",
+        }),
+      ],
+      { typeImportPath: "typegres/postgres", dbImport: "../db" },
+    );
+    await validate(out);
+    // has defaults to "many" — omit opts
+    expect(out).toContain(`Relation.has(this, Dogs, { team_id: this.id })`);
+    expect(out).toContain(`Relation.has(this, Collars, { team_id: this.id }, { card: "one" })`);
+    expect(out).toContain(`Relation.has(this, Badge, { team_id: this.id }, { card: "maybe" })`);
+    // belongsTo defaults to "one" — omit opts; nullable outbound passes maybe
+    expect(out).toContain(`Relation.belongsTo(this, Users, { id: this.owner_id }, { card: "maybe" })`);
+    expect(out).toContain(`Relation.belongsTo(this, Users, { id: this.captain_id })`);
+    expect(out).not.toContain(`captain_id }, { card`);
   });
 
   test("column options: nullable, default, generated", async () => {
@@ -86,7 +126,12 @@ describe("generateTable — new file", async () => {
 
 describe("generateTable — update mode preserves @expose() state", async () => {
   const cols: ColumnInfo[] = [col("id", "Int8", { generated: true }), col("name", "Text")];
-  const rels: Relation[] = [rel("teams", "teams", { cardinality: "one", fromColumn: "team_id", toColumn: "id" })];
+  const rels: Relation[] = [rel("teams", "teams", {
+    cardinality: "one",
+    fromColumn: "team_id",
+    toColumn: "id",
+    direction: "outbound",
+  })];
 
   test("entries the user stripped stay stripped on regen", async () => {
     const existing = `import { db } from "../db";
@@ -112,7 +157,7 @@ export class Dogs extends db.Table("dogs") {
         id = Int8.column({ nonNull: true, generated: true });
         name = Text.column({ nonNull: true });
         // relations
-        teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
+        teams() { return Relation.belongsTo(this, Teams, { id: this.team_id }); }
         // @generated-end
       }
       "
@@ -145,7 +190,7 @@ export class Dogs extends db.Table("dogs") {
         @expose() id = Int8.column({ nonNull: true, generated: true });
         @expose() name = Text.column({ nonNull: true });
         // relations
-        @expose() teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
+        @expose() teams() { return Relation.belongsTo(this, Teams, { id: this.team_id }); }
         // @generated-end
       }
       "
@@ -176,7 +221,7 @@ export class Dogs extends db.Table("dogs") {
         @expose() id = Int8.column({ nonNull: true, generated: true });
         name = Text.column({ nonNull: true });
         // relations
-        teams() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
+        teams() { return Relation.belongsTo(this, Teams, { id: this.team_id }); }
         // @generated-end
       }
       "
@@ -246,15 +291,19 @@ export class Dogs extends db.Table("dogs") {
     `);
   });
 
-  test("update mode does not touch imports / preserves custom comments", async () => {
+  test("update mode preserves header and post-block methods; only the block changes", async () => {
+    // Stale imports + a hand-written method after the generated block.
+    // Header (including comments) is byte-preserved; only the generated interior is rewritten.
     const existing = `import { db } from "../db";
 import { Int8 } from "typegres";
-// my custom comment
+// my custom comment (header comments are not preserved)
 
 export class Dogs extends db.Table("dogs") {
   // @generated-start
   id = Int8.column({ nonNull: true, generated: true });
   // @generated-end
+
+  bark() { return "woof"; }
 }
 `;
     const out = generateTable("dogs", [col("id", "Int8", { generated: true })], [], {
@@ -266,12 +315,14 @@ export class Dogs extends db.Table("dogs") {
     expect(out).toMatchInlineSnapshot(`
       "import { db } from "../db";
       import { Int8 } from "typegres";
-      // my custom comment
+      // my custom comment (header comments are not preserved)
 
       export class Dogs extends db.Table("dogs") {
         // @generated-start
         id = Int8.column({ nonNull: true, generated: true });
         // @generated-end
+
+        bark() { return "woof"; }
       }
       "
     `);

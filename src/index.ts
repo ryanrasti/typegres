@@ -8,6 +8,7 @@
 export { Database, Connection } from "./database";
 export type { TransactionIsolation, TransactionOptions } from "./database";
 export { Table } from "./table";
+export { Relation } from "./relation";
 export { sql, Sql } from "./builder/sql";
 export { QueryBuilder } from "./builder/query";
 export { TypegresLiveEvents } from "./live/events";

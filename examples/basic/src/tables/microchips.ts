@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { expose } from "typegres";
+import { Relation, expose } from "typegres";
 import { Int8, Text } from "typegres/postgres";
 import { Dogs } from "./dogs";
 
@@ -9,6 +9,6 @@ export class Microchips extends db.Table("microchips") {
   @expose() serial = Text.column({ nonNull: true });
   @expose() dog_id = Int8.column();
   // relations
-  @expose() dog() { return Dogs.scope(Microchips.contextOf(this)).where(({ dogs }) => dogs.id.eq(this.dog_id)).cardinality("maybe"); }
+  @expose() dog() { return Relation.belongsTo(this, Dogs, { id: this.dog_id }, { card: "maybe" }); }
   // @generated-end
 }

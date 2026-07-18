@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { expose } from "typegres";
+import { Relation, expose } from "typegres";
 import { Integer, Text } from "typegres/sqlite";
 import { Teams } from "./teams";
 
@@ -10,6 +10,6 @@ export class Dogs extends db.Table("dogs") {
   @expose() breed = Text.column();
   @expose() team_id = Integer.column({ nonNull: true });
   // relations
-  @expose() team() { return Teams.scope(Dogs.contextOf(this)).where(({ teams }) => teams.id.eq(this.team_id)).cardinality("one"); }
+  @expose() team() { return Relation.belongsTo(this, Teams, { id: this.team_id }); }
   // @generated-end
 }
