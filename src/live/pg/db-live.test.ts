@@ -1,8 +1,7 @@
 import { test, expect, afterEach } from "vitest";
-import { Int8, Text } from "../types/postgres";
-import { sql } from "../builder/sql";
-import { conn, db, setupDb } from "../test-helpers";
-import { TypegresLiveEvents } from "./events";
+import { Int8, Text } from "../../types/postgres";
+import { sql } from "../../builder/sql";
+import { conn, db, setupDb } from "../../test-helpers";
 import { setupLiveEvents } from "./test-helpers";
 setupDb();
 setupLiveEvents();
@@ -11,9 +10,6 @@ setupLiveEvents();
 // visible to the bus's polling connection. afterEach tears down the
 // per-test artifacts.
 afterEach(async () => {
-  // db.stopLive may have already been called by the test — guarded by
-  // its idempotent semantics.
-  await conn.stopLive();
   await conn.execute(sql`DROP TABLE IF EXISTS notes`);
   await conn.execute(sql`DROP TABLE IF EXISTS users`);
   await conn.execute(sql`DROP TABLE IF EXISTS dogs`);
@@ -25,7 +21,7 @@ const makeNotesTable = async () => {
     user_id int8 NOT NULL,
     body text NOT NULL
   )`);
-  return class Notes extends db.Table("notes", { transformer: TypegresLiveEvents.makeTransformer() }) {
+  return class Notes extends db.Table("notes", { live: true }) {
     id = Int8.column({ nonNull: true, generated: true });
     user_id = Int8.column({ nonNull: true });
     body = Text.column({ nonNull: true });
@@ -40,13 +36,11 @@ const takeNext = async <T>(iter: AsyncIterator<T>): Promise<T> => {
 
 test("yields current rows then re-yields on a matching commit (insert path)", async () => {
   const Notes = await makeNotesTable();
-  await conn.startLive({ intervalMs: 25 });
 
-  const iter = conn.live(
-    Notes.from()
-      .where(({ notes }) => notes.user_id.eq("1"))
-      .select(({ notes }) => ({ id: notes.id, body: notes.body })),
-  )[Symbol.asyncIterator]();
+  const iter = Notes.from()
+    .where(({ notes }) => notes.user_id.eq("1"))
+    .select(({ notes }) => ({ id: notes.id, body: notes.body }))
+    .live(conn)[Symbol.asyncIterator]();
 
   expect(await takeNext(iter)).toEqual([]);
 
@@ -73,13 +67,11 @@ test("yields current rows then re-yields on a matching commit (insert path)", as
 test("UPDATE on a matching row re-yields with new values", async () => {
   const Notes = await makeNotesTable();
   await Notes.insert({ user_id: "1", body: "first" }).execute(conn);
-  await conn.startLive({ intervalMs: 25 });
 
-  const iter = conn.live(
-    Notes.from()
-      .where(({ notes }) => notes.user_id.eq("1"))
-      .select(({ notes }) => ({ id: notes.id, body: notes.body })),
-  )[Symbol.asyncIterator]();
+  const iter = Notes.from()
+    .where(({ notes }) => notes.user_id.eq("1"))
+    .select(({ notes }) => ({ id: notes.id, body: notes.body }))
+    .live(conn)[Symbol.asyncIterator]();
 
   const first = await takeNext(iter);
   expect(first[0]!.body).toBe("first");
@@ -101,13 +93,11 @@ test("DELETE on a matching row re-yields with the row removed", async () => {
     { user_id: "1", body: "keep-1" },
     { user_id: "1", body: "delete-me" },
   ).execute(conn);
-  await conn.startLive({ intervalMs: 25 });
 
-  const iter = conn.live(
-    Notes.from()
-      .where(({ notes }) => notes.user_id.eq("1"))
-      .select(({ notes }) => ({ id: notes.id, body: notes.body })),
-  )[Symbol.asyncIterator]();
+  const iter = Notes.from()
+    .where(({ notes }) => notes.user_id.eq("1"))
+    .select(({ notes }) => ({ id: notes.id, body: notes.body }))
+    .live(conn)[Symbol.asyncIterator]();
 
   const first = await takeNext(iter);
   expect(first).toHaveLength(2);
@@ -131,19 +121,17 @@ test("join: mutation on either side triggers re-yield (literal propagates across
   await conn.execute(sql`INSERT INTO users (id, name) OVERRIDING SYSTEM VALUE VALUES (5, 'alice')`);
   const Notes = await makeNotesTable();
 
-  class Users extends db.Table("users", { transformer: TypegresLiveEvents.makeTransformer() }) {
+  class Users extends db.Table("users", { live: true }) {
     id = Int8.column({ nonNull: true, generated: true });
     name = Text.column({ nonNull: true });
   }
 
-  await conn.startLive({ intervalMs: 25 });
 
-  const iter = conn.live(
-    Users.from()
-      .join(Notes, ({ users, notes }) => notes.user_id.eq(users.id))
-      .where(({ users }) => users.id.eq("5"))
-      .select(({ users, notes }) => ({ user_name: users.name, body: notes.body })),
-  )[Symbol.asyncIterator]();
+  const iter = Users.from()
+    .join(Notes, ({ users, notes }) => notes.user_id.eq(users.id))
+    .where(({ users }) => users.id.eq("5"))
+    .select(({ users, notes }) => ({ user_name: users.name, body: notes.body }))
+    .live(conn)[Symbol.asyncIterator]();
 
   const first = await takeNext(iter);
   expect(first).toEqual([]);
@@ -171,8 +159,3 @@ test("join: mutation on either side triggers re-yield (literal propagates across
   await iter.return?.();
 }, 10_000);
 
-test("throws if startLive wasn't called", async () => {
-  const Notes = await makeNotesTable();
-  const iter = conn.live(Notes.from())[Symbol.asyncIterator]();
-  await expect(iter.next()).rejects.toThrow(/startLive/);
-});

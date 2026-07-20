@@ -99,12 +99,10 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
     this.#opts = opts;
   }
 
-  get tableName(): Name {
-    return this.#opts.instance.constructor.tableName as Name;
-  }
-
-  get database() {
-    return this.#opts.instance.constructor.database;
+  // The target table class — finalize-free access to its statics
+  // (tableName, database, live).
+  get table() {
+    return this.#opts.instance.constructor;
   }
 
   @expose(fn.returns(z.custom<any>((v) => isRowType(v))))
@@ -127,11 +125,11 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
   // the output carry sql.unbound() as their SQL — harmless since rowType
   // is never compiled, only its [meta].__class is read for deserialize.
   rowType(): R | undefined {
-    return this.#opts.returning?.({ [this.tableName]: this.#opts.instance } as Namespace<Name, T>);
+    return this.#opts.returning?.({ [this.table.tableName]: this.#opts.instance } as Namespace<Name, T>);
   }
 
   finalize(): FinalizedInsert<Name, T, R> {
-    const tableName = this.tableName;
+    const tableName = this.table.tableName as Name;
     const alias = new Alias(tableName);
     const instance = reAlias(this.#opts.instance as RowType, alias) as T;
     const ns = { [tableName]: instance } as Namespace<Name, T>;
@@ -147,8 +145,10 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
   }
 
   bind(ctx: CompileContext): BoundSql {
-    const t = this.#opts.instance.constructor.transformer?.insert;
-    return (t ? t(this) : this.finalize()).bind(ctx);
+    // Widen to Sql so ctx forwards: the Finalized* form declares zero-arg
+    // bind() today, but dispatching through the base signature keeps ctx
+    // flowing if it ever starts accepting one.
+    return (this.finalize() as Sql).bind(ctx);
   }
 
   override children() {
@@ -167,7 +167,7 @@ export class InsertBuilder<Name extends string, T extends TableBase, R extends R
 
   @expose()
   debug(): this {
-    const compiled = compile(this, { database: this.database });
+    const compiled = compile(this, { database: this.table.database });
     console.log("Debugging query:", { sql: compiled.text, parameters: compiled.values });
     return this;
   }

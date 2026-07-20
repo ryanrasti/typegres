@@ -2,11 +2,11 @@ import { test, expect } from "vitest";
 import { Int8, Text } from "../types/postgres";
 import { sql } from "../builder/sql";
 import { setupDb, db, withinTransaction } from "../test-helpers";
-import { runLiveIteration } from "./extractor";
+import { PgExecutor } from "./pg/executor";
 
 setupDb();
 
-test("runLiveIteration: returns rows + cursor + extracted rows from one txn", async () => {
+test("PgExecutor.runLiveIteration: returns rows + cursor + extracted rows from one txn", async () => {
   // Outer txn must be at least as strong as runLiveIteration's request, or
   // the nested call rejects to avoid silently downgrading isolation.
   await withinTransaction(async (tx) => {
@@ -41,15 +41,18 @@ test("runLiveIteration: returns rows + cursor + extracted rows from one txn", as
       .where(({ users }) => users.id.eq("1"))
       .select(({ users, dogs }) => ({ uid: users.id, dog: dogs.name }));
 
-    const { rows, cursor, predicateSet } = await runLiveIteration(tx, query);
+    // runLiveIteration goes entirely through the passed Connection; the
+    // executor's own exec fn is never touched, so a throwing dummy is fine.
+    const executor = new PgExecutor(db, () => Promise.reject(new Error("unused")));
+    const { rows, cursor, predicateSet } = await executor.runLiveIteration(tx, query);
 
     // Original query: only Rex/Fido (user_id = 1)
     expect(rows.map((r) => r.dog).sort()).toEqual(["Fido", "Rex"]);
     expect(rows.every((r) => r.uid === "1")).toBe(true);
 
-    // Cursor is a non-empty pg_current_snapshot()::text
-    expect(typeof cursor).toBe("string");
-    expect(cursor.length).toBeGreaterThan(0);
+    // Cursor is a parsed pg_current_snapshot()
+    expect(typeof cursor.xmin).toBe("bigint");
+    expect(cursor.xmax >= cursor.xmin).toBe(true);
 
     // PredicateSet: users.id=1 from anchor, dogs.user_id=1 propagated.
     expect(predicateSet.get("users")?.get("id")).toEqual(new Set(["1"]));

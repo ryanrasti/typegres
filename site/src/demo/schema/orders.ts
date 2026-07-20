@@ -1,4 +1,4 @@
-import { Connection, TypegresLiveEvents, sql, expose } from "typegres";
+import { Connection, sql, expose } from "typegres";
 import { Int8, Text, Timestamptz } from "typegres/postgres";
 import { z } from "zod";
 import { db } from "../runtime";
@@ -7,7 +7,7 @@ import { OrderLines } from "./order_lines";
 import { Organizations } from "./organizations";
 import { Shipments } from "./shipments";
 
-export class Orders extends db.Table("orders", { transformer: TypegresLiveEvents.makeTransformer() }) {
+export class Orders extends db.Table("orders", { live: true }) {
   // @generated-start
   @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
   @expose() organization_id = (Int8<1>).column({ nonNull: true });
@@ -51,9 +51,9 @@ export class Orders extends db.Table("orders", { transformer: TypegresLiveEvents
       // The WHERE excludes 'delivered' so CASE always matches; the
       // `as Text<1>` asserts the non-null we structurally guarantee.
       // Interpolating `orders.status` into the template emits the
-      // properly-qualified column reference (the live transformer
-      // wraps the UPDATE in a CTE that also has a `status` column;
-      // unqualified would be ambiguous).
+      // properly-qualified column reference (live capture wraps the
+      // UPDATE in a CTE that also has a `status` column; unqualified
+      // would be ambiguous).
       .set(({ orders }) => ({
         status: Text.from(sql`
           CASE ${orders.status}

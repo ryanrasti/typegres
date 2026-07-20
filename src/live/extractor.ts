@@ -1,22 +1,29 @@
 import type { Connection } from "../database";
-import { FinalizedQuery, type QueryBuilder, type RowType, type RowTypeToTsType } from "../builder/query";
-import { type Alias, Column, Op, type Raw, type Sql, sql, TypedParam } from "../builder/sql";
+import { FinalizedQuery, type QueryBuilder } from "../builder/query";
+import { Alias, Column, Op, Param, type Raw, type Sql, sql, TypedParam } from "../builder/sql";
+import { canonicalText } from "./canonical";
 import type { Database } from "../database";
 import { type TableBase, isTableClass } from "../table";
 
 type Table = typeof TableBase;
 
+// A literal side of an equality predicate. Pg's typed wrappers bind
+// primitives as `CAST($n AS T)` (TypedParam); sqlite's runtime binds them
+// as bare `?` (Param). Both re-bind cleanly in the extractor's UNION.
+type LiteralParam = TypedParam | Param;
+const isLiteralParam = (s: Sql): s is LiteralParam => s instanceof TypedParam || s instanceof Param;
+
 type EqualityPredicate = Op & {
   op: Raw & { value: "=" };
-  lhs: Column | TypedParam;
-  rhs: Column | TypedParam;
+  lhs: Column | LiteralParam;
+  rhs: Column | LiteralParam;
 };
 
 const extractPredicates = (root: Sql): EqualityPredicate[] => {
   // Extract top-level AND'ed equality predicates where at least one side
-  // is a Column. The other side is either another Column (→ edge) or any
-  // other Sql shape — typically `CAST($n AS T)` for typegres-wrapped
-  // primitives — which we treat as a literal anchor.
+  // is a Column. The other side is either another Column (→ edge) or a
+  // bound literal — `CAST($n AS T)` for pg-wrapped primitives, bare `?`
+  // for sqlite — which we treat as a literal anchor.
   const predicates: EqualityPredicate[] = [];
 
   const stack = [root];
@@ -30,7 +37,7 @@ const extractPredicates = (root: Sql): EqualityPredicate[] => {
       stack.push(node.rhs);
     }
     if (node instanceof Op && node.op.value === "=") {
-      const validSide = (s: Sql) => s instanceof Column || s instanceof TypedParam;
+      const validSide = (s: Sql) => s instanceof Column || isLiteralParam(s);
       const isCol = (s: Sql) => s instanceof Column;
       if (validSide(node.lhs) && validSide(node.rhs) && (isCol(node.lhs) || isCol(node.rhs))) {
         predicates.push(node as EqualityPredicate);
@@ -42,7 +49,7 @@ const extractPredicates = (root: Sql): EqualityPredicate[] => {
 
 type RelativePredicate = {
   col: Column; // my column
-  to: Column | TypedParam; // other column or literal I'm equal to
+  to: Column | LiteralParam; // other column or literal I'm equal to
   // The original Op — handy when emitting WHERE clauses (already
   // parenthesizes itself on bind), so we don't have to reconstruct
   // `col = to` from the destructured sides.
@@ -140,7 +147,7 @@ export type CteSpec = {
 export const sortAliases = (traversal: TraverseResult): CteSpec[] => {
   // Topo: seed with literal-anchored aliases, then walk edges until stable.
   const order: Alias[] = [...traversal.entries()]
-    .filter(([, entry]) => entry.predicates.some((p) => p.to instanceof TypedParam))
+    .filter(([, entry]) => entry.predicates.some((p) => isLiteralParam(p.to)))
     .map(([alias]) => alias);
   const orderSet = new Set<Alias>(order);
 
@@ -192,7 +199,7 @@ export const buildExtractor = (specs: CteSpec[]): Sql => {
 
     const whereClauses: Sql[] = [];
     for (const p of spec.predicates) {
-      if (p.to instanceof TypedParam) {
+      if (isLiteralParam(p.to)) {
         // Anchor: reuse the original Op
         whereClauses.push(p.original);
       } else if (p.to instanceof Column) {
@@ -205,7 +212,7 @@ export const buildExtractor = (specs: CteSpec[]): Sql => {
         // The upstream alias is also the upstream CTE's name — refer to it directly.
         whereClauses.push(sql`${p.col} IN (SELECT ${p.to.name} FROM ${p.to.tableAlias})`);
       } else {
-        throw new Error(`Unexpected non-Column, non-TypedParam predicate side: ${p.to}`);
+        throw new Error(`Unexpected non-Column, non-literal predicate side: ${p.to}`);
       }
     }
 
@@ -223,15 +230,27 @@ export const buildExtractor = (specs: CteSpec[]): Sql => {
   });
 
   const unionParts: Sql[] = specs.flatMap((spec) => {
+    // canonicalText is the value-rendering contract shared with each
+    // backend's change capture (pg jsonb images, sqlite json_object
+    // images) — see live/canonical.ts.
+    const asText = (expr: Sql) => canonicalText(expr, spec.database.dialect);
     return spec.predicates.map((pred) =>
-      pred.to instanceof TypedParam
-        ? sql`SELECT ${sql.param(spec.tableName)} AS tbl, ${sql.param(pred.col.name.name)} AS col, ${pred.to}::text AS value`
-        : sql`SELECT ${sql.param(spec.tableName)} AS tbl, ${sql.param(pred.col.name.name)} AS col, ${pred.col}::text AS value FROM ${spec.alias}`,
+      isLiteralParam(pred.to)
+        ? sql`SELECT ${sql.param(spec.tableName)} AS tbl, ${sql.param(pred.col.name.name)} AS col, ${asText(pred.to)} AS value`
+        : sql`SELECT ${sql.param(spec.tableName)} AS tbl, ${sql.param(pred.col.name.name)} AS col, ${asText(pred.col)} AS value FROM ${spec.alias}`,
     );
   });
 
+  // Decoy aliases claim each referenced table's bare name in the scope, so
+  // a real CTE alias whose ts-alias equals its table name suffixes to e.g.
+  // "users_2". Unlike pg, sqlite resolves a CTE's name inside its own body
+  // — `WITH users AS (SELECT … FROM users)` is a "circular reference"
+  // error there, so no CTE may shadow a table it selects from. The decoys
+  // are never emitted; they only occupy names.
+  const decoys = [...new Set(specs.map((s) => s.tableName))].map((n) => new Alias(n));
+
   return sql.withScope(
-    specs.map((s) => s.alias),
+    [...decoys, ...specs.map((s) => s.alias)],
     sql`WITH ${sql.join(ctes)} ${sql.join(unionParts, sql` UNION ALL `)}`,
   );
 };
@@ -317,46 +336,26 @@ export const materializePredicateSet = (
   return groups;
 };
 
-export type LiveIterationResult<O extends RowType> = {
-  rows: RowTypeToTsType<O>[];
-  // pg_current_snapshot() captured inside the txn — raw text. db.live()
-  // parses to Cursor; tests can inspect either form.
-  cursor: string;
-  // Closed set of watched values per (table, col) — propagated across
-  // equality classes. Ready to feed bus.subscribe() directly.
-  predicateSet: PredicateSet;
-};
+// The dialect-neutral core of one live iteration: run the extractor, run
+// the user query, return rows + watched predicate set. Each dialect's
+// Executor.runLiveIteration wraps this with its consistency story (pg:
+// REPEATABLE READ txn + snapshot cursor; sqlite: pre-read seq cursor).
+export const runExtraction = async (
+  conn: Connection<any>,
+  query: QueryBuilder<any, any, any, any>,
+): Promise<{ rows: unknown; predicateSet: PredicateSet }> => {
+  // Important: traverse against a *single* finalize. Each finalize() mints
+  // fresh aliases, so the extractor SQL and the user query intentionally
+  // don't share alias identity — they're independently compiled. The
+  // extractor's aliases are sealed inside buildExtractor's withScope.
+  const finalized = query.finalize();
+  const traversal = traverse(finalized);
+  const extractorSql = buildExtractor(sortAliases(traversal));
+  const extractedResult = await conn.execute(extractorSql);
+  const extracted = extractedResult.rows as ExtractedRow[];
+  const predicateSet = materializePredicateSet(extracted, traversal);
 
-// One iteration of the live loop: open a REPEATABLE READ txn, snapshot the
-// cursor, run the extractor, run the user query, commit. Caller handles the
-// outer "yield + wait for matching event + repeat" loop.
-export const runLiveIteration = async <Q extends QueryBuilder<any, any, any, any>>(
-  db: Connection<any>,
-  query: Q,
-): Promise<
-  Q extends QueryBuilder<any, infer O extends RowType, any, any>
-    ? LiveIterationResult<O>
-    : never
-> => {
-  return db.transaction({ isolation: "repeatable read" }, async (tx) => {
-    const cursorResult = await tx.execute(
-      sql`SELECT pg_current_snapshot()::text AS cursor`,
-    );
-    const cursor = (cursorResult.rows as { cursor: string }[])[0]!.cursor;
+  const rows = await conn.execute(query);
 
-    // Important: traverse against a *single* finalize. Each finalize() mints
-    // fresh aliases, so the extractor SQL and the user query intentionally
-    // don't share alias identity — they're independently compiled. The
-    // extractor's aliases are sealed inside buildExtractor's withScope.
-    const finalized = query.finalize();
-    const traversal = traverse(finalized);
-    const extractorSql = buildExtractor(sortAliases(traversal));
-    const extractedResult = await tx.execute(extractorSql);
-    const extracted = extractedResult.rows as ExtractedRow[];
-    const predicateSet = materializePredicateSet(extracted, traversal);
-
-    const rows = await tx.execute(query);
-
-    return { rows, cursor, predicateSet };
-  }) as any;
+  return { rows, predicateSet };
 };

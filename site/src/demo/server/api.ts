@@ -148,16 +148,14 @@ export class Api {
     this.#currentUserToken = token;
   }
 
-  // Demo stop-button hook. `db.stopLive()` cancels every active
-  // subscription (parked consumers wake with AbortError and exit
-  // cleanly), then we re-start the bus so the next watch can
-  // subscribe immediately. In a real deployment the wire would have
-  // a per-iter abort channel; here we tear down the whole bus
-  // because the demo only ever has one iter at a time.
+  // Demo stop-button hook: cancels every active subscription (parked
+  // consumers wake with AbortError and exit cleanly); the live engine
+  // stays up and the next watch subscribes immediately. In a real
+  // deployment the wire would have a per-iter abort channel; here we
+  // cancel all subs because the demo only ever has one iter at a time.
   @expose()
   async resetLive(): Promise<void> {
-    await this.conn.stopLive();
-    await this.conn.startLive();
+    this.conn.cancelLiveSubscriptions();
   }
 
   // The principal for this RPC, resolved from the ambient

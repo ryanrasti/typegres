@@ -1,9 +1,9 @@
-import { TypegresLiveEvents, expose } from "typegres";
+import { expose } from "typegres";
 import { Int8, Text } from "typegres/postgres";
 import { db } from "../runtime";
 import { Orders } from "./orders";
 import { Organizations } from "./organizations";
-export class Customers extends db.Table("customers", { transformer: TypegresLiveEvents.makeTransformer() }) {
+export class Customers extends db.Table("customers", { live: true }) {
   // @generated-start
   @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
   @expose() organization_id = (Int8<1>).column({ nonNull: true });

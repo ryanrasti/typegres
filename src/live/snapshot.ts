@@ -34,3 +34,12 @@ export const visible = (cursor: Cursor, xid: bigint): boolean => {
   if (xid >= cursor.xmax) { return false; }     // not yet assigned/committed
   return !cursor.xip.has(xid);                  // in [xmin, xmax): visible iff not in-flight
 };
+
+// A seq counter embedded in the snapshot shape (sqlite live):
+// `visible(cursor, xid)` ⇔ `xid ≤ seq`. A slight fiction — no MVCC here —
+// but it lets the bus's subscribe/backfill/visibility machinery run
+// unmodified on integer event clocks.
+export const seqCursor = (seq: bigint): Cursor => {
+  const next = seq + 1n;
+  return { xmin: next, xmax: next, xip: new Set() };
+};

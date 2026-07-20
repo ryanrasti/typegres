@@ -1,6 +1,6 @@
-import type { BoundSql, Ident, Sql } from "./builder/sql";
+import type { BoundSql, Ident } from "./builder/sql";
 import type { Database } from "./database";
-import type { Fromable} from "./builder/query";
+import type { Fromable } from "./builder/query";
 import { QueryBuilder } from "./builder/query";
 import { DeleteBuilder } from "./builder/delete";
 import { UpdateBuilder } from "./builder/update";
@@ -8,18 +8,11 @@ import { InsertBuilder } from "./builder/insert";
 import { isColumn } from "./types/sql-value";
 import type { InsertRow } from "./types/runtime";
 
-// A per-op SQL rewrite hook. Tables opt in via the `transformer` option;
-// each mutation builder runs its own slot at bind() time, replacing its
-// default-finalized SQL with whatever the hook returns. Used by the live
-// system to wrap mutations in event-emitting CTE chains.
-export type QueryTransformer = {
-  insert?: (builder: InsertBuilder<string, any>) => Sql;
-  update?: (builder: UpdateBuilder<string, any>) => Sql;
-  delete?: (builder: DeleteBuilder<string, any>) => Sql;
-};
-
 export type TableOptions = {
-  transformer?: QueryTransformer;
+  // Opt this table into live change capture: the dialect executor rewrites
+  // its mutations at execute time (sqlite: image-RETURNING + in-memory
+  // events; pg: the events-CTE chain logging to the shadow table).
+  live?: boolean;
 };
 
 // Concrete tables extend `Table(name)` and declare columns as field
@@ -45,9 +38,8 @@ export abstract class TableBase {
   // enforces same-db at bind time. Non-optional — tables are always
   // scoped to a Database.
   static readonly database: Database;
-  // Mutation builders on this table run this at bind() time and on each
-  // raw result row before deserialization. Default none.
-  static readonly transformer: QueryTransformer | undefined = undefined;
+  // Live change-capture opt-in (see TableOptions.live).
+  static readonly live: boolean = false;
   // Per-scope tag carried by `Table.scope(ctx)`. Each `scope()` call
   // mints an anonymous subclass that overrides this static with the
   // supplied value; hydrated row instances read it through their
@@ -182,8 +174,7 @@ export const Table = <Name extends string, C = undefined>(
     [name]: class extends TableBase {
       static override readonly tableName = name;
       static override readonly tsAlias = name;
-      static override readonly transformer: QueryTransformer | undefined =
-        opts.transformer;
+      static override readonly live: boolean = opts.live ?? false;
       // Default value remains `undefined` until `scope()` overrides via
       // subclass; the type narrowing is purely compile-time.
       static override readonly context: C = undefined as C;

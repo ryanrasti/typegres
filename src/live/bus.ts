@@ -62,19 +62,18 @@ export class CursorTooOldError extends Error {
   }
 }
 
-// Parsed once at ingest in #poll so the matcher can iterate plain arrays
-// without re-parsing JSON or re-allocating BigInts on every event/sub
-// lookup.
-type EventRow = {
+// `xid` is a pg transaction id or a caller-stamped sqlite seq — the bus
+// only ever compares it through `visible()`.
+export type EventRow = {
   xid: bigint;
   table: string;
-  // (col, value::text) pairs from event.before ∪ event.after — the shape
-  // both jsonb columns share. Null sides contribute nothing.
+  // (col, canonical-text value) pairs from event.before ∪ event.after —
+  // the shape both image sides share. Null sides contribute nothing.
   pairs: [string, string][];
 };
 
 export type BusOptions = {
-  // Polling cadence in ms. Default 100.
+  // Polling cadence in ms (pg only). Default 100.
   intervalMs?: number;
   // In-memory backfill window size. Default 10_000. The bus retains the
   // most-recent N events; subscriptions whose cursor predates the floor
@@ -82,6 +81,14 @@ export type BusOptions = {
   windowSize?: number;
 };
 
+// The bus is dialect-shared; only its EVENT SOURCE differs:
+//   - pg: a polling loop reads `_typegres_live_events` and dispatches
+//     events newly visible since the last snapshot watermark.
+//   - sqlite: no shadow table, no polling — capture pushes events into
+//     `ingest()` in the mutation's own tick, with seq-counter xids and
+//     seq-embedded cursors (seqCursor) so the MVCC `visible()` test
+//     doubles as the seq comparison.
+// Index, subscribe/backfill, and lifecycle are identical either way.
 export class Bus {
   // Reverse index: table → col → value → set of subscriptions.
   #index: Map<string, Map<string, Map<string, Set<Subscription>>>> = new Map();
@@ -89,6 +96,7 @@ export class Bus {
   // Bus's processed-through cursor: every poll computes "events newly
   // visible since #watermark", then advances #watermark to the new
   // snapshot. Without it we'd re-dispatch already-handled events.
+  // (pg only — sqlite events arrive exactly once via ingest.)
   #watermark: Cursor | undefined;
   // Last N events observed by the bus, oldest-first. Used for sub
   // backfill scans without a DB roundtrip.
@@ -118,17 +126,25 @@ export class Bus {
     this.#database = conn.database;
   }
 
-  // Capture the initial snapshot and start the polling loop. Must be
-  // called before subscribe().
-  async start(): Promise<void> {
-    if (this.#running) {
-      throw new Error("Bus already started");
-    }
+  // Lazy start, awaited by each live() call before it subscribes — pg
+  // connections that never use .live() never poll. The cached promise
+  // (not a boolean) is what makes concurrent callers WAIT for the
+  // watermark seed: a subscriber slipping in mid-seed would pass the
+  // floor check vacuously and could miss events older than the seed.
+  #startPromise: Promise<void> | undefined;
+  ensureStarted(): Promise<void> {
+    return (this.#startPromise ??= this.#start());
+  }
+
+  // Capture the initial snapshot and start the polling loop (pg). On
+  // sqlite there is nothing to seed or poll — events arrive via ingest().
+  async #start(): Promise<void> {
     this.#running = true;
-    // Seed: bus's watermark is "now"; floor is now's xmin (no events
-    // older than this can be backfilled, but no events older than this
-    // would need to be — they're committed-and-visible to anyone with a
-    // cursor.xmin ≥ this).
+    if (this.#database.dialect !== "postgres") {
+      return;
+    }
+    // Seed: bus's watermark is "now"; floor is now's xmin (nothing older
+    // needs backfill — it's already visible to any cursor taken later).
     this.#watermark = await this.#readCursor();
     this.#floor = this.#watermark.xmin;
     this.#startLoop();
@@ -141,19 +157,46 @@ export class Bus {
     this.#loopPromise = undefined;
     this.#watermark = undefined;
     this.#buffer = [];
-    // Wake any consumers parked on `await sub.wait` so their generators
-    // can run finally + return cleanly. cancel() rejects `wait`; the
-    // live iterator catches AbortError and exits.
-    for (const sub of [...this.#subs]) {sub.cancel();}
+    this.cancelSubscriptions();
+  }
+
+  // Cancellation generation. Bumped by cancelSubscriptions(); the live()
+  // loop snapshots it per iteration and exits if it changed — that
+  // covers iterators that were MID-RERUN at cancel time (not parked, so
+  // no Subscription to reject) which would otherwise re-subscribe and
+  // outlive the cancel.
+  #epoch = 0;
+  get epoch(): number {
+    return this.#epoch;
+  }
+
+  // Wake every consumer parked on `await sub.wait` (cancel() rejects it;
+  // the live iterator catches AbortError and exits cleanly). Used by
+  // stop() and Connection.cancelLiveSubscriptions.
+  cancelSubscriptions(): void {
+    this.#epoch++;
+    for (const sub of [...this.#subs]) {
+      sub.cancel();
+    }
+  }
+
+  // Push-side event source (sqlite): called synchronously right after a
+  // mutation, with caller-stamped monotonic xids — the single-writer
+  // replacement for the pg poll.
+  ingest(events: readonly EventRow[]): void {
+    if (!this.#running || events.length === 0) {
+      return;
+    }
+    this.#dispatch([...events]);
   }
 
   // Returns undefined if the in-memory backfill buffer already shows a
   // mutation the cursor doesn't see — caller should rerun immediately,
   // no need to wait on anything. Otherwise returns a Subscription whose
-  // `wait` resolves on the next matching poll.
+  // `wait` resolves on the next matching event.
   subscribe(cursor: Cursor, predicateSet: PredicateSet): Subscription | undefined {
     if (!this.#running) {
-      throw new Error("Bus not started — call db.startLive() first");
+      throw new Error("Bus not started — live() awaits ensureStarted() before subscribing");
     }
     if (cursor.xmin < this.#floor) {
       throw new CursorTooOldError(cursor.xmin, this.#floor);
@@ -175,7 +218,7 @@ export class Bus {
       }
     }
 
-    // No backfill match — index for future polls.
+    // No backfill match — index for future events.
     const { promise: wait, resolve, reject } = Promise.withResolvers<void>();
     // wait gets attached to one of resolve/reject in the call below;
     // before that, swallow unhandled-rejection if cancel fires before
@@ -250,10 +293,14 @@ export class Bus {
   }
 
   // Force one poll iteration — for tests so they don't race against
-  // the timer. Resolves after the next poll cycle completes.
+  // the timer. Resolves after the next poll cycle completes. On sqlite
+  // dispatch is synchronous, so there is no loop to force — no-op.
   async pollNow(): Promise<void> {
     if (!this.#running) {
       throw new Error("Bus not started");
+    }
+    if (!this.#loopPromise) {
+      return;
     }
     const done = new Promise<void>((resolve) => {
       this.#oncePolled.push(resolve);
@@ -316,11 +363,19 @@ export class Bus {
       before: string | null;
       after: string | null;
     }[];
-    const newEvents: EventRow[] = raw.map((row) => ({
-      xid: BigInt(row.xid),
-      table: row.table,
-      pairs: parseEventPairs(row.before, row.after),
-    }));
+    this.#dispatch(
+      raw.map((row) => ({
+        xid: BigInt(row.xid),
+        table: row.table,
+        pairs: parseEventPairs(row.before, row.after),
+      })),
+    );
+  }
+
+  // Shared tail of both event sources (pg #poll, sqlite ingest): signal
+  // matching subs whose cursor doesn't already see the event, then append
+  // to the in-memory window and trim.
+  #dispatch(newEvents: EventRow[]): void {
     for (const event of newEvents) {
       for (const sub of this.#subsMatching(event)) {
         if (!visible(sub.cursor, event.xid)) {
@@ -362,10 +417,10 @@ export class Bus {
 }
 
 // Flatten event.before/after (each `{col: "stringified value", ...}` —
-// same canonicalization as the extractor's `jsonb_build_object('col',
-// col::text, ...)`) into a single array of (col, value) pairs. Run once
-// per event at ingest so per-sub matching never re-parses JSON.
-const parseEventPairs = (before: string | null, after: string | null): [string, string][] => {
+// same canonicalization as the extractor's text-cast values) into a
+// single array of (col, value) pairs. Run once per event at ingest so
+// per-sub matching never re-parses JSON.
+export const parseEventPairs = (before: string | null, after: string | null): [string, string][] => {
   const out: [string, string][] = [];
   for (const raw of [before, after]) {
     if (!raw) {

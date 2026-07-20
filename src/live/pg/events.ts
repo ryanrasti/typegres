@@ -1,17 +1,17 @@
-import { Any, Jsonb } from "../types/postgres";
-import type { QueryTransformer } from "../table";
-import { sql, Ident, type Sql } from "../builder/sql";
-import type { Database } from "../database";
-import type { InsertBuilder } from "../builder/insert";
-import type { DeleteBuilder } from "../builder/delete";
-import type { UpdateBuilder} from "../builder/update";
-import { compileSetClauses } from "../builder/update";
-import { compileSelectList, type RowType } from "../builder/query";
+import { Any, Jsonb } from "../../types/postgres";
+import { sql, Ident, type Sql } from "../../builder/sql";
+import type { Database } from "../../database";
+import type { InsertBuilder } from "../../builder/insert";
+import type { DeleteBuilder } from "../../builder/delete";
+import type { UpdateBuilder} from "../../builder/update";
+import { compileSetClauses } from "../../builder/update";
+import { compileSelectList, type RowType } from "../../builder/query";
 import { EVENTS_TABLE_NAME, eventsTableSqlStatements } from "./events-ddl";
 
-// Shadow table that captures every mutation against a "live"-enabled table.
-// `makeTransformer` returns the per-op hook other tables opt in to:
-//   class Foos extends db.Table("foos", { transformer: TypegresLiveEvents.makeTransformer() })
+// Shadow table that captures every mutation against a `{ live: true }`
+// table. PgExecutor applies wrapInsertOrDelete/wrapUpdate to those
+// mutations at execute time — unconditionally, not bus-gated, because
+// this table is the transport for other connections' pollers.
 export class TypegresLiveEvents {
   static readonly tableName = EVENTS_TABLE_NAME;
 
@@ -20,14 +20,6 @@ export class TypegresLiveEvents {
   }
   static createTableSqlStatements(database: Database): Sql[] {
     return eventsTableSqlStatements(database);
-  }
-
-  static makeTransformer(): QueryTransformer {
-    return {
-      insert: (s: InsertBuilder<any, any>) => wrapInsertOrDelete(s, "after"),
-      delete: (s: DeleteBuilder<any, any>) => wrapInsertOrDelete(s, "before"),
-      update: (s: UpdateBuilder<any, any>) => wrapUpdate(s),
-    };
   }
 }
 
@@ -87,12 +79,12 @@ const eventsInsertCte = (tableName: string, before: Sql, after: Sql, database: D
 //        __typegres_events AS (INSERT INTO _typegres_live_events (xid, "table", before, after)
 //                              SELECT pg_current_xact_id(), '<table>'::text, <before>, <after> FROM __typegres_cte)
 //   SELECT <user-returning idents | 1> FROM __typegres_cte
-const wrapInsertOrDelete = (
+export const wrapInsertOrDelete = (
   builder: InsertBuilder<any, any, any> | DeleteBuilder<any, any, any>,
   side: "before" | "after",
 ): Sql => {
-  const tableName = builder.tableName;
-  const database = builder.database;
+  const tableName = builder.table.tableName;
+  const database = builder.table.database;
   const liveKey = side === "before" ? T_LIVE_BEFORE : T_LIVE_AFTER;
 
   // returningMerge() has the same shape on both InsertBuilder and
@@ -128,9 +120,9 @@ const wrapInsertOrDelete = (
 // against just those rows. RETURNING in an UPDATE…FROM can reference both
 // the post-update target (`<foos>`) and the FROM-clause CTE — that's how
 // we capture both images in one statement.
-const wrapUpdate = (builder: UpdateBuilder<any, any, any>): Sql => {
-  const tableName = builder.tableName;
-  const database = builder.database;
+export const wrapUpdate = (builder: UpdateBuilder<any, any, any>): Sql => {
+  const tableName = builder.table.tableName;
+  const database = builder.table.database;
 
   // Add both __typegres_live_before and __typegres_live_after to RETURNING.
   // After uses the post-update namespace refs (same as INSERT/DELETE); the
