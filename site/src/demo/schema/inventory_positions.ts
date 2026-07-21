@@ -1,11 +1,11 @@
-import { Connection, TypegresLiveEvents, sql, expose } from "typegres";
+import { Connection, sql, expose } from "typegres";
 import { Int8, Text } from "typegres/postgres";
 import { z } from "zod";
 import { db } from "../runtime";
 import { Locations } from "./locations";
 import { Organizations } from "./organizations";
 import { OrderLines } from "./order_lines";
-export class InventoryPositions extends db.Table("inventory_positions", { transformer: TypegresLiveEvents.makeTransformer() }) {
+export class InventoryPositions extends db.Table("inventory_positions", { live: true }) {
   // @generated-start
   @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
   @expose() organization_id = (Int8<1>).column({ nonNull: true });

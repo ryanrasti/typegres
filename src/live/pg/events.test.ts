@@ -1,14 +1,13 @@
 import { test, expect, beforeAll, afterEach } from "vitest";
-import { Int8, Text } from "../types/postgres";
-import { sql } from "../builder/sql";
-import { conn, db, setupDb } from "../test-helpers";
-import { TypegresLiveEvents } from "./events";
+import { Int8, Text } from "../../types/postgres";
+import { sql } from "../../builder/sql";
+import { conn, db, setupDb } from "../../test-helpers";
 import { setupLiveEvents } from "./test-helpers";
 
 setupDb();
 setupLiveEvents();
 
-class Foos extends db.Table("foos", { transformer: TypegresLiveEvents.makeTransformer() }) {
+class Foos extends db.Table("foos", { live: true }) {
   id = Int8.column({ nonNull: true, generated: true });
   name = Text.column({ nonNull: true });
   qty = Int8.column();
@@ -59,7 +58,7 @@ test("insert RETURNING surfaces user columns through the wrap", async () => {
 });
 
 test("delete emits one event per deleted row with before-image", async () => {
-  // Seed via raw SQL so the transformer doesn't fire for the setup rows.
+  // Seed via raw SQL so live capture doesn't fire for the setup rows.
   await conn.execute(sql`INSERT INTO foos (id, name) OVERRIDING SYSTEM VALUE VALUES (10, 'a'), (11, 'b'), (12, 'c')`);
 
   await Foos.delete().where(({ foos }) => foos.id.lt("12")).execute(conn);

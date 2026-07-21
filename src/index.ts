@@ -11,13 +11,14 @@ export { Table } from "./table";
 export { Relation } from "./relation";
 export { sql, Sql } from "./builder/sql";
 export { QueryBuilder } from "./builder/query";
-export { TypegresLiveEvents } from "./live/events";
+export { TypegresLiveEvents } from "./live/pg/events";
+export { ensurePgLiveEventsTable } from "./live/pg/events-ddl";
 export { expose } from "./exoeval/tool";
 export type { ToolFunction } from "./exoeval/tool";
 export { RpcClient, inMemoryChannel, safeStringify } from "./exoeval/rpc";
 export type { RawChannel } from "./exoeval/rpc";
 export type { Config } from "./config";
-export type { Driver, ExecuteFn, QueryResult } from "./drivers/types";
+export type { Driver, SyncDriver, ExecuteFn, ExecuteSyncFn, QueryResult } from "./drivers/types";
 
 import type { Connection } from "./database";
 import { Database } from "./database";

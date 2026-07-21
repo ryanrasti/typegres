@@ -1,6 +1,6 @@
 import { afterEach, beforeAll } from "vitest";
-import { sql } from "../builder/sql";
-import { conn } from "../test-helpers";
+import { sql } from "../../builder/sql";
+import { conn } from "../../test-helpers";
 import { TypegresLiveEvents } from "./events";
 
 // Opt-in for live tests: creates `_typegres_live_events` once at the start

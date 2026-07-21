@@ -1,4 +1,4 @@
-import type { ExecuteFn, Driver, QueryResult } from "./drivers/types";
+import { type Driver, isSyncDriver, type QueryResult } from "./drivers/types";
 import type { Fromable, RowType, RowTypeToTsType } from "./builder/query";
 import { QueryBuilder, hydrateRows } from "./builder/query";
 import { deserializeRows } from "./util";
@@ -10,9 +10,9 @@ import { InsertBuilder } from "./builder/insert";
 import { UpdateBuilder } from "./builder/update";
 import { DeleteBuilder } from "./builder/delete";
 import { Bus, type Subscription, type BusOptions } from "./live/bus";
-import { eventsTableSqlStatements } from "./live/events-ddl";
-import { runLiveIteration } from "./live/extractor";
-import { parseSnapshot } from "./live/snapshot";
+import { SqliteLiveExecutor } from "./live/sqlite/executor";
+import { PgExecutor } from "./live/pg/executor";
+import type { Executor } from "./executor";
 import type { DialectName } from "./builder/sql";
 
 export type TransactionIsolation = "read committed" | "repeatable read" | "serializable";
@@ -73,13 +73,17 @@ export class Database<C = any> {
   // Attach a driver → get a runtime Connection. Multiple `attach` calls
   // are allowed (test + prod, worker pools, replicas) — Connections
   // share the schema provenance but talk to independent drivers.
-  attach(driver: Driver): Connection<C> {
+  //
+  // The live engine is wired here too: sqlite capture is active from the
+  // start; the pg poller spins up lazily on first .live() use. `liveOpts`
+  // configures the pg bus (poll cadence, backfill window).
+  attach(driver: Driver, liveOpts?: BusOptions): Connection<C> {
     if (driver.dialect !== this.dialect) {
       throw new Error(
         `Driver dialect '${driver.dialect}' does not match Database dialect '${this.dialect}'.`,
       );
     }
-    return new Connection<C>(this, driver);
+    return new Connection<C>(this, driver, undefined, undefined, liveOpts);
   }
 
   // Entry point for non-Table Fromables (SRFs, Values, subqueries).
@@ -109,9 +113,16 @@ export class Database<C = any> {
 
 // Runtime handle: has a driver, executes queries. Constructed via
 // `db.attach(driver)`. `.transaction()` mints a txn-bound Connection
-// sharing the same driver + Database. `.close()` closes the driver.
+// sharing the same driver + Database. `.close()` stops the live bus and
+// closes the driver.
 export class Connection<C = undefined> {
-  #boundExecute?: ExecuteFn;
+  // The execution context: one dialect executor, wired at construction;
+  // transaction() mints the bound variant.
+  #executor: Executor;
+  // Pool-backed connections own a live bus (sqlite: fed synchronously by
+  // capture; pg: polls once started). Tx-bound connections share their
+  // parent's via the executor closures and hold none themselves.
+  #bus: Bus | undefined;
   // Active isolation on a txn-bound Connection. `undefined` means either
   // pool-backed (no active txn) or ambient (txn opened without an
   // explicit level — we deferred to pg's session default, which we
@@ -121,19 +132,31 @@ export class Connection<C = undefined> {
   constructor(
     readonly database: Database<C>,
     private driver: Driver,
-    boundExecute?: ExecuteFn,
+    executor?: Executor,
     isolation?: TransactionIsolation,
+    liveOpts?: BusOptions,
   ) {
-    if (boundExecute) { this.#boundExecute = boundExecute; }
+    if (executor) {
+      // Transaction-bound: share the parent's context; no bus of our own.
+      this.#executor = executor;
+    } else if (database.dialect === "postgres") {
+      this.#bus = new Bus(this, liveOpts);
+      this.#executor = new PgExecutor(database, (compiled) => driver.execute(compiled));
+    } else {
+      if (!isSyncDriver(driver)) {
+        throw new Error(
+          "sqlite requires a SyncDriver (SqliteDriver, DoSqliteDriver) — " +
+            "live capture must run pre-image read + mutation + dispatch without awaits between them",
+        );
+      }
+      const bus = new Bus(this, liveOpts);
+      this.#bus = bus;
+      this.#executor = new SqliteLiveExecutor(database, driver, bus);
+    }
     if (isolation) { this.#isolation = isolation; }
   }
 
   get dialect() { return this.driver.dialect; }
-
-  #exec(query: Sql): Promise<QueryResult> {
-    const compiled = compile(query, { database: this.database });
-    return (this.#boundExecute ?? this.driver.execute.bind(this.driver))(compiled);
-  }
 
   // Overload resolution matches top-to-bottom and stops on the first
   // match — list specific builders before the general `Sql` fallback, or
@@ -152,7 +175,7 @@ export class Connection<C = undefined> {
   ): Promise<Q extends DeleteBuilder<any, any, infer R> ? RowTypeToTsType<R>[] : never>;
   async execute(query: Sql): Promise<QueryResult>;
   async execute(query: Sql): Promise<any> {
-    const result = await this.#exec(query);
+    const result = await this.#executor.run(query);
     if (query instanceof QueryBuilder) {
       return deserializeRows(result.rows as { [key: string]: string }[], query.rowType());
     }
@@ -181,7 +204,7 @@ export class Connection<C = undefined> {
     query: DeleteBuilder<Name, T, R>,
   ): Promise<R[]>;
   async hydrate(query: Sql): Promise<any> {
-    const result = await this.#exec(query);
+    const result = await this.#executor.run(query);
     let shape: { [k: string]: unknown } | undefined;
     if (query instanceof QueryBuilder) {
       shape = query.rowType() as { [k: string]: unknown };
@@ -206,8 +229,17 @@ export class Connection<C = undefined> {
     if (!fn) {
       throw new Error("transaction() requires a callback");
     }
-    if (this.#boundExecute) {
+    if (opts?.isolation && this.database.dialect !== "postgres") {
+      // Sqlite rejects pg's BEGIN ISOLATION LEVEL syntax, and its
+      // transactions are serializable by nature — no level to pick.
+      throw new Error(
+        `transaction({ isolation }) is pg-only — sqlite transactions are always serializable; omit the option`,
+      );
+    }
+    if (this.#executor.bound) {
       // Already in a txn — flatten, but reject silent isolation downgrades.
+      // (Flattening shares the executor, so sqlite's event buffer spans
+      // to the outermost commit.)
       if (opts?.isolation) {
         const active = this.#isolation;
         if (active === undefined) {
@@ -225,13 +257,46 @@ export class Connection<C = undefined> {
       }
       return fn(this);
     }
+    const bus = this.#bus!;
     return this.driver.runInSingleConnection(async (execute) => {
-      const tx = new Connection<C>(this.database, this.driver, execute, opts?.isolation);
+      const driver = this.driver;
+      let txExecutor: Executor;
+      if (this.database.dialect === "postgres") {
+        txExecutor = new PgExecutor(this.database, execute, true);
+      } else if (isSyncDriver(driver)) {
+        // Bound and pooled are the same channel on sqlite's one handle —
+        // checked, not assumed; the bound executor differs only in event
+        // timing (commit-deferred flush).
+        if (execute !== driver.executeSync) {
+          throw new Error(
+            "sync driver must pass its executeSync to runInSingleConnection — one handle, one channel",
+          );
+        }
+        txExecutor = new SqliteLiveExecutor(this.database, driver, bus, true);
+      } else {
+        // The constructor rejects async sqlite drivers at attach — this
+        // branch exists so TS narrows `driver` above.
+        throw new Error("unreachable: sqlite Connection without a SyncDriver");
+      }
+      const tx = new Connection<C>(this.database, this.driver, txExecutor, opts?.isolation);
+      // Drivers with a native transaction protocol (Durable Objects) own
+      // commit/rollback; everyone else gets BEGIN/COMMIT/ROLLBACK SQL.
+      if (driver.runInTransaction) {
+        try {
+          const result = await driver.runInTransaction(() => fn(tx));
+          txExecutor.onCommit();
+          return result;
+        } catch (e) {
+          txExecutor.onRollback();
+          throw e;
+        }
+      }
       const runSql = async (s: Sql) => execute(compile(s, { database: this.database }));
       await runSql(opts?.isolation ? ISOLATION[opts.isolation].begin : sql`BEGIN`);
       try {
         const result = await fn(tx);
         await runSql(sql`COMMIT`);
+        txExecutor.onCommit();
         return result;
       } catch (e) {
         try {
@@ -239,40 +304,27 @@ export class Connection<C = undefined> {
         } catch (rollbackErr) {
           console.error("ROLLBACK failed after transaction error:", rollbackErr);
         }
+        txExecutor.onRollback();
         throw e;
       }
     });
   }
 
   async close(): Promise<void> {
-    if (this.#boundExecute) {
+    if (this.#executor.bound) {
       throw new Error("close() must be called on a pool-backed Connection, not inside a transaction");
     }
+    await this.#bus?.stop();
     await this.driver.close();
   }
 
   // --- Live queries ---
-  #bus: Bus | undefined;
 
-  async installLiveEvents(): Promise<void> {
-    for (const stmt of eventsTableSqlStatements(this.database)) {
-      await this.driver.execute(compile(stmt, { database: this.database }));
-    }
-  }
-
-  async startLive(opts: BusOptions = {}): Promise<void> {
-    if (this.#boundExecute) {
-      throw new Error("startLive() must be called on a pool-backed Connection, not inside a transaction");
-    }
-    if (this.#bus) { throw new Error("Live bus already started"); }
-    this.#bus = new Bus(this, opts);
-    await this.#bus.start();
-  }
-
-  async stopLive(): Promise<void> {
-    const bus = this.#bus;
-    this.#bus = undefined;
-    await bus?.stop();
+  // Cancel every active live subscription (parked consumers wake with
+  // AbortError and their generators end cleanly). The engine stays up —
+  // the next .live() call subscribes as usual.
+  cancelLiveSubscriptions(): void {
+    this.#bus?.cancelSubscriptions();
   }
 
   async *live<Q extends QueryBuilder<any, any, any, any>>(
@@ -282,17 +334,28 @@ export class Connection<C = undefined> {
       ? RowTypeToTsType<O>[]
       : never
   > {
-    if (this.#boundExecute) {
+    if (this.#executor.bound) {
       throw new Error("live() can't be called inside a transaction");
     }
-    const bus = this.#bus;
-    if (!bus) { throw new Error("Live bus not started — call conn.startLive() first"); }
+    const bus = this.#bus!;
+    // Lazy engine start: a no-op on sqlite (capture feeds the bus
+    // synchronously from attach); on pg this seeds the snapshot watermark
+    // and spins the poll loop on first use, so connections that never
+    // call .live() never poll.
+    await bus.ensureStarted();
 
     let currentSub: Subscription | undefined;
     try {
       while (true) {
-        const { rows, cursor, predicateSet } = await runLiveIteration(this, query);
-        currentSub = bus.subscribe(parseSnapshot(cursor), predicateSet);
+        const epoch = bus.epoch;
+        const { rows, cursor, predicateSet } = await this.#executor.runLiveIteration(this, query);
+        // A cancel (or stop) that landed while the iteration ran has no
+        // parked Subscription to reject for us — honor it here instead
+        // of re-subscribing past it.
+        if (bus.epoch !== epoch) {
+          return;
+        }
+        currentSub = bus.subscribe(cursor, predicateSet);
         yield rows as any;
         if (currentSub) {
           try {

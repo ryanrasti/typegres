@@ -28,7 +28,9 @@ export const setupDb = (): void => {
       max: 1,
       options: `-csearch_path=${schema}`,
     });
-    conn = db.attach(driver);
+    // Fast poll cadence for live suites; harmless elsewhere — the pg
+    // poller only starts on first .live() use.
+    conn = db.attach(driver, { intervalMs: 25 });
     await conn.execute(sql`DROP SCHEMA IF EXISTS ${db.scopedIdent(schema)} CASCADE`);
     await conn.execute(sql`CREATE SCHEMA ${db.scopedIdent(schema)}`);
   });

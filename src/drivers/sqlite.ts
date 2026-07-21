@@ -1,14 +1,19 @@
 import type { CompiledSql } from "../builder/sql";
 import type { DialectName } from "../builder/sql";
 import type BetterSqlite3 from "better-sqlite3";
-import type { Driver, ExecuteFn, QueryResult } from "./types";
+import type { ExecuteSyncFn, QueryResult, SyncDriver } from "./types";
 import { normalizeRow, stripMatchedOuterParens } from "./shared-sqlite";
 
 // better-sqlite3 adapter. Synchronous under the hood; wrapped in
 // Promise.resolve for the async Driver contract. `better-sqlite3` is an
 // optional peer (see package.json).
-export class SqliteDriver implements Driver {
+export class SqliteDriver implements SyncDriver {
   readonly dialect: DialectName = "sqlite";
+
+  #liveSeq = 0n;
+  get liveSeq(): bigint {
+    return this.#liveSeq;
+  }
 
   static async create(
     filename: string = ":memory:",
@@ -22,11 +27,16 @@ export class SqliteDriver implements Driver {
 
   private constructor(private db: BetterSqlite3.Database) {}
 
-  async execute({ text, values }: CompiledSql): Promise<QueryResult> {
+  async execute(compiled: CompiledSql): Promise<QueryResult> {
+    return this.executeSync(compiled);
+  }
+
+  executeSync = ({ text, values }: CompiledSql): QueryResult => {
+    this.#liveSeq++;
     // QueryBuilder.bind() wraps statements in `(...)` for subquery splicing;
     // SQLite refuses top-level parenthesized statements — unwrap one matched pair.
     return this.runOne(stripMatchedOuterParens(text), values);
-  }
+  };
 
   private runOne(text: string, values: readonly unknown[]): QueryResult {
     const stmt = this.db.prepare(text);
@@ -40,8 +50,10 @@ export class SqliteDriver implements Driver {
     return { rows: [] };
   }
 
-  async runInSingleConnection<T>(cb: (execute: ExecuteFn) => Promise<T>): Promise<T> {
-    return cb((compiled) => Promise.resolve(this.execute(compiled)));
+  async runInSingleConnection<T>(cb: (execute: ExecuteSyncFn) => Promise<T>): Promise<T> {
+    // One handle: the single-connection execute IS executeSync (callers
+    // assert this identity — see Connection.transaction).
+    return cb(this.executeSync);
   }
 
   async close(): Promise<void> {

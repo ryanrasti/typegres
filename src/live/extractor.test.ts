@@ -84,10 +84,10 @@ test("buildExtractor: single-table literal anchor", () => {
   expectSqlEqual(
     buildExtractor(sortAliases(traverse(q))),
     sql`
-      WITH "users" AS MATERIALIZED (
-        SELECT "id" FROM "users" AS "users" WHERE ("users"."id" = CAST(${"5"} AS int8))
+      WITH "users_2" AS MATERIALIZED (
+        SELECT "id" FROM "users" AS "users_2" WHERE ("users_2"."id" = CAST(${"5"} AS int8))
       )
-      SELECT ${"users"} AS tbl, ${"id"} AS col, CAST(${"5"} AS int8)::text AS value
+      SELECT ${"users"} AS tbl, ${"id"} AS col, CAST(CAST(${"5"} AS int8) AS text) AS value
     `,
     db,
   );
@@ -104,19 +104,19 @@ test("buildExtractor: self-join produces two CTEs both backed by 'users'", () =>
     buildExtractor(sortAliases(traverse(q))),
     sql`
       WITH
-        "users" AS MATERIALIZED (
-          SELECT "manager_id", "id" FROM "users" AS "users"
-          WHERE ("users"."id" = CAST(${"5"} AS int8))
+        "users_2" AS MATERIALIZED (
+          SELECT "manager_id", "id" FROM "users" AS "users_2"
+          WHERE ("users_2"."id" = CAST(${"5"} AS int8))
         ),
         "manager" AS MATERIALIZED (
           SELECT "id" FROM "users" AS "manager"
-          WHERE "manager"."id" IN (SELECT "manager_id" FROM "users")
+          WHERE "manager"."id" IN (SELECT "manager_id" FROM "users_2")
         )
-      SELECT ${"users"} AS tbl, ${"manager_id"} AS col, "users"."manager_id"::text AS value FROM "users"
+      SELECT ${"users"} AS tbl, ${"manager_id"} AS col, CAST("users_2"."manager_id" AS text) AS value FROM "users_2"
       UNION ALL
-      SELECT ${"users"} AS tbl, ${"id"}         AS col, CAST(${"5"} AS int8)::text AS value
+      SELECT ${"users"} AS tbl, ${"id"}         AS col, CAST(CAST(${"5"} AS int8) AS text) AS value
       UNION ALL
-      SELECT ${"users"} AS tbl, ${"id"}         AS col, "manager"."id"::text     AS value FROM "manager"
+      SELECT ${"users"} AS tbl, ${"id"}         AS col, CAST("manager"."id" AS text)     AS value FROM "manager"
     `,
     db,
   );
@@ -131,18 +131,18 @@ test("buildExtractor: join chain rewrites edge to IN (SELECT … FROM upstream C
     buildExtractor(sortAliases(traverse(q))),
     sql`
       WITH
-        "users" AS MATERIALIZED (
-          SELECT "id" FROM "users" AS "users" WHERE ("users"."id" = CAST(${"5"} AS int8))
+        "users_2" AS MATERIALIZED (
+          SELECT "id" FROM "users" AS "users_2" WHERE ("users_2"."id" = CAST(${"5"} AS int8))
         ),
-        "dogs" AS MATERIALIZED (
-          SELECT "user_id" FROM "dogs" AS "dogs"
-          WHERE "dogs"."user_id" IN (SELECT "id" FROM "users")
+        "dogs_2" AS MATERIALIZED (
+          SELECT "user_id" FROM "dogs" AS "dogs_2"
+          WHERE "dogs_2"."user_id" IN (SELECT "id" FROM "users_2")
         )
-      SELECT ${"users"} AS tbl, ${"id"}      AS col, "users"."id"::text      AS value FROM "users"
+      SELECT ${"users"} AS tbl, ${"id"}      AS col, CAST("users_2"."id" AS text)      AS value FROM "users_2"
       UNION ALL
-      SELECT ${"users"} AS tbl, ${"id"}      AS col, CAST(${"5"} AS int8)::text AS value
+      SELECT ${"users"} AS tbl, ${"id"}      AS col, CAST(CAST(${"5"} AS int8) AS text) AS value
       UNION ALL
-      SELECT ${"dogs"}  AS tbl, ${"user_id"} AS col, "dogs"."user_id"::text  AS value FROM "dogs"
+      SELECT ${"dogs"}  AS tbl, ${"user_id"} AS col, CAST("dogs_2"."user_id" AS text)  AS value FROM "dogs_2"
     `,
     db,
   );
@@ -159,21 +159,21 @@ test("buildExtractor: multiple anchors keep their literal predicates plus join e
     buildExtractor(sortAliases(traverse(q))),
     sql`
       WITH
-        "users" AS MATERIALIZED (
-          SELECT "id" FROM "users" AS "users" WHERE ("users"."id" = CAST(${"5"} AS int8))
+        "users_2" AS MATERIALIZED (
+          SELECT "id" FROM "users" AS "users_2" WHERE ("users_2"."id" = CAST(${"5"} AS int8))
         ),
-        "dogs" AS MATERIALIZED (
-          SELECT "user_id", "name" FROM "dogs" AS "dogs"
-          WHERE "dogs"."user_id" IN (SELECT "id" FROM "users")
-            AND ("dogs"."name" = CAST(${"Rex"} AS text))
+        "dogs_2" AS MATERIALIZED (
+          SELECT "user_id", "name" FROM "dogs" AS "dogs_2"
+          WHERE "dogs_2"."user_id" IN (SELECT "id" FROM "users_2")
+            AND ("dogs_2"."name" = CAST(${"Rex"} AS text))
         )
-      SELECT ${"users"} AS tbl, ${"id"}      AS col, "users"."id"::text      AS value FROM "users"
+      SELECT ${"users"} AS tbl, ${"id"}      AS col, CAST("users_2"."id" AS text)      AS value FROM "users_2"
       UNION ALL
-      SELECT ${"users"} AS tbl, ${"id"}      AS col, CAST(${"5"} AS int8)::text AS value
+      SELECT ${"users"} AS tbl, ${"id"}      AS col, CAST(CAST(${"5"} AS int8) AS text) AS value
       UNION ALL
-      SELECT ${"dogs"}  AS tbl, ${"user_id"} AS col, "dogs"."user_id"::text  AS value FROM "dogs"
+      SELECT ${"dogs"}  AS tbl, ${"user_id"} AS col, CAST("dogs_2"."user_id" AS text)  AS value FROM "dogs_2"
       UNION ALL
-      SELECT ${"dogs"}  AS tbl, ${"name"}    AS col, CAST(${"Rex"} AS text)::text AS value
+      SELECT ${"dogs"}  AS tbl, ${"name"}    AS col, CAST(CAST(${"Rex"} AS text) AS text) AS value
     `,
     db,
   );
