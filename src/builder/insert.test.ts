@@ -35,6 +35,48 @@ test("insert", async () => {
   });
 });
 
+test("VALUES accept typegres expressions, not just primitives", async () => {
+  await withinTransaction(async (tx) => {
+    await tx.execute(sql`CREATE TABLE users (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL
+    )`);
+    await tx.execute(sql`CREATE TABLE posts (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      author_id int8 NOT NULL,
+      body text NOT NULL
+    )`);
+    class Users extends db.Table("users") {
+      id = Int8.column({ nonNull: true, generated: true });
+      name = Text.column({ nonNull: true });
+    }
+    class Posts extends db.Table("posts") {
+      id = Int8.column({ nonNull: true, generated: true });
+      author_id = Int8.column({ nonNull: true });
+      body = Text.column({ nonNull: true });
+    }
+
+    // A hydrated row's columns are typegres expressions, not primitives —
+    // and they flow straight into another table's VALUES (parity with SET).
+    await tx.execute(Users.insert({ name: "alice" }));
+    const [alice] = await tx.hydrate(Users.from().where(({ users }) => users.name.eq("alice")));
+
+    const [post] = await tx.execute(
+      Posts.insert({ author_id: alice!.id, body: "hi" }).returning(({ posts }) => ({
+        author_id: posts.author_id,
+      })),
+    );
+
+    // The FK landed alice's id: joining back recovers her name.
+    const [row] = await tx.execute(
+      Users.from()
+        .where(({ users }) => users.id.eq(post!.author_id))
+        .select(({ users }) => ({ name: users.name })),
+    );
+    expect(row).toEqual({ name: "alice" });
+  });
+});
+
 test("insert returning", async () => {
   await withinTransaction(async (tx) => {
     await tx.execute(sql`CREATE TABLE items (
