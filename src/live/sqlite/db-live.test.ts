@@ -1,4 +1,4 @@
-import { test, expect, beforeAll, afterAll, afterEach } from "vitest";
+import { test, expect, vi, beforeAll, afterAll, afterEach } from "vitest";
 import { Database, type Connection } from "../../database";
 import { SqliteDriver } from "../../drivers/sqlite";
 import { DoSqliteDriver } from "../../drivers/do";
@@ -78,6 +78,40 @@ test("yields current rows then re-yields on a matching commit (insert path)", as
   expect(bodies).toEqual(["hello", "world"]);
 
   await iter.return?.();
+}, 10_000);
+
+test("observer form: onNext pushes on each commit; unsubscribe stops it", async () => {
+  const Notes = await makeNotesTable();
+
+  const seen: { body: string }[][] = [];
+  const sub = Notes.from()
+    .where(({ notes }) => notes.user_id.eq(1))
+    .select(({ notes }) => ({ body: notes.body }))
+    .live()
+    .observe({ onNext: (rows) => void seen.push(rows) });
+
+  // Snapshot on subscribe, then a push per matching commit.
+  await vi.waitFor(() => expect(seen.length).toBeGreaterThanOrEqual(1));
+  expect(seen[0]).toEqual([]);
+
+  await Notes.insert({ id: 1, user_id: 1, body: "a" }).execute(conn);
+  await vi.waitFor(() => expect(seen.at(-1)).toEqual([{ body: "a" }]));
+
+  // A non-matching commit does not push.
+  const beforeIrrelevant = seen.length;
+  await Notes.insert({ id: 2, user_id: 99, body: "nope" }).execute(conn);
+  await Notes.insert({ id: 3, user_id: 1, body: "b" }).execute(conn);
+  await vi.waitFor(() =>
+    expect(seen.at(-1)).toEqual([{ body: "a" }, { body: "b" }]),
+  );
+  expect(seen.length).toBeGreaterThan(beforeIrrelevant);
+
+  // unsubscribe() stops further pushes.
+  sub.unsubscribe();
+  const afterStop = seen.length;
+  await Notes.insert({ id: 4, user_id: 1, body: "c" }).execute(conn);
+  await new Promise((r) => setTimeout(r, 50));
+  expect(seen.length).toBe(afterStop);
 }, 10_000);
 
 test("UPDATE on a matching row re-yields with new values", async () => {

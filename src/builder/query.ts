@@ -16,6 +16,7 @@ import { fn, expose, copyToolFields } from "../exoeval/tool";
 import { isTableClass, TableBase } from "../table";
 import z from "zod";
 import { Values } from "./values";
+import { asObservable, type LiveQuery } from "../live/observer";
 
 // Optional Connection — the execute-family default: omitted, terminators
 // fall back to the builder's Database.defaultConnection.
@@ -411,12 +412,19 @@ export class QueryBuilder<
     return (conn ?? this.opts.database.defaultConnection).execute(this);
   }
 
-  // Streaming terminator. Mirrors `execute` but yields the rowset on
-  // every committed mutation that touches one of the live-tagged
-  // tables this query reads from. Caller iterates with `for await`.
+  // Streaming terminator. Mirrors `execute` but re-yields the rowset on
+  // every committed mutation that touches one of the live-tagged tables
+  // this query reads from. Returns a LiveQuery — two consumption forms:
+  //  - iterator: `for await (const rows of q.live())` locally (not RPC);
+  //  - observer: `q.live().observe({ onNext })` pushes each rowset and
+  //    returns a LiveSubscription. Over capnweb the observer's callbacks
+  //    cross by reference (byRef), so a remote client can subscribe to a
+  //    query it authored itself.
   @expose(zConn)
-  live(conn?: Connection<any>): AsyncIterable<RowTypeToTsType<O>[]> {
-    return (conn ?? this.opts.database.defaultConnection).live(this) as AsyncIterable<RowTypeToTsType<O>[]>;
+  live(conn?: Connection<any>): LiveQuery<RowTypeToTsType<O>[]> {
+    return asObservable(
+      (conn ?? this.opts.database.defaultConnection).live(this) as AsyncIterable<RowTypeToTsType<O>[]>,
+    );
   }
 
   @expose(zConn)

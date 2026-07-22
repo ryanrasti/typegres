@@ -11,6 +11,8 @@ export { Table } from "./table";
 export { Relation } from "./relation";
 export { sql, Sql } from "./builder/sql";
 export { QueryBuilder } from "./builder/query";
+export { LiveSubscription, LiveQuery } from "./live/observer";
+export type { LiveObserver } from "./live/observer";
 export { TypegresLiveEvents } from "./live/pg/events";
 export { ensurePgLiveEventsTable } from "./live/pg/events-ddl";
 export { expose } from "./exoeval/tool";
