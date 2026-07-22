@@ -17,6 +17,10 @@ import { isTableClass, TableBase } from "../table";
 import z from "zod";
 import { Values } from "./values";
 
+// Optional Connection — the execute-family default: omitted, terminators
+// fall back to the builder's Database.defaultConnection.
+const zConn = z.lazy(() => z.instanceof(Connection)).optional();
+
 // Compile a row type into a SQL select list: col AS "name", ...
 export const compileSelectList = (output: RowType, omitAliases = false): Sql => {
   return sql.join(
@@ -398,37 +402,40 @@ export class QueryBuilder<
 
   // Fluent terminators. Narrow the Sql.execute() return type from
   // QueryResult to a row array, and expose the hydrated / single-row
-  // variants as chainable terminators too.
-  @expose(z.lazy(() => z.instanceof(Connection)))
-  override async execute(conn: Connection<any>): Promise<RowTypeToTsType<O>[]> {
-    return conn.execute(this);
+  // variants as chainable terminators too. `conn` is optional everywhere:
+  // omitted, it resolves to the builder's Database.defaultConnection —
+  // unambiguous in the one-connection (Durable Object) model, a loud
+  // error otherwise.
+  @expose(zConn)
+  override async execute(conn?: Connection<any>): Promise<RowTypeToTsType<O>[]> {
+    return (conn ?? this.opts.database.defaultConnection).execute(this);
   }
 
   // Streaming terminator. Mirrors `execute` but yields the rowset on
   // every committed mutation that touches one of the live-tagged
   // tables this query reads from. Caller iterates with `for await`.
-  @expose(z.lazy(() => z.instanceof(Connection)))
-  live(conn: Connection<any>): AsyncIterable<RowTypeToTsType<O>[]> {
-    return conn.live(this) as AsyncIterable<RowTypeToTsType<O>[]>;
+  @expose(zConn)
+  live(conn?: Connection<any>): AsyncIterable<RowTypeToTsType<O>[]> {
+    return (conn ?? this.opts.database.defaultConnection).live(this) as AsyncIterable<RowTypeToTsType<O>[]>;
   }
 
-  @expose(z.lazy(() => z.instanceof(Connection)))
-  async hydrate(conn: Connection<any>): Promise<O[]> {
-    return conn.hydrate<O, GB, Card>(this);
+  @expose(zConn)
+  async hydrate(conn?: Connection<any>): Promise<O[]> {
+    return (conn ?? this.opts.database.defaultConnection).hydrate<O, GB, Card>(this);
   }
 
-  @expose(z.lazy(() => z.instanceof(Connection)))
-  async one(conn: Connection<any>): Promise<O> {
-    const [row] = await conn.hydrate(this.limit(1));
+  @expose(zConn)
+  async one(conn?: Connection<any>): Promise<O> {
+    const [row] = await (conn ?? this.opts.database.defaultConnection).hydrate(this.limit(1));
     if (!row) {
       throw new Error("QueryBuilder.one(): query returned no rows");
     }
     return row;
   }
 
-  @expose(z.lazy(() => z.instanceof(Connection)))
-  async maybeOne(conn: Connection<any>): Promise<O | null> {
-    const [row] = await conn.hydrate(this.limit(1));
+  @expose(zConn)
+  async maybeOne(conn?: Connection<any>): Promise<O | null> {
+    const [row] = await (conn ?? this.opts.database.defaultConnection).hydrate(this.limit(1));
     return row ?? null;
   }
 

@@ -48,6 +48,9 @@ const ISOLATION: { [K in TransactionIsolation]: { rank: number; begin: Sql } } =
 export class Database<C = any> {
   readonly name?: string;
   readonly dialect: DialectName;
+  // Pool-backed connections currently attached (transaction-bound
+  // Connections are never registered). Basis for `defaultConnection`.
+  readonly #attached: Connection<C>[] = [];
 
   constructor(opts: { dialect: DialectName; name?: string }) {
     this.dialect = opts.dialect;
@@ -83,7 +86,36 @@ export class Database<C = any> {
         `Driver dialect '${driver.dialect}' does not match Database dialect '${this.dialect}'.`,
       );
     }
-    return new Connection<C>(this, driver, undefined, undefined, liveOpts);
+    const conn = new Connection<C>(this, driver, undefined, undefined, liveOpts);
+    this.#attached.push(conn);
+    return conn;
+  }
+
+  /**
+   * The implicit execution context: when exactly one connection is
+   * attached (the Durable Object model — one object, one connection),
+   * the execute-family terminators fall back to it, so callers (and
+   * remote clients) can write `.execute()` with no token. Ambiguous
+   * (zero or several attached) throws — pass a Connection explicitly
+   * then, as transaction bodies always should (`tx`).
+   */
+  get defaultConnection(): Connection<C> {
+    if (this.#attached.length === 1) {
+      return this.#attached[0]!;
+    }
+    throw new Error(
+      this.#attached.length === 0
+        ? "defaultConnection: no connection attached — call db.attach(driver) first"
+        : `defaultConnection: ${this.#attached.length} connections attached — pass one explicitly`,
+    );
+  }
+
+  /** @internal Connection.close() deregisters itself. */
+  _detach(conn: Connection<C>): void {
+    const i = this.#attached.indexOf(conn);
+    if (i !== -1) {
+      this.#attached.splice(i, 1);
+    }
   }
 
   // Entry point for non-Table Fromables (SRFs, Values, subqueries).
@@ -314,6 +346,7 @@ export class Connection<C = undefined> {
     if (this.#executor.bound) {
       throw new Error("close() must be called on a pool-backed Connection, not inside a transaction");
     }
+    this.database._detach(this);
     await this.#bus?.stop();
     await this.driver.close();
   }
