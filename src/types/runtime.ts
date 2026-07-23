@@ -70,9 +70,12 @@ export type OptionalKeys<R> = {
   [K in ColumnKeys<R>]: IsRequired<R[K]> extends true ? never : K;
 }[ColumnKeys<R>];
 
-// Insert row: required columns + optional columns (as TsTypeOf)
-export type InsertRow<R> = { [K in RequiredKeys<R>]: TsTypeOf<R[K]> } & {
-  [K in OptionalKeys<R>]?: TsTypeOf<R[K]>;
+// Insert row: required columns + optional columns. Like SET (SetRow), each
+// value is either the JS-side primitive or a typegres expression of the
+// same class & nullability — a hydrated column from another row composes
+// straight into VALUES.
+export type InsertRow<R> = { [K in RequiredKeys<R>]: TsTypeOf<R[K]> | StripRequired<R[K]> } & {
+  [K in OptionalKeys<R>]?: TsTypeOf<R[K]> | StripRequired<R[K]>;
 };
 
 // Drop the column-only `__required` marker from a column type's meta.

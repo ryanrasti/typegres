@@ -4,7 +4,7 @@ import type { RowType, RowTypeToTsType } from "./query";
 import { compileSelectList, isRowType, mergeReturning, reAlias } from "./query";
 import type { TableBase } from "../table";
 import { Connection } from "../database";
-import { getColumn } from "../types/sql-value";
+import { getColumn, SqlValue } from "../types/sql-value";
 import { meta } from "../types/sql-value";
 import { fn, expose } from "../exoeval/tool";
 import z from "zod";
@@ -62,6 +62,11 @@ export class FinalizedInsert<Name extends string, T extends TableBase, R extends
             `The '${tableCls.database.dialect}' dialect cannot express "use the column default" per row — ` +
             `provide '${k}' in every row or in none.`,
           );
+        }
+        if (v instanceof SqlValue) {
+          // Already a typegres expression (e.g. a hydrated column from
+          // another row) — embed it directly, don't re-wrap as a param.
+          return v.toSql();
         }
         const col = getColumn(instance, k);
         return col[meta].__class.from(v).toSql();
