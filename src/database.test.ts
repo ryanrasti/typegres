@@ -1,4 +1,4 @@
-import { test, expect, beforeAll, afterAll } from "vitest";
+import { test, describe, expect, beforeAll, afterAll } from "vitest";
 import { Int8, Text } from "./types/postgres";
 import { sql } from "./builder/sql";
 import { setupDb, db, conn } from "./test-helpers";
@@ -129,5 +129,72 @@ test("nested transaction rejects any explicit level inside an ambient outer", as
   // Ambient inside ambient: fine — caller deferred to session both times.
   await poolConn.transaction(async (tx) => {
     await tx.transaction(async () => {});
+  });
+});
+
+// Database.defaultConnection: when exactly one connection is attached (the
+// Durable Object model — one object, one connection), the execute-family
+// terminators fall back to it, so `.execute()` needs no argument. Ambiguous
+// (zero or several attached) throws. This is dialect-agnostic bookkeeping;
+// exercised here over the pg harness.
+describe("defaultConnection", () => {
+  // Defined inside each test, not at describe scope: poolDb is only assigned
+  // in beforeAll, which runs after the describe body is collected.
+  const makeWidgets = () =>
+    class Widgets extends poolDb.Table("widgets_dc") {
+      id = Int8.column({ nonNull: true, generated: true });
+      name = Text.column({ nonNull: true });
+    };
+
+  test("no connection attached → throws", () => {
+    const empty = new Database({ dialect: "postgres" });
+    expect(() => empty.defaultConnection).toThrow(/no connection attached/);
+  });
+
+  test("exactly one attached → terminators resolve it with no argument", async () => {
+    // poolDb has a single attached connection (poolConn, from beforeAll).
+    expect(poolDb.defaultConnection).toBe(poolConn);
+
+    const Widgets = makeWidgets();
+    await poolConn.execute(sql`CREATE TABLE widgets_dc (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL
+    )`);
+    await Widgets.insert({ name: "a" }).execute(); // no conn arg
+    const rows = await Widgets.from()
+      .select(({ widgets_dc }) => ({ name: widgets_dc.name }))
+      .execute(); // no conn arg
+    expect(rows).toEqual([{ name: "a" }]);
+    await poolConn.execute(sql`DROP TABLE widgets_dc`);
+  });
+
+  test("ambiguous (two attached) → throws until one closes", async () => {
+    // Fresh db + its own drivers so close() doesn't touch the shared pool.
+    const fdb = new Database({ dialect: "postgres" });
+    const d1 = await PgDriver.create(requireDatabaseUrl(), { max: 1 });
+    const d2 = await PgDriver.create(requireDatabaseUrl(), { max: 1 });
+    const c1 = fdb.attach(d1);
+    const c2 = fdb.attach(d2);
+    expect(() => fdb.defaultConnection).toThrow(/2 connections attached/);
+
+    // Connection.close() deregisters (then closes its driver), restoring an
+    // unambiguous default.
+    await c2.close();
+    expect(fdb.defaultConnection).toBe(c1);
+    await c1.close();
+  });
+
+  test("explicit conn still wins over the default", async () => {
+    const Widgets = makeWidgets();
+    await poolConn.execute(sql`CREATE TABLE widgets_dc (
+      id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name text NOT NULL
+    )`);
+    await Widgets.insert({ name: "b" }).execute(poolConn); // explicit
+    const rows = await Widgets.from()
+      .select(({ widgets_dc }) => ({ name: widgets_dc.name }))
+      .execute(poolConn);
+    expect(rows).toEqual([{ name: "b" }]);
+    await poolConn.execute(sql`DROP TABLE widgets_dc`);
   });
 });

@@ -128,14 +128,14 @@ export class DeleteBuilder<Name extends string, T extends TableBase, R extends R
     return [this.finalize()];
   }
 
-  @expose(z.lazy(() => z.instanceof(Connection)))
-  override async execute(conn: Connection<any>): Promise<RowTypeToTsType<R>[]> {
-    return conn.execute(this);
+  @expose(z.lazy(() => z.instanceof(Connection)).optional())
+  override async execute(conn?: Connection<any>): Promise<RowTypeToTsType<R>[]> {
+    return (conn ?? this.table.database.defaultConnection).execute(this);
   }
 
-  @expose(z.lazy(() => z.instanceof(Connection)))
-  async hydrate(conn: Connection<any>): Promise<R[]> {
-    return conn.hydrate<any, any, R>(this);
+  @expose(z.lazy(() => z.instanceof(Connection)).optional())
+  async hydrate(conn?: Connection<any>): Promise<R[]> {
+    return (conn ?? this.table.database.defaultConnection).hydrate<any, any, R>(this);
   }
 
   @expose()
