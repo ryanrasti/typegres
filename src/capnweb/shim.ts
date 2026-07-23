@@ -37,7 +37,7 @@ import { isPlainObject, isThenable } from "../util";
 // A capability return really is disposable client-side; plain-data
 // returns just never use the member. Arrays distribute so capability
 // elements (hydrated rows) carry their own disposers.
-type Stubbed<R> = R extends readonly (infer E)[] ? Stubbed<E>[] & Disposable
+export type Stubbed<R> = R extends readonly (infer E)[] ? Stubbed<E>[] & Disposable
   : R extends object ? R & Disposable
   : R;
 
@@ -57,10 +57,39 @@ export type ShimStub<T> = Disposable & {
  * callback still yields a stub at runtime; unwrap with fromRpc if needed
  * in-process.)
  */
-export const doRpc = <T, R>(stub: ShimStub<T>, fn: (api: T) => R): Promise<Stubbed<Awaited<R>>> => {
-  const mappable = stub as unknown as { map: (cb: unknown) => unknown };
-  return Promise.resolve(mappable.map(fn)) as Promise<Stubbed<Awaited<R>>>;
-};
+export function doRpc<T, R>(stub: ShimStub<T>, fn: (api: T) => R): Promise<Stubbed<Awaited<R>>>;
+// Stubs that arrive as call results are typed `Stubbed<T>` — `T & Disposable`
+// for a capability, or a bare `T`. The ShimStub overload can't reverse-infer
+// T through its mapped type from those, so match them as-is. Deliberately
+// `stub: T`, not `T & Disposable`: a capability stub is disposable at runtime,
+// but requiring it in the type would force every caller who *aliases* a stub
+// type (e.g. `InstanceType<ReturnType<typeof X.forFacet>>`) to remember to
+// intersect `& Disposable` or fail to compile. The `& Disposable` that leaks
+// into the callback's `api` type is harmless (nothing disposes inside a
+// replayed closure).
+export function doRpc<T extends object, R>(stub: T, fn: (api: T) => R): Promise<Stubbed<Awaited<R>>>;
+export function doRpc(stub: object, fn: unknown): Promise<unknown> {
+  const mappable = stub as { map: (cb: unknown) => unknown };
+  return Promise.resolve(mappable.map(fn));
+}
+
+/**
+ * Force pass-by-REFERENCE for a function captured into a doRpc closure.
+ *
+ * Inside closure recording, bare function captures serialize as nested
+ * record-replay closures: invoked once at serialization time (so they must
+ * be side-effect free) and replayed remotely. A callback that should be
+ * CALLED BACK — e.g. a live-query observer's onNext — must instead cross as
+ * a capability. Wrapping it in a stub exports it by reference: the remote
+ * side invokes it over RPC with plain (already-materialized) arguments.
+ *
+ * The `never[]` param constraint is the "any function" bound — it accepts
+ * every callback signature (a `(n: number) => …` included); widening it to
+ * `unknown[]` would, by parameter contravariance, *reject* those. The
+ * returned value is the RPC stub, so it is also `Disposable`.
+ */
+export const byRef = <F extends (...args: never[]) => unknown>(fn: F): F & Disposable =>
+  new (RpcStub as unknown as new (target: unknown) => unknown)(fn) as F & Disposable;
 
 // The Proxy base must be an RpcTarget so capnweb classifies the proxy as a capability
 // (pass-by-reference) rather than trying to serialize it by value.

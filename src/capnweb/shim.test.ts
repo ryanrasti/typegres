@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { RpcStub, RpcTarget } from "capnweb";
 import z from "zod";
 import { expose } from "../exoeval/tool";
-import { doRpc, fromRpc, toRpc } from "./shim";
+import { byRef, doRpc, fromRpc, toRpc } from "./shim";
 import { CapnwebHarness as Harness } from "./harness";
 
 // --- test fixtures: a miniature @expose query-builder, no DB required ---
@@ -137,6 +137,23 @@ describe("toRpc/fromRpc wrapping", () => {
     expect(fromRpc(stub)).toBe(cap);
   });
 
+  it("byRef wraps a function as a pass-by-reference capability, not a closure", () => {
+    const fn = (n: number) => n + 1;
+    // A bare function heading to the wire is adapted as an (outgoing)
+    // closure — a plain function, not a stub.
+    const asClosure = toRpc(fn);
+    expect(typeof asClosure).toBe("function");
+    expect(asClosure instanceof RpcStub).toBe(false);
+
+    // byRef(fn) is a stub: toRpc passes it through by reference (the
+    // capability branch), so the remote side calls back into `fn` rather
+    // than replaying a one-time recording of it. byRef returns F & Disposable,
+    // so `using` disposes it.
+    using ref = byRef(fn);
+    expect(ref instanceof RpcStub).toBe(true);
+    expect(toRpc(ref)).toBe(ref);
+  });
+
   it("is stable and invertible", () => {
     const expr = new Expr("id");
     const wrapped = toRpc(expr);
@@ -217,4 +234,15 @@ describe("@expose over capnweb RPC", () => {
     expect(described).toStrictEqual({ isQuery: true, reprs: [] });
     void a;
   });
+
+  it("doRpc accepts a call-result stub (raw-capability overload), not just the main stub", async () => {
+    await using h = new Harness(new Api());
+    // query() returns a Query capability stub; doRpc must accept it as its
+    // own `stub` argument — the ShimStub<T> overload can't reverse-infer T
+    // from a Stubbed<Query> result, so the raw-capability overload does.
+    using q = await h.stub.query();
+    const sql = await doRpc(q, (query) => query.where((row) => row.id.eq(5)).sql());
+    expect(sql).toBe('(id = 5)');
+  });
+
 });
