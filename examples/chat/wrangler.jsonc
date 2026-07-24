@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "typegres-chat",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "not_found_handling": "single-page-application",
+    // The Cap'n Web WebSocket upgrade must reach the Worker, not the SPA assets.
+    "run_worker_first": ["/ws"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "CHAT", "class_name": "ChatDo" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChatDo"] }],
+  "observability": { "enabled": true }
+}

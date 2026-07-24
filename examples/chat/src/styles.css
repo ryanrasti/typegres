@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+/* Flash a top-posters count when it changes (live update). Fades from an
+   amber highlight back to the resting gray. */
+@keyframes statFlash {
+  0%,
+  35% {
+    background-color: rgba(251, 191, 36, 0.6);
+    color: #f3f4f6;
+  }
+  100% {
+    background-color: transparent;
+    color: #6b7280;
+  }
+}
