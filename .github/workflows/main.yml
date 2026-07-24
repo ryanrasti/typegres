@@ -28,7 +28,7 @@ jobs:
           else
             RUN=(bash -c)
           fi
-          "${RUN[@]}" "cd '$PWD' && nix develop --command bash -c 'set -e; bin/startpg; (cd packages/capnweb && npm ci && npm run build); npm ci; (cd examples/basic && npm ci); (cd site && npm ci); npm run codegen:check; npm run build; npm run check; (cd site && npm run typecheck && npm run test)'"
+          "${RUN[@]}" "cd '$PWD' && nix develop --command bash -c 'set -e; bin/startpg; (cd packages/capnweb && npm ci && npm run build); npm ci; (cd examples/basic && npm ci); (cd examples/chat && npm ci); (cd site && npm ci); npm run codegen:check; npm run build; npm run check; (cd site && npm run typecheck && npm run test)'"
 
   site:
     needs: check
