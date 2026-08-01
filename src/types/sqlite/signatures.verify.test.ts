@@ -28,7 +28,7 @@ import camelcase from "camelcase";
 import { SIGNATURES, EXCLUSIONS } from "./emit.ts";
 import type { EmitFn as FnDef, EmitOverload as Overload, EmitArg as ArgDef } from "../emission/facts.ts";
 import { UNARY_OPERATOR_ALIASES } from "../emission/common.ts";
-import { Database as TypegresDatabase } from "../../database";
+import { compileOnlyDb } from "../../test-helpers";
 import { compile, sql } from "../../builder/sql";
 import * as types from "./index";
 
@@ -47,7 +47,7 @@ const prep = (text: string): Database.Statement => {
 
 // Compile context for the typed-surface side (no driver needed — the
 // compiled text/values run on the raw better-sqlite3 handle above).
-const tg = new TypegresDatabase({ dialect: "sqlite" });
+const tg = compileOnlyDb("sqlite");
 
 // Stable per-function seed so CI runs are reproducible; on failure
 // fast-check prints the seed + shrunk counterexample.

@@ -15,9 +15,9 @@ let poolDb: Database;
 let poolConn: Connection;
 
 beforeAll(async () => {
-  poolDriver = await PgDriver.create(requireDatabaseUrl(), { max: 10 });
-  poolDb = new Database({ dialect: "postgres" });
-  poolConn = poolDb.attach(poolDriver);
+  poolDriver = PgDriver.create(requireDatabaseUrl(), { max: 10 });
+  poolDb = new Database();
+  poolConn = poolDb.connect(poolDriver);
 });
 
 afterAll(async () => {
@@ -147,7 +147,7 @@ describe("defaultConnection", () => {
     };
 
   test("no connection attached → throws", () => {
-    const empty = new Database({ dialect: "postgres" });
+    const empty = new Database();
     expect(() => empty.defaultConnection).toThrow(/no connection attached/);
   });
 
@@ -170,11 +170,11 @@ describe("defaultConnection", () => {
 
   test("ambiguous (two attached) → throws until one closes", async () => {
     // Fresh db + its own drivers so close() doesn't touch the shared pool.
-    const fdb = new Database({ dialect: "postgres" });
-    const d1 = await PgDriver.create(requireDatabaseUrl(), { max: 1 });
-    const d2 = await PgDriver.create(requireDatabaseUrl(), { max: 1 });
-    const c1 = fdb.attach(d1);
-    const c2 = fdb.attach(d2);
+    const fdb = new Database();
+    const d1 = PgDriver.create(requireDatabaseUrl(), { max: 1 });
+    const d2 = PgDriver.create(requireDatabaseUrl(), { max: 1 });
+    const c1 = fdb.connect(d1);
+    const c2 = fdb.connect(d2);
     expect(() => fdb.defaultConnection).toThrow(/2 connections attached/);
 
     // Connection.close() deregisters (then closes its driver), restoring an

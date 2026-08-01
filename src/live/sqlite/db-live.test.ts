@@ -11,14 +11,14 @@ import { Integer, Real, Text } from "../../types/sqlite";
 // synchronous with the mutation, so every re-yield below resolves without
 // timers. The same backend drives DoSqliteDriver (Durable Objects).
 
-const db = new Database({ dialect: "sqlite" });
+const db = new Database();
 
 let driver: SqliteDriver;
 let conn: Connection;
 
 beforeAll(async () => {
-  driver = await SqliteDriver.create(":memory:");
-  conn = db.attach(driver);
+  driver = SqliteDriver.create(":memory:");
+  conn = db.connect(driver);
 });
 
 afterAll(async () => {
@@ -314,8 +314,8 @@ test("cancelLiveSubscriptions releases a parked consumer cleanly", async () => {
 }, 10_000);
 
 test("close() stops the live engine and releases a parked consumer", async () => {
-  const ownDriver = await SqliteDriver.create(":memory:");
-  const ownConn = db.attach(ownDriver);
+  const ownDriver = SqliteDriver.create(":memory:");
+  const ownConn = db.connect(ownDriver);
   await ownConn.execute(sql`CREATE TABLE notes (
     id INTEGER PRIMARY KEY,
     user_id INTEGER NOT NULL,
@@ -370,7 +370,7 @@ test("live over DoSqliteDriver (fake SqlStorage backed by better-sqlite3)", asyn
       }
     },
   };
-  const doConn = db.attach(new DoSqliteDriver(storage));
+  const doConn = db.connect(DoSqliteDriver.create(storage));
 
   await doConn.execute(sql`CREATE TABLE notes (
     id INTEGER PRIMARY KEY,

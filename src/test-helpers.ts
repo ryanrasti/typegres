@@ -1,15 +1,45 @@
 import { beforeAll, afterAll, expect } from "vitest";
 import { PgDriver } from "./drivers/pg";
-import type { Driver } from "./drivers/types";
+import type { Driver, SyncDriver } from "./drivers/types";
 import { requireDatabaseUrl } from "./pg";
 import { Database } from "./database";
 import { compile, sql } from "./builder/sql";
 import type { Sql } from "./builder/sql";
 import type { TransactionIsolation , Connection } from "./database";
+import type { DialectName } from "./builder/sql";
 
 export let driver: Driver;
 export let db: Database;
 export let conn: Connection;
+
+// The driver owns the dialect, so a Database learns it by connecting one.
+// Unit suites that only compile SQL (provenance, extractor, type-level
+// match tests) have no real backend, so they connect this instead: it
+// carries a dialect and nothing else — every execute path throws.
+//
+// Implements SyncDriver, not just Driver: the sqlite live executor rejects
+// async drivers at Connection construction, so a compile-only sqlite
+// handle has to look synchronous even though it never runs anything.
+export const dialectOnlyDriver = (dialect: DialectName): SyncDriver => {
+  const unsupported = (): never => {
+    throw new Error(`dialectOnlyDriver('${dialect}'): compile-only, cannot execute`);
+  };
+  return {
+    dialect,
+    liveSeq: 0n,
+    execute: unsupported,
+    executeSync: unsupported,
+    runInSingleConnection: unsupported,
+    close: () => Promise.resolve(),
+  };
+};
+
+// Sugar for the same: a compile-only Database of the given dialect.
+export const compileOnlyDb = (dialect: DialectName, name?: string): Database => {
+  const d = new Database(name === undefined ? {} : { name });
+  d.connect(dialectOnlyDriver(dialect));
+  return d;
+};
 
 // Per-worker schema isolates tables so test files can run in parallel against
 // one Postgres. search_path is set at connection startup (via libpq options),
@@ -22,15 +52,15 @@ const schema = `test_w${process.env["VITEST_WORKER_ID"] ?? "1"}`;
 // for that file's suite. Unit-only test files don't call it and avoid
 // booting Postgres.
 export const setupDb = (): void => {
-  db = new Database({ dialect: "postgres" });
+  db = new Database();
   beforeAll(async () => {
-    driver = await PgDriver.create(requireDatabaseUrl(), {
+    driver = PgDriver.create(requireDatabaseUrl(), {
       max: 1,
       options: `-csearch_path=${schema}`,
     });
     // Fast poll cadence for live suites; harmless elsewhere — the pg
     // poller only starts on first .live() use.
-    conn = db.attach(driver, { intervalMs: 25 });
+    conn = db.connect(driver, { intervalMs: 25 });
     await conn.execute(sql`DROP SCHEMA IF EXISTS ${db.scopedIdent(schema)} CASCADE`);
     await conn.execute(sql`CREATE SCHEMA ${db.scopedIdent(schema)}`);
   });

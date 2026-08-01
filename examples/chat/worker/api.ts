@@ -13,13 +13,15 @@
 // a class inline (X.forY(...)); parameterized ones close over their proof.
 
 import { z } from "zod";
-import { Database, expose, Relation } from "typegres";
+import { typegres, expose, Relation } from "typegres";
 import { Integer, Text } from "typegres/sqlite";
 import { hashPassword, verifyPassword } from "./auth";
 
-// The Durable Object attaches its ctx.storage to this Database, and that
-// single connection is the default for every .execute()/.hydrate()/.live().
-export const db = new Database({ dialect: "sqlite" });
+// Synchronous schema handle — the table classes below are declared against
+// it at module load, long before any DO instance exists. The Durable Object
+// connects its ctx.storage in its constructor, and that single connection
+// is the default for every .execute()/.hydrate()/.live().
+export const db = typegres();
 
 const zUsername = z.string().regex(/^[\w-]{1,24}$/);
 const zPassword = z.string().min(1).max(128);

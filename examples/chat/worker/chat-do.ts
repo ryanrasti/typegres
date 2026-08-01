@@ -8,13 +8,13 @@ import { migrate } from "./migrate";
 
 // One Durable Object holds the whole demo (rooms are rows, not DOs) —
 // see the README for how this shards to room-per-DO. typegres runs against
-// ctx.storage.sql via DoSqliteDriver (same-thread SQLite).
+// ctx.storage.sql via the DO SQLite driver (same-thread SQLite).
 export class ChatDo extends DurableObject<Env> {
   readonly conn: Connection;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.conn = db.attach(new DoSqliteDriver(ctx.storage));
+    this.conn = db.connect(DoSqliteDriver.create(ctx.storage));
     ctx.blockConcurrencyWhile(() => migrate(this.conn));
   }
 

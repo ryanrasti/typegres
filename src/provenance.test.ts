@@ -8,17 +8,17 @@
 // This suite is unit-only (no driver / no execute); everything is
 // exercised via `compile(sql, { database })` directly.
 import { test, expect, describe } from "vitest";
-import { Database } from "./database";
+import { compileOnlyDb } from "./test-helpers";
 import { compile, sql, Ident, UnaryOp, Raw, Param } from "./builder/sql";
 import { Int4, Text } from "./types/postgres";
 import { Integer } from "./types/sqlite";
 
 // Two same-dialect databases → distinct provenance identities.
-const dbA = new Database({ dialect: "postgres", name: "dbA" });
-const dbB = new Database({ dialect: "postgres", name: "dbB" });
+const dbA = compileOnlyDb("postgres", "dbA");
+const dbB = compileOnlyDb("postgres", "dbB");
 // Different-dialect databases for Func/Op/Cast/Srf dialect checks.
-const pgDb = new Database({ dialect: "postgres", name: "pg" });
-const sqliteDb = new Database({ dialect: "sqlite", name: "sqlite" });
+const pgDb = compileOnlyDb("postgres", "pg");
+const sqliteDb = compileOnlyDb("sqlite", "sqlite");
 
 describe("Ident provenance", () => {
   test("Ident from db A rejected when compiled against db B", () => {

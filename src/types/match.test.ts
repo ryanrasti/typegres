@@ -1,9 +1,9 @@
 import { test, expect } from "vitest";
 import { Int4, Int8, Text, Bool } from "./postgres";
 import { compile } from "../builder/sql";
-import { Database } from "../database";
+import { compileOnlyDb } from "../test-helpers";
 
-const pgCtx = { database: new Database({ dialect: "postgres" }) };
+const pgCtx = { database: compileOnlyDb("postgres") };
 
 // --- match via operators/functions ---
 

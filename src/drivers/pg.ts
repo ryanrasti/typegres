@@ -1,30 +1,31 @@
 import type { CompiledSql } from "../builder/sql";
 import type { DialectName } from "../builder/sql";
-import type pg from "pg";
+import pgLib from "pg";
 import type { Driver, ExecuteFn, QueryResult } from "./types";
 
 // pg adapter — returns raw text strings (no driver-side deserialization).
-// `pg` is an *optional* peer dep (see package.json#peerDependenciesMeta).
-// Dynamic import keeps bundlers from pulling pg into browser builds and
-// lets a missing peer fail late with a real module-not-found error.
+// `pg` is an *optional* peer dep (see package.json#peerDependenciesMeta),
+// imported statically because this module only loads when the caller
+// imports `typegres/drivers/pg` — bundles that never import this entry
+// point never resolve the peer. Pool construction is synchronous; pg
+// connects lazily on first query.
 export class PgDriver implements Driver {
   readonly dialect: DialectName = "postgres";
 
-  static async create(
+  static create(
     connectionString: string,
-    poolOptions: pg.PoolConfig = {},
-  ): Promise<PgDriver> {
-    // eslint-disable-next-line no-restricted-syntax -- optional peer, see class comment
-    const pgMod = (await import(/* webpackIgnore: true */ "pg")).default;
-    const pool = new pgMod.Pool({
-      connectionString,
-      ...poolOptions,
-      types: { getTypeParser: () => (v: string) => v },
-    });
-    return new PgDriver(pool);
+    poolOptions: pgLib.PoolConfig = {},
+  ): PgDriver {
+    return new PgDriver(
+      new pgLib.Pool({
+        connectionString,
+        ...poolOptions,
+        types: { getTypeParser: () => (v: string) => v },
+      }),
+    );
   }
 
-  private constructor(private pool: pg.Pool) {}
+  private constructor(private pool: pgLib.Pool) {}
 
   async execute({ text, values }: CompiledSql): Promise<QueryResult> {
     return this.pool.query(text, values as unknown[]);
