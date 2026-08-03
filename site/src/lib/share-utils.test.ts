@@ -16,10 +16,13 @@ describe("Share Utils", () => {
     it("should handle medium code snippets", () => {
       const code = `
 import { typegres } from 'typegres';
+import { PgliteDriver } from 'typegres/drivers/pglite';
+
+const db = typegres();
+const conn = db.connect(await PgliteDriver.create());
 
 async function main() {
-  const db = await typegres({ type: 'pglite' });
-  
+
   const users = await db.sql\`
     SELECT id, name, email
     FROM users
@@ -122,11 +125,14 @@ const nested = \`Template \${literal} with \\\`backticks\\\`\`;
     it("should keep URLs under 2000 characters for typical code", () => {
       const typicalCode = `
 import { typegres } from 'typegres';
+import { PgliteDriver } from 'typegres/drivers/pglite';
 import { Users, Posts, Comments } from './schema';
 
+const db = typegres();
+const conn = db.connect(await PgliteDriver.create());
+
 async function main() {
-  const db = await typegres({ type: 'pglite' });
-  
+
   // Get users with their post count
   const usersWithPosts = await db
     .select('u.id', 'u.name', 'u.email')

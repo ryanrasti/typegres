@@ -2,8 +2,8 @@
 // that needs the live PGlite-backed `client`. Splitting it out of
 // _PlayPageInner means the shell (header / Monaco editor / file
 // tree) can render before runtime.ts finishes its top-level
-// `await typegres({ type: "pglite" })`. Suspense in the parent
-// shows a "booting" placeholder during that ~1-2s wait.
+// `await PgliteDriver.create()`. Suspense in the parent shows a
+// "booting" placeholder during that ~1-2s wait.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as monaco from "monaco-editor";

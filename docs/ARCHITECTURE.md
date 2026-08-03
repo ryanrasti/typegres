@@ -54,34 +54,60 @@ place, in one language.
 
 ## Runtime architecture
 
-### `Driver` vs `Database`
+### `Driver` vs `Database` vs `Connection`
 
-- `Driver` is the low-level connection layer (`PgDriver`, `PgliteDriver`).
-  It exposes `execute(sql)`, `runInSingleConnection(fn)`, `close()`.
-- `Database` is the typed query surface on top — what user code interacts
-  with. It holds a `Driver` and a query/hydrate/transaction API.
+- `Driver` is the low-level connection layer (`PgDriver`, `PgliteDriver`,
+  `SqliteDriver`, `DoSqliteDriver`). It exposes `execute(sql)`,
+  `runInSingleConnection(fn)`, `close()`, and a `dialect`. Each lives at its
+  own entry point (`typegres/drivers/*`) so a bundle only ever resolves the
+  optional peer it actually imports.
+- `Database` is the schema handle: provenance identity and the `Table`
+  factory, no driver of its own. `typegres()` constructs one synchronously,
+  so table classes can be declared at module load without a top-level await.
+- `Connection` is the runtime handle — a `Database` plus a `Driver`, with
+  the execute/hydrate/transaction/live API. `db.connect(driver)` mints one.
 
-### Single-class Database, two states
+`connect` is synchronous for every driver but PGlite, whose `create()` boots
+WASM and is awaited by the caller. Multiple `connect` calls are allowed (test
++ prod, worker pools, read replicas, database-per-tenant); they share the
+schema provenance but talk to independent drivers.
 
-A `Database` is either **pool-backed** (every execute routes through the
+The dialect belongs to the driver, not the schema. `db.dialect` is a
+passthrough to the first driver ever connected — reading it before any
+`connect` throws rather than defaulting, since the dialect gates SQL
+rendering and builder-time checks. A later `connect` whose driver disagrees
+is rejected: the schema classes compiled against one dialect.
+
+With exactly one pool-backed connection (the Durable Object model),
+`db.defaultConnection` makes it implicit — terminators like `.execute()` and
+`.live()` take no argument. Zero or several attached is ambiguous and throws,
+so a `Connection` must be passed explicitly.
+
+### Single-class Connection, two states
+
+A `Connection` is either **pool-backed** (every execute routes through the
 driver's pool) or **transaction-bound** (carries a single-connection
-`ExecuteFn`). Both are instances of the same class. `transaction(fn)` hands
-the callback a transaction-bound `Database`:
+`ExecuteFn` and no bus of its own). Both are instances of the same class.
+`transaction(fn)` hands the callback a transaction-bound `Connection`:
 
 ```ts
-await db.transaction(async (tx) => {
+await conn.transaction(async (tx) => {
     await tx.execute(User.insert(...));
     await User.from().execute(tx); // fluent form
 });
 ```
 
 There is no `AsyncLocalStorage` threading ambient context — the `tx` is
-passed explicitly. Nested calls flatten because `Transaction.transaction(fn) =
-fn(this)`, so callees that accept a `Database` don't have to know whether
-they're getting the pool or a txn.
+passed explicitly. Nested calls flatten because `transaction(fn) = fn(this)`,
+so callees that accept a `Connection` don't have to know whether they're
+getting the pool or a txn.
 
-Transactions use pg's default isolation. No stricter level is imposed by the
-framework.
+Transactions default to the session's ambient isolation. `transaction({
+isolation }, fn)` picks a level explicitly (pg only — sqlite transactions are
+serializable by nature). Since pg can't promote isolation after the first
+query, a nested request stronger than the active level throws rather than
+silently downgrading, and any explicit level nested inside an ambient txn
+throws too — we can't prove what the outer one got.
 
 ### Query builders and terminators
 
@@ -96,9 +122,10 @@ type level.
   scope minted by `bind()`. Aliases are ephemeral to compilation, never
   stored on classes, so client code can't fabricate references to tables
   or rows outside the scope it was handed.
-- `.execute(db)`, `.hydrate(db)`, `.one(db)`, `.maybeOne(db)` are fluent
-  terminators that accept any `Database` (pool or tx); `db.execute(...)` /
-  `db.hydrate(...)` are the non-fluent equivalents.
+- `.execute(conn)`, `.hydrate(conn)`, `.one(conn)`, `.maybeOne(conn)`,
+  `.live(conn)` are fluent terminators that accept any `Connection` (pool or
+  tx), or none at all to use `db.defaultConnection`; `conn.execute(...)` /
+  `conn.hydrate(...)` are the non-fluent equivalents.
 
 `hydrate` materializes rows as class instances — each column field is an
 `Any` wrapping a `CAST(param)` of the value, so methods on the class
@@ -107,26 +134,35 @@ without breaking the capability chain.
 
 ## Type system
 
-All Postgres types are represented as TS classes. Functions are methods on
+Each dialect's types are represented as TS classes. Functions are methods on
 those classes. Nullability is tracked in the `N extends number` type
 parameter (`0 = null`, `1 = non-null`, `0 | 1 = maybe null`).
 
-Full hierarchy: `Any` → `Anycompatible` → `Anyelement` → `Anynonarray` →
-concrete types. Generic container types (`Anyarray<T>`, `Anyrange<T>`) wire
-through `.of()`.
+The Postgres hierarchy: `Any` → `Anycompatible` → `Anyelement` →
+`Anynonarray` → concrete types. Generic container types (`Anyarray<T>`,
+`Anyrange<T>`) wire through `.of()`. SQLite has the same shape over its six
+storage classes (`Any`, `Integer`, `Real`, `Text`, `Blob`, `Bool`).
 
 ## Codegen
 
-Types under `src/types/generated/` are generated from the pg catalog
-(`pg_type`, `pg_proc`, `pg_operator`) via pglite introspection:
+Both dialects emit through the same emitter (`src/types/emission/`); they
+differ only in where the facts come from:
+
+- `src/types/postgres/generated/` — introspected from the pg catalog
+  (`pg_type`, `pg_proc`, `pg_operator`) via pglite.
+- `src/types/sqlite/generated/` — derived from committed per-page facts
+  extracted from the SQLite docs, since SQLite has no catalog to query.
+  `signatures.verify.test.ts` checks every claim against the real engine and
+  gates on completeness: each `pragma_function_list` entry is either covered
+  by the facts or explicitly excluded.
 
 ```
 npm run codegen
 ```
 
-The generated files are committed. `npm run codegen:check` regenerates into
-a temp dir and diffs against the committed copies — CI runs this to catch
-drift between the pg version and the checked-in output.
+The generated files are committed. `npm run codegen:check` regenerates both
+trees into a temp dir and diffs against the committed copies — CI runs this
+to catch drift between the engines and the checked-in output.
 
 Table codegen is separate: `npx tg generate` introspects a user's schema and
 writes typed Table files into their project (uses `typegres.config.ts`).
@@ -134,8 +170,14 @@ writes typed Table files into their project (uses `typegres.config.ts`).
 ## Raw SQL
 
 `sql` is the escape hatch — a tagged template returning an immutable `Sql`
-builder. Supports `sql.param`, `sql.raw`, `sql.ident`, `sql.join`. Fragments
-compose via template nesting. Compiles to pg (`$1`) or sqlite (`?`) style.
+builder. Supports `sql.param`, `sql.raw`, `sql.join`. Fragments compose via
+template nesting. Compiles to pg (`$1`) or sqlite (`?`) style.
+
+Schema-referencing identifiers go through `db.scopedIdent(name)` rather than
+a bare `sql.ident` helper: an `Ident` must carry its `Database` to survive the
+compile-time provenance check. The `Ident` class is exported for
+library-internal callers that construct untagged identifiers inline (CTE
+aliases, output column labels).
 
 ## Development environment
 
