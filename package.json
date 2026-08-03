@@ -84,7 +84,7 @@
     "format": "prettier --write src",
     "test": "vitest run",
     "check": "npm run lint && npm run typecheck && npm run test && npm run check-examples",
-    "check-examples": "npm --prefix examples/basic run check && npm --prefix examples/chat run check",
+    "check-examples": "npm --prefix examples/basic run check && npm --prefix examples/sqlite run check && npm --prefix examples/chat run check",
     "test:do": "vitest run --project workerd"
   },
   "devDependencies": {
