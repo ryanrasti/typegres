@@ -1,4 +1,4 @@
-import { Connection, sql, expose } from "typegres";
+import { Relation, Connection, sql, expose } from "typegres";
 import { Int8, Text } from "typegres/postgres";
 import { z } from "zod";
 import { db } from "../runtime";
@@ -7,16 +7,16 @@ import { Organizations } from "./organizations";
 import { OrderLines } from "./order_lines";
 export class InventoryPositions extends db.Table("inventory_positions", { live: true }) {
   // @generated-start
-  @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
-  @expose() organization_id = (Int8<1>).column({ nonNull: true });
-  @expose() location_id = (Int8<1>).column({ nonNull: true });
-  @expose() sku = (Text<1>).column({ nonNull: true });
-  @expose() on_hand = (Int8<1>).column({ nonNull: true, default: sql`0` });
-  @expose() reserved = (Int8<1>).column({ nonNull: true, default: sql`0` });
+  @expose() id = Int8.column({ nonNull: true, generated: true });
+  @expose() organization_id = Int8.column({ nonNull: true });
+  @expose() location_id = Int8.column({ nonNull: true });
+  @expose() sku = Text.column({ nonNull: true });
+  @expose() on_hand = Int8.column({ nonNull: true, default: sql`0` });
+  @expose() reserved = Int8.column({ nonNull: true, default: sql`0` });
   // relations
-  @expose() location() { return Locations.scope(InventoryPositions.contextOf(this)).where(({ locations }) => locations.id["="](this.location_id)).cardinality("one"); }
-  @expose() organization() { return Organizations.scope(InventoryPositions.contextOf(this)).where(({ organizations }) => organizations.id["="](this.organization_id)).cardinality("one"); }
-  @expose() order_lines() { return OrderLines.scope(InventoryPositions.contextOf(this)).where(({ order_lines }) => order_lines.inventory_position_id["="](this.id)).cardinality("many"); }
+  @expose() location() { return Relation.belongsTo(this, Locations, { id: this.location_id }); }
+  @expose() organization() { return Relation.belongsTo(this, Organizations, { id: this.organization_id }); }
+  @expose() order_lines() { return Relation.has(this, OrderLines, { inventory_position_id: this.id }); }
   // @generated-end
 
   // inventory_control-only: adjust on_hand by a signed delta.

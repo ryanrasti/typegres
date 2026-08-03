@@ -1,4 +1,4 @@
-import { Connection, sql, expose } from "typegres";
+import { Relation, Connection, sql, expose } from "typegres";
 import { Int8, Text, Timestamptz } from "typegres/postgres";
 import { z } from "zod";
 import { db } from "../runtime";
@@ -9,18 +9,18 @@ import { Shipments } from "./shipments";
 
 export class Orders extends db.Table("orders", { live: true }) {
   // @generated-start
-  @expose() id = (Int8<1>).column({ nonNull: true, generated: true });
-  @expose() organization_id = (Int8<1>).column({ nonNull: true });
-  @expose() customer_id = (Int8<1>).column({ nonNull: true });
-  @expose() status = (Text<1>).column({ nonNull: true, default: sql`'draft'::text` });
-  @expose() priority = (Int8<1>).column({ nonNull: true, default: sql`0` });
-  @expose() ship_by = (Timestamptz<0 | 1>).column();
-  @expose() created_at = (Timestamptz<1>).column({ nonNull: true, default: sql`now()` });
+  @expose() id = Int8.column({ nonNull: true, generated: true });
+  @expose() organization_id = Int8.column({ nonNull: true });
+  @expose() customer_id = Int8.column({ nonNull: true });
+  @expose() status = Text.column({ nonNull: true, default: sql`'draft'::text` });
+  @expose() priority = Int8.column({ nonNull: true, default: sql`0` });
+  @expose() ship_by = Timestamptz.column();
+  @expose() created_at = Timestamptz.column({ nonNull: true, default: sql`now()` });
   // relations
-  @expose() customer() { return Customers.scope(Orders.contextOf(this)).where(({ customers }) => customers.id["="](this.customer_id)).cardinality("one"); }
-  @expose() organization() { return Organizations.scope(Orders.contextOf(this)).where(({ organizations }) => organizations.id["="](this.organization_id)).cardinality("one"); }
-  @expose() order_lines() { return OrderLines.scope(Orders.contextOf(this)).where(({ order_lines }) => order_lines.order_id["="](this.id)).cardinality("many"); }
-  @expose() shipments() { return Shipments.scope(Orders.contextOf(this)).where(({ shipments }) => shipments.order_id["="](this.id)).cardinality("many"); }
+  @expose() customer() { return Relation.belongsTo(this, Customers, { id: this.customer_id }); }
+  @expose() organization() { return Relation.belongsTo(this, Organizations, { id: this.organization_id }); }
+  @expose() order_lines() { return Relation.has(this, OrderLines, { order_id: this.id }); }
+  @expose() shipments() { return Relation.has(this, Shipments, { order_id: this.id }); }
   // @generated-end
 
   // ops_lead-only: advance this order one step along the lifecycle
