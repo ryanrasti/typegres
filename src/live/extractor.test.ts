@@ -1,12 +1,12 @@
 import { test, expect } from "vitest";
 import { Int8, Text } from "../types/postgres";
-import { Database } from "../database";
+import { compileOnlyDb } from "../test-helpers";
 import { sql } from "../builder/sql";
 import { expectSqlEqual } from "../test-helpers";
 
 // Local metadata Database — extractor tests don't execute queries, just
 // walk the tree, so no driver / conn needed.
-const db = new Database({ dialect: "postgres" });
+const db = compileOnlyDb("postgres");
 import { buildExtractor, materializePredicateSet, sortAliases, traverse } from "./extractor";
 
 class Users extends db.Table("users") {

@@ -1,5 +1,6 @@
 import { describe, test, expect, expectTypeOf, beforeAll } from "vitest";
 import { typegres, sql, expose } from "typegres";
+import { PgliteDriver } from "typegres/drivers/pglite";
 import { Int8, Text, Bool } from "typegres/postgres";
 import type { Connection, Database, QueryBuilder } from "typegres";
 
@@ -8,7 +9,8 @@ import type { Connection, Database, QueryBuilder } from "typegres";
 
 // Constructed at module load via typegres(); classes below reference
 // db.Table so their Idents carry provenance.
-const { db, conn } = await typegres({ type: "pglite" });
+const db = typegres();
+const conn = db.connect(await PgliteDriver.create());
 // Placeholder type usage to keep the imports referenced.
 const _typed: [Database, Connection] = [db, conn];
 

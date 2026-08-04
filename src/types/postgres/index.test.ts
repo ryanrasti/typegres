@@ -9,15 +9,16 @@ import { PgDriver } from "../../drivers/pg";
 import { requireDatabaseUrl } from "../../pg";
 import type { Connection } from "../../database";
 import { Database } from "../../database";
+import { compileOnlyDb } from "../../test-helpers";
 
-const pgCtx = { database: new Database({ dialect: "postgres" }) };
+const pgCtx = { database: compileOnlyDb("postgres") };
 
 let exec: Connection;
 
 beforeAll(async () => {
-  const driver = await PgDriver.create(requireDatabaseUrl(), { max: 1 });
-  const localDb = new Database({ dialect: "postgres" });
-  exec = localDb.attach(driver);
+  const driver = PgDriver.create(requireDatabaseUrl(), { max: 1 });
+  const localDb = new Database();
+  exec = localDb.connect(driver);
 });
 
 afterAll(async () => {

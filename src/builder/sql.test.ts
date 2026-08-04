@@ -1,12 +1,12 @@
 import { test, expect } from "vitest";
 import { sql, compile, Ident } from "./sql";
-import { Database } from "../database";
+import { compileOnlyDb } from "../test-helpers";
 // Test-only shim: these unit tests exercise SQL emission without a real
 // Database. Untagged Idents (constructed via the library-internal `new
 // Ident(name)` path) still pass through — a wrapper for readability.
 const $ident = (name: string) => new Ident(name);
-const pgDb = new Database({ dialect: "postgres" });
-const sqliteDb = new Database({ dialect: "sqlite" });
+const pgDb = compileOnlyDb("postgres");
+const sqliteDb = compileOnlyDb("sqlite");
 const pgCtx = { database: pgDb };
 const sqliteCtx = { database: sqliteDb };
 

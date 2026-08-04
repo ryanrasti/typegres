@@ -4,6 +4,7 @@ import * as sqlite from "../types/sqlite";
 import type { InsertRow } from "../types/runtime";
 import { sql } from "./sql";
 import { typegres } from "../index";
+import { SqliteDriver } from "../drivers/sqlite";
 import { setupDb, db, withinTransaction } from "../test-helpers";
 setupDb();
 
@@ -147,7 +148,8 @@ test("postgres: column provided in some rows but not others → DEFAULT keyword 
 });
 
 test("sqlite: pruning defers to rowid autoincrement and declared defaults", async () => {
-  const { db: sdb, conn } = await typegres({ type: "sqlite" });
+  const sdb = typegres();
+  const conn = sdb.connect(SqliteDriver.create(":memory:"));
   try {
     await conn.execute(sql.raw(`CREATE TABLE tagged (
       id INTEGER PRIMARY KEY,
@@ -173,7 +175,8 @@ test("sqlite: pruning defers to rowid autoincrement and declared defaults", asyn
 });
 
 test("sqlite: heterogeneous rows raise instead of silently inserting NULL", async () => {
-  const { db: sdb, conn } = await typegres({ type: "sqlite" });
+  const sdb = typegres();
+  const conn = sdb.connect(SqliteDriver.create(":memory:"));
   try {
     await conn.execute(sql.raw(`CREATE TABLE mixed (
       id INTEGER PRIMARY KEY,

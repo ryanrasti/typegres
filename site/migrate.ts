@@ -4,16 +4,17 @@
 // source of truth for the schema.
 
 import { typegres } from "typegres";
+import { PgDriver } from "typegres/drivers/pg";
 import { runMigrations } from "./src/demo/seed.ts";
 
-const db = await typegres({
-  type: "pg",
-  connectionString: process.env["DATABASE_URL"] ?? "postgres://localhost/postgres",
-});
+const db = typegres();
+const conn = db.connect(
+  PgDriver.create(process.env["DATABASE_URL"] ?? "postgres://localhost/postgres"),
+);
 
 console.log("Applying migrations...");
-// `db` here is `Database<undefined>` (no principal type plumbed
-// through `typegres({ type: "pg" })`); runMigrations only uses
-// .execute, so the cast through unknown is safe.
-await runMigrations(db as unknown as Parameters<typeof runMigrations>[0]);
+// `conn` here is `Connection<undefined>` (no principal type plumbed
+// through a bare `typegres()`); runMigrations only uses .execute, so the
+// cast through unknown is safe.
+await runMigrations(conn as unknown as Parameters<typeof runMigrations>[0]);
 console.log("Done.");

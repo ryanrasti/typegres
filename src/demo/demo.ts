@@ -1,7 +1,9 @@
 import { typegres, sql } from "typegres";
+import { PgliteDriver } from "typegres/drivers/pglite";
 import { Int8, Text } from "typegres/postgres";
 
-const { db, conn } = await typegres({ type: "pglite" });
+const db = typegres();
+const conn = db.connect(await PgliteDriver.create());
 
 // ------------------------------------
 // Set up a tiny schema + seed data.

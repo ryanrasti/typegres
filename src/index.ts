@@ -22,39 +22,27 @@ export type { RawChannel } from "./exoeval/rpc";
 export type { Config } from "./config";
 export type { Driver, SyncDriver, ExecuteFn, ExecuteSyncFn, QueryResult } from "./drivers/types";
 
-import type { Connection } from "./database";
 import { Database } from "./database";
-import type { Driver } from "./drivers/types";
-import type { DialectName } from "./builder/sql";
 
-// Convenience factory for scripts / playground. Drivers are loaded via
-// dynamic import so a static `import { Database } from "typegres"` does not
-// pull optional peers into Worker bundles that never call typegres().
-export const typegres = async <C = undefined>(
-  opts:
-    | { type: "pglite" }
-    | { type: "pg"; connectionString: string }
-    | { type: "sqlite"; filename?: string },
-): Promise<{ db: Database<C>; conn: Connection<C> }> => {
-  let driver: Driver;
-  let dialect: DialectName;
-  if (opts.type === "pglite") {
-    // eslint-disable-next-line no-restricted-syntax -- optional peer path
-    const { PgliteDriver } = await import("./drivers/pglite");
-    driver = await PgliteDriver.create();
-    dialect = "postgres";
-  } else if (opts.type === "pg") {
-    // eslint-disable-next-line no-restricted-syntax -- optional peer path
-    const { PgDriver } = await import("./drivers/pg");
-    driver = await PgDriver.create(opts.connectionString);
-    dialect = "postgres";
-  } else {
-    // eslint-disable-next-line no-restricted-syntax -- optional peer path
-    const { SqliteDriver } = await import("./drivers/sqlite");
-    driver = await SqliteDriver.create(opts.filename ?? ":memory:");
-    dialect = "sqlite";
-  }
-  const db = new Database<C>({ dialect });
-  const conn = db.attach(driver);
-  return { db, conn };
-};
+/**
+ * The entry point: a synchronous, module-load-safe schema handle.
+ *
+ *   import { typegres } from "typegres";
+ *   import { SqliteDriver } from "typegres/drivers/sqlite";
+ *
+ *   const db = typegres();
+ *   db.connect(SqliteDriver.create("dev.db"));
+ *
+ *   class Users extends db.Table("users") { … }
+ *
+ * Synchronous by design: table classes are declared at module scope
+ * against `db`, so making this async would force top-level await through
+ * every module that defines a table. Backends arrive later via
+ * `db.connect(driver)`, with the driver imported from `typegres/drivers/*`
+ * — an explicit import keeps optional peers out of bundles that don't use
+ * them, and keeps `connect` synchronous for every driver but PGlite.
+ *
+ * No arguments: the driver is the source of truth for the dialect, so the
+ * backend is named exactly once, where the driver is built.
+ */
+export const typegres = <C = undefined>(): Database<C> => new Database<C>();

@@ -21,7 +21,7 @@ import { Integer, Text } from "../types/sqlite";
 import { expose } from "../exoeval/tool";
 import { RpcClient, inMemoryChannel } from "../exoeval/rpc";
 
-const db = new Database({ dialect: "sqlite" });
+const db = new Database();
 
 class Notes extends db.Table("notes", { live: true }) {
   @expose() id = Integer.column({ nonNull: true });
@@ -41,7 +41,7 @@ class Api {
 
 let conn: Connection;
 beforeAll(async () => {
-  conn = db.attach(await SqliteDriver.create(":memory:"));
+  conn = db.connect(SqliteDriver.create(":memory:"));
   await conn.execute(
     sql`CREATE TABLE notes (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, body TEXT NOT NULL)`,
   );

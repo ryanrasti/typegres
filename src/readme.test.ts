@@ -4,6 +4,11 @@
 // init signature, decorator semantics) fails this test in CI before the
 // README ever gets to a reader.
 //
+// The snippet is fully self-contained: it spins up an in-memory SQLite
+// database, creates its own table, inserts, and queries — so this test
+// needs no database fixture at all. That's the point of the snippet:
+// `npm install`, paste, run.
+//
 // Two install modes:
 //   - working-tree (default): `npm install file:<repo>`, which packs the
 //     local repo internally and honors the package.json `files`
@@ -26,22 +31,17 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as swc from "@swc/core";
-import { sql } from "./builder/sql";
-import { setupDb, conn } from "./test-helpers";
-import { requireDatabaseUrl } from "./pg";
 
 const execFileP = promisify(execFile);
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const README_PATH = path.join(REPO_ROOT, "README.md");
-
-setupDb();
 
 type InstallMode = "working-tree" | "registry";
 
 const runReadmeUsage = async (mode: InstallMode): Promise<void> => {
   const readme = fs.readFileSync(README_PATH, "utf8");
   // Scope to the Usage section so we don't pick up code blocks from
-  // other sections (Development, Status, etc.).
+  // other sections (Backends, Development, etc.).
   const usageSection = /## Usage[\s\S]*?(?=\n## |$)/.exec(readme)?.[0] ?? "";
   const bashSnippet = /```bash\n([\s\S]*?)```/.exec(usageSection)?.[1]?.trim();
   const tsSnippet = /```typescript\n([\s\S]*?)```/.exec(usageSection)?.[1];
@@ -58,76 +58,58 @@ const runReadmeUsage = async (mode: InstallMode): Promise<void> => {
   }
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), `typegres-readme-${mode}-`));
-  try {
-    fs.writeFileSync(
-      path.join(tmpDir, "package.json"),
-      JSON.stringify({ name: "readme-test", type: "module", private: true }),
-    );
 
-    // working-tree: file: reference to the repo. npm packs the local
-    // directory using the `files` manifest internally — same effect as
-    // `npm pack && npm install <tarball>`, no tarball management.
-    // registry: install verbatim from npm.
-    //
-    // Flags shave ~3-5s off install: skip the security audit (we're a
-    // disposable tmp dir), skip funding messages, prefer the offline
-    // cache before hitting the registry.
-    const installCmd = (
-      mode === "working-tree"
-        ? bashSnippet.replace(/\btypegres\b/, JSON.stringify(`file:${REPO_ROOT}`))
-        : bashSnippet
-    ).replace(/\bnpm install\b/, `npm install --no-audit --no-fund ${mode === 'working-tree' ? '--prefer-offline' : ''}`);
-    await execFileP("sh", ["-c", installCmd], { cwd: tmpDir });
+  fs.writeFileSync(
+    path.join(tmpDir, "package.json"),
+    JSON.stringify({ name: "readme-test", type: "module", private: true }),
+  );
 
-    // Compile the snippet via swc — handles stage-3 decorators that
-    // node's strip-types alone can't transform.
-    const compiled = await swc.transform(tsSnippet, {
-      filename: "main.ts",
-      jsc: {
-        target: "es2022",
-        parser: { syntax: "typescript", decorators: true },
-        transform: { decoratorVersion: "2022-03" },
-      },
-      module: { type: "es6" },
-      isModule: true,
-    });
-    fs.writeFileSync(path.join(tmpDir, "main.mjs"), compiled.code);
+  // working-tree: file: reference to the repo. npm packs the local
+  // directory using the `files` manifest internally — same effect as
+  // `npm pack && npm install <tarball>`, no tarball management.
+  // registry: install verbatim from npm.
+  //
+  // Flags shave ~3-5s off install: skip the security audit (we're a
+  // disposable tmp dir), skip funding messages, prefer the offline
+  // cache before hitting the registry.
+  const installCmd = (
+    mode === "working-tree"
+      ? bashSnippet.replace(/\btypegres\b/, JSON.stringify(`file:${REPO_ROOT}`))
+      : bashSnippet
+  ).replace(
+    /\bnpm install\b/,
+    `npm install --no-audit --no-fund ${mode === "working-tree" ? "--prefer-offline" : ""}`,
+  );
+  await execFileP("sh", ["-c", installCmd], { cwd: tmpDir });
 
-    // Seed the per-worker schema with what the snippet expects.
-    await conn.execute(sql`CREATE TABLE users (
-      id         int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-      first_name text NOT NULL,
-      last_name  text NOT NULL
-    )`);
-    await conn.execute(sql`INSERT INTO users (first_name, last_name) VALUES
-      ('Alice', 'Smith'),
-      ('Bob', 'Jones')`);
+  // Compile the snippet via swc — handles stage-3 decorators that
+  // node's strip-types alone can't transform.
+  const compiled = await swc.transform(tsSnippet, {
+    filename: "main.ts",
+    jsc: {
+      target: "es2022",
+      parser: { syntax: "typescript", decorators: true },
+      transform: { decoratorVersion: "2022-03" },
+    },
+    module: { type: "es6" },
+    isModule: true,
+  });
+  fs.writeFileSync(path.join(tmpDir, "main.mjs"), compiled.code);
 
-    // Same DB; PGOPTIONS pins search_path to the worker schema so bare
-    // `users` resolves into the test's namespace.
-    const schema = `test_w${process.env["VITEST_WORKER_ID"] ?? "1"}`;
-    const { stdout } = await execFileP("node", ["main.mjs"], {
-      cwd: tmpDir,
-      env: {
-        ...process.env,
-        DATABASE_URL: requireDatabaseUrl(),
-        PGOPTIONS: `-csearch_path=${schema}`,
-      },
-    });
+  const { stdout } = await execFileP("node", ["main.mjs"], { cwd: tmpDir });
 
-    expect(stdout).toContain("Alice Smith");
-    expect(stdout).toContain("Bob Jones");
-  } finally {
-    await conn.execute(sql`DROP TABLE IF EXISTS users`).catch(() => {});
-  }
-  // Only delete the temp dir if everything succeeded:
+  expect(stdout).toContain("Alice Smith");
+  expect(stdout).toContain("Bob Jones");
+
+  // Only delete the temp dir if everything succeeded — leave it behind
+  // for debugging on failure.
   fs.rmSync(tmpDir, { recursive: true, force: true });
 };
 
 test(
   "README.md Usage snippet — working tree (file:)",
   () => runReadmeUsage("working-tree"),
-  30_000, // typical: ~2s; generous for slow npm cache misses.
+  60_000, // typical: ~5s; generous for better-sqlite3 prebuilt download on cache misses.
 );
 
 // Registry mode: opt-in via env var. Tests the currently-published

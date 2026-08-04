@@ -1,10 +1,13 @@
+import { PGlite } from "@electric-sql/pglite";
 import type { CompiledSql } from "../builder/sql";
 import type { DialectName } from "../builder/sql";
 import type { Driver, ExecuteFn, QueryResult } from "./types";
 
 // pglite adapter — returns raw text strings (no driver-side deserialization).
-// `@electric-sql/pglite` is an optional peer. Dynamic import keeps it out of
-// bundles that don't need it.
+// `@electric-sql/pglite` is an optional peer, imported statically because
+// this module only loads when the caller imports `typegres/drivers/pglite`.
+// Unlike the other drivers this one is genuinely async: booting the WASM
+// engine and reading pg_type to install raw-text parsers both need I/O.
 type PgliteDb = {
   query<R>(sql: string, params?: unknown[], opts?: { parsers: { [key: number]: (v: string) => string } }): Promise<{ rows: R[] }>;
   close(): Promise<void>;
@@ -14,8 +17,6 @@ export class PgliteDriver implements Driver {
   readonly dialect: DialectName = "postgres";
 
   static async create(): Promise<PgliteDriver> {
-    // eslint-disable-next-line no-restricted-syntax -- optional peer, see class comment
-    const { PGlite } = await import("@electric-sql/pglite");
     const db = new PGlite() as unknown as PgliteDb;
     // Query all type OIDs so we can override all parsers to return raw strings.
     const { rows: types } = await db.query<{ oid: number }>("SELECT oid FROM pg_type");

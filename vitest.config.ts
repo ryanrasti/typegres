@@ -15,6 +15,10 @@ const shared = {
     // Order matters — Vite matches aliases longest-first, so subpath
     // entries come before the bare `typegres` root.
     alias: {
+      "typegres/drivers/pglite": `${src}/drivers/pglite.ts`,
+      "typegres/drivers/sqlite": `${src}/drivers/sqlite.ts`,
+      "typegres/drivers/pg": `${src}/drivers/pg.ts`,
+      "typegres/drivers/do": `${src}/drivers/do.ts`,
       "typegres/postgres": `${src}/types/postgres/index.ts`,
       "typegres/sqlite": `${src}/types/sqlite/index.ts`,
       typegres: `${src}/index.ts`,

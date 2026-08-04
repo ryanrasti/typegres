@@ -36,9 +36,9 @@ const ISOLATION: { [K in TransactionIsolation]: { rank: number; begin: Sql } } =
   "serializable":    { rank: 2, begin: sql`BEGIN ISOLATION LEVEL SERIALIZABLE` },
 };
 
-// Immutable metadata handle: dialect + provenance identity, no driver.
-// Construction is synchronous and module-load-safe; call
-// `db.attach(driver)` to get a runtime `Connection`.
+// Provenance identity, no driver and no dialect of its own. Construction
+// is synchronous and module-load-safe; call `db.connect(driver)` to get a
+// runtime `Connection`.
 //
 // `C` is the per-app context (principal) type, threaded onto every
 // `db.Table(name)` and readable via `Table.scope(ctx)` / `contextOf(row)`.
@@ -47,14 +47,32 @@ const ISOLATION: { [K in TransactionIsolation]: { rank: number; begin: Sql } } =
 // write it explicitly (see `typegres<C>()` in index.ts).
 export class Database<C = any> {
   readonly name?: string;
-  readonly dialect: DialectName;
   // Pool-backed connections currently attached (transaction-bound
   // Connections are never registered). Basis for `defaultConnection`.
   readonly #attached: Connection<C>[] = [];
+  // The first driver ever connected — held for `dialect` alone, and
+  // deliberately not cleared on close: the schema classes were built
+  // against that dialect regardless of what is currently open. Held as
+  // the driver rather than a copied enum so the driver stays the single
+  // source of truth.
+  #dialectSource?: Driver;
 
-  constructor(opts: { dialect: DialectName; name?: string }) {
-    this.dialect = opts.dialect;
+  constructor(opts: { name?: string } = {}) {
     if (opts.name) { this.name = opts.name; }
+  }
+
+  // Passthrough to the first connected driver (`connect` rejects any later
+  // driver that disagrees, so which one is immaterial). Read before
+  // anything is connected means queries are being built with no backend —
+  // the dialect gates SQL rendering and builder-time checks (e.g. insert
+  // column-presence), so there is no sane default.
+  get dialect(): DialectName {
+    if (!this.#dialectSource) {
+      throw new Error(
+        "dialect is not known yet — call db.connect(driver) before building queries.",
+      );
+    }
+    return this.#dialectSource.dialect;
   }
 
   // Provenance-tagged identifier factory. The only way to construct a
@@ -73,19 +91,30 @@ export class Database<C = any> {
   public Table = <Name extends string, LocalC = C>(name: Name, opts: TableOptions = {}) =>
     Table<Name, LocalC>(name, opts, this);
 
-  // Attach a driver → get a runtime Connection. Multiple `attach` calls
-  // are allowed (test + prod, worker pools, replicas) — Connections
-  // share the schema provenance but talk to independent drivers.
+  // Connect a driver → get a runtime Connection. Synchronous: every driver
+  // but PGlite builds without I/O, and that one is awaited by the caller
+  // (`db.connect(await PgliteDriver.create())`), so the async-ness stays
+  // with the driver instead of infecting this API.
+  //
+  // Multiple `connect` calls are allowed (test + prod, worker pools, read
+  // replicas, database-per-tenant) — Connections share the schema
+  // provenance but talk to independent drivers, and must agree on dialect
+  // since the schema classes compile to one. Single-connection apps can
+  // ignore the return value and rely on `defaultConnection`.
   //
   // The live engine is wired here too: sqlite capture is active from the
   // start; the pg poller spins up lazily on first .live() use. `liveOpts`
   // configures the pg bus (poll cadence, backfill window).
-  attach(driver: Driver, liveOpts?: BusOptions): Connection<C> {
-    if (driver.dialect !== this.dialect) {
+  connect(driver: Driver, liveOpts?: BusOptions): Connection<C> {
+    const source = this.#dialectSource;
+    if (source && driver.dialect !== source.dialect) {
       throw new Error(
-        `Driver dialect '${driver.dialect}' does not match Database dialect '${this.dialect}'.`,
+        `Driver dialect '${driver.dialect}' does not match the '${source.dialect}' driver already connected.`,
       );
     }
+    // Set before constructing the Connection — its constructor reads
+    // `database.dialect` to pick a live executor.
+    this.#dialectSource ??= driver;
     const conn = new Connection<C>(this, driver, undefined, undefined, liveOpts);
     this.#attached.push(conn);
     return conn;
@@ -105,7 +134,7 @@ export class Database<C = any> {
     }
     throw new Error(
       this.#attached.length === 0
-        ? "defaultConnection: no connection attached — call db.attach(driver) first"
+        ? "defaultConnection: no connection attached — call db.connect(driver) first"
         : `defaultConnection: ${this.#attached.length} connections attached — pass one explicitly`,
     );
   }
@@ -144,7 +173,7 @@ export class Database<C = any> {
 }
 
 // Runtime handle: has a driver, executes queries. Constructed via
-// `db.attach(driver)`. `.transaction()` mints a txn-bound Connection
+// `db.connect(driver)`. `.transaction()` mints a txn-bound Connection
 // sharing the same driver + Database. `.close()` stops the live bus and
 // closes the driver.
 export class Connection<C = undefined> {

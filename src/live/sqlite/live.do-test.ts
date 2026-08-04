@@ -10,7 +10,7 @@ import { DoSqliteDriver } from "../../drivers/do";
 import { sql } from "../../builder/sql";
 import { Integer, Text } from "../../types/sqlite";
 
-const db = new Database({ dialect: "sqlite" });
+const db = new Database();
 
 class Notes extends db.Table("notes", { live: true }) {
   id = Integer.column({ nonNull: true });
@@ -27,7 +27,7 @@ const takeNext = async <T>(iter: AsyncIterator<T>): Promise<T> => {
 test("live insert/update/delete round-trip on real DO SqlStorage", async () => {
   const stub = env.TEST_DO.getByName("live-round-trip");
   await runInDurableObject(stub, async (_instance, state) => {
-    const conn = db.attach(new DoSqliteDriver(state.storage));
+    const conn = db.connect(DoSqliteDriver.create(state.storage));
     await conn.execute(sql`CREATE TABLE notes (
       id INTEGER PRIMARY KEY,
       user_id INTEGER NOT NULL,
@@ -64,7 +64,7 @@ test("live insert/update/delete round-trip on real DO SqlStorage", async () => {
 test("transaction: buffered events flush at COMMIT on real DO", async () => {
   const stub = env.TEST_DO.getByName("live-tx");
   await runInDurableObject(stub, async (_instance, state) => {
-    const conn = db.attach(new DoSqliteDriver(state.storage));
+    const conn = db.connect(DoSqliteDriver.create(state.storage));
     await conn.execute(sql`CREATE TABLE notes (
       id INTEGER PRIMARY KEY,
       user_id INTEGER NOT NULL,

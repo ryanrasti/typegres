@@ -16,7 +16,7 @@ export interface DoStorageLike {
 }
 
 // typegres Driver over a Durable Object's SQLite storage:
-//   const conn = db.attach(new DoSqliteDriver(ctx.storage));
+//   const conn = db.connect(DoSqliteDriver.create(ctx.storage));
 // No node-only peer imports — safe to bundle into workerd.
 //
 // Contract notes:
@@ -33,7 +33,11 @@ export class DoSqliteDriver implements SyncDriver {
     return this.#liveSeq;
   }
 
-  constructor(private readonly storage: DoStorageLike) {}
+  static create(storage: DoStorageLike): DoSqliteDriver {
+    return new DoSqliteDriver(storage);
+  }
+
+  private constructor(private readonly storage: DoStorageLike) {}
 
   execute: ExecuteFn = (compiled: CompiledSql): Promise<QueryResult> =>
     Promise.resolve(this.executeSync(compiled));

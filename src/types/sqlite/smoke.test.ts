@@ -20,9 +20,9 @@ let db: Database;
 let conn: Connection;
 
 beforeAll(async () => {
-  driver = await SqliteDriver.create(":memory:");
-  db = new Database({ dialect: "sqlite" });
-  conn = db.attach(driver);
+  driver = SqliteDriver.create(":memory:");
+  db = new Database();
+  conn = db.connect(driver);
 });
 
 afterAll(async () => {

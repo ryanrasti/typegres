@@ -1,12 +1,14 @@
 import type { CompiledSql } from "../builder/sql";
 import type { DialectName } from "../builder/sql";
-import type BetterSqlite3 from "better-sqlite3";
+import BetterSqlite3 from "better-sqlite3";
 import type { ExecuteSyncFn, QueryResult, SyncDriver } from "./types";
 import { normalizeRow, stripMatchedOuterParens } from "./shared-sqlite";
 
 // better-sqlite3 adapter. Synchronous under the hood; wrapped in
 // Promise.resolve for the async Driver contract. `better-sqlite3` is an
-// optional peer (see package.json).
+// optional peer (see package.json) — imported statically because this
+// module only loads when the caller imports `typegres/drivers/sqlite`,
+// so bundles that never touch SQLite never resolve the peer.
 export class SqliteDriver implements SyncDriver {
   readonly dialect: DialectName = "sqlite";
 
@@ -15,14 +17,11 @@ export class SqliteDriver implements SyncDriver {
     return this.#liveSeq;
   }
 
-  static async create(
+  static create(
     filename: string = ":memory:",
     options: BetterSqlite3.Options = {},
-  ): Promise<SqliteDriver> {
-    // eslint-disable-next-line no-restricted-syntax -- optional peer, matches PgDriver/PgliteDriver pattern
-    const mod = (await import("better-sqlite3")).default;
-    const db = new mod(filename, options);
-    return new SqliteDriver(db);
+  ): SqliteDriver {
+    return new SqliteDriver(new BetterSqlite3(filename, options));
   }
 
   private constructor(private db: BetterSqlite3.Database) {}

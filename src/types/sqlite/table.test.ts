@@ -14,7 +14,7 @@ import { sql } from "../../builder/sql";
 import { expose } from "../../exoeval/tool";
 import { Integer, Text } from "./index";
 
-const db = new Database({ dialect: "sqlite" });
+const db = new Database();
 
 class Users extends db.Table("users") {
   @expose()
@@ -39,8 +39,8 @@ const withinTransaction = async (fn: (tx: Connection) => Promise<void>) => {
 };
 
 beforeAll(async () => {
-  driver = await SqliteDriver.create(":memory:");
-  conn = db.attach(driver);
+  driver = SqliteDriver.create(":memory:");
+  conn = db.connect(driver);
   await conn.execute(sql`CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)`);
 });
 
