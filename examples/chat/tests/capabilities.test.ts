@@ -9,8 +9,7 @@
 
 import { describe, test, expect, expectTypeOf, vi } from "vitest";
 import { SELF } from "cloudflare:test";
-import { newWebSocketRpcSession } from "capnweb";
-import { byRef, doRpc, type ShimStub } from "typegres/capnweb";
+import { newWebSocketRpcSession, byRef, doRpc, type ShimStub } from "typegres/capnweb";
 import type { Chat, Users, Rooms, Memberships } from "../worker/api";
 
 type Principal = InstanceType<ReturnType<typeof Users.forPrincipal>>;

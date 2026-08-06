@@ -66,6 +66,106 @@ For a complete scaffold with migrations + codegen, see the
 [examples](#examples). Or try it interactively at
 [typegres.com/play](https://typegres.com/play).
 
+## Clients compose the queries
+
+The class surface is the contract. A client composes against `@expose`-marked
+methods, the closure is serialized, and the server evaluates it under a
+constrained interpreter — so a client can write any query it likes, and still
+reach only what you exposed.
+
+```bash
+npm install typegres better-sqlite3 zod
+```
+
+```typescript
+import { typegres, expose, sql } from "typegres";
+import { doRpc, toRpc, newMessagePortRpcSession, type ShimStub } from "typegres/capnweb";
+import { SqliteDriver } from "typegres/drivers/sqlite";
+import { Integer, Text } from "typegres/sqlite";
+import z from "zod";
+
+const db = typegres();
+db.connect(SqliteDriver.create());
+
+await db.defaultConnection.execute(sql`CREATE TABLE users (
+  id         INTEGER PRIMARY KEY,
+  name       TEXT NOT NULL,
+  team_token TEXT NOT NULL
+)`);
+await db.defaultConnection.execute(sql`CREATE TABLE posts (
+  id      INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  body    TEXT NOT NULL
+)`);
+
+class Users extends db.Table("users") {
+  @expose() id = Integer.column({ nonNull: true, generated: true });
+  @expose() name = Text.column({ nonNull: true });
+  // No @expose: the server scopes on it, and no client query can select
+  // or filter by it.
+  team_token = Text.column({ nonNull: true });
+}
+
+class Posts extends db.Table("posts") {
+  @expose() id = Integer.column({ nonNull: true, generated: true });
+  @expose() user_id = Integer.column({ nonNull: true });
+  @expose() body = Text.column({ nonNull: true });
+}
+
+await Users.insert(
+  { name: "Alice", team_token: "t-acme" },
+  { name: "Bob", team_token: "t-acme" },
+  { name: "Carol", team_token: "t-other" }, // different team
+).execute();
+await Posts.insert(
+  { user_id: 1, body: "one" },
+  { user_id: 1, body: "two" },
+  { user_id: 2, body: "three" },
+  { user_id: 3, body: "not yours" },
+).execute();
+
+// The capability root — the entire surface a client can reach.
+class Api {
+  // Hands back a builder over one team's posts, already joined to authors.
+  // Everything the client writes is rooted here, so it can only narrow.
+  @expose(z.string())
+  feedFor(teamToken: string) {
+    return Posts.from()
+      .join(Users, ({ posts, users }) => posts.user_id.eq(users.id))
+      .where(({ users }) => users.team_token.eq(teamToken));
+  }
+}
+
+// Server and client, joined here by a MessagePort so this runs in one
+// process. `examples/chat` is the same two lines over a WebSocket.
+const { port1, port2 } = new MessageChannel();
+newMessagePortRpcSession(port1, toRpc(new Api()));
+const api = newMessagePortRpcSession<Api>(port2) as unknown as ShimStub<Api>;
+
+// "Top posters" — written on the client, evaluated on the server. There is
+// no endpoint for this: the client composed the group-by, the aggregate and
+// the ordering itself. The team scoping is baked into the builder, so the
+// refinement can only narrow it, and Carol's row never appears.
+const rows = await doRpc(api, (a) =>
+  a
+    .feedFor("t-acme")
+    .groupBy(({ users }) => [users.name])
+    .select(({ users, posts }) => ({ author: users.name, posts: posts.id.count() }))
+    .orderBy(({ posts }) => [posts.id.count(), "desc"])
+    .execute(),
+);
+
+console.log(rows);
+
+port1.close();
+port2.close();
+await db.defaultConnection.close();
+```
+
+Swap the MessagePort for `newWebSocketRpcSession` / `newWorkersRpcResponse` and
+the same code runs browser-to-server, with capabilities, promise pipelining,
+and live subscriptions — see [`examples/chat`](./examples/chat).
+
 ## Backends
 
 `typegres()` is a synchronous schema handle — no top-level await, so table
@@ -142,6 +242,18 @@ Deeper dive in [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
       constrained interpreter, and streamed back
 - [x] Cap'n Web transport (`typegres/capnweb`) — capabilities, promises, and
       live subscriptions over a single WebSocket
+
+> **Import Cap'n Web from `typegres/capnweb`, not from `capnweb`.** The
+> transport needs a fork that isn't published yet (closure serialization,
+> synchronous replay, `getLocalTarget` — see
+> [cloudflare/capnweb#162](https://github.com/cloudflare/capnweb/pull/162)),
+> so it ships bundled, and `typegres/capnweb` re-exports what you need:
+> `RpcTarget`, `RpcStub`, `newWebSocketRpcSession`, `newWorkersRpcResponse`.
+> Installing `capnweb` alongside it gives you a second copy whose
+> `RpcTarget`/`RpcStub` fail `instanceof` against the bundled one — which
+> surfaces as confusing RPC errors at the boundary rather than a clean
+> failure. When #162 lands, capnweb becomes an ordinary dependency and these
+> imports keep working unchanged.
 
 ## Planned
 

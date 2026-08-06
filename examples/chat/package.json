@@ -14,7 +14,6 @@
     "reset:local": "rm -rf .wrangler && echo 'local DO storage cleared — next dev/test re-runs migrations'"
   },
   "dependencies": {
-    "capnweb": "file:../../packages/capnweb",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "typegres": "file:../..",

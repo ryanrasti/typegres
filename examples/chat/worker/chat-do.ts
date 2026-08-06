@@ -1,6 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { newWorkersRpcResponse, type RpcTarget } from "capnweb";
-import { toRpc } from "typegres/capnweb";
+import { newWorkersRpcResponse, toRpc, type RpcTarget } from "typegres/capnweb";
 import { DoSqliteDriver } from "typegres/drivers/do";
 import type { Connection } from "typegres";
 import { db, Chat } from "./api";
