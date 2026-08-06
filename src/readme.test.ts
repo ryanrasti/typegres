@@ -10,10 +10,10 @@
 // `npm install`, paste, run.
 //
 // Two install modes:
-//   - working-tree (default): `npm install file:<repo>`, which packs the
-//     local repo internally and honors the package.json `files`
-//     manifest. Tests what the README *will* be when this code
-//     publishes — catches drift in PRs. Requires dist/ to be built.
+//   - working-tree (default): `npm pack` the repo and install the tarball.
+//     Tests what the README *will* be when this code publishes — both that
+//     the snippet runs and that the published artifact resolves. Requires
+//     dist/ to be built.
 //   - registry (TYPEGRES_README_TEST_REGISTRY=1): install `typegres`
 //     from npm. Tests what the README *currently is* for someone
 //     running it against the latest published version. Useful
@@ -38,23 +38,55 @@ const README_PATH = path.join(REPO_ROOT, "README.md");
 
 type InstallMode = "working-tree" | "registry";
 
-const runReadmeUsage = async (mode: InstallMode): Promise<void> => {
+// Working-tree mode installs a real tarball, not `file:${REPO_ROOT}`.
+//
+// That distinction is load-bearing. npm resolves a `file:` directory dep by
+// symlinking, and Node resolves through the symlink's real path — so the
+// consumer transitively sees the *repo's own* node_modules, and a dependency
+// the published package can't actually resolve still works. That is exactly
+// how `typegres/capnweb` shipped importable-but-unloadable while this suite
+// stayed green. Only a tarball install reproduces what a registry consumer
+// gets.
+//
+// Packed once and shared: `npm pack` costs a second or two, and every
+// section installs the same artifact.
+let packed: Promise<string> | undefined;
+const packTypegres = (): Promise<string> => {
+  packed ??= (async () => {
+    if (!fs.existsSync(path.join(REPO_ROOT, "dist", "index.mjs"))) {
+      throw new Error("working-tree mode needs dist/ — run `npm run build` first");
+    }
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "typegres-pack-"));
+    const { stdout } = await execFileP(
+      "npm",
+      ["pack", "--pack-destination", dir, "--silent"],
+      { cwd: REPO_ROOT },
+    );
+    return path.join(dir, stdout.trim().split("\n").pop()!);
+  })();
+  return packed;
+};
+
+// Each runnable README section owns an install line and a program, so a
+// section is testable in isolation and the install stays honest (the RPC
+// section needs zod; Usage doesn't).
+const runReadmeSection = async (
+  heading: string,
+  mode: InstallMode,
+  expected: string[],
+  unexpected: string[] = [],
+): Promise<void> => {
   const readme = fs.readFileSync(README_PATH, "utf8");
-  // Scope to the Usage section so we don't pick up code blocks from
-  // other sections (Backends, Development, etc.).
-  const usageSection = /## Usage[\s\S]*?(?=\n## |$)/.exec(readme)?.[0] ?? "";
-  const bashSnippet = /```bash\n([\s\S]*?)```/.exec(usageSection)?.[1]?.trim();
-  const tsSnippet = /```typescript\n([\s\S]*?)```/.exec(usageSection)?.[1];
+  // Scope to one section so we don't pick up code blocks from the others
+  // (Backends, Development, ...).
+  const section =
+    new RegExp(`## ${heading}[\\s\\S]*?(?=\\n## |$)`).exec(readme)?.[0] ?? "";
+  const bashSnippet = /```bash\n([\s\S]*?)```/.exec(section)?.[1]?.trim();
+  const tsSnippet = /```typescript\n([\s\S]*?)```/.exec(section)?.[1];
   if (!bashSnippet || !tsSnippet) {
     throw new Error(
-      "README: couldn't find both ```bash``` and ```typescript``` blocks under ## Usage",
+      `README: couldn't find both \`\`\`bash\`\`\` and \`\`\`typescript\`\`\` blocks under ## ${heading}`,
     );
-  }
-
-  // working-tree mode installs from the repo via a file: reference,
-  // which honors `files: ["dist"]` — so dist/ must be built.
-  if (mode === "working-tree" && !fs.existsSync(path.join(REPO_ROOT, "dist", "index.mjs"))) {
-    throw new Error("working-tree mode needs dist/ — run `npm run build` first");
   }
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), `typegres-readme-${mode}-`));
@@ -64,22 +96,22 @@ const runReadmeUsage = async (mode: InstallMode): Promise<void> => {
     JSON.stringify({ name: "readme-test", type: "module", private: true }),
   );
 
-  // working-tree: file: reference to the repo. npm packs the local
-  // directory using the `files` manifest internally — same effect as
-  // `npm pack && npm install <tarball>`, no tarball management.
-  // registry: install verbatim from npm.
+  // working-tree: swap the `typegres` package name for the packed tarball,
+  // leaving the rest of the README's install line intact (better-sqlite3,
+  // zod, ...). registry: install verbatim from npm.
   //
-  // Flags shave ~3-5s off install: skip the security audit (we're a
-  // disposable tmp dir), skip funding messages, prefer the offline
-  // cache before hitting the registry.
+  // --no-audit/--no-fund shave a few seconds off a disposable tmp dir.
+  //
+  // Deliberately NOT --prefer-offline: it makes npm trust a cached
+  // packument, so a developer whose cache predates a peer's current
+  // versions gets ETARGET on a range that resolves fine against the
+  // registry. That's a failure about the machine, not the change under
+  // test, and it costs more in confusion than the flag saves in seconds.
   const installCmd = (
     mode === "working-tree"
-      ? bashSnippet.replace(/\btypegres\b/, JSON.stringify(`file:${REPO_ROOT}`))
+      ? bashSnippet.replace(/\btypegres\b/, JSON.stringify(await packTypegres()))
       : bashSnippet
-  ).replace(
-    /\bnpm install\b/,
-    `npm install --no-audit --no-fund ${mode === "working-tree" ? "--prefer-offline" : ""}`,
-  );
+  ).replace(/\bnpm install\b/, "npm install --no-audit --no-fund");
   await execFileP("sh", ["-c", installCmd], { cwd: tmpDir });
 
   // Compile the snippet via swc — handles stage-3 decorators that
@@ -98,8 +130,12 @@ const runReadmeUsage = async (mode: InstallMode): Promise<void> => {
 
   const { stdout } = await execFileP("node", ["main.mjs"], { cwd: tmpDir });
 
-  expect(stdout).toContain("Alice Smith");
-  expect(stdout).toContain("Bob Jones");
+  for (const want of expected) {
+    expect(stdout).toContain(want);
+  }
+  for (const avoid of unexpected) {
+    expect(stdout).not.toContain(avoid);
+  }
 
   // Only delete the temp dir if everything succeeded — leave it behind
   // for debugging on failure.
@@ -107,9 +143,30 @@ const runReadmeUsage = async (mode: InstallMode): Promise<void> => {
 };
 
 test(
-  "README.md Usage snippet — working tree (file:)",
-  () => runReadmeUsage("working-tree"),
+  "README.md Usage snippet — working tree (packed tarball)",
+  () => runReadmeSection("Usage", "working-tree", ["Alice Smith", "Bob Jones"]),
   60_000, // typical: ~5s; generous for better-sqlite3 prebuilt download on cache misses.
+);
+
+// The RPC section demonstrates the project's actual claim — a client
+// composing a query that reaches only the @expose surface — so it's held to
+// the same "it runs" bar as Usage. The negative assertions are what make it
+// meaningful: `Carol` absent proves feedFor's team scoping survived a
+// client-authored group-by (she has a post, on another team), and
+// `team_token` absent proves the un-@expose'd column never crossed the wire
+// even though the server filtered on it.
+test(
+  "README.md RPC snippet — working tree (packed tarball)",
+  () =>
+    runReadmeSection(
+      "Clients compose the queries",
+      "working-tree",
+      // "posts: 2" pins the aggregate itself — without it the test would
+      // pass on any query that merely returned both names.
+      ["Alice", "Bob", "posts: 2"],
+      ["Carol", "t-acme", "team_token"],
+    ),
+  60_000,
 );
 
 // Registry mode: opt-in via env var. Tests the currently-published
@@ -117,6 +174,6 @@ test(
 // default so PR CI doesn't fail on registry hiccups or version drift.
 test.runIf(process.env["TYPEGRES_README_TEST_REGISTRY"] === "1")(
   "README.md Usage snippet — registry (npm install typegres)",
-  () => runReadmeUsage("registry"),
+  () => runReadmeSection("Usage", "registry", ["Alice Smith", "Bob Jones"]),
   120_000,
 );

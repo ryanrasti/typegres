@@ -12,8 +12,7 @@
 
 import { test, expect } from "vitest";
 import { env, runInDurableObject } from "cloudflare:test";
-import { newWebSocketRpcSession, type RpcTarget } from "capnweb";
-import { doRpc, toRpc, type ShimStub } from "typegres/capnweb";
+import { newWebSocketRpcSession, doRpc, toRpc, type RpcTarget, type ShimStub } from "typegres/capnweb";
 import { Chat, Users, Memberships } from "../worker/api";
 import type { ChatDo } from "../worker/chat-do";
 

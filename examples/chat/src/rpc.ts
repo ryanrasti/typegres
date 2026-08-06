@@ -1,5 +1,4 @@
-import { newWebSocketRpcSession } from "capnweb";
-import { doRpc, type ShimStub, type Stubbed } from "typegres/capnweb";
+import { newWebSocketRpcSession, doRpc, type ShimStub, type Stubbed } from "typegres/capnweb";
 import type { Chat, Users, Rooms } from "../worker/api";
 import { wireLog } from "./wire-log";
 

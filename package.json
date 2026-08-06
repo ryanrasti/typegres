@@ -30,8 +30,11 @@
       "types": "./dist/exoeval/index.d.mts"
     },
     "./capnweb": {
-      "import": "./dist/capnweb/shim.mjs",
-      "types": "./dist/capnweb/shim.d.mts"
+      "types": "./dist/capnweb/shim.d.mts",
+      "import": {
+        "workerd": "./dist/capnweb/shim-workers.mjs",
+        "default": "./dist/capnweb/shim.mjs"
+      }
     },
     "./drivers/do": {
       "import": "./dist/drivers/do.mjs",
@@ -57,8 +60,8 @@
     "dist"
   ],
   "peerDependencies": {
-    "@electric-sql/pglite": "^0.4.4",
-    "better-sqlite3": "^12.11.1",
+    "@electric-sql/pglite": "^0.4.4 || ^0.5.0",
+    "better-sqlite3": "^12.11.1 || ^13.0.0",
     "pg": "^8.20.0"
   },
   "peerDependenciesMeta": {
@@ -109,12 +112,12 @@
     "secure-json-parse": "^4.1.0",
     "tsdown": "^0.22.7",
     "typescript": "^6.0.3",
+    "capnweb": "file:packages/capnweb",
     "unplugin-swc": "^1.5.9",
     "vitest": "^4.1.10",
     "zod": "^4.4.3"
   },
   "dependencies": {
-    "camelcase": "^9.0.0",
-    "capnweb": "file:packages/capnweb"
+    "camelcase": "^9.0.0"
   }
 }

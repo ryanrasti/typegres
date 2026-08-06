@@ -2,6 +2,24 @@ import { getLocalTarget, RpcStub, RpcTarget } from "capnweb";
 import { getTool } from "../exoeval/tool";
 import { isPlainObject, isThenable } from "../util";
 
+// capnweb is bundled into this entry point rather than resolved from the
+// consumer's node_modules: typegres needs a fork (closure serialization,
+// synchronous replay, getLocalTarget) that isn't published. Re-exporting the
+// surface a caller needs means they never `import ... from "capnweb"`
+// themselves, so exactly one copy is ever in play — which matters because
+// RpcTarget/RpcStub identity is compared across the boundary, and two copies
+// would fail `instanceof` in ways that surface as baffling RPC errors.
+//
+// When cloudflare/capnweb#162 lands, capnweb becomes an ordinary dependency
+// and these re-exports keep working unchanged.
+export {
+  RpcTarget,
+  RpcStub,
+  newWebSocketRpcSession,
+  newWorkersRpcResponse,
+  newMessagePortRpcSession,
+} from "capnweb";
+
 // --- capnweb shim for @expose classes ---
 //
 // Adapts typegres's @expose capability vocabulary to capnweb RPC. A class instance crossing
