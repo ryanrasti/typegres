@@ -26,8 +26,8 @@ applies to both dialects.
 
 1. **Public API gap, closed.** Opt-in is uniformly
    `db.Table("notes", { live: true })`; the live engine is wired at
-   `db.attach(driver, busOpts?)` with no start/stop lifecycle — sqlite
-   capture is active from attach, the pg poller starts lazily on first
+   `db.connect(driver, busOpts?)` with no start/stop lifecycle — sqlite
+   capture is active from connect, the pg poller starts lazily on first
    `.live()` use, and `close()` tears the engine down. The only pg
    ceremony left is `ensurePgLiveEventsTable(conn)` for the events-table
    DDL (a migration concern, deliberately explicit).
@@ -213,11 +213,11 @@ applies to both dialects.
 
 14. **Multi-connection sqlite live / `LiveDriver` (parked).** Two
    Connections attached to one sqlite driver share the statement clock
-   (`SyncDriver.liveSeq`) but NOT a bus — each attach() makes its
+   (`SyncDriver.liveSeq`) but NOT a bus — each connect() makes its
    own, and events captured through one Connection never reach the
    other's subscribers. Unexercised today (a DO is one driver, one
    Connection). The named future shape: a user-constructed `LiveDriver`
-   wrapper (`db.attach(new LiveDriver(new SqliteDriver(...)))`) owning
+   wrapper (`db.connect(LiveDriver.create(SqliteDriver.create(...)))`) owning
    the clock AND a per-driver bus, reverting the base drivers to dumb
    pipes. Notes from the design discussion: a per-statement driver
    callback cannot absorb capture (CompiledSql has no table/column/

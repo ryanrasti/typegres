@@ -81,10 +81,12 @@ import { DoSqliteDriver } from "typegres/drivers/do";      // Cloudflare Durable
 
 const db = typegres();
 
+// Pick the one you're running against — the driver names the backend, and
+// `db` takes its dialect from it:
 db.connect(PgDriver.create(process.env.DATABASE_URL!));
+db.connect(await PgliteDriver.create());          // the one async driver: booting WASM is real I/O
 db.connect(SqliteDriver.create("dev.db"));        // omit the filename for :memory:
 db.connect(DoSqliteDriver.create(ctx.storage));   // in the DO constructor — no npm peer needed
-db.connect(await PgliteDriver.create());          // the one async driver: booting WASM is real I/O
 ```
 
 Drivers are imported explicitly from `typegres/drivers/*` so optional peers
@@ -93,12 +95,14 @@ stay out of bundles that never use them — install only the one you need.
 With exactly one connection (the Durable Object model), it's also the
 default: `.execute()` / `.live()` take no argument, and you can ignore what
 `connect` returns. Pass a `Connection` explicitly when you have several —
-read replicas, database-per-tenant, or a transaction's `tx`.
+read replicas, database-per-tenant, or a transaction's `tx`. Several is fine
+as long as they agree on dialect; the schema classes compiled against one.
 
 ## How it works
 
-1. **Types codegen'd from the Postgres/SQLite catalog/docs.** all base types, full
-   method/operator coverage, nullability tracked at the type level.
+1. **Types codegen'd from the engine itself.** Postgres from its catalog,
+   SQLite from its docs — all base types, full method/operator coverage,
+   nullability tracked at the type level.
 2. **Object-capability queries.** Clients can only reach what you've exposed
    as `@expose` methods — columns, relations, scoped reads, mutations. The class
    surface is the contract; the schema underneath is free to move.
