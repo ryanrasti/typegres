@@ -25,7 +25,7 @@ export default function HomePage() {
       title: "1. Decouple Your Interface from Your Schema - With All of Postgres, Fully Typed",
       description:
         'Wrap your tables in a stable, public interface. You can refactor your "private" tables and columns without ever breaking clients.',
-      leftCode: `class User extends Table("users") {
+      leftCode: `class User extends db.Table("users") {
   // ...
 
   // Your public interface stays stable as your schema evolves
@@ -48,8 +48,8 @@ const latest = await User.from()
     {
       title: "2. Your Interface Defines Your Data Boundaries",
       description:
-        "Allowed operations are just methods on your interface, including relations and mutations. Everything fully composable and typed.",
-      leftCode: `class User extends Table("users") {
+        "Allowed operations are just methods on your interface, including relations and mutations. Everything fully composable and typed. This is encapsulation 101, applied to your tables.",
+      leftCode: `class User extends db.Table("users") {
   // ...
 
   todos() {
@@ -57,7 +57,7 @@ const latest = await User.from()
   }
 }
 
-class Todo extends Table("todos") {
+class Todo extends db.Table("todos") {
   // ...
 
   update(fields: { completed?: boolean; title?: string }) {
@@ -89,9 +89,7 @@ await todo.update({ completed: true }).execute(db);`,
 }
 
 class Api {
-  @expose() db = db;
-
-  // Server-validated entry point — clients compose against this:
+  // Server-validated entry point. Clients compose against this:
   @expose(z.string())
   forToken(token: string) {
     return User.from()
@@ -99,19 +97,25 @@ class Api {
   }
 }
 
-export const client = new RpcClient<Api>(...);`,
-      rightCode: `// Client-composed query — crosses the wire to a constrained
-// interpreter, where the server validates the @expose surface:
-const stream = client.run((api) =>
-  api.forToken(token)
-    .select(({ users }) => ({ id: users.id, name: users.name }))
-    // Any Postgres function — \`ilike\`, window funcs:
-    .where(({ users }) => users.name.ilike("%alice%"))
-    .live(api.conn)
-);
+// The whole server: hand out the root capability over a WebSocket.
+export default {
+  fetch: (request) => newWorkersRpcResponse(request, toRpc(new Api())),
+};`,
+      rightCode: `const api = newWebSocketRpcSession(
+  \`wss://\${location.host}/ws\`,
+) as unknown as ShimStub<Api>;
 
-// Re-yields on every committed mutation that matches:
-for await (const rows of stream) render(rows);`,
+// Client-composed query. Crosses the wire over Cap'n Web,
+// where the server validates it against the @expose surface:
+const sub = await doRpc(api, (a) =>
+  a.forToken(token)
+    .select(({ users }) => ({ id: users.id, name: users.name }))
+    // Any Postgres function (\`ilike\`, window funcs, ...):
+    .where(({ users }) => users.name.ilike("%alice%"))
+    // Pushed on every committed mutation that matches:
+    .live()
+    .observe({ onNext: (rows) => setUsers(rows) }),
+);`,
       leftLabel: "api.ts",
       rightLabel: "frontend.tsx",
       leftLanguage: "typescript",
@@ -178,6 +182,20 @@ for await (const rows of stream) render(rows);`,
                 A TypeScript API framework that lets clients compose any queries they need within boundaries you
                 control.
               </p>
+
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
+                <code className="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-2 font-mono text-sm text-gray-700 dark:text-gray-300 shadow-sm">
+                  <span className="select-none text-gray-400 dark:text-gray-600">$</span>
+                  npm i typegres
+                </code>
+                <a
+                  href="https://github.com/ryanrasti/typegres#usage"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline transition-colors"
+                >
+                  Full instructions
+                  <ArrowUpRight className="w-4 h-4" />
+                </a>
+              </div>
             </div>
           </div>
         </section>
@@ -275,11 +293,11 @@ for await (const rows of stream) render(rows);`,
             <div className="flex flex-col items-center text-center space-y-8">
               <div className="space-y-4">
                 <h3 className="text-3xl font-bold text-gray-900 dark:text-white">
-                  Ready to build the next generation of database APIs?
+                  Try it
                 </h3>
                 <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl">
-                  Experience the power of composable, capability-first database queries with full type safety and
-                  AI-native architecture.
+                  The playground runs Postgres in your browser via PGlite (no signup, no server) against a real
+                  demo schema. Typegres is pre-1.0 and not recommended for production workloads yet.
                 </p>
               </div>
 
@@ -297,7 +315,7 @@ for await (const rows of stream) render(rows);`,
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 font-medium rounded-lg transition-colors"
                 >
                   <GitHubIcon className="w-5 h-5" />
-                  Star on GitHub
+                  View on GitHub
                 </a>
               </div>
             </div>
@@ -527,6 +545,34 @@ for await (const rows of stream) render(rows);`,
               <div className="space-y-8">
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+                    Q: What dialects do you support?
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-3">
+                    Postgres and SQLite. Both surfaces are code-generated from the engine itself: Postgres from its
+                    catalog, SQLite from its documented functions. Each dialect gets its own real functions and
+                    operators rather than a lowest-common-denominator abstraction over both.
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                    Drivers: node-postgres and PGlite (WASM Postgres, which the playground on this site runs on) for
+                    Postgres; better-sqlite3 and Cloudflare Durable Object storage for SQLite.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+                    Q: What about tRPC?
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-3">
+                    tRPC removes most endpoint boilerplate, but it doesn&apos;t compose: the client can only call
+                    procedures that already exist.
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                    So every new question is another procedure: join these two datasets, filter on something nobody
+                    anticipated, aggregate differently. Typegres pushes the composition itself to the server, so the
+                    client asks a new question without you shipping a new endpoint.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
                     Q: What about raw SQL + Row Level Security (RLS)?
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-3">
@@ -555,23 +601,23 @@ for await (const rows of stream) render(rows);`,
                     Q: How does the RPC layer actually work?
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                    A highly constrained interpreter that evaluates untrusted code (the same shape as
-                    {" "}codemode for AI agents), inspired by{" "}
                     <a
                       href="https://github.com/cloudflare/capnweb"
                       className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium transition-colors"
                     >
                       Cap&apos;n Web
-                    </a>
-                    . The client serializes a closure that composes over a set of classes/methods, and the
-                    server evaluates it in a single RPC call. There&apos;s also a{" "}
+                    </a>{" "}
+                    is the transport, giving you capabilities, promise pipelining and live subscriptions over a
+                    single WebSocket. The client serializes a closure that composes over the classes and methods you
+                    exposed, and the server evaluates it against that surface in a single RPC call. Cap&apos;n Web
+                    ships bundled with Typegres until{" "}
                     <a
                       href="https://github.com/cloudflare/capnweb/pull/162"
                       className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium transition-colors"
                     >
-                      PR
+                      this PR
                     </a>{" "}
-                    in flight to make Cap&apos;n Web itself work as a transport for Typegres.
+                    lands upstream.
                   </p>
                 </div>
                 <div>
@@ -582,6 +628,12 @@ for await (const rows of stream) render(rows);`,
                     The model is <strong>capability-based</strong> security. Instead of reactive security (a blacklist)
                     the framework explicitly guides you to define your allowed surface area (your classes and methods)
                     and enforces that all queries go through it.
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed mt-3">
+                    The shape is close to GraphQL: the relations you define form a graph, and clients traverse it from
+                    a root capability, usually the row representing the current user. The difference is what they can
+                    do once they&apos;re inside those boundaries. GraphQL clients traverse edges; Typegres clients get
+                    the database itself: joins, aggregations, and every builtin function and operator.
                   </p>
                 </div>
                 <div>
@@ -596,7 +648,8 @@ for await (const rows of stream) render(rows);`,
                     Q: What&apos;s the project status?
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                    This is a research preview and not ready for production use. Try the{" "}
+                    Pre-1.0. Published on npm and usable today, but not recommended for production workloads yet.
+                    Try the{" "}
                     <a
                       href="/play"
                       className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium transition-colors"

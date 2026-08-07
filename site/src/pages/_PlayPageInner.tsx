@@ -221,7 +221,7 @@ declare function output(value: unknown): void;
           <aside className="w-60 border-r border-gray-800 bg-gray-900 overflow-y-auto p-2 text-sm">
             <div className="px-2 pt-1 pb-3 text-[11px] leading-snug text-gray-500 border-b border-gray-800 mb-2">
               <span className="text-gray-300">This is the entire backend.</span>{" "}
-              Schemas, server, seed — all read-only. Edit a widget on
+              Schemas, server, seed are all read-only. Edit a widget on
               the left to compose against it.
             </div>
             <FileTree files={FILES} active={activePath} onPick={setActivePath} />
