@@ -48,10 +48,10 @@ export class Bit<in out N extends number> extends Anynonarray<N> {
   length(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.funcCall("length", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   octetLength(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.funcCall("octet_length", [this, ...__rest], __rt) as any; }
-  overlay<M0 extends types.Bit<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
   overlay<M0 extends types.Bit<any> | string, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  overlay<M0 extends types.Bit<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2): types.Bit<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
   @expose.unchecked()
-  overlay(arg0: unknown, arg1: unknown, arg2?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Bit, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bit], [[{ type: types.Bit, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.funcCall("overlay", [this, ...__rest], __rt) as any; }
+  overlay(arg0: unknown, arg1: unknown, arg2?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Bit, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bit], [[{ type: types.Bit, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bit]]); return runtime.funcCall("overlay", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   position<M0 extends types.Bit<any> | string>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bit, allowPrimitive: true }], types.Int4]]); return runtime.funcCall("position", [this, ...__rest], __rt) as any; }
   @expose.unchecked()

@@ -40,11 +40,11 @@ export class Interval<in out N extends number> extends Anynonarray<N> {
   justifyInterval(): types.Interval<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Interval]]); return runtime.funcCall("justify_interval", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   time(): types.Time<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Time]]); return runtime.funcCall("time", [this, ...__rest], __rt) as any; }
-  timezone<M0 extends types.Timestamptz<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   timezone<M0 extends types.Timestamp<any>>(arg0: M0): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  timezone<M0 extends types.Timestamptz<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   timezone<M0 extends types.Timetz<any>>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  timezone(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Timestamptz }], types.Timestamp], [[{ type: types.Timestamp }], types.Timestamptz], [[{ type: types.Timetz }], types.Timetz]]); return runtime.funcCall("timezone", [this, ...__rest], __rt) as any; }
+  timezone(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Timestamp }], types.Timestamptz], [[{ type: types.Timestamptz }], types.Timestamp], [[{ type: types.Timetz }], types.Timetz]]); return runtime.funcCall("timezone", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   avg(): types.Interval<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Interval]]); return runtime.funcCall("avg", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
@@ -58,21 +58,21 @@ export class Interval<in out N extends number> extends Anynonarray<N> {
   @expose.unchecked()
   times<M0 extends types.Float8<any> | number>(arg0: M0): types.Interval<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Float8, allowPrimitive: true }], types.Interval]]); return runtime.opCall(runtime.sql`*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['+']<M0 extends types.Date<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['+']<M0 extends types.Timetz<any>>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['+']<M0 extends types.Time<any>>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['+']<M0 extends types.Timestamp<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['+']<M0 extends types.Timestamptz<any>>(arg0: M0): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['+']<M0 extends types.Time<any>>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['+']<M0 extends types.Interval<any> | string>(arg0: M0): types.Interval<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['+']<M0 extends types.Timetz<any>>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ['+'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Date }], types.Timestamp], [[{ type: types.Timetz }], types.Timetz], [[{ type: types.Timestamp }], types.Timestamp], [[{ type: types.Timestamptz }], types.Timestamptz], [[{ type: types.Time }], types.Time], [[{ type: types.Interval, allowPrimitive: true }], types.Interval]]); return runtime.opCall(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['+'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Date }], types.Timestamp], [[{ type: types.Time }], types.Time], [[{ type: types.Timestamp }], types.Timestamp], [[{ type: types.Timestamptz }], types.Timestamptz], [[{ type: types.Interval, allowPrimitive: true }], types.Interval], [[{ type: types.Timetz }], types.Timetz]]); return runtime.opCall(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   plus<M0 extends types.Date<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  plus<M0 extends types.Timetz<any>>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  plus<M0 extends types.Time<any>>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   plus<M0 extends types.Timestamp<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   plus<M0 extends types.Timestamptz<any>>(arg0: M0): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  plus<M0 extends types.Time<any>>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   plus<M0 extends types.Interval<any> | string>(arg0: M0): types.Interval<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  plus<M0 extends types.Timetz<any>>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  plus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Date }], types.Timestamp], [[{ type: types.Timetz }], types.Timetz], [[{ type: types.Timestamp }], types.Timestamp], [[{ type: types.Timestamptz }], types.Timestamptz], [[{ type: types.Time }], types.Time], [[{ type: types.Interval, allowPrimitive: true }], types.Interval]]); return runtime.opCall(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  plus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Date }], types.Timestamp], [[{ type: types.Time }], types.Time], [[{ type: types.Timestamp }], types.Timestamp], [[{ type: types.Timestamptz }], types.Timestamptz], [[{ type: types.Interval, allowPrimitive: true }], types.Interval], [[{ type: types.Timetz }], types.Timetz]]); return runtime.opCall(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
   ['-']<M0 extends types.Interval<any> | string>(arg0: M0): types.Interval<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Interval, allowPrimitive: true }], types.Interval]]); return runtime.opCall(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()

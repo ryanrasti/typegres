@@ -90,10 +90,10 @@ export class Numeric<in out N extends number> extends Anynonarray<N> {
   pow<M0 extends types.Numeric<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Numeric, allowPrimitive: true }], types.Numeric]]); return runtime.funcCall("pow", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   power<M0 extends types.Numeric<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Numeric, allowPrimitive: true }], types.Numeric]]); return runtime.funcCall("power", [this, ...__rest], __rt) as any; }
-  round<M0 extends types.Int4<any> | number>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   round(): types.Numeric<N>;
+  round<M0 extends types.Int4<any> | number>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  round(arg0?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Numeric], [[], types.Numeric]]); return runtime.funcCall("round", [this, ...__rest], __rt) as any; }
+  round(arg0?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[], types.Numeric], [[{ type: types.Int4, allowPrimitive: true }], types.Numeric]]); return runtime.funcCall("round", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   scale(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.funcCall("scale", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
@@ -128,10 +128,10 @@ export class Numeric<in out N extends number> extends Anynonarray<N> {
   varSamp(): types.Numeric<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Numeric]]); return runtime.funcCall("var_samp", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   variance(): types.Numeric<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Numeric]]); return runtime.funcCall("variance", [this, ...__rest], __rt) as any; }
-  generateSeries<M0 extends types.Numeric<any> | string, M1 extends types.Numeric<any> | string>(arg0: M0, arg1: M1): runtime.Srf<{ generate_series: types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>> }, "generate_series">;
   generateSeries<M0 extends types.Numeric<any> | string>(arg0: M0): runtime.Srf<{ generate_series: types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>> }, "generate_series">;
+  generateSeries<M0 extends types.Numeric<any> | string, M1 extends types.Numeric<any> | string>(arg0: M0, arg1: M1): runtime.Srf<{ generate_series: types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>> }, "generate_series">;
   @expose.unchecked()
-  generateSeries(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Numeric, allowPrimitive: true }, { type: types.Numeric, allowPrimitive: true }], types.Numeric], [[{ type: types.Numeric, allowPrimitive: true }], types.Numeric]]); return new runtime.Srf("generate_series", [this, ...__rest], [["generate_series", __rt]]) as any; }
+  generateSeries(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Numeric, allowPrimitive: true }], types.Numeric], [[{ type: types.Numeric, allowPrimitive: true }, { type: types.Numeric, allowPrimitive: true }], types.Numeric]]); return new runtime.Srf("generate_series", [this, ...__rest], [["generate_series", __rt]]) as any; }
   @expose.unchecked()
   ['%']<M0 extends types.Numeric<any> | string>(arg0: M0): types.Numeric<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Numeric, allowPrimitive: true }], types.Numeric]]); return runtime.opCall(runtime.sql`%`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()

@@ -1,8 +1,8 @@
 import { test, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
 import type { meta } from "../sql-value";
 import type { StrictNull, MaybeNull, NullOf, TsTypeOf } from "../runtime";
-import type { Any, Float8, Anyrange, Anymultirange } from "./index";
-import { Int4, Text, Bool, Int8, Record, Anyarray } from "./index";
+import type { Any, Anyrange, Anymultirange } from "./index";
+import { Int4, Text, Bool, Int8, Float8, Numeric, Record, Anyarray } from "./index";
 import { compile } from "../../builder/sql";
 import { sql } from "../../builder/sql";
 import { PgDriver } from "../../drivers/pg";
@@ -10,6 +10,7 @@ import { requireDatabaseUrl } from "../../pg";
 import type { Connection } from "../../database";
 import { Database } from "../../database";
 import { compileOnlyDb } from "../../test-helpers";
+import { OPERATOR_ALIASES } from "../emission/common";
 
 const pgCtx = { database: compileOnlyDb("postgres") };
 
@@ -656,3 +657,82 @@ test("Any.from: accepts primitives, null, plain objects, arrays", () => {
   expect(() => Text.from([1, 2, 3] as any)).not.toThrow();
 });
 
+// --- Operator aliases ---
+//
+// OPERATOR_ALIASES gives each operator symbol a readable twin next to its
+// bracket form, so `~~*` is callable as `.ilike()`. The table is the whole
+// contract for that surface: an entry that never reaches the generated
+// types is a hole nothing else notices, since the bracket form keeps
+// working. Hence two tests — one on what the aliases compile to, one on
+// the table as a whole.
+
+test("pattern operator aliases compile to their operator form", () => {
+  const t = () => Text.from("Alice");
+
+  expect(compile(t().ilike("%a%").toSql(), pgCtx).text).toBe(
+    "(CAST($1 AS text) ~~* CAST($2 AS text))",
+  );
+  expect(compile(t().notLike("%a%").toSql(), pgCtx).text).toBe(
+    "(CAST($1 AS text) !~~ CAST($2 AS text))",
+  );
+  expect(compile(t().notIlike("%a%").toSql(), pgCtx).text).toBe(
+    "(CAST($1 AS text) !~~* CAST($2 AS text))",
+  );
+
+  // `like` is the one that doesn't route through the operator: pg owns a
+  // catalog function of the same name, so the collision rule keeps the
+  // function and its signature stays authoritative. Same semantics, and
+  // `['~~']` is still there for the operator form.
+  expect(compile(t().like("%a%").toSql(), pgCtx).text).toBe(
+    '"like"(CAST($1 AS text), CAST($2 AS text))',
+  );
+  expect(compile(t()["~~"]("%a%").toSql(), pgCtx).text).toBe(
+    "(CAST($1 AS text) ~~ CAST($2 AS text))",
+  );
+});
+
+// The general guard: anything in the alias table has to actually reach the
+// generated types. Catches a whole class of regression rather than `ilike`
+// alone — including aliases suppressed by the host-function collision rule,
+// which must still exist under that name (pg: mod, pow, like).
+test("every OPERATOR_ALIASES entry is emitted somewhere", () => {
+  const protos: object[] = [
+    Text.prototype,
+    Int4.prototype,
+    Int8.prototype,
+    Bool.prototype,
+    // `^` -> pow is exponentiation: float/numeric only, not the int types.
+    Float8.prototype,
+    Numeric.prototype,
+  ];
+  for (const [op, alias] of Object.entries(OPERATOR_ALIASES)) {
+    const found = protos.some(
+      (p) => typeof (p as { [k: string]: unknown })[alias] === "function",
+    );
+    expect(found, `operator ${op} -> .${alias}() missing from generated types`).toBe(true);
+  }
+});
+
+test("e2e: ilike matches case-insensitively", async () => {
+  const expr = Text.from("Alice Smith").ilike("%alice%");
+  const result = await exec.execute(
+    sql`SELECT ${expr.toSql()} as ${exec.database.scopedIdent("result")}`,
+  );
+  expect(result.rows[0]?.["result"]).toBe("t");
+});
+
+test("e2e: like is case-sensitive (the contrast that makes ilike worth having)", async () => {
+  const expr = Text.from("Alice Smith").like("%alice%");
+  const result = await exec.execute(
+    sql`SELECT ${expr.toSql()} as ${exec.database.scopedIdent("result")}`,
+  );
+  expect(result.rows[0]?.["result"]).toBe("f");
+});
+
+test("e2e: notIlike negates ilike", async () => {
+  const expr = Text.from("Alice Smith").notIlike("%bob%");
+  const result = await exec.execute(
+    sql`SELECT ${expr.toSql()} as ${exec.database.scopedIdent("result")}`,
+  );
+  expect(result.rows[0]?.["result"]).toBe("t");
+});

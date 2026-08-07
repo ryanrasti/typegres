@@ -93,7 +93,10 @@ export const introspect = async (
       AND p.proargtypes::text != ''
       AND p.oid NOT IN (SELECT oprcode FROM pg_operator WHERE oprcode != 0 AND oprname = ANY($1::text[]))  -- exclude oprcode only for operators we give readable aliases
       AND p.oid NOT IN (SELECT amproc FROM pg_amproc)                           -- exclude index support functions (e.g. btint4cmp, hashint4)
-    ORDER BY p.proname
+    -- proname alone is not unique: overloads share it, and pg returns
+    -- them in whatever order the scan produces. Tiebreak on the full
+    -- signature so codegen output is reproducible (codegen:check diffs it).
+    ORDER BY p.proname, p.proargtypes::text, p.prorettype
   `, [aliasedOperators]);
 
   // Get operators (operators are always strict in terms of null propagation)
@@ -109,7 +112,7 @@ export const introspect = async (
     WHERE n.nspname = 'pg_catalog'
       AND o.oprleft != 0
       AND o.oprright != 0
-    ORDER BY o.oprname
+    ORDER BY o.oprname, o.oprleft, o.oprright, o.oprresult
   `);
 
   const pgFuncs: PgFunc[] = [];
@@ -152,7 +155,10 @@ export const introspect = async (
       AND p.proretset = false
       AND array_length(string_to_array(trim(p.proargtypes::text), ' '), 1) > 0
       AND p.proargtypes::text != ''
-    ORDER BY p.proname
+    -- proname alone is not unique: overloads share it, and pg returns
+    -- them in whatever order the scan produces. Tiebreak on the full
+    -- signature so codegen output is reproducible (codegen:check diffs it).
+    ORDER BY p.proname, p.proargtypes::text, p.prorettype
   `);
 
   for (const f of aggFuncs) {
@@ -189,7 +195,10 @@ export const introspect = async (
       AND p.proargtypes::text != ''
       AND p.oid NOT IN (SELECT oprcode FROM pg_operator WHERE oprcode != 0)
       AND p.oid NOT IN (SELECT amproc FROM pg_amproc)
-    ORDER BY p.proname
+    -- proname alone is not unique: overloads share it, and pg returns
+    -- them in whatever order the scan produces. Tiebreak on the full
+    -- signature so codegen output is reproducible (codegen:check diffs it).
+    ORDER BY p.proname, p.proargtypes::text, p.prorettype
   `);
 
   for (const f of srfFuncs) {

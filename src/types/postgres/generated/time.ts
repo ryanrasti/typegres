@@ -20,12 +20,12 @@ export class Time<in out N extends number> extends Anynonarray<N> {
   declare deserialize: (raw: string) => string;
   @expose.unchecked()
   interval(): types.Interval<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Interval]]); return runtime.funcCall("interval", [this, ...__rest], __rt) as any; }
-  overlaps<M0 extends types.Time<any>, M1 extends types.Time<any>, M2 extends types.Interval<any>>(arg0: M0, arg1: M1, arg2: M2): types.Bool<1>;
   overlaps<M0 extends types.Time<any> | string, M1 extends types.Time<any> | string, M2 extends types.Time<any> | string>(arg0: M0, arg1: M1, arg2: M2): types.Bool<1>;
-  overlaps<M0 extends types.Interval<any>, M1 extends types.Time<any>, M2 extends types.Interval<any>>(arg0: M0, arg1: M1, arg2: M2): types.Bool<1>;
+  overlaps<M0 extends types.Time<any>, M1 extends types.Time<any>, M2 extends types.Interval<any>>(arg0: M0, arg1: M1, arg2: M2): types.Bool<1>;
   overlaps<M0 extends types.Interval<any>, M1 extends types.Time<any>, M2 extends types.Time<any>>(arg0: M0, arg1: M1, arg2: M2): types.Bool<1>;
+  overlaps<M0 extends types.Interval<any>, M1 extends types.Time<any>, M2 extends types.Interval<any>>(arg0: M0, arg1: M1, arg2: M2): types.Bool<1>;
   @expose.unchecked()
-  overlaps(arg0: unknown, arg1: unknown, arg2: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Time }, { type: types.Time }, { type: types.Interval }], types.Bool], [[{ type: types.Time, allowPrimitive: true }, { type: types.Time, allowPrimitive: true }, { type: types.Time, allowPrimitive: true }], types.Bool], [[{ type: types.Interval }, { type: types.Time }, { type: types.Interval }], types.Bool], [[{ type: types.Interval }, { type: types.Time }, { type: types.Time }], types.Bool]]); return runtime.funcCall("overlaps", [this, ...__rest], __rt) as any; }
+  overlaps(arg0: unknown, arg1: unknown, arg2: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Time, allowPrimitive: true }, { type: types.Time, allowPrimitive: true }, { type: types.Time, allowPrimitive: true }], types.Bool], [[{ type: types.Time }, { type: types.Time }, { type: types.Interval }], types.Bool], [[{ type: types.Interval }, { type: types.Time }, { type: types.Time }], types.Bool], [[{ type: types.Interval }, { type: types.Time }, { type: types.Interval }], types.Bool]]); return runtime.funcCall("overlaps", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   time<M0 extends types.Int4<any> | number>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Time]]); return runtime.funcCall("time", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
@@ -38,14 +38,14 @@ export class Time<in out N extends number> extends Anynonarray<N> {
   max(): types.Time<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Time]]); return runtime.funcCall("max", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   min(): types.Time<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Time]]); return runtime.funcCall("min", [this, ...__rest], __rt) as any; }
-  ['+']<M0 extends types.Interval<any>>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['+']<M0 extends types.Date<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['+']<M0 extends types.Interval<any>>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ['+'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Interval }], types.Time], [[{ type: types.Date }], types.Timestamp]]); return runtime.opCall(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  plus<M0 extends types.Interval<any>>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['+'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Date }], types.Timestamp], [[{ type: types.Interval }], types.Time]]); return runtime.opCall(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   plus<M0 extends types.Date<any>>(arg0: M0): types.Timestamp<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  plus<M0 extends types.Interval<any>>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  plus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Interval }], types.Time], [[{ type: types.Date }], types.Timestamp]]); return runtime.opCall(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  plus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Date }], types.Timestamp], [[{ type: types.Interval }], types.Time]]); return runtime.opCall(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['-']<M0 extends types.Time<any> | string>(arg0: M0): types.Interval<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['-']<M0 extends types.Interval<any>>(arg0: M0): types.Time<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()

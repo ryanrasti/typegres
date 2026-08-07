@@ -36,10 +36,10 @@ export class Anyarray<T extends types.Any<any>, in out N extends number> extends
   max(): types.Anyarray<T, 0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], runtime.pgType(this)]]); return runtime.funcCall("max", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   min(): types.Anyarray<T, 0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], runtime.pgType(this)]]); return runtime.funcCall("min", [this, ...__rest], __rt) as any; }
-  generateSubscripts<M0 extends types.Int4<any> | number, M1 extends types.Bool<any> | boolean>(arg0: M0, arg1: M1): runtime.Srf<{ generate_subscripts: types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>> }, "generate_subscripts">;
   generateSubscripts<M0 extends types.Int4<any> | number>(arg0: M0): runtime.Srf<{ generate_subscripts: types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>> }, "generate_subscripts">;
+  generateSubscripts<M0 extends types.Int4<any> | number, M1 extends types.Bool<any> | boolean>(arg0: M0, arg1: M1): runtime.Srf<{ generate_subscripts: types.Int4<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>> }, "generate_subscripts">;
   @expose.unchecked()
-  generateSubscripts(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }, { type: types.Bool, allowPrimitive: true }], types.Int4], [[{ type: types.Int4, allowPrimitive: true }], types.Int4]]); return new runtime.Srf("generate_subscripts", [this, ...__rest], [["generate_subscripts", __rt]]) as any; }
+  generateSubscripts(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }], types.Int4], [[{ type: types.Int4, allowPrimitive: true }, { type: types.Bool, allowPrimitive: true }], types.Int4]]); return new runtime.Srf("generate_subscripts", [this, ...__rest], [["generate_subscripts", __rt]]) as any; }
   @expose.unchecked()
   unnest(): runtime.Srf<{ unnest: T }, "unnest"> { const [__rt, ...__rest] = runtime.match([], [[[], runtime.pgElement(this)]]); return new runtime.Srf("unnest", [this, ...__rest], [["unnest", __rt]]) as any; }
   @expose.unchecked()

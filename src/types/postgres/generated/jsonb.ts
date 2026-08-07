@@ -94,10 +94,10 @@ export class Jsonb<in out N extends number> extends Anynonarray<N> {
   ['->']<M0 extends types.Text<any> | string>(arg0: M0): types.Jsonb<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
   ['->'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Jsonb], [[{ type: types.Text, allowPrimitive: true }], types.Jsonb]]); return runtime.opCall(runtime.sql`->`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  ['->>']<M0 extends types.Text<any> | string>(arg0: M0): types.Text<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
   ['->>']<M0 extends types.Int4<any> | number>(arg0: M0): types.Text<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
+  ['->>']<M0 extends types.Text<any> | string>(arg0: M0): types.Text<runtime.MaybeNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ['->>'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Text], [[{ type: types.Int4, allowPrimitive: true }], types.Text]]); return runtime.opCall(runtime.sql`->>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['->>'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Text], [[{ type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.opCall(runtime.sql`->>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
   ['<']<M0 extends types.Jsonb<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Jsonb, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()

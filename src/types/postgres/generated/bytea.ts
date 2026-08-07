@@ -27,10 +27,6 @@ export class Bytea<in out N extends number> extends Anynonarray<N> {
   @expose.unchecked()
   byteacat<M0 extends types.Bytea<any> | string>(arg0: M0): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bytea, allowPrimitive: true }], types.Bytea]]); return runtime.funcCall("byteacat", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
-  bytealike<M0 extends types.Bytea<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bytea, allowPrimitive: true }], types.Bool]]); return runtime.funcCall("bytealike", [this, ...__rest], __rt) as any; }
-  @expose.unchecked()
-  byteanlike<M0 extends types.Bytea<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bytea, allowPrimitive: true }], types.Bool]]); return runtime.funcCall("byteanlike", [this, ...__rest], __rt) as any; }
-  @expose.unchecked()
   byteasend(): types.Bytea<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Bytea]]); return runtime.funcCall("byteasend", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   encode<M0 extends types.Text<any> | string>(arg0: M0): types.Text<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.funcCall("encode", [this, ...__rest], __rt) as any; }
@@ -52,10 +48,10 @@ export class Bytea<in out N extends number> extends Anynonarray<N> {
   notlike<M0 extends types.Bytea<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bytea, allowPrimitive: true }], types.Bool]]); return runtime.funcCall("notlike", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   octetLength(): types.Int4<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Int4]]); return runtime.funcCall("octet_length", [this, ...__rest], __rt) as any; }
-  overlay<M0 extends types.Bytea<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
   overlay<M0 extends types.Bytea<any> | string, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
+  overlay<M0 extends types.Bytea<any> | string, M1 extends types.Int4<any> | number, M2 extends types.Int4<any> | number>(arg0: M0, arg1: M1, arg2: M2): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1> | runtime.NullOf<M2>>>;
   @expose.unchecked()
-  overlay(arg0: unknown, arg1: unknown, arg2?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Bytea, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bytea], [[{ type: types.Bytea, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bytea]]); return runtime.funcCall("overlay", [this, ...__rest], __rt) as any; }
+  overlay(arg0: unknown, arg1: unknown, arg2?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1, arg2], [[[{ type: types.Bytea, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bytea], [[{ type: types.Bytea, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bytea]]); return runtime.funcCall("overlay", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   position<M0 extends types.Bytea<any> | string>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bytea, allowPrimitive: true }], types.Int4]]); return runtime.funcCall("position", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
@@ -76,14 +72,16 @@ export class Bytea<in out N extends number> extends Anynonarray<N> {
   substr<M0 extends types.Int4<any> | number, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   @expose.unchecked()
   substr(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }], types.Bytea], [[{ type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bytea]]); return runtime.funcCall("substr", [this, ...__rest], __rt) as any; }
-  substring<M0 extends types.Int4<any> | number, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   substring<M0 extends types.Int4<any> | number>(arg0: M0): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  substring<M0 extends types.Int4<any> | number, M1 extends types.Int4<any> | number>(arg0: M0, arg1: M1): types.Bytea<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<M1>>>;
   @expose.unchecked()
-  substring(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bytea], [[{ type: types.Int4, allowPrimitive: true }], types.Bytea]]); return runtime.funcCall("substring", [this, ...__rest], __rt) as any; }
+  substring(arg0: unknown, arg1?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Int4, allowPrimitive: true }], types.Bytea], [[{ type: types.Int4, allowPrimitive: true }, { type: types.Int4, allowPrimitive: true }], types.Bytea]]); return runtime.funcCall("substring", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   stringAgg<M0 extends types.Bytea<any> | string>(arg0: M0): types.Bytea<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bytea, allowPrimitive: true }], types.Bytea]]); return runtime.funcCall("string_agg", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   ['!~~']<M0 extends types.Bytea<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bytea, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`!~~`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  notLike<M0 extends types.Bytea<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bytea, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`!~~`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
   ['<']<M0 extends types.Bytea<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bytea, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()

@@ -64,10 +64,10 @@ export class Polygon<in out N extends number> extends Anynonarray<N> {
   ['&<|']<M0 extends types.Polygon<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Polygon, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`&<|`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
   ['&>']<M0 extends types.Polygon<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Polygon, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`&>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  ['<->']<M0 extends types.Circle<any>>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['<->']<M0 extends types.Polygon<any> | string>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['<->']<M0 extends types.Circle<any>>(arg0: M0): types.Float8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ['<->'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Circle }], types.Float8], [[{ type: types.Polygon, allowPrimitive: true }], types.Float8]]); return runtime.opCall(runtime.sql`<->`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['<->'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Polygon, allowPrimitive: true }], types.Float8], [[{ type: types.Circle }], types.Float8]]); return runtime.opCall(runtime.sql`<->`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
   ['<<']<M0 extends types.Polygon<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Polygon, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
