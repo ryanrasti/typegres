@@ -17,68 +17,11 @@
 > yet recommended for production.
 
 ```bash
-npm install typegres better-sqlite3
-```
-
-```typescript
-import { typegres, expose, sql } from "typegres";
-import { SqliteDriver } from "typegres/drivers/sqlite";
-import { Integer, Text } from "typegres/sqlite";
-
-const db = typegres();
-const conn = db.connect(SqliteDriver.create());
-
-await conn.execute(sql`CREATE TABLE users (
-  id         INTEGER PRIMARY KEY,
-  first_name TEXT NOT NULL,
-  last_name  TEXT NOT NULL
-)`);
-
-class Users extends db.Table("users") {
-  @expose() id = Integer.column({ nonNull: true, generated: true });
-  @expose() first_name = Text.column({ nonNull: true });
-  @expose() last_name = Text.column({ nonNull: true });
-
-  // Derived column — composes back into your typed query API.
-  @expose() fullName() {
-    return this.first_name["||"](" ")["||"](this.last_name);
-  }
-}
-
-await Users.insert(
-  { first_name: "Alice", last_name: "Smith" },
-  { first_name: "Bob", last_name: "Jones" },
-).execute(conn);
-
-// `fullName()` works anywhere a column does — select, where, orderBy:
-const rows = await Users.from()
-  .select(({ users }) => ({
-    id: users.id,
-    name: users.fullName(),
-  }))
-  .execute(conn);
-
-console.log(rows);
-await conn.close();
-```
-
-For a complete scaffold with migrations + codegen, see the
-[examples](#examples). Or try it interactively at
-[typegres.com/play](https://typegres.com/play).
-
-## Clients compose the queries
-
-The class surface is the contract. A client composes against `@expose`-marked
-methods, the closure is serialized, and the server evaluates it under a
-constrained interpreter — so a client can write any query it likes, and still
-reach only what you exposed.
-
-```bash
 npm install typegres better-sqlite3 zod
 ```
 
 ```typescript
-import { typegres, expose, sql } from "typegres";
+import { typegres, expose, sql, Relation } from "typegres";
 import { doRpc, toRpc, newMessagePortRpcSession, type ShimStub } from "typegres/capnweb";
 import { SqliteDriver } from "typegres/drivers/sqlite";
 import { Integer, Text } from "typegres/sqlite";
@@ -89,7 +32,8 @@ db.connect(SqliteDriver.create());
 
 await db.defaultConnection.execute(sql`CREATE TABLE users (
   id         INTEGER PRIMARY KEY,
-  name       TEXT NOT NULL,
+  first_name TEXT NOT NULL,
+  last_name  TEXT NOT NULL,
   team_token TEXT NOT NULL
 )`);
 await db.defaultConnection.execute(sql`CREATE TABLE posts (
@@ -98,25 +42,62 @@ await db.defaultConnection.execute(sql`CREATE TABLE posts (
   body    TEXT NOT NULL
 )`);
 
-class Users extends db.Table("users") {
-  @expose() id = Integer.column({ nonNull: true, generated: true });
-  @expose() name = Text.column({ nonNull: true });
-  // No @expose: the server scopes on it, and no client query can select
-  // or filter by it.
-  team_token = Text.column({ nonNull: true });
-}
-
 class Posts extends db.Table("posts") {
   @expose() id = Integer.column({ nonNull: true, generated: true });
   @expose() user_id = Integer.column({ nonNull: true });
   @expose() body = Text.column({ nonNull: true });
 }
 
+class Users extends db.Table("users") {
+  // 1. Exposed columns: a client may select, filter and order by these.
+  @expose() id = Integer.column({ nonNull: true, generated: true });
+  @expose() first_name = Text.column({ nonNull: true });
+  @expose() last_name = Text.column({ nonNull: true });
+
+  // 2. No decorator: invisible. The server scopes on it below, and no
+  //    client query can select it, filter by it, or learn it exists.
+  team_token = Text.column({ nonNull: true });
+
+  // 3. A "derived column": composes back into the typed query API, so a
+  //    client can group and order by it as if it were stored.
+  //    (Note, "derived columns" are just methods that return SQL fragments
+  //     that can reference `this`, the current row).
+  //    Compiles to: "users"."first_name" || ' ' || "users"."last_name"
+  @expose() fullName() {
+    return this.first_name["||"](" ")["||"](this.last_name);
+  }
+
+  // 4. Relation: a reachability edge. Reaching a Users row reaches that
+  //    user's posts, and nothing else. (Note, relations are just methods
+  //    that return query builders referencing `this`)
+  @expose() posts() {
+    return Relation.has(this, Posts, { user_id: this.id });
+  }
+}
+
 await Users.insert(
-  { name: "Alice", team_token: "t-acme" },
-  { name: "Bob", team_token: "t-acme" },
-  { name: "Carol", team_token: "t-other" }, // different team
+  { first_name: "Alice", last_name: "Smith", team_token: "t-acme" },
+  { first_name: "Bob", last_name: "Jones", team_token: "t-acme" },
 ).execute();
+
+// Query it directly on the server. `fullName()` works anywhere a column
+// does — select, where, orderBy:
+const names = await Users.from()
+  .select(({ users }) => ({ name: users.fullName() }))
+  .execute();
+
+console.log(names); // [ { name: 'Alice Smith' }, { name: 'Bob Jones' } ]
+
+// ── Now the same data model, reached by a client over RPC ──────────────
+// Nothing about the classes above changes. The `@expose` marks already
+// are the contract; all that's left is to hand out a root capability.
+
+// A third user, on a different team, plus some posts:
+await Users.insert({
+  first_name: "Carol",
+  last_name: "Vance",
+  team_token: "t-other",
+}).execute();
 await Posts.insert(
   { user_id: 1, body: "one" },
   { user_id: 1, body: "two" },
@@ -126,6 +107,8 @@ await Posts.insert(
 
 // The capability root — the entire surface a client can reach.
 class Api {
+  // 5. Arguments are validated by a schema before the method ever runs.
+  //
   // Hands back a builder over one team's posts, already joined to authors.
   // Everything the client writes is rooted here, so it can only narrow.
   @expose(z.string())
@@ -133,6 +116,11 @@ class Api {
     return Posts.from()
       .join(Users, ({ posts, users }) => posts.user_id.eq(users.id))
       .where(({ users }) => users.team_token.eq(teamToken));
+  }
+
+  @expose(z.string())
+  team(teamToken: string) {
+    return Users.from().where(({ users }) => users.team_token.eq(teamToken));
   }
 }
 
@@ -144,23 +132,69 @@ const api = newMessagePortRpcSession<Api>(port2) as unknown as ShimStub<Api>;
 
 // "Top posters" — written on the client, evaluated on the server. There is
 // no endpoint for this: the client composed the group-by, the aggregate and
-// the ordering itself. The team scoping is baked into the builder, so the
+// the ordering itself, and grouped by `fullName()` — a method, used exactly
+// like a column. The team scoping is baked into the builder, so the
 // refinement can only narrow it, and Carol's row never appears.
-const rows = await doRpc(api, (a) =>
+const top = await doRpc(api, (a) =>
   a
     .feedFor("t-acme")
-    .groupBy(({ users }) => [users.name])
-    .select(({ users, posts }) => ({ author: users.name, posts: posts.id.count() }))
+    .groupBy(({ users }) => [users.fullName()])
+    .select(({ users, posts }) => ({ author: users.fullName(), posts: posts.id.count() }))
     .orderBy(({ posts }) => [posts.id.count(), "desc"])
     .execute(),
 );
 
-console.log(rows);
+console.log(top); // [ { author: 'Alice Smith', posts: 2 }, { author: 'Bob Jones', posts: 1 } ]
+
+// Rows are capabilities too. `.hydrate()` returns row objects rather than
+// plain data, and the relation is an edge you can walk from one — so
+// reaching Alice reaches Alice's posts, without a second endpoint.
+const [alice] = await doRpc(api, (a) =>
+  a.team("t-acme").where(({ users }) => users.first_name.eq("Alice")).hydrate(),
+);
+
+const alicesPosts = await doRpc(alice, (u) =>
+  u.posts().select(({ posts }) => ({ body: posts.body })).execute(),
+);
+
+console.log(alicesPosts); // [ { body: 'one' }, { body: 'two' } ]
 
 port1.close();
 port2.close();
 await db.defaultConnection.close();
 ```
+
+For a complete scaffold with migrations + codegen, see the
+[examples](#examples). Or try it interactively at
+[typegres.com/play](https://typegres.com/play).
+
+## Clients compose the queries
+
+The class surface is the contract. A client composes against `@expose`-marked
+members, the closure is serialized, and the server evaluates it under a
+constrained interpreter — so a client can write any query it likes, and still
+reach only what you exposed.
+
+The client-authored "top posters" query compiles to plain SQL, with
+`fullName()` expanded in both the select list and the `GROUP BY` — which is
+what "used exactly like a column" means in practice. The team scoping the
+client never wrote is in the `WHERE`:
+
+```sql
+SELECT (("users"."first_name" || ?) || "users"."last_name") as "author",
+       "count"("posts"."id") as "posts"
+FROM "posts" AS "posts"
+  JOIN "users" AS "users" ON ("posts"."user_id" = "users"."id")
+WHERE ("users"."team_token" = ?)
+GROUP BY (("users"."first_name" || ?) || "users"."last_name")
+ORDER BY "count"("posts"."id") DESC
+-- params: [" ", "t-acme", " "]
+```
+
+Note what the client never does: name a table. `Posts` and `Users` are
+server-side identifiers, and a closure that references one won't serialize.
+A client starts from a capability it was handed and narrows — which is why
+`feedFor`'s join and its team scoping can't be composed away.
 
 Swap the MessagePort for `newWebSocketRpcSession` / `newWorkersRpcResponse` and
 the same code runs browser-to-server, with capabilities, promise pipelining,
@@ -243,17 +277,10 @@ Deeper dive in [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 - [x] Cap'n Web transport (`typegres/capnweb`) — capabilities, promises, and
       live subscriptions over a single WebSocket
 
-> **Import Cap'n Web from `typegres/capnweb`, not from `capnweb`.** The
-> transport needs a fork that isn't published yet (closure serialization,
-> synchronous replay, `getLocalTarget` — see
-> [cloudflare/capnweb#162](https://github.com/cloudflare/capnweb/pull/162)),
-> so it ships bundled, and `typegres/capnweb` re-exports what you need:
-> `RpcTarget`, `RpcStub`, `newWebSocketRpcSession`, `newWorkersRpcResponse`.
-> Installing `capnweb` alongside it gives you a second copy whose
-> `RpcTarget`/`RpcStub` fail `instanceof` against the bundled one — which
-> surfaces as confusing RPC errors at the boundary rather than a clean
-> failure. When #162 lands, capnweb becomes an ordinary dependency and these
-> imports keep working unchanged.
+> **Import Cap'n Web from `typegres/capnweb`, not from `capnweb`.** It ships
+> bundled until [cloudflare/capnweb#162](https://github.com/cloudflare/capnweb/pull/162)
+> lands, so installing `capnweb` yourself gives you a second copy whose
+> `RpcTarget`/`RpcStub` fail `instanceof` against the bundled one.
 
 ## Planned
 
