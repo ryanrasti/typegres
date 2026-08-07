@@ -1,6 +1,10 @@
 {
   "name": "typegres",
   "version": "0.3.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ryanrasti/typegres.git"
+  },
   "type": "module",
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
