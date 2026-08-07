@@ -67,9 +67,9 @@ const packTypegres = (): Promise<string> => {
   return packed;
 };
 
-// Each runnable README section owns an install line and a program, so a
-// section is testable in isolation and the install stays honest (the RPC
-// section needs zod; Usage doesn't).
+// A runnable README section owns an install line and a program, so the
+// install line stays honest — whatever the snippet imports has to appear in
+// the `npm install` a reader would actually run.
 const runReadmeSection = async (
   heading: string,
   mode: InstallMode,
@@ -142,31 +142,35 @@ const runReadmeSection = async (
   fs.rmSync(tmpDir, { recursive: true, force: true });
 };
 
+// The Usage snippet runs the whole arc in one program: a direct server-side
+// query, then the same data model reached by a client over RPC. The negative
+// assertions are what make it meaningful — `Carol` absent proves feedFor's
+// team scoping survived a client-authored group-by (she's on another team and
+// is deliberately inserted only after the direct query, so she can't leak in
+// via that), `not yours` absent proves her post never crossed the wire, and
+// `team_token` absent proves the un-@expose'd column stayed invisible even
+// though the server filtered on it.
 test(
   "README.md Usage snippet — working tree (packed tarball)",
-  () => runReadmeSection("Usage", "working-tree", ["Alice Smith", "Bob Jones"]),
-  60_000, // typical: ~5s; generous for better-sqlite3 prebuilt download on cache misses.
-);
-
-// The RPC section demonstrates the project's actual claim — a client
-// composing a query that reaches only the @expose surface — so it's held to
-// the same "it runs" bar as Usage. The negative assertions are what make it
-// meaningful: `Carol` absent proves feedFor's team scoping survived a
-// client-authored group-by (she has a post, on another team), and
-// `team_token` absent proves the un-@expose'd column never crossed the wire
-// even though the server filtered on it.
-test(
-  "README.md RPC snippet — working tree (packed tarball)",
   () =>
     runReadmeSection(
-      "Clients compose the queries",
+      "Usage",
       "working-tree",
-      // "posts: 2" pins the aggregate itself — without it the test would
-      // pass on any query that merely returned both names.
-      ["Alice", "Bob", "posts: 2"],
-      ["Carol", "t-acme", "team_token"],
+      [
+        // "Alice Smith" (not "Alice") pins the derived column: the client
+        // grouped by a method, so a plain column read prints the wrong string.
+        "Alice Smith",
+        "Bob Jones",
+        // Pins the aggregate itself — without it the test would pass on any
+        // query that merely returned both names.
+        "posts: 2",
+        // The relation walk — Alice's two posts and only hers.
+        "body: 'one'",
+        "body: 'two'",
+      ],
+      ["Carol", "Vance", "t-acme", "team_token", "not yours", "three"],
     ),
-  60_000,
+  60_000, // typical: ~5s; generous for better-sqlite3 prebuilt download on cache misses.
 );
 
 // Registry mode: opt-in via env var. Tests the currently-published
