@@ -67,6 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write   # for pushing the tag
+      id-token: write   # for npm trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
         with:
@@ -95,9 +96,6 @@ jobs:
             npm run build
             npm publish
           '
-        env:
-          # npm reads this as a config key — avoids writing ~/.npmrc.
-          NPM_CONFIG_//registry.npmjs.org/:_authToken: ${{ secrets.NODE_AUTH_TOKEN }}
       - name: Tag the release
         if: steps.v.outputs.release == 'true'
         run: |

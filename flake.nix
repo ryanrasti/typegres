@@ -14,7 +14,7 @@
       devShells = forAllSystems ({ pkgs }: {
         default = pkgs.mkShell {
           packages = with pkgs; [
-            nodejs_22
+            nodejs  # nixpkgs default = current LTS (24.x as of this lock)
             postgresql_17
             act  # run GitHub Actions workflows locally (needs Docker on host)
           ];
