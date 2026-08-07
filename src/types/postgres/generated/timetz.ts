@@ -34,14 +34,14 @@ export class Timetz<in out N extends number> extends Anynonarray<N> {
   max(): types.Timetz<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Timetz]]); return runtime.funcCall("max", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   min(): types.Timetz<0 | 1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Timetz]]); return runtime.funcCall("min", [this, ...__rest], __rt) as any; }
-  ['+']<M0 extends types.Interval<any>>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['+']<M0 extends types.Date<any>>(arg0: M0): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['+']<M0 extends types.Interval<any>>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ['+'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Interval }], types.Timetz], [[{ type: types.Date }], types.Timestamptz]]); return runtime.opCall(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  plus<M0 extends types.Interval<any>>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['+'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Date }], types.Timestamptz], [[{ type: types.Interval }], types.Timetz]]); return runtime.opCall(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   plus<M0 extends types.Date<any>>(arg0: M0): types.Timestamptz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  plus<M0 extends types.Interval<any>>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  plus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Interval }], types.Timetz], [[{ type: types.Date }], types.Timestamptz]]); return runtime.opCall(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  plus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Date }], types.Timestamptz], [[{ type: types.Interval }], types.Timetz]]); return runtime.opCall(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
   ['-']<M0 extends types.Interval<any> | string>(arg0: M0): types.Timetz<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Interval, allowPrimitive: true }], types.Timetz]]); return runtime.opCall(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()

@@ -33,17 +33,9 @@ export class Bpchar<in out N extends number> extends Anynonarray<N> {
   @expose.unchecked()
   bpcharSmaller<M0 extends types.Bpchar<any> | string>(arg0: M0): types.Bpchar<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bpchar, allowPrimitive: true }], types.Bpchar]]); return runtime.funcCall("bpchar_smaller", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
-  bpchariclike<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.funcCall("bpchariclike", [this, ...__rest], __rt) as any; }
-  @expose.unchecked()
-  bpcharicnlike<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.funcCall("bpcharicnlike", [this, ...__rest], __rt) as any; }
-  @expose.unchecked()
   bpcharicregexeq<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.funcCall("bpcharicregexeq", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   bpcharicregexne<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.funcCall("bpcharicregexne", [this, ...__rest], __rt) as any; }
-  @expose.unchecked()
-  bpcharlike<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.funcCall("bpcharlike", [this, ...__rest], __rt) as any; }
-  @expose.unchecked()
-  bpcharnlike<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.funcCall("bpcharnlike", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
   bpcharregexeq<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.funcCall("bpcharregexeq", [this, ...__rest], __rt) as any; }
   @expose.unchecked()
@@ -69,7 +61,11 @@ export class Bpchar<in out N extends number> extends Anynonarray<N> {
   @expose.unchecked()
   ['!~~']<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`!~~`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
+  notLike<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`!~~`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
   ['!~~*']<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`!~~*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  notIlike<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`!~~*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
   ['<']<M0 extends types.Bpchar<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Bpchar, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
@@ -109,5 +105,9 @@ export class Bpchar<in out N extends number> extends Anynonarray<N> {
   @expose.unchecked()
   ['~~']<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`~~`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
+  like<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`~~`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
   ['~~*']<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`~~*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  @expose.unchecked()
+  ilike<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`~~*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
 }

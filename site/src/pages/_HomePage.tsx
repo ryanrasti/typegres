@@ -83,7 +83,7 @@ await todo.update({ completed: true }).execute(db);`,
     {
       title: "3. Expose your API over RPC, Safely",
       description:
-        "Give clients a composable query builder with your unescapable data boundaries. Compose queries in the client with rich Postgres features and function as primitives.",
+        "Give clients a composable query builder with your inescapable data boundaries. Compose queries in the client with rich Postgres features and functions as primitives.",
       leftCode: `class User extends db.Table("users") {
   // ...
 }

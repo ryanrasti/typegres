@@ -83,18 +83,18 @@ export class Int2<in out N extends number> extends Anynonarray<N> {
   ['%']<M0 extends types.Int2<any> | number>(arg0: M0): types.Int2<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int2, allowPrimitive: true }], types.Int2]]); return runtime.opCall(runtime.sql`%`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
   ['&']<M0 extends types.Int2<any> | number>(arg0: M0): types.Int2<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int2, allowPrimitive: true }], types.Int2]]); return runtime.opCall(runtime.sql`&`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  ['*']<M0 extends types.Int2<any> | number>(arg0: M0): types.Int2<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['*']<M0 extends types.Money<any>>(arg0: M0): types.Money<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['*']<M0 extends types.Int4<any>>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['*']<M0 extends types.Int8<any>>(arg0: M0): types.Int8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['*']<M0 extends types.Int2<any> | number>(arg0: M0): types.Int2<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['*']<M0 extends types.Int4<any>>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['*']<M0 extends types.Money<any>>(arg0: M0): types.Money<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ['*'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int2, allowPrimitive: true }], types.Int2], [[{ type: types.Money }], types.Money], [[{ type: types.Int4 }], types.Int4], [[{ type: types.Int8 }], types.Int8]]); return runtime.opCall(runtime.sql`*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  times<M0 extends types.Int2<any> | number>(arg0: M0): types.Int2<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  times<M0 extends types.Money<any>>(arg0: M0): types.Money<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  times<M0 extends types.Int4<any>>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['*'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8 }], types.Int8], [[{ type: types.Int2, allowPrimitive: true }], types.Int2], [[{ type: types.Int4 }], types.Int4], [[{ type: types.Money }], types.Money]]); return runtime.opCall(runtime.sql`*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   times<M0 extends types.Int8<any>>(arg0: M0): types.Int8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  times<M0 extends types.Int2<any> | number>(arg0: M0): types.Int2<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  times<M0 extends types.Int4<any>>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  times<M0 extends types.Money<any>>(arg0: M0): types.Money<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  times(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int2, allowPrimitive: true }], types.Int2], [[{ type: types.Money }], types.Money], [[{ type: types.Int4 }], types.Int4], [[{ type: types.Int8 }], types.Int8]]); return runtime.opCall(runtime.sql`*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  times(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8 }], types.Int8], [[{ type: types.Int2, allowPrimitive: true }], types.Int2], [[{ type: types.Int4 }], types.Int4], [[{ type: types.Money }], types.Money]]); return runtime.opCall(runtime.sql`*`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['+']<M0 extends types.Int8<any> | string>(arg0: M0): types.Int8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['+']<M0 extends types.Int2<any> | number>(arg0: M0): types.Int2<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['+']<M0 extends types.Int4<any>>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
@@ -105,26 +105,26 @@ export class Int2<in out N extends number> extends Anynonarray<N> {
   plus<M0 extends types.Int4<any>>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
   plus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Int8], [[{ type: types.Int2, allowPrimitive: true }], types.Int2], [[{ type: types.Int4 }], types.Int4]]); return runtime.opCall(runtime.sql`+`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['-']<M0 extends types.Int8<any> | string>(arg0: M0): types.Int8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['-']<M0 extends types.Int2<any> | number>(arg0: M0): types.Int2<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['-']<M0 extends types.Int4<any>>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['-']<M0 extends types.Int8<any> | string>(arg0: M0): types.Int8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ['-'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int2, allowPrimitive: true }], types.Int2], [[{ type: types.Int4 }], types.Int4], [[{ type: types.Int8, allowPrimitive: true }], types.Int8]]); return runtime.opCall(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['-'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Int8], [[{ type: types.Int2, allowPrimitive: true }], types.Int2], [[{ type: types.Int4 }], types.Int4]]); return runtime.opCall(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  minus<M0 extends types.Int8<any> | string>(arg0: M0): types.Int8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   minus<M0 extends types.Int2<any> | number>(arg0: M0): types.Int2<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   minus<M0 extends types.Int4<any>>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  minus<M0 extends types.Int8<any> | string>(arg0: M0): types.Int8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  minus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int2, allowPrimitive: true }], types.Int2], [[{ type: types.Int4 }], types.Int4], [[{ type: types.Int8, allowPrimitive: true }], types.Int8]]); return runtime.opCall(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  ['/']<M0 extends types.Int4<any>>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  minus(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Int8], [[{ type: types.Int2, allowPrimitive: true }], types.Int2], [[{ type: types.Int4 }], types.Int4]]); return runtime.opCall(runtime.sql`-`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['/']<M0 extends types.Int8<any> | string>(arg0: M0): types.Int8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['/']<M0 extends types.Int2<any> | number>(arg0: M0): types.Int2<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['/']<M0 extends types.Int4<any>>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ['/'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4 }], types.Int4], [[{ type: types.Int8, allowPrimitive: true }], types.Int8], [[{ type: types.Int2, allowPrimitive: true }], types.Int2]]); return runtime.opCall(runtime.sql`/`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  divide<M0 extends types.Int4<any>>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['/'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Int8], [[{ type: types.Int2, allowPrimitive: true }], types.Int2], [[{ type: types.Int4 }], types.Int4]]); return runtime.opCall(runtime.sql`/`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   divide<M0 extends types.Int8<any> | string>(arg0: M0): types.Int8<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   divide<M0 extends types.Int2<any> | number>(arg0: M0): types.Int2<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  divide<M0 extends types.Int4<any>>(arg0: M0): types.Int4<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  divide(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4 }], types.Int4], [[{ type: types.Int8, allowPrimitive: true }], types.Int8], [[{ type: types.Int2, allowPrimitive: true }], types.Int2]]); return runtime.opCall(runtime.sql`/`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  divide(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Int8], [[{ type: types.Int2, allowPrimitive: true }], types.Int2], [[{ type: types.Int4 }], types.Int4]]); return runtime.opCall(runtime.sql`/`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['<']<M0 extends types.Int8<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['<']<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['<']<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
@@ -137,56 +137,56 @@ export class Int2<in out N extends number> extends Anynonarray<N> {
   lt(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool]]); return runtime.opCall(runtime.sql`<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
   ['<<']<M0 extends types.Int4<any> | number>(arg0: M0): types.Int2<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Int2]]); return runtime.opCall(runtime.sql`<<`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  ['<=']<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['<=']<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['<=']<M0 extends types.Int8<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['<=']<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['<=']<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ['<='](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4 }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int8, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  lte<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  lte<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['<='](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool]]); return runtime.opCall(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   lte<M0 extends types.Int8<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  lte<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  lte<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  lte(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4 }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int8, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  lte(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool]]); return runtime.opCall(runtime.sql`<=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['<>']<M0 extends types.Int8<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['<>']<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['<>']<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['<>']<M0 extends types.Int8<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ['<>'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool], [[{ type: types.Int8, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['<>'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool]]); return runtime.opCall(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ne<M0 extends types.Int8<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ne<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ne<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ne<M0 extends types.Int8<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ne(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool], [[{ type: types.Int8, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ne(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool]]); return runtime.opCall(runtime.sql`<>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['=']<M0 extends types.Int8<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['=']<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['=']<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['=']<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ['='](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['='](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool]]); return runtime.opCall(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   eq<M0 extends types.Int8<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  eq<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   eq<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  eq<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  eq(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  ['>']<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  eq(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool]]); return runtime.opCall(runtime.sql`=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['>']<M0 extends types.Int8<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['>']<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['>']<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ['>'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool]]); return runtime.opCall(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
-  gt<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['>'](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool]]); return runtime.opCall(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   gt<M0 extends types.Int8<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  gt<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   gt<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  gt(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool]]); return runtime.opCall(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  gt(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool]]); return runtime.opCall(runtime.sql`>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   ['>=']<M0 extends types.Int8<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  ['>=']<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   ['>=']<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  ['>=']<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  ['>='](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  ['>='](arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool]]); return runtime.opCall(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   gte<M0 extends types.Int8<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
-  gte<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   gte<M0 extends types.Int2<any> | number>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  gte<M0 extends types.Int4<any>>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()
-  gte(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool]]); return runtime.opCall(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
+  gte(arg0: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int8, allowPrimitive: true }], types.Bool], [[{ type: types.Int2, allowPrimitive: true }], types.Bool], [[{ type: types.Int4 }], types.Bool]]); return runtime.opCall(runtime.sql`>=`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()
   ['>>']<M0 extends types.Int4<any> | number>(arg0: M0): types.Int2<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Int4, allowPrimitive: true }], types.Int2]]); return runtime.opCall(runtime.sql`>>`, [this, ...__rest] as [unknown, unknown], __rt) as any; }
   @expose.unchecked()

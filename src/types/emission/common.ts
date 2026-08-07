@@ -19,6 +19,14 @@ export const OPERATOR_ALIASES: { [op: string]: string } = {
   "<=": "lte",
   ">": "gt",
   ">=": "gte",
+  // Pattern matching. `like` is also a real function on both hosts
+  // (sqlite's like(X,Y), pg's catalog like), so the emitter's collision
+  // rule keeps the host function under that name and its signature stays
+  // authoritative; the `['~~']` bracket form covers the operator.
+  "~~": "like",
+  "~~*": "ilike",
+  "!~~": "notLike",
+  "!~~*": "notIlike",
   "+": "plus",
   "-": "minus",
   "*": "times",
