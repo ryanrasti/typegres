@@ -1,6 +1,6 @@
 {
   "name": "typegres",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
@@ -54,7 +54,7 @@
     }
   },
   "bin": {
-    "tg": "./dist/cli.mjs"
+    "tg": "dist/cli.mjs"
   },
   "files": [
     "dist"
