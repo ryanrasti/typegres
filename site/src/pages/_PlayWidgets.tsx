@@ -497,9 +497,9 @@ export const InventoryWidget = (props: WidgetProps) => {
 // --- User picker (header-level — not bound to a specific widget) ---
 
 export const USER_TOKENS = [
-  { value: "user_brightship_alice", label: "Alice — Brightship (ops_lead)" },
-  { value: "user_brightship_bob",   label: "Bob — Brightship (inventory_control)" },
-  { value: "user_atlas_dave",       label: "Dave — Atlas (ops_lead)" },
+  { value: "user_brightship_alice", label: "Alice, Brightship (ops_lead)" },
+  { value: "user_brightship_bob",   label: "Bob, Brightship (inventory_control)" },
+  { value: "user_atlas_dave",       label: "Dave, Atlas (ops_lead)" },
 ] as const;
 export type UserToken = (typeof USER_TOKENS)[number]["value"];
 

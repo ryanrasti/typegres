@@ -120,7 +120,7 @@ export default function PlayActiveArea({ modelsReady, activeWidget }: PlayActive
         },
       });
       if (!captured) {
-        throw new Error("Widget did not call output(...) — pass it an rpc(...) result.");
+        throw new Error("Widget did not call output(...). Pass it an rpc(...) result.");
       }
       const pending = captured as AsyncIterable<unknown>;
       // Iterate explicitly so we can hold the iterator handle for
