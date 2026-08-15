@@ -312,7 +312,13 @@ export class Bus {
   #startLoop(): void {
     this.#loopPromise = (async () => {
       while (this.#running) {
-        await this.#poll();
+        try {
+          await this.#poll();
+        } catch (e) {
+          // stop() flipped #running while a poll was in flight (or the
+          // schema vanished under us). Shutdown is not a poll failure.
+          if (this.#running) { throw e; }
+        }
         const waiters = this.#oncePolled.splice(0);
         for (const w of waiters) {
           w();
