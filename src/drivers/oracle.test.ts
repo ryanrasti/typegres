@@ -7,18 +7,12 @@
 // surface, no query builder — those land in later steps.
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import { OracleDriver } from "./oracle";
+import { parseOraclePoolAttributes } from "./oracle-url";
 import { Database } from "../database";
 import { compile, sql } from "../builder/sql";
 import type { Connection } from "../database";
 
 const url = process.env["ORACLE_URL"];
-const parseUrl = (s: string) => {
-  const m = /^([^/]+)\/([^@]+)@(.+)$/.exec(s);
-  if (!m) {
-    throw new Error(`ORACLE_URL must be user/password@host:port/service, got ${JSON.stringify(s)}`);
-  }
-  return { user: m[1]!, password: m[2]!, connectString: m[3]! };
-};
 
 // Always-on: Connection construction + compile + statement execute, no Oracle process.
 test("oracle Connection constructs without a live engine", async () => {
@@ -47,7 +41,8 @@ describe.skipIf(!url)("oracle driver", () => {
   let conn: Connection;
 
   beforeAll(async () => {
-    driver = await OracleDriver.create(parseUrl(url!));
+    if (!url) { throw new Error("ORACLE_URL is not set"); }
+    driver = await OracleDriver.create(parseOraclePoolAttributes(url));
     db = new Database();
     conn = db.connect(driver);
   });

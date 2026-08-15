@@ -19,18 +19,18 @@ import * as types from "../index";
 export class Any<in out N extends number> extends SqlValue<N> {
   /** `concat` — Concatenation of all non-NULL args (3.44+). */
   @expose.unchecked()
-  concat(...rest: (types.Any<any> | number | string | boolean | Uint8Array)[]): types.Text<1> { const [__rt, ...__rest] = runtime.match([...rest], [[[{ type: types.Any, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("concat", [this, ...__rest], __rt) as any; }
+  concat<R extends (types.Any<any> | number | string | boolean | Uint8Array)[]>(...rest: R): types.Text<1> { const [__rt, ...__rest] = runtime.match([...rest], [[[{ type: types.Any, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("concat", [this, ...__rest], __rt) as any; }
   /** `hex` — Uppercase hex rendering of the blob-coerced value; hex(NULL) = ''. */
   @expose.unchecked()
   hex(): types.Text<1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Text]]); return runtime.funcCall("hex", [this, ...__rest], __rt) as any; }
   /** `max` — Scalar max of 2+ values (SQLite cross-type ordering). */
-  max<M0 extends types.Any<any> | number | string | boolean | Uint8Array>(arg0: M0, ...rest: (types.Any<any> | number | string | boolean | Uint8Array)[]): types.Any<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  max<M0 extends types.Any<any> | number | string | boolean | Uint8Array, R extends (types.Any<any> | number | string | boolean | Uint8Array)[]>(arg0: M0, ...rest: R): types.Any<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<R[number]>>>;
   /** `max` — Maximum value; NULL over the empty set. */
   max<T extends types.Any<any>>(this: T): T extends { [meta]: { __nullable: infer U } } ? U : types.Any<0 | 1>;
   @expose.unchecked()
   max(this: any, ...args: unknown[]): any { const [__rt, ...__rest] = runtime.match(args, [[[{ type: types.Any, allowPrimitive: true }, { type: types.Any, allowPrimitive: true, rest: true }], types.Any], [[], runtime.pgType(this)]]); return runtime.funcCall("max", [this, ...__rest], __rt) as any; }
   /** `min` — Scalar min of 2+ values (SQLite cross-type ordering). */
-  min<M0 extends types.Any<any> | number | string | boolean | Uint8Array>(arg0: M0, ...rest: (types.Any<any> | number | string | boolean | Uint8Array)[]): types.Any<runtime.StrictNull<N | runtime.NullOf<M0>>>;
+  min<M0 extends types.Any<any> | number | string | boolean | Uint8Array, R extends (types.Any<any> | number | string | boolean | Uint8Array)[]>(arg0: M0, ...rest: R): types.Any<runtime.StrictNull<N | runtime.NullOf<M0> | runtime.NullOf<R[number]>>>;
   /** `min` — Minimum value; NULL over the empty set. */
   min<T extends types.Any<any>>(this: T): T extends { [meta]: { __nullable: infer U } } ? U : types.Any<0 | 1>;
   @expose.unchecked()
@@ -51,23 +51,23 @@ export class Any<in out N extends number> extends SqlValue<N> {
   @expose.unchecked()
   nullif<T extends types.Any<any>>(this: T, arg0: types.Any<any> | number | string | boolean | Uint8Array): T extends { [meta]: { __nullable: infer U } } ? U : types.Any<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Any, allowPrimitive: true }], runtime.pgType(this)]]); return runtime.funcCall("nullif", [this, ...__rest], __rt) as any; }
   /** `date` — YYYY-MM-DD for the given time value + modifiers. */
-  date<M0 extends types.Text<any> | string>(arg0?: M0, ...rest: (types.Text<any> | string)[]): types.Text<0 | 1>;
+  date<M0 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0?: M0, ...rest: R): types.Text<0 | 1>;
   @expose.unchecked()
   date(...args: unknown[]): any { const [__rt, ...__rest] = runtime.match(args, [[[], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("date", [this, ...__rest], __rt) as any; }
   /** `time` — HH:MM:SS for the given time value + modifiers. */
-  time<M0 extends types.Text<any> | string>(arg0?: M0, ...rest: (types.Text<any> | string)[]): types.Text<0 | 1>;
+  time<M0 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0?: M0, ...rest: R): types.Text<0 | 1>;
   @expose.unchecked()
   time(...args: unknown[]): any { const [__rt, ...__rest] = runtime.match(args, [[[], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("time", [this, ...__rest], __rt) as any; }
   /** `datetime` — YYYY-MM-DD HH:MM:SS for the given time value + modifiers. */
-  datetime<M0 extends types.Text<any> | string>(arg0?: M0, ...rest: (types.Text<any> | string)[]): types.Text<0 | 1>;
+  datetime<M0 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0?: M0, ...rest: R): types.Text<0 | 1>;
   @expose.unchecked()
   datetime(...args: unknown[]): any { const [__rt, ...__rest] = runtime.match(args, [[[], types.Text], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("datetime", [this, ...__rest], __rt) as any; }
   /** `julianday` — Julian day number (REAL). */
-  julianday<M0 extends types.Text<any> | string>(arg0?: M0, ...rest: (types.Text<any> | string)[]): types.Real<0 | 1>;
+  julianday<M0 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0?: M0, ...rest: R): types.Real<0 | 1>;
   @expose.unchecked()
   julianday(...args: unknown[]): any { const [__rt, ...__rest] = runtime.match(args, [[[], types.Real], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Real]]); return runtime.funcCall("julianday", [this, ...__rest], __rt) as any; }
   /** `unixepoch` — Unix timestamp (INTEGER; add 'subsec' for REAL). */
-  unixepoch<M0 extends types.Text<any> | string>(arg0?: M0, ...rest: (types.Text<any> | string)[]): types.Integer<0 | 1>;
+  unixepoch<M0 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0?: M0, ...rest: R): types.Integer<0 | 1>;
   @expose.unchecked()
   unixepoch(...args: unknown[]): any { const [__rt, ...__rest] = runtime.match(args, [[[], types.Integer], [[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Integer]]); return runtime.funcCall("unixepoch", [this, ...__rest], __rt) as any; }
   /** `timediff` — Human-readable A − B duration (3.43+). */
@@ -91,10 +91,10 @@ export class Any<in out N extends number> extends SqlValue<N> {
   total(): types.Real<1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Real]]); return runtime.funcCall("total", [this, ...__rest], __rt) as any; }
   /** `json_array` — JSON array from the arguments. */
   @expose.unchecked()
-  jsonArray(...rest: (types.Any<any> | number | string | boolean | Uint8Array)[]): types.Text<1> { const [__rt, ...__rest] = runtime.match([...rest], [[[{ type: types.Any, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("json_array", [this, ...__rest], __rt) as any; }
+  jsonArray<R extends (types.Any<any> | number | string | boolean | Uint8Array)[]>(...rest: R): types.Text<1> { const [__rt, ...__rest] = runtime.match([...rest], [[[{ type: types.Any, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("json_array", [this, ...__rest], __rt) as any; }
   /** `jsonb_array` — JSON array from the arguments. */
   @expose.unchecked()
-  jsonbArray(...rest: (types.Any<any> | number | string | boolean | Uint8Array)[]): types.Blob<1> { const [__rt, ...__rest] = runtime.match([...rest], [[[{ type: types.Any, allowPrimitive: true, rest: true }], types.Blob]]); return runtime.funcCall("jsonb_array", [this, ...__rest], __rt) as any; }
+  jsonbArray<R extends (types.Any<any> | number | string | boolean | Uint8Array)[]>(...rest: R): types.Blob<1> { const [__rt, ...__rest] = runtime.match([...rest], [[[{ type: types.Any, allowPrimitive: true, rest: true }], types.Blob]]); return runtime.funcCall("jsonb_array", [this, ...__rest], __rt) as any; }
   /** `json_quote` — SQL value → JSON representation. */
   @expose.unchecked()
   jsonQuote(): types.Text<1> { const [__rt, ...__rest] = runtime.match([], [[[], types.Text]]); return runtime.funcCall("json_quote", [this, ...__rest], __rt) as any; }

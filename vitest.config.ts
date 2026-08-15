@@ -22,6 +22,7 @@ const shared = {
       "typegres/drivers/do": `${src}/drivers/do.ts`,
       "typegres/postgres": `${src}/types/postgres/index.ts`,
       "typegres/sqlite": `${src}/types/sqlite/index.ts`,
+      "typegres/oracle": `${src}/types/oracle/index.ts`,
       typegres: `${src}/index.ts`,
     },
   },

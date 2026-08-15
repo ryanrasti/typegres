@@ -64,10 +64,10 @@ export class Blob<in out N extends number> extends Any<N> {
   jsonErrorPosition(): types.Integer<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Integer]]); return runtime.funcCall("json_error_position", [this, ...__rest], __rt) as any; }
   /** `json_extract` — Extract value(s) at path(s) — SQL value for scalars, JSON text otherwise. */
   @expose.unchecked()
-  jsonExtract<M0 extends types.Text<any> | string>(arg0: M0, ...rest: (types.Text<any> | string)[]): types.Any<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Any]]); return runtime.funcCall("json_extract", [this, ...__rest], __rt) as any; }
+  jsonExtract<M0 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0: M0, ...rest: R): types.Any<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Any]]); return runtime.funcCall("json_extract", [this, ...__rest], __rt) as any; }
   /** `jsonb_extract` — Extract at path(s) — JSONB for objects/arrays, SQL value for scalars. */
   @expose.unchecked()
-  jsonbExtract<M0 extends types.Text<any> | string>(arg0: M0, ...rest: (types.Text<any> | string)[]): types.Any<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Any]]); return runtime.funcCall("jsonb_extract", [this, ...__rest], __rt) as any; }
+  jsonbExtract<M0 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0: M0, ...rest: R): types.Any<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Any]]); return runtime.funcCall("jsonb_extract", [this, ...__rest], __rt) as any; }
   /** `json_insert` — Insert value at path if absent (more path/value pairs may follow). */
   @expose.unchecked()
   jsonInsert<M0 extends types.Text<any> | string, M1 extends types.Any<any> | number | string | boolean | Uint8Array>(arg0: M0, arg1: M1): types.Text<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Any, allowPrimitive: true }], types.Text]]); return runtime.funcCall("json_insert", [this, ...__rest], __rt) as any; }
@@ -92,10 +92,10 @@ export class Blob<in out N extends number> extends Any<N> {
   jsonPretty(arg0?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[], types.Text], [[{ type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.funcCall("json_pretty", [this, ...__rest], __rt) as any; }
   /** `json_remove` — Remove the value(s) at path(s). */
   @expose.unchecked()
-  jsonRemove<M0 extends types.Text<any> | string>(arg0: M0, ...rest: (types.Text<any> | string)[]): types.Text<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("json_remove", [this, ...__rest], __rt) as any; }
+  jsonRemove<M0 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0: M0, ...rest: R): types.Text<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("json_remove", [this, ...__rest], __rt) as any; }
   /** `jsonb_remove` — Remove the value(s) at path(s). */
   @expose.unchecked()
-  jsonbRemove<M0 extends types.Text<any> | string>(arg0: M0, ...rest: (types.Text<any> | string)[]): types.Blob<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Blob]]); return runtime.funcCall("jsonb_remove", [this, ...__rest], __rt) as any; }
+  jsonbRemove<M0 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0: M0, ...rest: R): types.Blob<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Blob]]); return runtime.funcCall("jsonb_remove", [this, ...__rest], __rt) as any; }
   /** `json_replace` — Replace value at path if present (more path/value pairs may follow). */
   @expose.unchecked()
   jsonReplace<M0 extends types.Text<any> | string, M1 extends types.Any<any> | number | string | boolean | Uint8Array>(arg0: M0, arg1: M1): types.Text<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Any, allowPrimitive: true }], types.Text]]); return runtime.funcCall("json_replace", [this, ...__rest], __rt) as any; }

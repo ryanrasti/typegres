@@ -10,7 +10,9 @@ PORT="${TYPEGRES_ORA_PORT:-1521}"
 APP_USER="${TYPEGRES_ORA_USER:-typegres}"
 APP_PASSWORD="${TYPEGRES_ORA_PASSWORD:-typegres}"
 SYS_PASSWORD="${TYPEGRES_ORA_SYS_PASSWORD:-oracle}"
-URL="${ORACLE_URL:-${APP_USER}/${APP_PASSWORD}@localhost:${PORT}/FREEPDB1}"
+URL_USER="$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$APP_USER")"
+URL_PASSWORD="$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$APP_PASSWORD")"
+URL="${ORACLE_URL:-oracle://${URL_USER}:${URL_PASSWORD}@localhost:${PORT}/FREEPDB1}"
 
 if [ -z "${ORACLE_URL:-}" ]; then
   export ORACLE_URL="$URL"

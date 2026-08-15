@@ -211,6 +211,27 @@ export class SqlValue<in out N extends number> {
 export const isColumn = (v: unknown): v is SqlValue<any> =>
   v instanceof SqlValue && v[meta].__raw instanceof Unbound;
 
+// Shared runtime for dialect roots' differently-typed `.in()` methods.
+// The public signatures stay on each root because their class hierarchies
+// require different amounts of type-level recursion.
+export const inListSql = (receiver: SqlValue<any>, vals: unknown[]): Sql => {
+  const cls = receiver[meta].__class;
+  const root = cls.dialect.root;
+  const wrapped = vals.map((v) => {
+    if (v instanceof root) { return v; }
+    // Uint8Array is the one bindable primitive that is a class instance.
+    if (!(v instanceof Uint8Array) && !isPlainData(v)) {
+      const name = (Object.getPrototypeOf(v) as { constructor?: { name?: string } } | null)?.constructor?.name ?? "anonymous";
+      throw new TypeError(
+        `Any.in: cannot accept ${name} instance as a list value. ` +
+        `Pass a typegres expression or a primitive matching ${cls.__typnameText}.`,
+      );
+    }
+    return cls.serialize(v);
+  });
+  return sql`(${receiver.toSql()} IN (${sql.join(wrapped.map((v) => v.toSql()))}))`;
+};
+
 // Look up a column by name on a Table instance. Throws with a specific
 // message when the field is missing or is an expression rather than a
 // column declaration. Used by mutation builders and live wrappers.
