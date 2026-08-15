@@ -7,8 +7,10 @@ import { compileOnlyDb } from "../test-helpers";
 const $ident = (name: string) => new Ident(name);
 const pgDb = compileOnlyDb("postgres");
 const sqliteDb = compileOnlyDb("sqlite");
+const oracleDb = compileOnlyDb("oracle");
 const pgCtx = { database: pgDb };
 const sqliteCtx = { database: sqliteDb };
+const oracleCtx = { database: oracleDb };
 
 test("param compiles with pg style", () => {
   const q = sql`SELECT ${1}, ${2}`;
@@ -18,6 +20,11 @@ test("param compiles with pg style", () => {
 test("param compiles with sqlite style", () => {
   const q = sql`SELECT ${1}, ${2}`;
   expect(compile(q, sqliteCtx)).toEqual({ text: "SELECT ?, ?", values: [1, 2] });
+});
+
+test("param compiles with oracle style", () => {
+  const q = sql`SELECT ${1}, ${2}`;
+  expect(compile(q, oracleCtx)).toEqual({ text: "SELECT :1, :2", values: [1, 2] });
 });
 
 test("ident in tagged template", () => {

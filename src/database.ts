@@ -12,7 +12,7 @@ import { DeleteBuilder } from "./builder/delete";
 import { Bus, type Subscription, type BusOptions } from "./live/bus";
 import { SqliteLiveExecutor } from "./live/sqlite/executor";
 import { PgExecutor } from "./live/pg/executor";
-import type { Executor } from "./executor";
+import { StatementExecutor, type Executor } from "./executor";
 import type { DialectName } from "./builder/sql";
 
 export type TransactionIsolation = "read committed" | "repeatable read" | "serializable";
@@ -203,7 +203,7 @@ export class Connection<C = undefined> {
     } else if (database.dialect === "postgres") {
       this.#bus = new Bus(this, liveOpts);
       this.#executor = new PgExecutor(database, (compiled) => driver.execute(compiled));
-    } else {
+    } else if (database.dialect === "sqlite") {
       if (!isSyncDriver(driver)) {
         throw new Error(
           "sqlite requires a SyncDriver (SqliteDriver, DoSqliteDriver) — " +
@@ -213,6 +213,10 @@ export class Connection<C = undefined> {
       const bus = new Bus(this, liveOpts);
       this.#bus = bus;
       this.#executor = new SqliteLiveExecutor(database, driver, bus);
+    } else {
+      // Oracle (and any future dialect without a live engine): statements
+      // only. live() throws from StatementExecutor.
+      this.#executor = new StatementExecutor(database, (compiled) => driver.execute(compiled));
     }
     if (isolation) { this.#isolation = isolation; }
   }
@@ -291,10 +295,11 @@ export class Connection<C = undefined> {
       throw new Error("transaction() requires a callback");
     }
     if (opts?.isolation && this.database.dialect !== "postgres") {
-      // Sqlite rejects pg's BEGIN ISOLATION LEVEL syntax, and its
-      // transactions are serializable by nature — no level to pick.
+      // Only pg has BEGIN ISOLATION LEVEL. Sqlite transactions are
+      // serializable by nature; Oracle isolation is a session/txn
+      // attribute we don't model yet.
       throw new Error(
-        `transaction({ isolation }) is pg-only — sqlite transactions are always serializable; omit the option`,
+        `transaction({ isolation }) is pg-only — the '${this.database.dialect}' dialect does not take an isolation option; omit it`,
       );
     }
     if (this.#executor.bound) {
@@ -318,13 +323,16 @@ export class Connection<C = undefined> {
       }
       return fn(this);
     }
-    const bus = this.#bus!;
+    const bus = this.#bus;
     return this.driver.runInSingleConnection(async (execute) => {
       const driver = this.driver;
       let txExecutor: Executor;
       if (this.database.dialect === "postgres") {
         txExecutor = new PgExecutor(this.database, execute, true);
-      } else if (isSyncDriver(driver)) {
+      } else if (this.database.dialect === "sqlite") {
+        if (!isSyncDriver(driver)) {
+          throw new Error("unreachable: sqlite Connection without a SyncDriver");
+        }
         // Bound and pooled are the same channel on sqlite's one handle —
         // checked, not assumed; the bound executor differs only in event
         // timing (commit-deferred flush).
@@ -333,11 +341,12 @@ export class Connection<C = undefined> {
             "sync driver must pass its executeSync to runInSingleConnection — one handle, one channel",
           );
         }
+        if (!bus) {
+          throw new Error("sqlite Connection is missing its live bus");
+        }
         txExecutor = new SqliteLiveExecutor(this.database, driver, bus, true);
       } else {
-        // The constructor rejects async sqlite drivers at attach — this
-        // branch exists so TS narrows `driver` above.
-        throw new Error("unreachable: sqlite Connection without a SyncDriver");
+        txExecutor = new StatementExecutor(this.database, execute, true);
       }
       const tx = new Connection<C>(this.database, this.driver, txExecutor, opts?.isolation);
       // Drivers with a native transaction protocol (Durable Objects) own
@@ -399,7 +408,10 @@ export class Connection<C = undefined> {
     if (this.#executor.bound) {
       throw new Error("live() can't be called inside a transaction");
     }
-    const bus = this.#bus!;
+    const bus = this.#bus;
+    if (!bus) {
+      throw new Error(`live() is not supported on the '${this.database.dialect}' dialect`);
+    }
     // Lazy engine start: a no-op on sqlite (capture feeds the bus
     // synchronously from attach); on pg this seeds the snapshot watermark
     // and spins the poll loop on first use, so connections that never

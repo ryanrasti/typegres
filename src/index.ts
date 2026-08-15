@@ -4,6 +4,7 @@
 //   import { Database, sql, expose } from "typegres";
 //   import { DoSqliteDriver } from "typegres/drivers/do";
 //   import { PgDriver } from "typegres/drivers/pg";
+//   import { OracleDriver } from "typegres/drivers/oracle";
 
 export { Database, Connection } from "./database";
 export type { TransactionIsolation, TransactionOptions } from "./database";

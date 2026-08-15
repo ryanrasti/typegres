@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Boot gvenzl/oracle-free:23-slim-faststart for local oracle tests.
+# Honors a pre-existing ORACLE_URL (CI / a long-lived instance). Idempotent:
+# a running container of the same name is reused; a stopped one is started.
+set -euo pipefail
+
+NAME="${TYPEGRES_ORA_NAME:-typegres-ora}"
+IMAGE="${TYPEGRES_ORA_IMAGE:-gvenzl/oracle-free:23-slim-faststart}"
+PORT="${TYPEGRES_ORA_PORT:-1521}"
+APP_USER="${TYPEGRES_ORA_USER:-typegres}"
+APP_PASSWORD="${TYPEGRES_ORA_PASSWORD:-typegres}"
+SYS_PASSWORD="${TYPEGRES_ORA_SYS_PASSWORD:-oracle}"
+URL="${ORACLE_URL:-${APP_USER}/${APP_PASSWORD}@localhost:${PORT}/FREEPDB1}"
+
+if [ -z "${ORACLE_URL:-}" ]; then
+  export ORACLE_URL="$URL"
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "docker is required to start Oracle. Install Docker or set ORACLE_URL at an existing instance." >&2
+  exit 1
+fi
+
+if docker inspect -f '{{.State.Running}}' "$NAME" >/dev/null 2>&1; then
+  running="$(docker inspect -f '{{.State.Running}}' "$NAME")"
+  if [ "$running" = "true" ]; then
+    echo "Oracle container '$NAME' already running."
+  else
+    echo "Starting existing Oracle container '$NAME'..."
+    docker start "$NAME" >/dev/null
+  fi
+else
+  echo "Starting $IMAGE as '$NAME' (port $PORT)..."
+  docker run -d --name "$NAME" \
+    -p "${PORT}:1521" \
+    -e ORACLE_PASSWORD="$SYS_PASSWORD" \
+    -e APP_USER="$APP_USER" \
+    -e APP_USER_PASSWORD="$APP_PASSWORD" \
+    "$IMAGE" >/dev/null
+fi
+
+echo "Waiting for Oracle to accept connections..."
+# healthcheck.sh is the image's own ready probe (DATABASE IS READY TO USE).
+for i in $(seq 1 60); do
+  if docker exec "$NAME" healthcheck.sh >/dev/null 2>&1; then
+    echo "Oracle is ready."
+    echo "  ORACLE_URL=$ORACLE_URL"
+    echo "Export it in this shell:  export ORACLE_URL='$ORACLE_URL'"
+    exit 0
+  fi
+  sleep 5
+done
+
+echo "Oracle did not become ready in time. Last logs:" >&2
+docker logs --tail 40 "$NAME" >&2
+exit 1
