@@ -66,7 +66,9 @@ export const setupDb = (): void => {
   });
 
   afterAll(async () => {
-    await conn.execute(sql`DROP SCHEMA IF EXISTS ${db.scopedIdent(schema)} CASCADE`);
+    // Stop the poller first. Don't DROP SCHEMA here — a concurrent poll
+    // can race the drop (max: 1 pool, two-query poll). Next beforeAll
+    // already drops leftover schema.
     await conn.close();
   });
 };
