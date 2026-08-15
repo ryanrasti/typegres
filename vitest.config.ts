@@ -18,6 +18,7 @@ const shared = {
       "typegres/drivers/pglite": `${src}/drivers/pglite.ts`,
       "typegres/drivers/sqlite": `${src}/drivers/sqlite.ts`,
       "typegres/drivers/pg": `${src}/drivers/pg.ts`,
+      "typegres/drivers/oracle": `${src}/drivers/oracle.ts`,
       "typegres/drivers/do": `${src}/drivers/do.ts`,
       "typegres/postgres": `${src}/types/postgres/index.ts`,
       "typegres/sqlite": `${src}/types/sqlite/index.ts`,

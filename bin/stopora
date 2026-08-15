@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Stop the local Oracle container started by bin/startora. Leaves the
+# container (and its data volume) in place so the next startora is fast.
+set -euo pipefail
+
+NAME="${TYPEGRES_ORA_NAME:-typegres-ora}"
+
+if ! docker inspect "$NAME" >/dev/null 2>&1; then
+  echo "No Oracle container named '$NAME'."
+  exit 0
+fi
+
+echo "Stopping Oracle container '$NAME'"
+docker stop "$NAME" >/dev/null
+echo "Stopped. Re-run bin/startora to start it again; docker rm $NAME to discard data."

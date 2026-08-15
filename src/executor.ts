@@ -1,6 +1,6 @@
 import { compile, type CompiledSql, type Sql } from "./builder/sql";
 import type { Connection, Database } from "./database";
-import type { QueryResult } from "./drivers/types";
+import type { AnyExecuteFn, QueryResult } from "./drivers/types";
 import type { QueryBuilder, RowType, RowTypeToTsType } from "./builder/query";
 import { InsertBuilder } from "./builder/insert";
 import { UpdateBuilder } from "./builder/update";
@@ -80,4 +80,23 @@ export abstract class Executor {
   // unless a variant holds deferred work (sqlite's event buffer).
   onCommit(): void {}
   onRollback(): void {}
+}
+
+// Statement-only executor — no live capture. Oracle (and any future
+// dialect that isn't wired into the live engine) uses this so
+// Connection construction doesn't fall through to the sqlite branch.
+export class StatementExecutor extends Executor {
+  constructor(
+    database: Database,
+    private execFn: AnyExecuteFn,
+    bound = false,
+  ) {
+    super(database, bound);
+  }
+  protected exec(compiled: CompiledSql): Promise<QueryResult> {
+    return Promise.resolve(this.execFn(compiled));
+  }
+  override runLiveIteration(): never {
+    throw new Error(`live() is not supported on the '${this.database.dialect}' dialect`);
+  }
 }

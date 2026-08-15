@@ -13,7 +13,7 @@ import { SqlValue } from "../types/sql-value";
 // dialect tag. Extend this union to register a new dialect — every
 // switch on `DialectName` becomes an exhaustiveness error until the
 // new case is handled.
-export type DialectName = "postgres" | "sqlite";
+export type DialectName = "postgres" | "sqlite" | "oracle";
 
 export type CompiledSql = { text: string; values: readonly unknown[] };
 
@@ -343,6 +343,7 @@ const paramForDialect = (dialect: DialectName, position: number): string => {
   switch (dialect) {
     case "postgres": return `$${position}`;
     case "sqlite":   return "?";
+    case "oracle":   return `:${position}`;
     default: {
       const _exhaustive: never = dialect;
       throw new Error(`Unknown dialect: ${String(_exhaustive)}`);

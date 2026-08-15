@@ -24,6 +24,7 @@
       "typegres/drivers/pg": ["./src/drivers/pg.ts"],
       "typegres/drivers/pglite": ["./src/drivers/pglite.ts"],
       "typegres/drivers/sqlite": ["./src/drivers/sqlite.ts"],
+      "typegres/drivers/oracle": ["./src/drivers/oracle.ts"],
       "typegres/drivers/do": ["./src/drivers/do.ts"]
     }
   },

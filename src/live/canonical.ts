@@ -14,7 +14,17 @@ import { Cast, type DialectName, sql, type Sql } from "../builder/sql";
 // but the stored value as '1'. Collapse integral reals to INTEGER before
 // the text cast; non-integral reals ('1.5') and other storage classes
 // pass through. (CAST(x AS numeric) can't do this — it's a no-op on REAL.)
-export const canonicalText = (expr: Sql, dialect: DialectName): Sql =>
-  dialect === "sqlite"
-    ? sql`CASE WHEN typeof(${expr}) = 'real' AND ${expr} = CAST(${expr} AS integer) THEN CAST(CAST(${expr} AS integer) AS text) ELSE CAST(${expr} AS text) END`
-    : new Cast(expr, sql`text`, dialect);
+export const canonicalText = (expr: Sql, dialect: DialectName): Sql => {
+  switch (dialect) {
+    case "sqlite":
+      return sql`CASE WHEN typeof(${expr}) = 'real' AND ${expr} = CAST(${expr} AS integer) THEN CAST(CAST(${expr} AS integer) AS text) ELSE CAST(${expr} AS text) END`;
+    case "postgres":
+      return new Cast(expr, sql`text`, dialect);
+    case "oracle":
+      throw new Error("canonicalText is live-only; oracle has no live engine");
+    default: {
+      const _exhaustive: never = dialect;
+      throw new Error(`Unknown dialect: ${String(_exhaustive)}`);
+    }
+  }
+};
