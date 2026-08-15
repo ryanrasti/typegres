@@ -37,7 +37,7 @@ export class Integer<in out N extends number> extends Any<N> {
   abs(): types.Integer<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Integer]]); return runtime.funcCall("abs", [this, ...__rest], __rt) as any; }
   /** `char` — String from unicode code points. */
   @expose.unchecked()
-  char(...rest: (types.Integer<any> | number)[]): types.Text<1> { const [__rt, ...__rest] = runtime.match([...rest], [[[{ type: types.Integer, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("char", [this, ...__rest], __rt) as any; }
+  char<R extends (types.Integer<any> | number)[]>(...rest: R): types.Text<1> { const [__rt, ...__rest] = runtime.match([...rest], [[[{ type: types.Integer, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("char", [this, ...__rest], __rt) as any; }
   /** `round` — Round to Y digits (default 0). Result is REAL. */
   round<M0 extends types.Integer<any> | number>(arg0?: M0): types.Real<runtime.StrictNull<N | runtime.NullOf<M0>>>;
   @expose.unchecked()

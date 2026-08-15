@@ -12,12 +12,11 @@
 // finished loading.
 import { Any as Generated } from "../generated/any";
 import type { Dialect } from "../../sql-value";
-import { meta } from "../../sql-value";
+import { inListSql, meta } from "../../sql-value";
 import type { NullOf, StrictNull, TsTypeOf } from "../../runtime";
 import * as types from "../index";
 import { sql, type Sql } from "../../../builder/sql";
 import { expose } from "../../../exoeval/tool";
-import { isPlainData } from "../../../util";
 
 export class Any<in out N extends number> extends Generated<N> {
   // Narrow SqlValue's `[meta].__aggregate: SqlValue<number>` to
@@ -70,18 +69,6 @@ export class Any<in out N extends number> extends Generated<N> {
     this: T,
     ...vals: Vs
   ): types.Bool<StrictNull<NullOf<T> | NullOf<Vs[number]>>> {
-    const wrapped = vals.map((v) => {
-      if (v instanceof Any) {return v;}
-      if (!isPlainData(v)) {
-        const name = (Object.getPrototypeOf(v) as { constructor?: { name?: string } } | null)?.constructor?.name ?? "anonymous";
-        throw new TypeError(
-          `Any.in: cannot accept ${name} instance as a list value. ` +
-            `Pass a typegres expression or a primitive matching ${(this[meta].__class as typeof Any).__typnameText}.`,
-        );
-      }
-      return this[meta].__class.serialize(v);
-    });
-    const list = sql.join(wrapped.map((v) => v.toSql()));
-    return types.Bool.from(sql`(${this.toSql()} IN (${list}))`) as unknown as types.Bool<StrictNull<NullOf<T> | NullOf<Vs[number]>>>;
+    return types.Bool.from(inListSql(this, vals)) as unknown as types.Bool<StrictNull<NullOf<T> | NullOf<Vs[number]>>>;
   }
 }

@@ -44,6 +44,16 @@ export const isThenable = (v: unknown): v is PromiseLike<unknown> => {
   );
 };
 
+export const hexToBytes = (hex: string): Uint8Array => {
+  if (hex.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(hex)) {
+    throw new TypeError("Expected an even-length hexadecimal string");
+  }
+  return Uint8Array.from(
+    { length: hex.length / 2 },
+    (_, i) => parseInt(hex.slice(i * 2, i * 2 + 2), 16),
+  );
+};
+
 // --- @expose-aware row deserialization ---
 //
 // Final-presentation gate for the @expose contract. If `output` is a

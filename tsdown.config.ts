@@ -20,7 +20,7 @@ export default defineConfig([
   // loaders — those use `require` / `__filename` and would trip Node's
   // CJS/ESM mixed-mode check when a consumer runs the CLI.
   {
-    entry: ["src/index.ts", "src/config.ts", "src/builder/sql.ts", "src/types/postgres/index.ts", "src/types/sqlite/index.ts", "src/cli.ts", "src/exoeval/index.ts", "src/capnweb/shim.ts", "src/drivers/do.ts", "src/drivers/pg.ts", "src/drivers/pglite.ts", "src/drivers/sqlite.ts", "src/drivers/oracle.ts"],
+    entry: ["src/index.ts", "src/config.ts", "src/builder/sql.ts", "src/types/postgres/index.ts", "src/types/sqlite/index.ts", "src/types/oracle/index.ts", "src/cli.ts", "src/exoeval/index.ts", "src/capnweb/shim.ts", "src/drivers/do.ts", "src/drivers/pg.ts", "src/drivers/pglite.ts", "src/drivers/sqlite.ts", "src/drivers/oracle.ts"],
     format: ["esm"],
     clean: true,
     // capnweb is force-bundled: typegres needs a fork that isn't on npm, so it

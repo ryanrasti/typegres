@@ -4,11 +4,13 @@
 // Uint8Array too: the driver normalizes result blobs to \x-prefixed
 // hex (PG bytea repr — see driver.ts normalizeValue), which
 // deserialize() parses back to bytes.
+import { hexToBytes } from "../../../util";
 import { Blob as Generated } from "../generated/blob";
 
 export class Blob<in out N extends number> extends Generated<N> {
   static override acceptsPrimitive(v: unknown): boolean { return v instanceof Uint8Array; }
   override deserialize(raw: string): Uint8Array {
-    return Uint8Array.from(Buffer.from(raw.startsWith("\\x") ? raw.slice(2) : raw, "hex"));
+    if (!raw.startsWith("\\x")) { throw new TypeError("SQLite BLOB must use \\x-prefixed hex"); }
+    return hexToBytes(raw.slice(2));
   }
 }

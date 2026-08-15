@@ -1,14 +1,5 @@
-// SQLite root class — hand-written core over the generated method
-// surface (../generated/any.ts): dialect metadata plus the members
-// whose signatures the codegen can't express.
-//
-// `dialect.root` / `dialect.bool` use barrel-import getters so the
-// class-level dialect object can be initialized at class-def time
-// without resolving the cyclic references at import time. Property
-// access happens at method-call time.
 import { Any as Generated } from "../generated/any";
-import { type Dialect } from "../../sql-value";
-import { inListSql, meta } from "../../sql-value";
+import { type Dialect, inListSql, meta } from "../../sql-value";
 import * as types from "../index";
 import { sql, type Sql } from "../../../builder/sql";
 import { expose } from "../../../exoeval/tool";
@@ -23,16 +14,14 @@ export class Any<in out N extends number> extends Generated<N> {
     __aggregate: Any<number>;
   };
   static override dialect: Dialect = {
-    name: "sqlite",
+    name: "oracle",
     get root() { return types.Any; },
     get bool() { return types.Bool; },
   };
   static override __typname = sql`any`;
   static override __typnameText = "any";
-  // Any-typed arguments accept every bindable primitive (the default
-  // typeof check would only accept strings). Used by runtime.match's
-  // allowPrimitive path.
   static override acceptsPrimitive(v: unknown): boolean {
+    if (this !== Any) { return typeof v === this.primitiveTs; }
     return ["number", "string", "boolean"].includes(typeof v) || v instanceof Uint8Array;
   }
 
@@ -44,15 +33,6 @@ export class Any<in out N extends number> extends Generated<N> {
     return types.Bool.from(sql`(${this.toSql()} IS NOT NULL)`) as types.Bool<1>;
   }
 
-  // Non-generic `.in()` — SQLite's shallow class hierarchy (SqlValue →
-  // Any → concrete) triggers TS2589 with the PG-style
-  // `<T extends Any<any>, Vs>(this: T, ...)` signature, because
-  // each concrete class's `[meta].__any: Concrete<any>` self-reference
-  // never bottoms out at that depth. PG dodges the recursion via a
-  // deeper 7-level chain.
-  //
-  // Trade-off: users don't get "same-typed args required" narrowing at
-  // compile time. Runtime enforcement via serialize() still applies.
   // eslint-disable-next-line no-restricted-syntax -- generic vararg signature inexpressible in zod
   @expose.unchecked()
   in(...vals: [Any<any> | boolean | number | string | Uint8Array, ...(Any<any> | boolean | number | string | Uint8Array)[]]): types.Bool<any> {

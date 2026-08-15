@@ -34,13 +34,13 @@ export class Text<in out N extends number> extends Any<N> {
 
   /** `concat_ws` — Concatenation with separator, skipping NULLs (3.44+). */
   @expose.unchecked()
-  concatWs<M0 extends types.Any<any> | number | string | boolean | Uint8Array>(arg0: M0, ...rest: (types.Any<any> | number | string | boolean | Uint8Array)[]): types.Text<runtime.StrictNull<N>> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Any, allowPrimitive: true }, { type: types.Any, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("concat_ws", [this, ...__rest], __rt) as any; }
+  concatWs<M0 extends types.Any<any> | number | string | boolean | Uint8Array, R extends (types.Any<any> | number | string | boolean | Uint8Array)[]>(arg0: M0, ...rest: R): types.Text<runtime.StrictNull<N>> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Any, allowPrimitive: true }, { type: types.Any, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("concat_ws", [this, ...__rest], __rt) as any; }
   /** `format` — printf-style formatting (see printf.html). */
   @expose.unchecked()
-  format<M0 extends types.Any<any> | number | string | boolean | Uint8Array>(arg0: M0, ...rest: (types.Any<any> | number | string | boolean | Uint8Array)[]): types.Text<runtime.StrictNull<N>> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Any, allowPrimitive: true }, { type: types.Any, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("format", [this, ...__rest], __rt) as any; }
+  format<M0 extends types.Any<any> | number | string | boolean | Uint8Array, R extends (types.Any<any> | number | string | boolean | Uint8Array)[]>(arg0: M0, ...rest: R): types.Text<runtime.StrictNull<N>> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Any, allowPrimitive: true }, { type: types.Any, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("format", [this, ...__rest], __rt) as any; }
   /** `printf` — Alias of format(). */
   @expose.unchecked()
-  printf<M0 extends types.Any<any> | number | string | boolean | Uint8Array>(arg0: M0, ...rest: (types.Any<any> | number | string | boolean | Uint8Array)[]): types.Text<runtime.StrictNull<N>> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Any, allowPrimitive: true }, { type: types.Any, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("printf", [this, ...__rest], __rt) as any; }
+  printf<M0 extends types.Any<any> | number | string | boolean | Uint8Array, R extends (types.Any<any> | number | string | boolean | Uint8Array)[]>(arg0: M0, ...rest: R): types.Text<runtime.StrictNull<N>> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Any, allowPrimitive: true }, { type: types.Any, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("printf", [this, ...__rest], __rt) as any; }
   /** `glob` — X GLOB pattern — case-sensitive glob match (glob(P, X) function form). */
   @expose.unchecked()
   glob<M0 extends types.Text<any> | string>(arg0: M0): types.Bool<runtime.StrictNull<N | runtime.NullOf<M0>>> { const [__rt, ...__rest] = runtime.match([arg0], [[[{ type: types.Text, allowPrimitive: true }], types.Bool]]); return runtime.funcCall("glob", [this, ...__rest], __rt) as any; }
@@ -102,7 +102,7 @@ export class Text<in out N extends number> extends Any<N> {
   @expose.unchecked()
   upper(): types.Text<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Text]]); return runtime.funcCall("upper", [this, ...__rest], __rt) as any; }
   /** `strftime` — Format a time value per the %-substitution string. */
-  strftime<M0 extends types.Any<any> | number | string | boolean | Uint8Array, M1 extends types.Text<any> | string>(arg0: M0, arg1?: M1, ...rest: (types.Text<any> | string)[]): types.Text<0 | 1>;
+  strftime<M0 extends types.Any<any> | number | string | boolean | Uint8Array, M1 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0: M0, arg1?: M1, ...rest: R): types.Text<0 | 1>;
   @expose.unchecked()
   strftime(...args: unknown[]): any { const [__rt, ...__rest] = runtime.match(args, [[[{ type: types.Any, allowPrimitive: true }], types.Text], [[{ type: types.Any, allowPrimitive: true }, { type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("strftime", [this, ...__rest], __rt) as any; }
   /** `json` — Validate + minify JSON (jsonb → binary). */
@@ -120,10 +120,10 @@ export class Text<in out N extends number> extends Any<N> {
   jsonErrorPosition(): types.Integer<N> { const [__rt, ...__rest] = runtime.match([], [[[], types.Integer]]); return runtime.funcCall("json_error_position", [this, ...__rest], __rt) as any; }
   /** `json_extract` — Extract value(s) at path(s) — SQL value for scalars, JSON text otherwise. */
   @expose.unchecked()
-  jsonExtract<M0 extends types.Text<any> | string>(arg0: M0, ...rest: (types.Text<any> | string)[]): types.Any<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Any]]); return runtime.funcCall("json_extract", [this, ...__rest], __rt) as any; }
+  jsonExtract<M0 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0: M0, ...rest: R): types.Any<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Any]]); return runtime.funcCall("json_extract", [this, ...__rest], __rt) as any; }
   /** `jsonb_extract` — Extract at path(s) — JSONB for objects/arrays, SQL value for scalars. */
   @expose.unchecked()
-  jsonbExtract<M0 extends types.Text<any> | string>(arg0: M0, ...rest: (types.Text<any> | string)[]): types.Any<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Any]]); return runtime.funcCall("jsonb_extract", [this, ...__rest], __rt) as any; }
+  jsonbExtract<M0 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0: M0, ...rest: R): types.Any<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Any]]); return runtime.funcCall("jsonb_extract", [this, ...__rest], __rt) as any; }
   /** `json_insert` — Insert value at path if absent (more path/value pairs may follow). */
   @expose.unchecked()
   jsonInsert<M0 extends types.Text<any> | string, M1 extends types.Any<any> | number | string | boolean | Uint8Array>(arg0: M0, arg1: M1): types.Text<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Any, allowPrimitive: true }], types.Text]]); return runtime.funcCall("json_insert", [this, ...__rest], __rt) as any; }
@@ -154,10 +154,10 @@ export class Text<in out N extends number> extends Any<N> {
   jsonPretty(arg0?: unknown): any { const [__rt, ...__rest] = runtime.match([arg0], [[[], types.Text], [[{ type: types.Text, allowPrimitive: true }], types.Text]]); return runtime.funcCall("json_pretty", [this, ...__rest], __rt) as any; }
   /** `json_remove` — Remove the value(s) at path(s). */
   @expose.unchecked()
-  jsonRemove<M0 extends types.Text<any> | string>(arg0: M0, ...rest: (types.Text<any> | string)[]): types.Text<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("json_remove", [this, ...__rest], __rt) as any; }
+  jsonRemove<M0 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0: M0, ...rest: R): types.Text<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Text]]); return runtime.funcCall("json_remove", [this, ...__rest], __rt) as any; }
   /** `jsonb_remove` — Remove the value(s) at path(s). */
   @expose.unchecked()
-  jsonbRemove<M0 extends types.Text<any> | string>(arg0: M0, ...rest: (types.Text<any> | string)[]): types.Blob<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Blob]]); return runtime.funcCall("jsonb_remove", [this, ...__rest], __rt) as any; }
+  jsonbRemove<M0 extends types.Text<any> | string, R extends (types.Text<any> | string)[]>(arg0: M0, ...rest: R): types.Blob<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, ...rest], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Text, allowPrimitive: true, rest: true }], types.Blob]]); return runtime.funcCall("jsonb_remove", [this, ...__rest], __rt) as any; }
   /** `json_replace` — Replace value at path if present (more path/value pairs may follow). */
   @expose.unchecked()
   jsonReplace<M0 extends types.Text<any> | string, M1 extends types.Any<any> | number | string | boolean | Uint8Array>(arg0: M0, arg1: M1): types.Text<0 | 1> { const [__rt, ...__rest] = runtime.match([arg0, arg1], [[[{ type: types.Text, allowPrimitive: true }, { type: types.Any, allowPrimitive: true }], types.Text]]); return runtime.funcCall("json_replace", [this, ...__rest], __rt) as any; }

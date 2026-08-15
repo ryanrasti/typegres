@@ -8,8 +8,19 @@ import type { Driver, ExecuteFn, QueryResult } from "./types";
 // imports `typegres/drivers/oracle`.
 //
 // fetchAsString is the full set node-oracledb accepts (NUMBER/DATE/
-// BUFFER/CLOB/NCLOB). VARCHAR2 is already a string. Same contract as
-// PgDriver: the driver returns raw text; typed coercion is downstream.
+// BUFFER/CLOB/NCLOB). VARCHAR2 is already a string; BLOB is fetched as
+// Buffer. Typed coercion remains downstream.
+
+const oracleBinds = (values: readonly unknown[]): oracledb.BindParameters =>
+  values.map((v) => v instanceof Uint8Array ? Buffer.from(v) : v) as oracledb.BindParameters;
+
+const normalizeRows = (rows: unknown[] | undefined): QueryResult["rows"] =>
+  (rows ?? []).map((row) => Object.fromEntries(
+    Object.entries(row as { [key: string]: unknown }).map(([key, value]) => [
+      key,
+      Buffer.isBuffer(value) ? value.toString("hex").toUpperCase() : value,
+    ]),
+  )) as QueryResult["rows"];
 
 let fetchConfigured = false;
 const configureFetch = (): void => {
@@ -24,6 +35,7 @@ const configureFetch = (): void => {
     oracledb.CLOB,
     oracledb.NCLOB,
   ];
+  oracledb.fetchAsBuffer = [oracledb.BLOB];
   fetchConfigured = true;
 };
 
@@ -40,11 +52,11 @@ export class OracleDriver implements Driver {
   async execute({ text, values }: CompiledSql): Promise<QueryResult> {
     const conn = await this.pool.getConnection();
     try {
-      const result = await conn.execute(text, values as oracledb.BindParameters, {
+      const result = await conn.execute(text, oracleBinds(values), {
         outFormat: oracledb.OUT_FORMAT_OBJECT,
         autoCommit: true,
       });
-      return { rows: (result.rows ?? []) as QueryResult["rows"] };
+      return { rows: normalizeRows(result.rows) };
     } finally {
       await conn.close();
     }
@@ -54,11 +66,11 @@ export class OracleDriver implements Driver {
     const conn = await this.pool.getConnection();
     try {
       return await cb(async ({ text, values }) => {
-        const result = await conn.execute(text, values as oracledb.BindParameters, {
+        const result = await conn.execute(text, oracleBinds(values), {
           outFormat: oracledb.OUT_FORMAT_OBJECT,
           autoCommit: false,
         });
-        return { rows: (result.rows ?? []) as QueryResult["rows"] };
+        return { rows: normalizeRows(result.rows) };
       });
     } finally {
       await conn.close();

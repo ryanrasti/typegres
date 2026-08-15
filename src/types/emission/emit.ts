@@ -181,6 +181,7 @@ export const emitMethods = (host: TypeEntry, allFns: EmitFn[], cfg: EmitConfig):
       ...params
         .map((a, i) => (included(o.args.indexOf(a)) ? `runtime.NullOf<M${i}>` : null))
         .filter((x): x is string => x !== null),
+      ...(o.variadic && included(o.args.length - 1) ? ["runtime.NullOf<R[number]>"] : []),
     ];
     const nullUnion = nullParts.join(" | ");
     if (o.nullability === "maybe_null") {
@@ -192,7 +193,7 @@ export const emitMethods = (host: TypeEntry, allFns: EmitFn[], cfg: EmitConfig):
     if (o.nullability === "always" || o.nullability === "on_error") {
       return formatTypeWithNull(retBase, "0 | 1");
     }
-    if (params.length === 0) {
+    if (params.length === 0 && !o.variadic) {
       return formatTypeWithNull(retBase, nullParts[0] ?? "N");
     }
     return formatTypeWithNull(retBase, `runtime.StrictNull<${nullUnion}>`);
@@ -303,31 +304,33 @@ export const emitMethods = (host: TypeEntry, allFns: EmitFn[], cfg: EmitConfig):
     // params remain and the method is rest-only.
     const fixed = params;
     if (receiverGeneric(o)) {
-      // T binds the receiver (the return refers to it), so args don't
-      // need their own generics — plain unions suffice.
+      // T binds the receiver (the return refers to it), so fixed args
+      // don't need their own generics — plain unions suffice.
       const paramSrc = fixed.map((a, i) => {
         const resolved = formatTypeWithNull(resolveType(a.type, host, table), "any");
         const prim = allowPrimitive ? primitiveUnionFor(a.type) : null;
         return `arg${i}${a.optional ? "?" : ""}: ${resolved}${prim ? ` | ${prim}` : ""}`;
       });
+      const generics = ["T extends types.Any<any>"];
       if (variadic) {
         const last = o.args[o.args.length - 1]!;
         const resolved = formatTypeWithNull(resolveType(last.type, host, table), "any");
         const prim = primitiveUnionFor(last.type);
-        paramSrc.push(`...rest: (${resolved}${prim ? ` | ${prim}` : ""})[]`);
+        generics.push(`R extends (${resolved}${prim ? ` | ${prim}` : ""})[]`);
+        paramSrc.push("...rest: R");
       }
-      return `${name}<T extends types.Any<any>>(${["this: T", ...paramSrc].join(", ")})`;
+      return `${name}<${generics.join(", ")}>(${["this: T", ...paramSrc].join(", ")})`;
     }
-    const genericDecl = fixed.length > 0
-      ? `<${fixed.map((a, i) => buildArgGeneric(a, i, allowPrimitive)).join(", ")}>`
-      : "";
+    const generics = fixed.map((a, i) => buildArgGeneric(a, i, allowPrimitive));
     const paramSrc = fixed.map((a, i) => `arg${i}${a.optional ? "?" : ""}: M${i}`);
     if (variadic) {
       const last = o.args[o.args.length - 1]!;
       const resolved = formatTypeWithNull(resolveType(last.type, host, table), "any");
       const prim = primitiveUnionFor(last.type);
-      paramSrc.push(`...rest: (${resolved}${prim ? ` | ${prim}` : ""})[]`);
+      generics.push(`R extends (${resolved}${prim ? ` | ${prim}` : ""})[]`);
+      paramSrc.push("...rest: R");
     }
+    const genericDecl = generics.length > 0 ? `<${generics.join(", ")}>` : "";
     return `${name}${genericDecl}(${paramSrc.join(", ")})`;
   };
 
