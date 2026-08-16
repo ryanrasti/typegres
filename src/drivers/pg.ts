@@ -1,7 +1,8 @@
 import type { CompiledSql } from "../builder/sql";
 import type { DialectName } from "../builder/sql";
 import pgLib from "pg";
-import type { Driver, ExecuteFn, QueryResult } from "./types";
+import type { Driver, ExecuteFn, QueryResult, TransactionOptions } from "./types";
+import { postgresBeginSql, runSqlTransaction } from "./transaction";
 
 // pg adapter — returns raw text strings (no driver-side deserialization).
 // `pg` is an *optional* peer dep (see package.json#peerDependenciesMeta),
@@ -31,10 +32,14 @@ export class PgDriver implements Driver {
     return this.pool.query(text, values as unknown[]);
   }
 
-  async runInSingleConnection<T>(cb: (execute: ExecuteFn) => Promise<T>): Promise<T> {
+  async runInTransaction<T>(
+    opts: TransactionOptions,
+    cb: (execute: ExecuteFn) => Promise<T>,
+  ): Promise<T> {
     const client = await this.pool.connect();
+    const execute: ExecuteFn = ({ text, values }) => client.query(text, values as unknown[]);
     try {
-      return await cb(({ text, values }) => client.query(text, values as unknown[]));
+      return await runSqlTransaction(execute, postgresBeginSql(opts), () => cb(execute));
     } finally {
       client.release();
     }

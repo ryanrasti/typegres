@@ -1,7 +1,8 @@
 import { PGlite } from "@electric-sql/pglite";
 import type { CompiledSql } from "../builder/sql";
 import type { DialectName } from "../builder/sql";
-import type { Driver, ExecuteFn, QueryResult } from "./types";
+import type { Driver, ExecuteFn, QueryResult, TransactionOptions } from "./types";
+import { postgresBeginSql, runSqlTransaction } from "./transaction";
 
 // pglite adapter — returns raw text strings (no driver-side deserialization).
 // `@electric-sql/pglite` is an optional peer, imported statically because
@@ -35,8 +36,12 @@ export class PgliteDriver implements Driver {
     return this.db.query(text, values as unknown[], { parsers: this.parsers }) as Promise<QueryResult>;
   }
 
-  async runInSingleConnection<T>(cb: (execute: ExecuteFn) => Promise<T>): Promise<T> {
-    return cb(this.execute.bind(this));
+  async runInTransaction<T>(
+    opts: TransactionOptions,
+    cb: (execute: ExecuteFn) => Promise<T>,
+  ): Promise<T> {
+    const execute = this.execute.bind(this);
+    return runSqlTransaction(execute, postgresBeginSql(opts), () => cb(execute));
   }
 
   async close(): Promise<void> {

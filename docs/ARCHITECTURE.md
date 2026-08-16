@@ -57,10 +57,12 @@ place, in one language.
 ### `Driver` vs `Database` vs `Connection`
 
 - `Driver` is the low-level connection layer (`PgDriver`, `PgliteDriver`,
-  `SqliteDriver`, `DoSqliteDriver`). It exposes `execute(sql)`,
-  `runInSingleConnection(fn)`, `close()`, and a `dialect`. Each lives at its
-  own entry point (`typegres/drivers/*`) so a bundle only ever resolves the
-  optional peer it actually imports.
+  `SqliteDriver`, `DoSqliteDriver`, `OracleDriver`). It exposes `execute(sql)`,
+  `runInTransaction(options, fn)`, `close()`, and a `dialect`. Each driver owns
+  connection pinning plus its database's transaction protocol and supplies the
+  transaction-bound executor to `fn`. Drivers live at separate entry points
+  (`typegres/drivers/*`) so a bundle only ever resolves the optional peer it
+  actually imports.
 - `Database` is the schema handle: provenance identity and the `Table`
   factory, no driver of its own. `typegres()` constructs one synchronously,
   so table classes can be declared at module load without a top-level await.

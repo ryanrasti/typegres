@@ -29,7 +29,7 @@ export const dialectOnlyDriver = (dialect: DialectName): SyncDriver => {
     liveSeq: 0n,
     execute: unsupported,
     executeSync: unsupported,
-    runInSingleConnection: unsupported,
+    runInTransaction: unsupported,
     close: () => Promise.resolve(),
   };
 };

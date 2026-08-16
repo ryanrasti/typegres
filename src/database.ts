@@ -1,9 +1,15 @@
-import { type Driver, isSyncDriver, type QueryResult } from "./drivers/types";
+import {
+  type Driver,
+  isSyncDriver,
+  type QueryResult,
+  type TransactionIsolation,
+  type TransactionOptions,
+} from "./drivers/types";
 import type { Fromable, RowType, RowTypeToTsType } from "./builder/query";
 import { QueryBuilder, hydrateRows } from "./builder/query";
 import { deserializeRows } from "./util";
 import type { Sql } from "./builder/sql";
-import { compile, sql, Ident } from "./builder/sql";
+import { Ident } from "./builder/sql";
 import { Table, type TableBase, type TableOptions } from "./table";
 import { Values } from "./builder/values";
 import { InsertBuilder } from "./builder/insert";
@@ -15,10 +21,7 @@ import { PgExecutor } from "./live/pg/executor";
 import { StatementExecutor, type Executor } from "./executor";
 import type { DialectName } from "./builder/sql";
 
-export type TransactionIsolation = "read committed" | "repeatable read" | "serializable";
-export type TransactionOptions = {
-  isolation?: TransactionIsolation;
-};
+export type { TransactionIsolation, TransactionOptions } from "./drivers/types";
 
 // Postgres isolation levels are totally ordered. A nested call asking for
 // weaker-or-equal isolation than the active txn flattens harmlessly (caller
@@ -30,10 +33,10 @@ export type TransactionOptions = {
 // `default_transaction_isolation`). We can't prove what level we got, so
 // any *explicit* nested request inside an ambient txn must throw — the
 // alternative would silently downgrade the caller's expectation.
-const ISOLATION: { [K in TransactionIsolation]: { rank: number; begin: Sql } } = {
-  "read committed": { rank: 0, begin: sql`BEGIN ISOLATION LEVEL READ COMMITTED` },
-  "repeatable read": { rank: 1, begin: sql`BEGIN ISOLATION LEVEL REPEATABLE READ` },
-  "serializable":    { rank: 2, begin: sql`BEGIN ISOLATION LEVEL SERIALIZABLE` },
+const ISOLATION: { [K in TransactionIsolation]: { rank: number } } = {
+  "read committed": { rank: 0 },
+  "repeatable read": { rank: 1 },
+  "serializable": { rank: 2 },
 };
 
 // Provenance identity, no driver and no dialect of its own. Construction
@@ -323,61 +326,38 @@ export class Connection<C = undefined> {
       }
       return fn(this);
     }
+    const driver = this.driver;
     const bus = this.#bus;
-    return this.driver.runInSingleConnection(async (execute) => {
-      const driver = this.driver;
-      let txExecutor: Executor;
-      if (this.database.dialect === "postgres") {
-        txExecutor = new PgExecutor(this.database, execute, true);
-      } else if (this.database.dialect === "sqlite") {
-        if (!isSyncDriver(driver)) {
-          throw new Error("unreachable: sqlite Connection without a SyncDriver");
+    let txExecutor: Executor | undefined;
+    try {
+      const result = await driver.runInTransaction(opts ?? {}, async (execute) => {
+        if (this.database.dialect === "postgres") {
+          txExecutor = new PgExecutor(this.database, execute, true);
+        } else if (this.database.dialect === "sqlite") {
+          if (!isSyncDriver(driver)) {
+            throw new Error("unreachable: sqlite Connection without a SyncDriver");
+          }
+          if (execute !== driver.executeSync) {
+            throw new Error(
+              "sync driver must pass its executeSync to the transaction — one handle, one channel",
+            );
+          }
+          if (!bus) {
+            throw new Error("sqlite Connection is missing its live bus");
+          }
+          txExecutor = new SqliteLiveExecutor(this.database, driver, bus, true);
+        } else {
+          txExecutor = new StatementExecutor(this.database, execute, true);
         }
-        // Bound and pooled are the same channel on sqlite's one handle —
-        // checked, not assumed; the bound executor differs only in event
-        // timing (commit-deferred flush).
-        if (execute !== driver.executeSync) {
-          throw new Error(
-            "sync driver must pass its executeSync to runInSingleConnection — one handle, one channel",
-          );
-        }
-        if (!bus) {
-          throw new Error("sqlite Connection is missing its live bus");
-        }
-        txExecutor = new SqliteLiveExecutor(this.database, driver, bus, true);
-      } else {
-        txExecutor = new StatementExecutor(this.database, execute, true);
-      }
-      const tx = new Connection<C>(this.database, this.driver, txExecutor, opts?.isolation);
-      // Drivers with a native transaction protocol (Durable Objects) own
-      // commit/rollback; everyone else gets BEGIN/COMMIT/ROLLBACK SQL.
-      if (driver.runInTransaction) {
-        try {
-          const result = await driver.runInTransaction(() => fn(tx));
-          txExecutor.onCommit();
-          return result;
-        } catch (e) {
-          txExecutor.onRollback();
-          throw e;
-        }
-      }
-      const runSql = async (s: Sql) => execute(compile(s, { database: this.database }));
-      await runSql(opts?.isolation ? ISOLATION[opts.isolation].begin : sql`BEGIN`);
-      try {
-        const result = await fn(tx);
-        await runSql(sql`COMMIT`);
-        txExecutor.onCommit();
-        return result;
-      } catch (e) {
-        try {
-          await runSql(sql`ROLLBACK`);
-        } catch (rollbackErr) {
-          console.error("ROLLBACK failed after transaction error:", rollbackErr);
-        }
-        txExecutor.onRollback();
-        throw e;
-      }
-    });
+        const tx = new Connection<C>(this.database, driver, txExecutor, opts?.isolation);
+        return fn(tx);
+      });
+      txExecutor?.onCommit();
+      return result;
+    } catch (e) {
+      txExecutor?.onRollback();
+      throw e;
+    }
   }
 
   async close(): Promise<void> {

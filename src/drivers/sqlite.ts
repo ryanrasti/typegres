@@ -1,9 +1,10 @@
 import type { CompiledSql } from "../builder/sql";
 import type { DialectName } from "../builder/sql";
 import BetterSqlite3 from "better-sqlite3";
-import type { ExecuteSyncFn, QueryResult, SyncDriver } from "./types";
+import type { ExecuteSyncFn, QueryResult, SyncDriver, TransactionOptions } from "./types";
 import { normalizeRow } from "./shared-sqlite";
 import { stripMatchedOuterParens } from "./shared";
+import { runSqlTransaction } from "./transaction";
 
 // better-sqlite3 adapter. Synchronous under the hood; wrapped in
 // Promise.resolve for the async Driver contract. `better-sqlite3` is an
@@ -50,10 +51,11 @@ export class SqliteDriver implements SyncDriver {
     return { rows: [] };
   }
 
-  async runInSingleConnection<T>(cb: (execute: ExecuteSyncFn) => Promise<T>): Promise<T> {
-    // One handle: the single-connection execute IS executeSync (callers
-    // assert this identity — see Connection.transaction).
-    return cb(this.executeSync);
+  async runInTransaction<T>(
+    _opts: TransactionOptions,
+    cb: (execute: ExecuteSyncFn) => Promise<T>,
+  ): Promise<T> {
+    return runSqlTransaction(this.executeSync, "BEGIN", () => cb(this.executeSync));
   }
 
   async close(): Promise<void> {

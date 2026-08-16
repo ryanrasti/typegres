@@ -1,8 +1,9 @@
 import type { CompiledSql } from "../builder/sql";
 import type { DialectName } from "../builder/sql";
 import oracledb from "oracledb";
-import type { Driver, ExecuteFn, QueryResult } from "./types";
+import type { Driver, ExecuteFn, QueryResult, TransactionOptions } from "./types";
 import { stripMatchedOuterParens } from "./shared";
+import { runTransaction } from "./transaction";
 
 // node-oracledb adapter (thin mode — no Instant Client). Optional peer,
 // imported statically because this module only loads when the caller
@@ -50,29 +51,35 @@ export class OracleDriver implements Driver {
 
   private constructor(private pool: oracledb.Pool) {}
 
-  async execute({ text, values }: CompiledSql): Promise<QueryResult> {
-    const conn = await this.pool.getConnection();
-    try {
+  private executor(conn: oracledb.Connection, autoCommit: boolean): ExecuteFn {
+    return async ({ text, values }) => {
       const result = await conn.execute(stripMatchedOuterParens(text), oracleBinds(values), {
         outFormat: oracledb.OUT_FORMAT_OBJECT,
-        autoCommit: true,
+        autoCommit,
       });
       return { rows: normalizeRows(result.rows) };
+    };
+  }
+
+  async execute(compiled: CompiledSql): Promise<QueryResult> {
+    const conn = await this.pool.getConnection();
+    try {
+      return await this.executor(conn, true)(compiled);
     } finally {
       await conn.close();
     }
   }
 
-  async runInSingleConnection<T>(cb: (execute: ExecuteFn) => Promise<T>): Promise<T> {
+  async runInTransaction<T>(
+    _opts: TransactionOptions,
+    cb: (execute: ExecuteFn) => Promise<T>,
+  ): Promise<T> {
     const conn = await this.pool.getConnection();
     try {
-      return await cb(async ({ text, values }) => {
-        const result = await conn.execute(stripMatchedOuterParens(text), oracleBinds(values), {
-          outFormat: oracledb.OUT_FORMAT_OBJECT,
-          autoCommit: false,
-        });
-        return { rows: normalizeRows(result.rows) };
-      });
+      return await runTransaction({
+        commit: () => conn.commit(),
+        rollback: () => conn.rollback(),
+      }, () => cb(this.executor(conn, false)));
     } finally {
       await conn.close();
     }

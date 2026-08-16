@@ -389,8 +389,19 @@ test("live over DoSqliteDriver (fake SqlStorage backed by better-sqlite3)", asyn
     .live(doConn)[Symbol.asyncIterator]();
 
   expect(await takeNext(iter)).toEqual([]);
-  await Notes.insert({ id: 1, user_id: 1, body: "from-do" }).execute(doConn);
+  await doConn.transaction(async (tx) => {
+    await Notes.insert({ id: 1, user_id: 1, body: "from-do" }).execute(tx);
+  });
   expect(await takeNext(iter)).toEqual([{ id: 1, body: "from-do" }]);
+
+  await expect(doConn.transaction(async (tx) => {
+    await Notes.insert({ id: 2, user_id: 1, body: "rolled-back" }).execute(tx);
+    throw new Error("rollback requested");
+  })).rejects.toThrow("rollback requested");
+  expect(await Notes.from()
+    .where(({ notes }) => notes.id.eq(2))
+    .select(({ notes }) => ({ id: notes.id }))
+    .execute(doConn)).toEqual([]);
 
   await iter.return?.();
   raw.close();
