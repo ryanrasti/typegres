@@ -1,5 +1,5 @@
 import type { CompiledSql } from "../builder/sql";
-import type { ExecuteFn, ExecuteSyncFn, QueryResult, SyncDriver } from "./types";
+import type { ExecuteFn, ExecuteSyncFn, QueryResult, SyncDriver, TransactionOptions } from "./types";
 import { normalizeRow } from "./shared-sqlite";
 import { stripMatchedOuterParens } from "./shared";
 
@@ -51,12 +51,10 @@ export class DoSqliteDriver implements SyncDriver {
   };
 
   // storage.transaction() commits on resolution, rolls back on throw.
-  runInTransaction = <T>(cb: () => Promise<T>): Promise<T> => this.storage.transaction(cb);
-
-  // One handle: the single-connection execute IS executeSync (callers
-  // assert this identity — see Connection.transaction).
-  runInSingleConnection = <T>(cb: (execute: ExecuteSyncFn) => Promise<T>): Promise<T> =>
-    cb(this.executeSync);
+  runInTransaction = <T>(
+    _opts: TransactionOptions,
+    cb: (execute: ExecuteSyncFn) => Promise<T>,
+  ): Promise<T> => this.storage.transaction(() => cb(this.executeSync));
 
   close = (): Promise<void> => Promise.resolve();
 }

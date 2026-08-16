@@ -18,6 +18,9 @@ export type ExecuteSyncFn = (sql: CompiledSql) => QueryResult;
 // Callers `await` either flavor (a no-op on the sync one).
 export type AnyExecuteFn = ExecuteFn | ExecuteSyncFn;
 
+export type TransactionIsolation = "read committed" | "repeatable read" | "serializable";
+export type TransactionOptions = { isolation?: TransactionIsolation };
+
 export interface Driver {
   readonly dialect: DialectName;
   execute: ExecuteFn;
@@ -25,13 +28,13 @@ export interface Driver {
   // SqlStorage). Required by sqlite live capture, which needs multiple
   // statements with no awaits between them.
   executeSync?: ExecuteSyncFn;
-  // Native transaction protocol: commit when `cb` resolves, roll back
-  // when it throws. When present, Connection.transaction() uses this
-  // instead of BEGIN/COMMIT/ROLLBACK SQL (workerd rejects SQL BEGIN).
-  runInTransaction?<T>(cb: () => Promise<T>): Promise<T>;
-  // Sync drivers must pass their executeSync itself as `execute` (one
-  // handle, one channel) — Connection.transaction() asserts the identity.
-  runInSingleConnection<T>(cb: (execute: AnyExecuteFn) => Promise<T>): Promise<T>;
+  // Own connection pinning and the database's transaction protocol. The
+  // callback receives the only executor valid inside that transaction.
+  // Sync drivers must pass executeSync itself (one handle, one channel).
+  runInTransaction<T>(
+    opts: TransactionOptions,
+    cb: (execute: AnyExecuteFn) => Promise<T>,
+  ): Promise<T>;
   close(): Promise<void>;
 }
 

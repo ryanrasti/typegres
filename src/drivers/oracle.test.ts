@@ -20,7 +20,7 @@ test("oracle Connection constructs without a live engine", async () => {
   const conn = db.connect({
     dialect: "oracle",
     execute: async () => ({ rows: [{ v: "1" }] }),
-    runInSingleConnection: async () => {
+    runInTransaction: async () => {
       throw new Error("unused");
     },
     close: async () => {},
