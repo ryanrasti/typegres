@@ -49,12 +49,11 @@ export class FinalizedInsert<Name extends string, T extends TableBase, R extends
         const v = row[k];
         if (v === undefined) {
           // Some other row provides this column, this one doesn't.
-          // Only PG is known to spell that `DEFAULT`; for any other
-          // dialect (SQLite has no per-row spelling for it), silently
-          // inserting NULL would diverge from what omitting the column
-          // means (rowid auto-fill, declared DEFAULT) — make the
+          // PostgreSQL and Oracle can spell that `DEFAULT`; SQLite
+          // cannot. Silently inserting NULL would diverge from what
+          // omitting the column means, so unsupported dialects make the
           // caller decide.
-          if (tableCls.database.dialect === "postgres") {
+          if (tableCls.database.dialect === "postgres" || tableCls.database.dialect === "oracle") {
             return sql`DEFAULT`;
           }
           throw new Error(
@@ -73,10 +72,24 @@ export class FinalizedInsert<Name extends string, T extends TableBase, R extends
       });
       return sql`(${sql.join(vals)})`;
     });
-    // Zero provided columns can't be spelled `(cols) VALUES (...)`;
-    // both dialects use `DEFAULT VALUES`, which is single-row only.
+    const oracle = tableCls.database.dialect === "oracle";
+    if (oracle && returning) {
+      throw new Error(".returning() is not yet supported on oracle mutations");
+    }
+
     let body: Sql;
-    if (usedColumns.length === 0) {
+    if (usedColumns.length === 0 && oracle) {
+      // Oracle has no `DEFAULT VALUES`. Name every declared column and
+      // provide DEFAULT for each; Oracle 23 supports this in multi-row
+      // VALUES lists as well.
+      if (columnNames.length === 0) {
+        throw new Error(`Insert into '${tableName}': Oracle all-default inserts require at least one declared column.`);
+      }
+      const columns = columnNames.map((k) => tableCls.database.scopedIdent(k));
+      const defaults = sql`(${sql.join(columnNames.map(() => sql`DEFAULT`))})`;
+      body = sql`(${sql.join(columns)}) VALUES ${sql.join(rows.map(() => defaults))}`;
+    } else if (usedColumns.length === 0) {
+      // PostgreSQL and SQLite use `DEFAULT VALUES`, which is single-row.
       if (rows.length > 1) {
         throw new Error(
           `Insert into '${tableName}': multi-row insert with no columns provided. ` +
@@ -88,8 +101,9 @@ export class FinalizedInsert<Name extends string, T extends TableBase, R extends
       const columns = usedColumns.map((k) => tableCls.database.scopedIdent(k));
       body = sql`(${sql.join(columns)}) VALUES ${sql.join(rowSqls)}`;
     }
+    const aliasClause = oracle ? sql`${alias}` : sql`AS ${alias}`;
     const inner = sql.join([
-      sql`INSERT INTO ${tableCls.ident(tableName)} AS ${alias} ${body}`,
+      sql`INSERT INTO ${tableCls.ident(tableName)} ${aliasClause} ${body}`,
       returning && sql`RETURNING ${compileSelectList(returning)}`,
     ], sql` `);
     return sql.withScope([alias], inner);

@@ -62,9 +62,7 @@ test("Text.lower composed with Text.upper (round-trip)", async () => {
 test("isNull returns 1 for NULL, 0 for a value", async () => {
   const nullExpr = Text.from(sql`NULL`).isNull();
   const notNullExpr = Text.from("x").isNull();
-  const r = await conn.execute(
-    sql`SELECT ${nullExpr.toSql()} AS n, ${notNullExpr.toSql()} AS nn`,
-  );
+  const r = await conn.execute(sql`SELECT ${nullExpr.toSql()} AS n, ${notNullExpr.toSql()} AS nn`);
   // SQLite returns 1/0 as integer for boolean expressions; we normalize to strings
   expect(r.rows[0]!["n"]).toBe("1");
   expect(r.rows[0]!["nn"]).toBe("0");
@@ -127,7 +125,9 @@ test("integer positions never silently truncate fractional numbers", async () =>
 test("Blob roundtrip: driver normalizes to \\x-hex; deserialize parses back", async () => {
   const r = await conn.execute(sql`SELECT ${Blob.from(new Uint8Array([1, 255])).toSql()} as v`);
   expect(r.rows[0]!["v"]).toBe("\\x01ff");
-  expect(Blob.from(new Uint8Array()).deserialize(r.rows[0]!["v"]!)).toEqual(new Uint8Array([1, 255]));
+  expect(Blob.from(new Uint8Array()).deserialize(r.rows[0]!["v"]!)).toEqual(
+    new Uint8Array([1, 255]),
+  );
 });
 
 test(".in() accepts Uint8Array (the blob primitive)", async () => {
@@ -137,7 +137,10 @@ test(".in() accepts Uint8Array (the blob primitive)", async () => {
 
 test("json_each: table-valued function via db.from", async () => {
   const each = Text.from('{"a":1,"b":2}').jsonEach();
-  const rows = await conn.execute(db.from(each).orderBy(({ json_each }) => json_each.key));
+  const rows = await db
+    .from(each)
+    .orderBy(({ json_each }) => json_each.key)
+    .execute();
   expect(rows).toMatchObject([
     { key: "a", value: "1", type: "integer" },
     { key: "b", value: "2", type: "integer" },
@@ -234,7 +237,9 @@ test("numeric binop primitives: integral numbers cast to the claim; fractional r
   const one = Integer.from(1);
   const viaPrim = one.minus(2);
   const _viaPrim: Integer<1> = viaPrim;
-  const r1 = await conn.execute(sql`SELECT ${viaPrim.toSql()} as v, typeof(${viaPrim.toSql()}) as t`);
+  const r1 = await conn.execute(
+    sql`SELECT ${viaPrim.toSql()} as v, typeof(${viaPrim.toSql()}) as t`,
+  );
   expect(r1.rows[0]).toEqual({ v: "-1", t: "integer" });
   // The compiled SQL carries the forced cast.
   const compiled = compile(viaPrim.toSql(), { database: db });
@@ -244,7 +249,9 @@ test("numeric binop primitives: integral numbers cast to the claim; fractional r
   // Cross-type stays honest via instances — distinguishable in TS.
   const viaReal = one.minus(Real.from(2.5));
   const _viaReal: Real<1> = viaReal;
-  const r2 = await conn.execute(sql`SELECT ${viaReal.toSql()} as v, typeof(${viaReal.toSql()}) as t`);
+  const r2 = await conn.execute(
+    sql`SELECT ${viaReal.toSql()} as v, typeof(${viaReal.toSql()}) as t`,
+  );
   expect(r2.rows[0]).toEqual({ v: "-1.5", t: "real" });
 });
 

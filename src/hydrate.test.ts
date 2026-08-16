@@ -74,7 +74,9 @@ describe("db.hydrate", () => {
 
   test("hydrated column is an Any wrapping the deserialized value", async () => {
     const [user] = await conn.hydrate(
-      User.from().where((ns) => ns.users.id["="]("1")).limit(1),
+      User.from()
+        .where((ns) => ns.users.id["="]("1"))
+        .limit(1),
     );
     // id stays a typed Any after hydrate — that's what lets relation methods
     // ("this.id.eq(...)") compose into follow-up queries.
@@ -85,13 +87,15 @@ describe("db.hydrate", () => {
 
   test("relation method on a hydrated instance runs as a real query", async () => {
     const [alice] = await conn.hydrate(
-      User.from().where((ns) => ns.users.id["="]("1")).limit(1),
+      User.from()
+        .where((ns) => ns.users.id["="]("1"))
+        .limit(1),
     );
     // Call the relation method on the materialized instance. The method
     // composes `this.id` (an Any wrapping the param) into a fresh
     // QueryBuilder which we then run.
     expectTypeOf(alice!.todos()).toEqualTypeOf<QueryBuilder<{ todos: Todo }, Todo, []>>();
-    const aliceTodos = await conn.execute(alice!.todos());
+    const aliceTodos = await alice!.todos().execute();
     // db.execute returns deserialized JS values, not Any wrappers — so
     // .title is `string`, not `Text<1>`. (RowTypeToTsType also threads
     // class methods through, so the row type is wider than just columns;
@@ -105,37 +109,44 @@ describe("db.hydrate", () => {
 
   test("instance mutation method runs as a real query", async () => {
     const [todo] = await conn.hydrate(
-      Todo.from().where((ns) => ns.todos.title["="](Text.from("a-one"))).limit(1),
+      Todo.from()
+        .where((ns) => ns.todos.title["="](Text.from("a-one")))
+        .limit(1),
     );
     expectTypeOf(todo!.completed).toMatchTypeOf<Bool<1>>();
     expect(todo!.completed).toBeDefined();
 
-    await conn.execute(todo!.update({ completed: true }));
+    await todo!.update({ completed: true }).execute();
 
-    const [after] = await conn.execute(
-      Todo.from().where((ns) => ns.todos.title["="](Text.from("a-one"))),
-    );
+    const [after] = await Todo.from()
+      .where((ns) => ns.todos.title["="](Text.from("a-one")))
+      .execute();
     expectTypeOf(after!.completed).toEqualTypeOf<boolean>();
     expect(after!.completed).toBe(true);
   });
 
   test("chained hydrate -> method -> hydrate -> method", async () => {
     const [alice] = await conn.hydrate(
-      User.from().where((ns) => ns.users.id["="]("1")).limit(1),
+      User.from()
+        .where((ns) => ns.users.id["="]("1"))
+        .limit(1),
     );
     const [firstTodo] = await conn.hydrate(
-      alice!.todos().orderBy((ns) => ns.todos.id).limit(1),
+      alice!
+        .todos()
+        .orderBy((ns) => ns.todos.id)
+        .limit(1),
     );
     // Hydrate yields a Todo instance, not a plain row — methods on Todo
     // (update(), the column accessors) must be callable on `firstTodo`.
     expectTypeOf(firstTodo!).toMatchTypeOf<Todo>();
     expect(firstTodo).toBeInstanceOf(Todo);
 
-    await conn.execute(firstTodo!.update({ title: "renamed" }));
+    await firstTodo!.update({ title: "renamed" }).execute();
 
-    const [reloaded] = await conn.execute(
-      Todo.from().where((ns) => ns.todos.id["="](firstTodo!.id)),
-    );
+    const [reloaded] = await Todo.from()
+      .where((ns) => ns.todos.id["="](firstTodo!.id))
+      .execute();
     expectTypeOf(reloaded!.title).toEqualTypeOf<string>();
     expect(reloaded!.title).toBe("renamed");
   });

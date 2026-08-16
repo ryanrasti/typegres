@@ -67,13 +67,11 @@ export type TraverseEntry = {
 
 export type TraverseResult = Map<Alias, TraverseEntry>;
 
-const addRelative = (
-  result: TraverseResult,
-  alias: Alias,
-  rel: RelativePredicate,
-): void => {
+const addRelative = (result: TraverseResult, alias: Alias, rel: RelativePredicate): void => {
   const entry = result.get(alias);
-  if (!entry) { return; } // alias didn't have a registered table — skip
+  if (!entry) {
+    return;
+  } // alias didn't have a registered table — skip
   entry.predicates.push(rel);
   if (rel.to instanceof Column && rel.to.tableAlias !== alias) {
     entry.edges.add(rel.to.tableAlias);
@@ -161,9 +159,7 @@ export const sortAliases = (traversal: TraverseResult): CteSpec[] => {
   }
 
   if (orderSet.size !== traversal.size) {
-    const missing = [...traversal.keys()]
-      .filter((a) => !orderSet.has(a))
-      .map((a) => a.tsAlias);
+    const missing = [...traversal.keys()].filter((a) => !orderSet.has(a)).map((a) => a.tsAlias);
     throw new Error(`Aliases unreachable from any literal anchor: ${missing.join(", ")}`);
   }
 
@@ -313,7 +309,9 @@ export const materializePredicateSet = (
           // find them, since group is the survivor.
           for (const byCol of groups.values()) {
             for (const [c, g] of byCol) {
-              if (g === otherGroup) { byCol.set(c, group); }
+              if (g === otherGroup) {
+                byCol.set(c, group);
+              }
             }
           }
         }
@@ -355,7 +353,7 @@ export const runExtraction = async (
   const extracted = extractedResult.rows as ExtractedRow[];
   const predicateSet = materializePredicateSet(extracted, traversal);
 
-  const rows = await conn.execute(query);
+  const rows = await query.execute(conn);
 
   return { rows, predicateSet };
 };

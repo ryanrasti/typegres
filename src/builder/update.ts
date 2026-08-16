@@ -49,13 +49,18 @@ export class FinalizedUpdate<Name extends string, T extends TableBase, R extends
   bind(): BoundSql {
     const { tableName, alias, where, setRow, returning, instance } = this.opts;
     const tableCls = instance.constructor;
+    const oracle = tableCls.database.dialect === "oracle";
+    if (oracle && returning) {
+      throw new Error(".returning() is not yet supported on oracle mutations");
+    }
     // If a predicate exists, honor it even when `.where(true)` was also
     // called — matchAll is just the "unrestricted delete/update
     // acknowledged" flag; a real predicate is still a no-op-safe filter.
     // Only when no predicate exists does matchAll produce the
     // "no WHERE clause" form.
+    const aliasClause = oracle ? sql`${alias}` : sql`AS ${alias}`;
     const inner = sql.join([
-      sql`UPDATE ${tableCls.ident(tableName)} AS ${alias} SET ${sql.join(compileSetClauses(instance, setRow))}`,
+      sql`UPDATE ${tableCls.ident(tableName)} ${aliasClause} SET ${sql.join(compileSetClauses(instance, setRow))}`,
       where && sql`WHERE ${where.toSql()}`,
       returning && sql`RETURNING ${compileSelectList(returning)}`,
     ], sql` `);

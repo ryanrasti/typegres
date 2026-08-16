@@ -1,24 +1,6 @@
 // Shared sqlite driver helpers (better-sqlite3 + SqlStorage).
 // No optional peer imports — safe for workerd.
 
-// Strip one outer pair of parentheses iff they balance to enclose the
-// entire string. `(SELECT 1)` → `SELECT 1`; `(SELECT 1) UNION (SELECT 2)`
-// stays as-is. QueryBuilder.bind() wraps statements in `(...)` for
-// subquery splicing; SQLite refuses top-level parenthesized statements.
-export const stripMatchedOuterParens = (s: string): string => {
-  const t = s.trim();
-  if (!t.startsWith("(") || !t.endsWith(")")) {return s;}
-  let depth = 0;
-  for (let i = 0; i < t.length; i++) {
-    if (t[i] === "(") {depth++;}
-    else if (t[i] === ")") {
-      depth--;
-      if (depth === 0 && i !== t.length - 1) {return s;}
-    }
-  }
-  return t.slice(1, -1);
-};
-
 // PG bytea text-protocol form. Pure JS so it runs in workerd (no Buffer).
 const toHex = (bytes: Uint8Array): string => {
   let s = "\\x";
