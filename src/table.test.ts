@@ -26,14 +26,19 @@ test("Table.from().select()", async () => {
       name text NOT NULL,
       breed text
     )`);
-    await tx.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
+    await tx.execute(
+      sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`,
+    );
 
     class Dogs extends db.Table("dogs") {
-      id = Int8.column({ nonNull: true });      name = Text.column({ nonNull: true });      breed = Text.column();    }
+      id = Int8.column({ nonNull: true });
+      name = Text.column({ nonNull: true });
+      breed = Text.column();
+    }
 
-    const rows = await tx.execute(Dogs.from()
+    const rows = await Dogs.from()
       .select(({ dogs }) => ({ id: dogs.id, name: dogs.name, breed: dogs.breed }))
-      );
+      .execute(tx);
 
     expectTypeOf(rows).toEqualTypeOf<{ id: string; name: string; breed: string | null }[]>();
     expect(rows).toEqual([
@@ -51,14 +56,20 @@ test("Table.as() alias", async () => {
       name text NOT NULL,
       breed text
     )`);
-    await tx.execute(sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`);
+    await tx.execute(
+      sql`INSERT INTO dogs (name, breed) VALUES ('Rex', 'Labrador'), ('Fido', NULL)`,
+    );
 
     class Dogs extends db.Table("dogs") {
-      id = Int8.column({ nonNull: true });      name = Text.column({ nonNull: true });      breed = Text.column();    }
+      id = Int8.column({ nonNull: true });
+      name = Text.column({ nonNull: true });
+      breed = Text.column();
+    }
 
-    const rows = await tx.execute(Dogs.as("d").from()
+    const rows = await Dogs.as("d")
+      .from()
       .select(({ d }) => ({ id: d.id, name: d.name, breed: d.breed }))
-      );
+      .execute(tx);
 
     expectTypeOf(rows).toEqualTypeOf<{ id: string; name: string; breed: string | null }[]>();
     expect(rows).toEqual([
@@ -88,7 +99,10 @@ test("Table class is a Fromable and self-joins via .as()", async () => {
     `);
 
     class Employees extends db.Table("employees") {
-      id = Int8.column({ nonNull: true });      name = Text.column({ nonNull: true });      manager_id = Int8.column();    }
+      id = Int8.column({ nonNull: true });
+      name = Text.column({ nonNull: true });
+      manager_id = Int8.column();
+    }
 
     // 1. The class itself has the Fromable-shaped statics.
     expect(Employees.tsAlias).toBe("employees");
@@ -101,9 +115,10 @@ test("Table class is a Fromable and self-joins via .as()", async () => {
     void _fromableCheck;
 
     // 2. db.from(Class) / Class.from() consume the statics directly.
-    const allNames = await tx.execute(
-      Employees.from().select(({ employees }) => ({ name: employees.name })).orderBy(({ employees }) => employees.id),
-    );
+    const allNames = await Employees.from()
+      .select(({ employees }) => ({ name: employees.name }))
+      .orderBy(({ employees }) => employees.id)
+      .execute(tx);
     expect(allNames.map((r) => r.name)).toEqual(["Alice", "Bob", "Carol"]);
 
     // 3. Self-join via .as() — the same table used twice must register as
@@ -115,15 +130,14 @@ test("Table class is a Fromable and self-joins via .as()", async () => {
 
     // Pass classes to .join, not `.from()` subqueries — the class IS the
     //    Fromable, so this emits `JOIN employees AS mgr ON ...` directly.
-    const reports = await tx.execute(
-      Employees.from()
-        .join(Mgr, ({ employees, mgr }) => employees.manager_id["="](mgr.id))
-        .select(({ employees, mgr }) => ({
-          employee: employees.name,
-          manager: mgr.name,
-        }))
-        .orderBy(({ employees }) => employees.id),
-    );
+    const reports = await Employees.from()
+      .join(Mgr, ({ employees, mgr }) => employees.manager_id["="](mgr.id))
+      .select(({ employees, mgr }) => ({
+        employee: employees.name,
+        manager: mgr.name,
+      }))
+      .orderBy(({ employees }) => employees.id)
+      .execute(tx);
     expect(reports).toEqual([
       { employee: "Bob", manager: "Alice" },
       { employee: "Carol", manager: "Alice" },

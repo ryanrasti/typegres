@@ -1,6 +1,7 @@
 import type { CompiledSql } from "../builder/sql";
 import type { ExecuteFn, ExecuteSyncFn, QueryResult, SyncDriver } from "./types";
-import { normalizeRow, stripMatchedOuterParens } from "./shared-sqlite";
+import { normalizeRow } from "./shared-sqlite";
+import { stripMatchedOuterParens } from "./shared";
 
 // Duck-typed Cloudflare SqlStorage — no @cloudflare/workers-types dependency.
 export interface SqlStorageLike {

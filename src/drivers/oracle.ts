@@ -2,6 +2,7 @@ import type { CompiledSql } from "../builder/sql";
 import type { DialectName } from "../builder/sql";
 import oracledb from "oracledb";
 import type { Driver, ExecuteFn, QueryResult } from "./types";
+import { stripMatchedOuterParens } from "./shared";
 
 // node-oracledb adapter (thin mode — no Instant Client). Optional peer,
 // imported statically because this module only loads when the caller
@@ -52,7 +53,7 @@ export class OracleDriver implements Driver {
   async execute({ text, values }: CompiledSql): Promise<QueryResult> {
     const conn = await this.pool.getConnection();
     try {
-      const result = await conn.execute(text, oracleBinds(values), {
+      const result = await conn.execute(stripMatchedOuterParens(text), oracleBinds(values), {
         outFormat: oracledb.OUT_FORMAT_OBJECT,
         autoCommit: true,
       });
@@ -66,7 +67,7 @@ export class OracleDriver implements Driver {
     const conn = await this.pool.getConnection();
     try {
       return await cb(async ({ text, values }) => {
-        const result = await conn.execute(text, oracleBinds(values), {
+        const result = await conn.execute(stripMatchedOuterParens(text), oracleBinds(values), {
           outFormat: oracledb.OUT_FORMAT_OBJECT,
           autoCommit: false,
         });

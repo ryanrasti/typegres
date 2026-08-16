@@ -40,10 +40,15 @@ export class FinalizedDelete<Name extends string, T extends TableBase, R extends
   bind(): BoundSql {
     const { tableName, alias, where, returning, instance } = this.opts;
     const tableCls = instance.constructor;
+    const oracle = tableCls.database.dialect === "oracle";
+    if (oracle && returning) {
+      throw new Error(".returning() is not yet supported on oracle mutations");
+    }
     // See UpdateBuilder for the matchAll semantics: a real predicate
     // always takes precedence over the matchAll flag.
+    const aliasClause = oracle ? sql`${alias}` : sql`AS ${alias}`;
     const inner = sql.join([
-      sql`DELETE FROM ${tableCls.ident(tableName)} AS ${alias}`,
+      sql`DELETE FROM ${tableCls.ident(tableName)} ${aliasClause}`,
       where && sql`WHERE ${where.toSql()}`,
       returning && sql`RETURNING ${compileSelectList(returning)}`,
     ], sql` `);

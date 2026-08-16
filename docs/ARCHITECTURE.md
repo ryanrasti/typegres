@@ -92,8 +92,8 @@ driver's pool) or **transaction-bound** (carries a single-connection
 
 ```ts
 await conn.transaction(async (tx) => {
-    await tx.execute(User.insert(...));
-    await User.from().execute(tx); // fluent form
+    await User.insert(...).execute(tx);
+    await User.from().execute(tx);
 });
 ```
 
@@ -124,8 +124,8 @@ type level.
   or rows outside the scope it was handed.
 - `.execute(conn)`, `.hydrate(conn)`, `.one(conn)`, `.maybeOne(conn)`,
   `.live(conn)` are fluent terminators that accept any `Connection` (pool or
-  tx), or none at all to use `db.defaultConnection`; `conn.execute(...)` /
-  `conn.hydrate(...)` are the non-fluent equivalents.
+  tx), or none at all to use `db.defaultConnection`. `conn.execute(...)`
+  remains the direct path for raw `Sql` statements.
 
 `hydrate` materializes rows as class instances — each column field is an
 `Any` wrapping a `CAST(param)` of the value, so methods on the class

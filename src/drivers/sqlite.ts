@@ -2,7 +2,8 @@ import type { CompiledSql } from "../builder/sql";
 import type { DialectName } from "../builder/sql";
 import BetterSqlite3 from "better-sqlite3";
 import type { ExecuteSyncFn, QueryResult, SyncDriver } from "./types";
-import { normalizeRow, stripMatchedOuterParens } from "./shared-sqlite";
+import { normalizeRow } from "./shared-sqlite";
+import { stripMatchedOuterParens } from "./shared";
 
 // better-sqlite3 adapter. Synchronous under the hood; wrapped in
 // Promise.resolve for the async Driver contract. `better-sqlite3` is an

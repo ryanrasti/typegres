@@ -1,4 +1,4 @@
-import type { BoundSql} from "./sql";
+import type { BoundSql } from "./sql";
 import { sql, Sql } from "./sql";
 import { SqlValue } from "../types/sql-value";
 import { meta } from "../types/sql-value";
@@ -6,7 +6,7 @@ import { type RowType, type RowTypeToTsType, type Fromable } from "./query";
 
 export class Values<R extends RowType> extends Sql implements Fromable<R> {
   readonly tsAlias = "values";
-  // VALUES emits `AS q(col1, col2, ...)` — column names go into the AS clause.
+  // VALUES emits `q(col1, col2, ...)` — column names go into the alias clause.
   readonly emitColumnNamesWithAlias = true;
   private vals0: R;
   private valsRest: (R | RowTypeToTsType<R>)[];
@@ -32,7 +32,7 @@ export class Values<R extends RowType> extends Sql implements Fromable<R> {
     ) as R;
   }
 
-  // Return the pre-AS VALUES fragment. QB appends `AS q(col1, col2, ...)`.
+  // Return the pre-alias VALUES fragment. QB appends `q(col1, col2, ...)`.
   bind(): BoundSql {
     const columnNames = Object.keys(this.vals0);
     const rowSqls = [this.vals0, ...this.valsRest].map((row) => {

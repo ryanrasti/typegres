@@ -25,40 +25,48 @@ afterAll(async () => {
 });
 
 test("transaction commits on success", async () => {
-  await conn.execute(sql`CREATE TABLE txtest (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name text NOT NULL)`);
+  await conn.execute(
+    sql`CREATE TABLE txtest (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name text NOT NULL)`,
+  );
 
   class TxTest extends db.Table("txtest") {
-    id = Int8.column({ nonNull: true, generated: true });    name = Text.column({ nonNull: true });  }
+    id = Int8.column({ nonNull: true, generated: true });
+    name = Text.column({ nonNull: true });
+  }
 
   await conn.transaction(async (tx) => {
-    await tx.execute(TxTest.insert({ name: "Alice" }));
-    await tx.execute(TxTest.insert({ name: "Bob" }));
+    await TxTest.insert({ name: "Alice" }).execute(tx);
+    await TxTest.insert({ name: "Bob" }).execute(tx);
   });
 
-  const rows = await conn.execute(
-    TxTest.from().select(({ txtest }) => ({ name: txtest.name })),
-  );
+  const rows = await TxTest.from()
+    .select(({ txtest }) => ({ name: txtest.name }))
+    .execute();
 
   expect(rows).toEqual([{ name: "Alice" }, { name: "Bob" }]);
   await conn.execute(sql`DROP TABLE txtest`);
 });
 
 test("transaction rollbacks on error", async () => {
-  await conn.execute(sql`CREATE TABLE txtest2 (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name text NOT NULL)`);
+  await conn.execute(
+    sql`CREATE TABLE txtest2 (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name text NOT NULL)`,
+  );
 
   class TxTest2 extends db.Table("txtest2") {
-    id = Int8.column({ nonNull: true, generated: true });    name = Text.column({ nonNull: true });  }
+    id = Int8.column({ nonNull: true, generated: true });
+    name = Text.column({ nonNull: true });
+  }
 
   await expect(
     conn.transaction(async (tx) => {
-      await tx.execute(TxTest2.insert({ name: "Alice" }));
+      await TxTest2.insert({ name: "Alice" }).execute(tx);
       throw new Error("rollback!");
     }),
   ).rejects.toThrow("rollback!");
 
-  const rows = await conn.execute(
-    TxTest2.from().select(({ txtest2 }) => ({ name: txtest2.name })),
-  );
+  const rows = await TxTest2.from()
+    .select(({ txtest2 }) => ({ name: txtest2.name }))
+    .execute();
 
   expect(rows).toEqual([]);
   await conn.execute(sql`DROP TABLE txtest2`);

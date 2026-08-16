@@ -17,17 +17,20 @@ test("insert", async () => {
     )`);
 
     class Cats extends db.Table("cats") {
-      id = Int8.column({ nonNull: true, generated: true });      name = Text.column({ nonNull: true });      color = Text.column();    }
+      id = Int8.column({ nonNull: true, generated: true });
+      name = Text.column({ nonNull: true });
+      color = Text.column();
+    }
 
     // name is required, id and color are optional
     // @ts-expect-error — missing required field 'name'
     const _bad: InsertRow<InstanceType<typeof Cats>> = { color: "black" };
 
-    await tx.execute(Cats.insert({ name: "Whiskers" }, { name: "Tom", color: "orange" }));
+    await Cats.insert({ name: "Whiskers" }, { name: "Tom", color: "orange" }).execute(tx);
 
-    const rows = await tx.execute(
-      Cats.from().select(({ cats }) => ({ name: cats.name, color: cats.color })),
-    );
+    const rows = await Cats.from()
+      .select(({ cats }) => ({ name: cats.name, color: cats.color }))
+      .execute(tx);
 
     expect(rows).toEqual([
       { name: "Whiskers", color: null },
@@ -59,21 +62,20 @@ test("VALUES accept typegres expressions, not just primitives", async () => {
 
     // A hydrated row's columns are typegres expressions, not primitives —
     // and they flow straight into another table's VALUES (parity with SET).
-    await tx.execute(Users.insert({ name: "alice" }));
+    await Users.insert({ name: "alice" }).execute(tx);
     const [alice] = await tx.hydrate(Users.from().where(({ users }) => users.name.eq("alice")));
 
-    const [post] = await tx.execute(
-      Posts.insert({ author_id: alice!.id, body: "hi" }).returning(({ posts }) => ({
+    const [post] = await Posts.insert({ author_id: alice!.id, body: "hi" })
+      .returning(({ posts }) => ({
         author_id: posts.author_id,
-      })),
-    );
+      }))
+      .execute(tx);
 
     // The FK landed alice's id: joining back recovers her name.
-    const [row] = await tx.execute(
-      Users.from()
-        .where(({ users }) => users.id.eq(post!.author_id))
-        .select(({ users }) => ({ name: users.name })),
-    );
+    const [row] = await Users.from()
+      .where(({ users }) => users.id.eq(post!.author_id))
+      .select(({ users }) => ({ name: users.name }))
+      .execute(tx);
     expect(row).toEqual({ name: "alice" });
   });
 });
@@ -86,12 +88,13 @@ test("insert returning", async () => {
     )`);
 
     class Items extends db.Table("items") {
-      id = Int8.column({ nonNull: true, generated: true });      label = Text.column({ nonNull: true });    }
+      id = Int8.column({ nonNull: true, generated: true });
+      label = Text.column({ nonNull: true });
+    }
 
-    const rows = await tx.execute(
-      Items.insert({ label: "A" }, { label: "B" })
-        .returning(({ items }) => ({ id: items.id, label: items.label })),
-    );
+    const rows = await Items.insert({ label: "A" }, { label: "B" })
+      .returning(({ items }) => ({ id: items.id, label: items.label }))
+      .execute(tx);
 
     expectTypeOf(rows).toEqualTypeOf<{ id: string; label: string }[]>();
     expect(rows).toEqual([
@@ -110,14 +113,16 @@ test("columns no row provides are pruned so DB defaults apply", async () => {
     )`);
 
     class Tagged extends db.Table("tagged") {
-      id = Int8.column({ nonNull: true, generated: true });      label = Text.column({ nonNull: true });      status = Text.column({ nonNull: true, default: sql`'new'` });    }
+      id = Int8.column({ nonNull: true, generated: true });
+      label = Text.column({ nonNull: true });
+      status = Text.column({ nonNull: true, default: sql`'new'` });
+    }
 
     // `status` appears in no row → pruned from the column list → the
     // DB's DEFAULT 'new' applies (not NULL, not an error).
-    const rows = await tx.execute(
-      Tagged.insert({ label: "A" }, { label: "B" })
-        .returning(({ tagged }) => ({ label: tagged.label, status: tagged.status })),
-    );
+    const rows = await Tagged.insert({ label: "A" }, { label: "B" })
+      .returning(({ tagged }) => ({ label: tagged.label, status: tagged.status }))
+      .execute(tx);
     expect(rows).toEqual([
       { label: "A", status: "new" },
       { label: "B", status: "new" },
@@ -134,12 +139,14 @@ test("postgres: column provided in some rows but not others → DEFAULT keyword 
     )`);
 
     class Mixed extends db.Table("mixed") {
-      id = Int8.column({ nonNull: true, generated: true });      label = Text.column({ nonNull: true });      status = Text.column({ nonNull: true, default: sql`'new'` });    }
+      id = Int8.column({ nonNull: true, generated: true });
+      label = Text.column({ nonNull: true });
+      status = Text.column({ nonNull: true, default: sql`'new'` });
+    }
 
-    const rows = await tx.execute(
-      Mixed.insert({ label: "A" }, { label: "B", status: "old" })
-        .returning(({ mixed }) => ({ label: mixed.label, status: mixed.status })),
-    );
+    const rows = await Mixed.insert({ label: "A" }, { label: "B", status: "old" })
+      .returning(({ mixed }) => ({ label: mixed.label, status: mixed.status }))
+      .execute(tx);
     expect(rows).toEqual([
       { label: "A", status: "new" },
       { label: "B", status: "old" },
@@ -151,14 +158,19 @@ test("sqlite: pruning defers to rowid autoincrement and declared defaults", asyn
   const sdb = typegres();
   const conn = sdb.connect(SqliteDriver.create(":memory:"));
   try {
-    await conn.execute(sql.raw(`CREATE TABLE tagged (
+    await conn.execute(
+      sql.raw(`CREATE TABLE tagged (
       id INTEGER PRIMARY KEY,
       label TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'new'
-    )`));
+    )`),
+    );
 
     class Tagged extends sdb.Table("tagged") {
-      id = (sqlite.Integer<1>).column({ nonNull: true, generated: true });      label = (sqlite.Text<1>).column({ nonNull: true });      status = (sqlite.Text<1>).column({ nonNull: true, default: sql`'new'` });    }
+      id = (sqlite.Integer<1>).column({ nonNull: true, generated: true });
+      label = (sqlite.Text<1>).column({ nonNull: true });
+      status = (sqlite.Text<1>).column({ nonNull: true, default: sql`'new'` });
+    }
 
     // Previously this inserted NULL for id (ok, rowid quirk) AND for
     // status (NOT NULL violation). Pruning makes both work natively.
@@ -178,14 +190,19 @@ test("sqlite: heterogeneous rows raise instead of silently inserting NULL", asyn
   const sdb = typegres();
   const conn = sdb.connect(SqliteDriver.create(":memory:"));
   try {
-    await conn.execute(sql.raw(`CREATE TABLE mixed (
+    await conn.execute(
+      sql.raw(`CREATE TABLE mixed (
       id INTEGER PRIMARY KEY,
       label TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'new'
-    )`));
+    )`),
+    );
 
     class Mixed extends sdb.Table("mixed") {
-      id = (sqlite.Integer<1>).column({ nonNull: true, generated: true });      label = (sqlite.Text<1>).column({ nonNull: true });      status = (sqlite.Text<1>).column({ nonNull: true, default: sql`'new'` });    }
+      id = (sqlite.Integer<1>).column({ nonNull: true, generated: true });
+      label = (sqlite.Text<1>).column({ nonNull: true });
+      status = (sqlite.Text<1>).column({ nonNull: true, default: sql`'new'` });
+    }
 
     await expect(
       Mixed.insert({ label: "A" }, { label: "B", status: "old" }).execute(conn),
@@ -202,11 +219,12 @@ test("all-default single row uses DEFAULT VALUES; multi-row raises", async () =>
     )`);
 
     class Counters extends db.Table("counters") {
-      id = Int8.column({ nonNull: true, generated: true });    }
+      id = Int8.column({ nonNull: true, generated: true });
+    }
 
-    const rows = await tx.execute(
-      Counters.insert({}).returning(({ counters }) => ({ id: counters.id })),
-    );
+    const rows = await Counters.insert({})
+      .returning(({ counters }) => ({ id: counters.id }))
+      .execute(tx);
     expect(rows).toEqual([{ id: "1" }]);
 
     expect(() => Counters.insert({}, {}).finalize().bind()).toThrow(

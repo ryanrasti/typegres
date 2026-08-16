@@ -13,13 +13,17 @@ test("delete with where", async () => {
     await tx.execute(sql`INSERT INTO logs (msg) VALUES ('keep'), ('remove'), ('keep2')`);
 
     class Logs extends db.Table("logs") {
-      id = Int8.column({ nonNull: true, generated: true });      msg = Text.column({ nonNull: true });    }
+      id = Int8.column({ nonNull: true, generated: true });
+      msg = Text.column({ nonNull: true });
+    }
 
-    await tx.execute(Logs.delete().where(({ logs }) => logs.msg["="]("remove")));
+    await Logs.delete()
+      .where(({ logs }) => logs.msg["="]("remove"))
+      .execute(tx);
 
-    const rows = await tx.execute(
-      Logs.from().select(({ logs }) => ({ msg: logs.msg })),
-    );
+    const rows = await Logs.from()
+      .select(({ logs }) => ({ msg: logs.msg }))
+      .execute(tx);
 
     expect(rows).toEqual([{ msg: "keep" }, { msg: "keep2" }]);
   });
@@ -34,13 +38,14 @@ test("delete returning", async () => {
     await tx.execute(sql`INSERT INTO tags (name) VALUES ('a'), ('b'), ('c')`);
 
     class Tags extends db.Table("tags") {
-      id = Int8.column({ nonNull: true, generated: true });      name = Text.column({ nonNull: true });    }
+      id = Int8.column({ nonNull: true, generated: true });
+      name = Text.column({ nonNull: true });
+    }
 
-    const rows = await tx.execute(
-      Tags.delete()
-        .where(({ tags }) => tags.name["="]("b"))
-        .returning(({ tags }) => ({ id: tags.id, name: tags.name })),
-    );
+    const rows = await Tags.delete()
+      .where(({ tags }) => tags.name["="]("b"))
+      .returning(({ tags }) => ({ id: tags.id, name: tags.name }))
+      .execute(tx);
 
     expectTypeOf(rows).toEqualTypeOf<{ id: string; name: string }[]>();
     expect(rows).toEqual([{ id: "2", name: "b" }]);
@@ -54,22 +59,25 @@ test("delete: multiple where calls AND-combine", async () => {
       name text NOT NULL,
       score int8 NOT NULL DEFAULT 0
     )`);
-    await tx.execute(sql`INSERT INTO items (name, score) VALUES ('a', 10), ('b', 20), ('c', 10), ('d', 30)`);
+    await tx.execute(
+      sql`INSERT INTO items (name, score) VALUES ('a', 10), ('b', 20), ('c', 10), ('d', 30)`,
+    );
 
     class Items extends db.Table("items") {
-      id = Int8.column({ nonNull: true, generated: true });      name = Text.column({ nonNull: true });      score = Int8.column({ nonNull: true, default: sql`0` });    }
+      id = Int8.column({ nonNull: true, generated: true });
+      name = Text.column({ nonNull: true });
+      score = Int8.column({ nonNull: true, default: sql`0` });
+    }
 
-    await tx.execute(
-      Items.delete()
-        .where(({ items }) => items.score["="]("10"))
-        .where(({ items }) => items.name["="]("a")),
-    );
+    await Items.delete()
+      .where(({ items }) => items.score["="]("10"))
+      .where(({ items }) => items.name["="]("a"))
+      .execute(tx);
 
-    const rows = await tx.execute(
-      Items.from()
-        .select(({ items }) => ({ name: items.name }))
-        .orderBy(({ items }) => items.name),
-    );
+    const rows = await Items.from()
+      .select(({ items }) => ({ name: items.name }))
+      .orderBy(({ items }) => items.name)
+      .execute(tx);
 
     expect(rows).toEqual([{ name: "b" }, { name: "c" }, { name: "d" }]);
   });
@@ -92,17 +100,15 @@ test("delete: where(true) after a real .where() is a no-op", async () => {
       name = Text.column({ nonNull: true });
     }
 
-    await tx.execute(
-      Guards.delete()
-        .where(({ guards }) => guards.name["="]("doomed"))
-        .where(true),
-    );
+    await Guards.delete()
+      .where(({ guards }) => guards.name["="]("doomed"))
+      .where(true)
+      .execute(tx);
 
-    const rows = await tx.execute(
-      Guards.from()
-        .select(({ guards }) => ({ name: guards.name }))
-        .orderBy(({ guards }) => guards.name),
-    );
+    const rows = await Guards.from()
+      .select(({ guards }) => ({ name: guards.name }))
+      .orderBy(({ guards }) => guards.name)
+      .execute(tx);
 
     expect(rows).toEqual([{ name: "keep" }, { name: "keep2" }]);
   });
@@ -113,8 +119,9 @@ test("delete without where throws", async () => {
     await tx.execute(sql`CREATE TABLE noop2 (id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)`);
 
     class Noop2 extends db.Table("noop2") {
-      id = Int8.column({ nonNull: true, generated: true });    }
+      id = Int8.column({ nonNull: true, generated: true });
+    }
 
-    await expect(tx.execute(Noop2.delete())).rejects.toThrow("requires .where()");
+    await expect(Noop2.delete().execute(tx)).rejects.toThrow("requires .where()");
   });
 });

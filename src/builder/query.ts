@@ -618,14 +618,17 @@ export class FinalizedQuery extends Sql {
     for (const t of this.opts.tables) {
       const alias = t.alias;
       const sourceSql = t.source.bind(ctx);
-      const asClause = t.source.emitColumnNamesWithAlias
-        ? sql`AS ${alias}(${sql.join(Object.keys(t.source.rowType()).map((col) => new Ident(col)))})`
-        : sql`AS ${alias}`;
+      // `AS` is optional for table aliases in PostgreSQL and SQLite,
+      // while Oracle rejects it. The alias-only form is portable across
+      // all three dialects; column aliases still use `AS`.
+      const aliasClause = t.source.emitColumnNamesWithAlias
+        ? sql`${alias}(${sql.join(Object.keys(t.source.rowType()).map((col) => new Ident(col)))})`
+        : sql`${alias}`;
       if (t.type === "from") {
-        tableSql.push(sql`FROM ${sourceSql} ${asClause}`);
+        tableSql.push(sql`FROM ${sourceSql} ${aliasClause}`);
       } else {
         tableSql.push(
-          sql`  ${t.type === "leftJoin" ? sql`LEFT JOIN` : sql`JOIN`} ${sourceSql} ${asClause} ON ${t.on.toSql()}`,
+          sql`  ${t.type === "leftJoin" ? sql`LEFT JOIN` : sql`JOIN`} ${sourceSql} ${aliasClause} ON ${t.on.toSql()}`,
         );
       }
     }
@@ -650,8 +653,12 @@ export class FinalizedQuery extends Sql {
               return sql`${expr.toSql()} ASC`;
             }),
           )}`,
-        this.opts.limit !== undefined && sql`LIMIT ${sql.param(this.opts.limit)}`,
-        this.opts.offset !== undefined && sql`OFFSET ${sql.param(this.opts.offset)}`,
+        ctx.database.dialect === "oracle"
+          ? this.opts.offset !== undefined && sql`OFFSET ${sql.param(this.opts.offset)} ROWS`
+          : this.opts.limit !== undefined && sql`LIMIT ${sql.param(this.opts.limit)}`,
+        ctx.database.dialect === "oracle"
+          ? this.opts.limit !== undefined && sql`${this.opts.offset === undefined ? sql`FETCH FIRST` : sql`FETCH NEXT`} ${sql.param(this.opts.limit)} ROWS ONLY`
+          : this.opts.offset !== undefined && sql`OFFSET ${sql.param(this.opts.offset)}`,
       ],
       sql`\n`,
     );
