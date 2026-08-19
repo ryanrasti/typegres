@@ -1,0 +1,23 @@
+primary_region = "fra"
+
+[build]
+  image = "gvenzl/oracle-free:23-slim"
+
+[env]
+  APP_USER = "typegres_notes"
+
+[mounts]
+  source = "oracle_data"
+  destination = "/opt/oracle/oradata"
+
+[checks.oracle]
+  type = "tcp"
+  port = 1521
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10m"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 2
+  memory = "4gb"

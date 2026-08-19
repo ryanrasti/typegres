@@ -15,9 +15,11 @@ import { isPlainObject, isThenable } from "../util";
 export {
   RpcTarget,
   RpcStub,
+  newHttpBatchRpcSession,
+  newMessagePortRpcSession,
   newWebSocketRpcSession,
   newWorkersRpcResponse,
-  newMessagePortRpcSession,
+  nodeHttpBatchRpcResponse,
 } from "capnweb";
 
 // --- capnweb shim for @expose classes ---
