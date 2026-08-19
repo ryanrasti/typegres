@@ -1,0 +1,15 @@
+.git
+.claude
+.direnv
+.exobox
+pg_data
+node_modules
+**/node_modules
+**/.wrangler
+**/dist
+!packages/capnweb/dist
+!packages/capnweb/dist/**
+**/dist-server
+coverage
+site/public/typegres.js
+site/public/typegres.d.ts
